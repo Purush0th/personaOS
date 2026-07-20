@@ -1,0 +1,44 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #1a1a2e;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.9rem 1.5rem;
+  background: #1a1a2e;
+  color: #fff;
+
+  .product {
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  .nickname {
+    opacity: 0.75;
+    font-size: 0.9rem;
+
+    &::before {
+      content: '· ';
+    }
+  }
+}
+
+.content {
+  max-width: 720px;
+  margin: 3rem auto;
+  padding: 0 1.5rem;
+
+  h1 {
+    font-size: 1.6rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .error {
+    color: #b00020;
+  }
+}

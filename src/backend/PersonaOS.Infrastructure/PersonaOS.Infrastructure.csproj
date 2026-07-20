@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PersonaOS.Domain\PersonaOS.Domain.csproj" />
+    <ProjectReference Include="..\PersonaOS.Application\PersonaOS.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.36.0" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Abstractions" Version="10.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.1" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.2" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

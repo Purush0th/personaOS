@@ -1,0 +1,85 @@
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using PersonaOS.Application.Common.Interfaces;
+using PersonaOS.Domain.Entities;
+
+namespace PersonaOS.Infrastructure.Persistence;
+
+/// <summary>
+/// EF Core context for the PersonaOS install. SQL Server backed; implements the
+/// Application persistence port. Migrations are auto-applied on API startup.
+/// </summary>
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), IAppDbContext
+{
+    public DbSet<InstanceConfig> InstanceConfig => Set<InstanceConfig>();
+    public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<UserProfile> UserProfile => Set<UserProfile>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<InstanceConfig>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Id).ValueGeneratedNever();
+            cfg.Property(x => x.AssistantNickname).HasMaxLength(100).IsRequired();
+            cfg.Property(x => x.PersonaTemplate).HasMaxLength(4000);
+            cfg.Property(x => x.TimeZone).HasMaxLength(100).IsRequired();
+            cfg.Property(x => x.ClaudeModel).HasMaxLength(100).IsRequired();
+            cfg.Property(x => x.AnthropicApiKeyEncrypted).HasMaxLength(2000);
+
+            // Feature toggle map persisted as a JSON string column.
+            var dictComparer = new ValueComparer<Dictionary<string, bool>>(
+                (a, b) => JsonSerializer.Serialize(a, JsonOpts) == JsonSerializer.Serialize(b, JsonOpts),
+                v => v == null ? 0 : JsonSerializer.Serialize(v, JsonOpts).GetHashCode(),
+                v => JsonSerializer.Deserialize<Dictionary<string, bool>>(
+                        JsonSerializer.Serialize(v, JsonOpts), JsonOpts) ?? new());
+
+            cfg.Property(x => x.Features)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, JsonOpts),
+                    v => JsonSerializer.Deserialize<Dictionary<string, bool>>(v, JsonOpts) ?? new())
+                .Metadata.SetValueComparer(dictComparer);
+        });
+
+        modelBuilder.Entity<AdminUser>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Username).HasMaxLength(100).IsRequired();
+            cfg.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
+            cfg.HasIndex(x => x.Username).IsUnique();
+        });
+
+        modelBuilder.Entity<Conversation>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            cfg.HasMany(x => x.Messages)
+                .WithOne(m => m.Conversation)
+                .HasForeignKey(m => m.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            cfg.HasIndex(x => x.UpdatedAtUtc);
+        });
+
+        modelBuilder.Entity<ChatMessage>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Role).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.Content).IsRequired();
+            cfg.HasIndex(x => new { x.ConversationId, x.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<UserProfile>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Id).ValueGeneratedNever();
+            cfg.Property(x => x.AboutMe).HasMaxLength(8000);
+        });
+    }
+
+    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+}

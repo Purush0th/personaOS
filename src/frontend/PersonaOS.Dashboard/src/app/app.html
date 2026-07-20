@@ -1,0 +1,25 @@
+<header class="topbar">
+  <span class="product">PersonaOS</span>
+  @if (brandingService.branding(); as b) {
+    <span class="nickname">{{ b.assistantNickname }}</span>
+  }
+</header>
+
+<main class="content">
+  @if (brandingService.loadError(); as err) {
+    <p class="error">{{ err }}</p>
+  } @else if (brandingService.branding(); as b) {
+    @if (!b.isConfigured) {
+      <setup-wizard (completed)="onSetupCompleted()" />
+    } @else {
+      <section>
+        <h1>{{ b.assistantNickname }} is ready</h1>
+        <p>Enabled modules: {{ b.enabledFeatures.join(', ') }}</p>
+      </section>
+    }
+  } @else {
+    <p>Loading…</p>
+  }
+</main>
+
+<router-outlet />

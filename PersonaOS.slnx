@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="src/backend/PersonaOS.Api/PersonaOS.Api.csproj" />
+    <Project Path="src/backend/PersonaOS.Application/PersonaOS.Application.csproj" />
+    <Project Path="src/backend/PersonaOS.Domain/PersonaOS.Domain.csproj" />
+    <Project Path="src/backend/PersonaOS.Infrastructure/PersonaOS.Infrastructure.csproj" />
+  </Folder>
+</Solution>

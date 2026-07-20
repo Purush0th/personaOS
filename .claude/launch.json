@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["ng", "serve", "--port", "4200"],
+      "cwd": "src/frontend/PersonaOS.Dashboard",
+      "port": 4200
+    }
+  ]
+}
