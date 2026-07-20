@@ -1,0 +1,40 @@
+# ---- .NET ----
+bin/
+obj/
+*.user
+*.suo
+.vs/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.nupkg
+
+# ---- Secrets / local config ----
+appsettings.*.local.json
+.env
+*.env.local
+secrets.json
+
+# ---- Node / Angular (dashboard) ----
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+
+# ---- Flutter / mobile ----
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+*.iml
+
+# ---- Data (runtime, bind-mounted) ----
+data/docs-storage/*
+!data/docs-storage/.gitkeep
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Claude Code local ----
+.claude/settings.local.json

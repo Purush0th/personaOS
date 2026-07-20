@@ -1,0 +1,87 @@
+<section class="wizard">
+  <h1>Welcome to PersonaOS</h1>
+  <p class="intro">
+    Let's set up your private assistant. Everything here stays on your server —
+    your API key is encrypted at rest and never leaves your machine except to
+    call Anthropic directly.
+  </p>
+
+  <form (ngSubmit)="submit()">
+    <fieldset [disabled]="submitting()">
+      <h2>Your assistant</h2>
+
+      <label>
+        Assistant name
+        <input name="nickname" [(ngModel)]="nickname" placeholder="e.g. Siri, Jarvis, Friday" maxlength="100" required />
+        <small>How your assistant refers to itself. Pick anything you like.</small>
+      </label>
+
+      <label>
+        Personality &amp; tone <span class="optional">(optional)</span>
+        <textarea name="persona" [(ngModel)]="persona" rows="3"
+          placeholder="e.g. Be warm and encouraging. Keep answers short unless asked for detail."></textarea>
+      </label>
+
+      <h2>Admin account</h2>
+
+      <label>
+        Username
+        <input name="adminUsername" [(ngModel)]="adminUsername" autocomplete="username" required />
+      </label>
+
+      <div class="row">
+        <label>
+          Password
+          <input name="adminPassword" type="password" [(ngModel)]="adminPassword" autocomplete="new-password" required />
+        </label>
+        <label>
+          Confirm password
+          <input name="adminPasswordConfirm" type="password" [(ngModel)]="adminPasswordConfirm" autocomplete="new-password" required />
+        </label>
+      </div>
+
+      <h2>Claude</h2>
+
+      <label>
+        Anthropic API key
+        <input name="anthropicApiKey" type="password" [(ngModel)]="anthropicApiKey" placeholder="sk-ant-…" required />
+        <small>Get one at console.anthropic.com — you pay Anthropic directly for usage.</small>
+      </label>
+
+      <label>
+        Model
+        <select name="claudeModel" [(ngModel)]="claudeModel">
+          @for (m of models; track m.id) {
+            <option [value]="m.id">{{ m.label }}</option>
+          }
+        </select>
+      </label>
+
+      <h2>Preferences</h2>
+
+      <label>
+        Time zone
+        <input name="timeZone" [(ngModel)]="timeZone" />
+        <small>Used for your planner and reminder times.</small>
+      </label>
+
+      <div class="features">
+        <span class="features-title">Modules</span>
+        @for (f of features; track f.key) {
+          <label class="feature">
+            <input type="checkbox" [name]="'feature_' + f.key" [(ngModel)]="f.enabled" />
+            {{ f.label }}
+          </label>
+        }
+      </div>
+
+      @if (error(); as err) {
+        <p class="error">{{ err }}</p>
+      }
+
+      <button type="submit" class="submit">
+        {{ submitting() ? 'Setting up…' : 'Finish setup' }}
+      </button>
+    </fieldset>
+  </form>
+</section>
