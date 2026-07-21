@@ -3,6 +3,30 @@
 Open-source (Apache-2.0), self-hosted, single-user personal AI assistant.
 .NET 10 API + SQL Server · Flutter mobile · Angular 20 dashboard · official Anthropic C# SDK.
 
+## Every session: working agreement
+
+This file is the **only doc auto-loaded into every Claude Code session** — so it is the
+authoritative source for *how to work here*. Any session, fresh or parallel, must follow this
+without needing a prior conversation. Do not rely on chat history for project state; rely on
+the files below.
+
+**Which doc does what (do not mix these up):**
+
+| Doc | Role |
+|---|---|
+| `CLAUDE.md` (this file) | **How** to work: layout, layer rules, build commands, conventions. Auto-loaded. |
+| `TODO.md` | **Where we are**: the single source of progress truth — live task board, claims, status. |
+| `docs/PRD.md` | **What & why**: product rules, architecture decisions, phase scope. Changes rarely. |
+
+**Session protocol (every session, in order):**
+1. Read [TODO.md](TODO.md). Progress lives *only* there — never record status in the PRD or code comments.
+2. **Claim before coding**: change the task to `[~] (claimed: <area> session, <date>)` in TODO.md so
+   parallel sessions don't collide. Mark `[x]` when done, with a one-line note for the next session.
+3. **Stay in your partition** (backend / dashboard / mobile / infra). Cross-area work goes solo.
+   If two sessions must touch the same project, use a `git worktree`.
+4. Keep the build at **0 warnings** and follow the layer rules below. Do **not** commit unless the
+   owner explicitly asks.
+
 ## Repo layout
 
 ```
@@ -27,11 +51,6 @@ data/           docs-storage/ (runtime files, gitignored)
   `Program.cs` is the composition root and hosts JWT *validation* + Data Protection setup.
 - New capability = port in Application + adapter in Infrastructure. Claude tools (Phase 2+)
   get an Application-level tool registry dispatched inside `ChatService`.
-
-**Start here every session:**
-1. Read [TODO.md](TODO.md) — the shared task board across all Claude Code sessions.
-   Claim a task there (`[~] (claimed: …)`) before coding; mark `[x]` when done.
-2. Product spec: [docs/PRD.md](docs/PRD.md).
 
 ## Non-negotiable product rules
 
