@@ -15,6 +15,7 @@ public interface IAppDbContext
     DbSet<ChatMessage> ChatMessages { get; }
     DbSet<UserProfile> UserProfile { get; }
     DbSet<Goal> Goals { get; }
+    DbSet<PlannerItem> PlannerItems { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

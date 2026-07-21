@@ -64,8 +64,23 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ## Phase 3 — Daily Planner
 
-- [ ] `PlannerItems` table (date, task, optional Goal link)
-- [ ] REST CRUD + Claude tools (mirror Phase 2 pattern)
+- [x] `PlannerItems` table (date, task, optional Goal link)
+      — entity `PlannerItem.cs` (+ `PlannerItemStatuses` planned/done/skipped, optional
+      `ScheduledTime`, `SortOrder`), migration `20260721132154_PlannerItems`, applied to dev DB.
+      Goal FK is `OnDelete(SetNull)`: deleting a goal keeps its tasks and unlinks them (verified).
+- [x] REST CRUD + Claude tools (mirror Phase 2 pattern)
+      — `PlannerService` + `PlannerController` (`GET /api/planner?date=|from=&to=`,
+      POST/PUT/DELETE `/items`, `PUT /items/{id}/status`, `PUT /items/{id}/date`) behind
+      `RequireFeature("planner")`. Tools: `get_planner`, `add_planner_item`,
+      `update_planner_item_status`, `move_planner_item`.
+      Verified live: create (timed + linked), day/range query, ordering (timed before
+      unscheduled), status, move-to-tomorrow, 400s for bad status / missing goal,
+      feature toggle 403 + hidden in branding.
+      **Note:** refactored `GoalValidationException` → shared `DomainValidationException`
+      base + single `DomainValidationExceptionFilter`; goal error codes unchanged
+      (`goal_validation_failed`). Subclass it for future modules — don't add a filter.
+      System prompt now includes the user's local *today* + today's planner items.
+      **End-to-end tool call still needs the live-key smoke test** (same blocker as Phases 1–2).
 - [ ] Flutter planner day view; dashboard planner view
 
 ## Phase 4 — Reminders + FCM push

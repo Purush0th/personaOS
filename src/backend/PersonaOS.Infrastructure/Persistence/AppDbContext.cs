@@ -18,10 +18,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<UserProfile> UserProfile => Set<UserProfile>();
     public DbSet<Goal> Goals => Set<Goal>();
+    public DbSet<PlannerItem> PlannerItems => Set<PlannerItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<PlannerItem>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            cfg.Property(x => x.Notes).HasMaxLength(4000);
+            cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            // Deleting a goal keeps its planner items; they simply become unlinked.
+            cfg.HasOne(x => x.Goal)
+                .WithMany()
+                .HasForeignKey(x => x.GoalId)
+                .OnDelete(DeleteBehavior.SetNull);
+            cfg.HasIndex(x => new { x.Date, x.SortOrder });
+        });
 
         modelBuilder.Entity<InstanceConfig>(cfg =>
         {

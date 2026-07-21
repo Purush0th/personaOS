@@ -31,7 +31,10 @@ public class SystemPromptBuilder(
             sb.Append("\n\nAbout the user:\n").Append(profile.AboutMe.Trim());
         }
 
-        sb.Append("\n\nThe user's time zone is ").Append(config.TimeZone).Append('.');
+        // "Today" must be the user's local date, not the server's UTC date.
+        var today = TodayFor(config.TimeZone);
+        sb.Append("\n\nThe user's time zone is ").Append(config.TimeZone)
+          .Append(", where today is ").Append(today.ToString("yyyy-MM-dd")).Append('.');
 
         if (config.Features.TryGetValue(InstanceConfig.Modules.Goals, out var goalsOn) && goalsOn)
         {
@@ -51,6 +54,41 @@ public class SystemPromptBuilder(
             }
         }
 
+        if (config.Features.TryGetValue(InstanceConfig.Modules.Planner, out var plannerOn) && plannerOn)
+        {
+            var todaysItems = await db.PlannerItems.AsNoTracking()
+                .Where(i => i.Date == today)
+                .OrderBy(i => i.ScheduledTime == null)
+                .ThenBy(i => i.ScheduledTime)
+                .ThenBy(i => i.SortOrder)
+                .Select(i => new { i.Title, i.Status, i.ScheduledTime })
+                .ToListAsync(ct);
+            if (todaysItems.Count > 0)
+            {
+                sb.Append("\n\nToday's planner (use the planner tools to change it):");
+                foreach (var item in todaysItems)
+                {
+                    sb.Append("\n- ");
+                    if (item.ScheduledTime is TimeOnly time) sb.Append(time.ToString("HH:mm")).Append(' ');
+                    sb.Append(item.Title).Append(" [").Append(item.Status).Append(']');
+                }
+            }
+        }
+
         return sb.ToString();
+    }
+
+    /// <summary>The user's local date; falls back to UTC if the zone id is unknown.</summary>
+    private static DateOnly TodayFor(string timeZoneId)
+    {
+        try
+        {
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone));
+        }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            return DateOnly.FromDateTime(DateTime.UtcNow);
+        }
     }
 }

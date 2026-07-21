@@ -5,6 +5,8 @@ using PersonaOS.Application.Auth;
 using PersonaOS.Application.Configuration;
 using PersonaOS.Application.Goals;
 using PersonaOS.Application.Goals.Tools;
+using PersonaOS.Application.Planner;
+using PersonaOS.Application.Planner.Tools;
 
 namespace PersonaOS.Application;
 
@@ -18,12 +20,17 @@ public static class DependencyInjection
         services.AddScoped<ISystemPromptBuilder, SystemPromptBuilder>();
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<IGoalService, GoalService>();
+        services.AddScoped<IPlannerService, PlannerService>();
 
         services.AddScoped<IPersonaToolRegistry, PersonaToolRegistry>();
         services.AddScoped<IPersonaTool, GetGoalsTool>();
         services.AddScoped<IPersonaTool, CreateGoalTool>();
         services.AddScoped<IPersonaTool, UpdateGoalStatusTool>();
         services.AddScoped<IPersonaTool, LinkGoalTool>();
+        services.AddScoped<IPersonaTool, GetPlannerTool>();
+        services.AddScoped<IPersonaTool, AddPlannerItemTool>();
+        services.AddScoped<IPersonaTool, UpdatePlannerItemStatusTool>();
+        services.AddScoped<IPersonaTool, MovePlannerItemTool>();
 
         return services;
     }
