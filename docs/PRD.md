@@ -5,13 +5,9 @@
 > assistant any nickname you like — and it manages your goals, daily planner,
 > reminders, documents, and a Claude-powered chat/voice interface.
 
-**Document map** — each file has one job:
-
-| Doc | Job |
-|---|---|
-| this PRD | *What* we're building and *why* — product rules, architecture decisions, phase scope. Changes rarely. |
-| [TODO.md](../TODO.md) | *Where we are* — live task board, claims, per-task status. The only source of progress truth. |
-| [CLAUDE.md](../CLAUDE.md) | *How* to work on the code — layout, build commands, layer rules, session conventions. |
+> **Which doc does what:** this PRD = *what & why*; [TODO.md](../TODO.md) = *live progress*
+> (the only status source); [CLAUDE.md](../CLAUDE.md) = *how to work* + the session protocol
+> every Claude Code session follows. Full working agreement is in CLAUDE.md.
 
 ## 1. Product vision
 
