@@ -32,7 +32,8 @@ public record UpdateGoalRequest(
     int? Progress = null);
 
 /// <summary>Invalid input to a goal operation; message is user/model-presentable.</summary>
-public class GoalValidationException(string message) : Exception(message);
+public class GoalValidationException(string message)
+    : Common.Exceptions.DomainValidationException(message, "goal_validation_failed");
 
 public interface IGoalService
 {
