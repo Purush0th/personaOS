@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
+using PersonaOS.Domain.Entities;
 
 namespace PersonaOS.Application.Ai;
 
@@ -32,7 +33,24 @@ public class SystemPromptBuilder(
 
         sb.Append("\n\nThe user's time zone is ").Append(config.TimeZone).Append('.');
 
-        // Phase 2+: append an active-goals summary here.
+        if (config.Features.TryGetValue(InstanceConfig.Modules.Goals, out var goalsOn) && goalsOn)
+        {
+            var activeRoots = await db.Goals.AsNoTracking()
+                .Where(g => g.ParentGoalId == null && g.Status == GoalStatuses.Active)
+                .OrderBy(g => g.PeriodStart).ThenBy(g => g.Id)
+                .Select(g => new { g.Title, g.PeriodType, g.Progress })
+                .ToListAsync(ct);
+            if (activeRoots.Count > 0)
+            {
+                sb.Append("\n\nThe user's active top-level goals (use the goal tools for details or changes):");
+                foreach (var g in activeRoots)
+                {
+                    sb.Append("\n- ").Append(g.Title)
+                      .Append(" (").Append(g.PeriodType).Append(", ~").Append(g.Progress).Append("% by own tracking)");
+                }
+            }
+        }
+
         return sb.ToString();
     }
 }

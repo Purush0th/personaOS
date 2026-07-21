@@ -17,6 +17,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<UserProfile> UserProfile => Set<UserProfile>();
+    public DbSet<Goal> Goals => Set<Goal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -71,6 +72,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.Role).HasMaxLength(20).IsRequired();
             cfg.Property(x => x.Content).IsRequired();
             cfg.HasIndex(x => new { x.ConversationId, x.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<Goal>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            cfg.Property(x => x.Description).HasMaxLength(4000);
+            cfg.Property(x => x.PeriodType).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            // Self-referencing FK: SQL Server forbids cascade here; the subtree is
+            // deleted explicitly in GoalService.DeleteAsync.
+            cfg.HasOne(x => x.Parent)
+                .WithMany(x => x.Children)
+                .HasForeignKey(x => x.ParentGoalId)
+                .OnDelete(DeleteBehavior.Restrict);
+            cfg.HasIndex(x => x.ParentGoalId);
+            cfg.HasIndex(x => new { x.Status, x.PeriodStart });
         });
 
         modelBuilder.Entity<UserProfile>(cfg =>

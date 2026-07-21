@@ -3,6 +3,7 @@ namespace PersonaOS.Application.Ai;
 /// <summary>
 /// One event in the chat SSE stream.
 /// Types: "start" (carries ConversationId), "delta" (carries Text),
+/// "tool" (carries ToolName while a Claude tool runs),
 /// "done" (carries token usage), "error" (carries Error).
 /// </summary>
 public record ChatStreamEvent(
@@ -11,7 +12,8 @@ public record ChatStreamEvent(
     int? ConversationId = null,
     long? InputTokens = null,
     long? OutputTokens = null,
-    string? Error = null);
+    string? Error = null,
+    string? ToolName = null);
 
 public record ConversationSummary(int Id, string Title, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 

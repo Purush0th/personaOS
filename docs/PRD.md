@@ -5,6 +5,14 @@
 > assistant any nickname you like — and it manages your goals, daily planner,
 > reminders, documents, and a Claude-powered chat/voice interface.
 
+**Document map** — each file has one job:
+
+| Doc | Job |
+|---|---|
+| this PRD | *What* we're building and *why* — product rules, architecture decisions, phase scope. Changes rarely. |
+| [TODO.md](../TODO.md) | *Where we are* — live task board, claims, per-task status. The only source of progress truth. |
+| [CLAUDE.md](../CLAUDE.md) | *How* to work on the code — layout, build commands, layer rules, session conventions. |
+
 ## 1. Product vision
 
 A **truly private** personal assistant:
@@ -45,6 +53,11 @@ Nothing user-chosen (nickname, persona, API key, personal facts) is ever hardcod
 Key decisions:
 
 - **Backend**: ASP.NET Core (.NET), C#. SQL Server via EF Core; migrations auto-apply on startup.
+  **Clean architecture** (`src/backend/`): `Api` (controllers + composition root) → `Application`
+  (use cases + ports) ← `Infrastructure` (EF Core, Anthropic SDK, Data Protection, JWT adapters);
+  `Application` → `Domain` (entities). Business logic never touches vendor SDKs directly —
+  the Anthropic client sits behind an `IAiMessageStreamer` port, keeping the model provider
+  swappable and use cases unit-testable. Layer rules: [CLAUDE.md](../CLAUDE.md).
 - **Claude integration**: **native Anthropic tool-use** — capabilities are declared in the Messages API `tools` param and dispatched to in-process domain services. No MCP in v1 (the app is the only tool consumer); tools are thin wrappers over the same services the REST endpoints use, so an MCP façade stays a small additive change.
 - **Chat**: streaming via SSE; system prompt = nickname + persona template + user profile + active-goals summary; history windowing + rolling summarization; token usage logged per request.
 - **Auth**: JWT with a single admin username/password (created in the Setup Wizard).
@@ -75,19 +88,22 @@ Writes the singleton `InstanceConfig`, seeds the admin user, runs migrations. Re
 
 ## 5. Roadmap (phases)
 
-| Phase | Scope | Status |
-|---|---|---|
-| 0 | Solution scaffolding, EF Core + `InstanceConfig`, JWT auth, `/api/branding`, system-prompt builder | ✅ backend done |
-| 0.5 | Setup Wizard (admin + config seeding), feature-toggle middleware | — |
-| 1 | Chat: SSE streaming, agentic loop, history windowing, client-version gate, Flutter chat screen | — |
-| 2 | Goals: Y/Q/M hierarchy (`ParentGoalId`), progress rollup, CRUD + Claude tools | — |
-| 3 | Daily planner: CRUD + tools, day view | — |
-| 4 | Reminders + FCM push, device tokens, conversational reminder creation | — |
-| 5 | Docs: filesystem upload/download, `get_document` tool (no RAG) | — |
-| 6 | Voice: push-to-talk STT + TTS in chat | — |
-| 7 | Dashboard feature parity | — |
-| 8 | Proactive scheduler (morning brief, goal reviews) — feature-toggled | — |
-| 9 | Packaging: compose bundle, release pipeline, update notifier, install/upgrade tests, docs | — |
+> Phase *scope* is defined here; live per-task **status and claims live in [TODO.md](../TODO.md)**
+> (kept current by every working session — this table deliberately carries no status column).
+
+| Phase | Scope |
+|---|---|
+| 0 | Solution scaffolding, EF Core + `InstanceConfig`, JWT auth, `/api/branding`, system-prompt builder |
+| 0.5 | Setup Wizard (admin + config seeding), feature-toggle middleware |
+| 1 | Chat: SSE streaming, agentic loop, history windowing, client-version gate, Flutter chat screen |
+| 2 | Goals: Y/Q/M hierarchy (`ParentGoalId`), progress rollup, CRUD + Claude tools |
+| 3 | Daily planner: CRUD + tools, day view |
+| 4 | Reminders + FCM push, device tokens, conversational reminder creation |
+| 5 | Docs: filesystem upload/download, `get_document` tool (no RAG) |
+| 6 | Voice: push-to-talk STT + TTS in chat |
+| 7 | Dashboard feature parity |
+| 8 | Proactive scheduler (morning brief, goal reviews) — feature-toggled |
+| 9 | Packaging: compose bundle, release pipeline, update notifier, install/upgrade tests, docs |
 
 ### Explicitly deferred (not v1)
 
