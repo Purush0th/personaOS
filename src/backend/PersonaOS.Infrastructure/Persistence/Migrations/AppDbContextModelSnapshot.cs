@@ -116,6 +116,57 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.ToTable("Conversations");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.Goal", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<int?>("ParentGoalId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PeriodType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("Progress")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentGoalId");
+
+                    b.HasIndex("Status", "PeriodStart");
+
+                    b.ToTable("Goals");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.InstanceConfig", b =>
                 {
                     b.Property<int>("Id")
@@ -192,9 +243,24 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Navigation("Conversation");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.Goal", b =>
+                {
+                    b.HasOne("PersonaOS.Domain.Entities.Goal", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentGoalId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.Conversation", b =>
                 {
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("PersonaOS.Domain.Entities.Goal", b =>
+                {
+                    b.Navigation("Children");
                 });
 #pragma warning restore 612, 618
         }

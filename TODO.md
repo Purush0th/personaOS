@@ -42,12 +42,23 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ## Phase 2 — Goals (Y/Q/M)
 
-- [ ] `Goals` table: self-referencing hierarchy (`ParentGoalId`), period type, status, progress
-- [ ] Progress rollup in domain service (parent derives from children)
-- [ ] REST CRUD endpoints (`/api/goals`) behind `RequireFeature("goals")`
-- [ ] **Tool registry** in `ChatService` (`IPersonaTool`: name/description/schema/execute)
-- [ ] First Claude tools: `get_goals`, `create_goal`, `update_goal_status`, `link_goal`
-- [ ] Feature-toggle functional test (disable goals → 403 + hidden in branding)
+- [x] `Goals` table: self-referencing hierarchy (`ParentGoalId`), period type, status, progress
+      — entity `Goal.cs`, migration `20260721054352_Goals`, applied to dev DB.
+- [x] Progress rollup in domain service (parent derives from children)
+      — `Domain/Services/GoalProgressCalculator.cs` (rounded avg of non-dropped children;
+      leaf falls back to own progress). Verified: avg(80,20)=50; dropping a child re-rolls to 80.
+- [x] REST CRUD endpoints (`/api/goals`) behind `RequireFeature("goals")`
+      — `GoalsController` (GET tree/one, POST, PUT, PUT /status, PUT /parent, DELETE subtree).
+      `GoalValidationException` → 400 via `GoalValidationExceptionFilter`.
+- [x] **Tool registry** in `ChatService` (`IPersonaTool`: name/description/schema/execute)
+      — `Ai/Tools/IPersonaTool.cs` + `PersonaToolRegistry` (feature-gated, never throws to model).
+      `ChatService` now runs a tool loop (max 8 iterations) and emits an SSE `tool` event.
+- [x] First Claude tools: `get_goals`, `create_goal`, `update_goal_status`, `link_goal`
+      — `Goals/Tools/GoalTools.cs`; all 4 JSON schemas validated. **End-to-end tool call still
+      needs the live-key smoke test** (blocked on owner's API key — same blocker as Phase 1).
+- [x] Feature-toggle functional test (disable goals → 403 + hidden in branding)
+      — verified live: disabling `goals` drops it from `/api/branding` and returns 403
+      `feature_disabled` on `/api/goals`; re-enabling restores 200.
 - [ ] Flutter Goals screen (hierarchy view)
 - [ ] Dashboard Goals view
 
@@ -97,7 +108,7 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ## Cross-cutting / anytime
 
-- [ ] **Initial git commit** (owner asked to hold until requested)
+- [x] Initial git commit (`0ca5bbb`, 2026-07-20)
 - [ ] Backend unit tests project (`PersonaOS.Tests`) — none exist yet
 - [ ] Personalization grep-check (no user data in source) before first public push
 - [ ] Node upgrade to ≥ 24.15 → unpin Angular 20 → Angular latest
