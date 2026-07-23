@@ -141,8 +141,26 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ## Phase 8 — Proactive scheduler (feature-toggled)
 
-- [ ] Background scheduler (BackgroundService or Quartz.NET)
-- [ ] Morning brief via FCM; goal-review prompts; nightly rollup
+- [x] Background scheduler (`ProactiveScheduleService`, 5-min `PeriodicTimer`, scoped per pass,
+      survives failures). No Quartz needed — `ProactiveJobRun` + a unique index on
+      (JobName, LocalDate) is what makes it idempotent, not the timer.
+      `ProactiveService` takes a **`TimeProvider`** so scheduling is unit-testable;
+      DI registers `TimeProvider.System`.
+- [x] Morning brief + evening rollup (goal nudges included in the brief)
+      — `ProactiveBriefComposer` builds text **deterministically** from planner/reminders/goals:
+      no API call, so a quota or key problem can never silence the briefs.
+      Scheduled per-job at local times on `InstanceConfig` (`MorningBriefTime` 07:30,
+      `EveningRollupTime` 21:00; null disables that job). A job more than 3h late is skipped
+      rather than fired stale after downtime. Silent when there's nothing to report.
+      Each brief is pushed **and** filed as a chat conversation, so the user can reply
+      ("yes, move them to tomorrow") with full context.
+      `GET /api/proactive/runs` (audit) and `POST /api/proactive/run/{job}?force=` (manual)
+      behind `RequireFeature("proactive")`, which is **off by default**.
+      Verified live: 403 when disabled, real brief from planner+goals, `force=false` skipped
+      as "already ran today", rollup with open items, unknown job 400, audit trail, and both
+      briefs appearing in chat history. 11 unit tests cover schedule/idempotency/edge cases.
+- [ ] Optional: model-written phrasing for briefs (must stay a graceful enhancement over the
+      deterministic text, never a dependency).
 
 ## Phase 9 — Packaging + open-source release
 

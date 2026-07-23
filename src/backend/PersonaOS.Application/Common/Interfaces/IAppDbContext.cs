@@ -19,6 +19,7 @@ public interface IAppDbContext
     DbSet<Reminder> Reminders { get; }
     DbSet<DeviceToken> DeviceTokens { get; }
     DbSet<Document> Documents { get; }
+    DbSet<ProactiveJobRun> ProactiveJobRuns { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }
