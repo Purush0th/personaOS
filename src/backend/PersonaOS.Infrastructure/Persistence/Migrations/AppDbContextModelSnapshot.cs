@@ -116,6 +116,42 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.ToTable("Conversations");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.DeviceToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("LastSeenUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.ToTable("DeviceTokens");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.Goal", b =>
                 {
                     b.Property<int>("Id")
@@ -263,6 +299,60 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.ToTable("PlannerItems");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.Reminder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeliveredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DeliveryAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("DueAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("GoalId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("PlannerItemId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GoalId");
+
+                    b.HasIndex("PlannerItemId");
+
+                    b.HasIndex("Status", "DueAtUtc");
+
+                    b.ToTable("Reminders");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.UserProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -310,6 +400,23 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Goal");
+                });
+
+            modelBuilder.Entity("PersonaOS.Domain.Entities.Reminder", b =>
+                {
+                    b.HasOne("PersonaOS.Domain.Entities.Goal", "Goal")
+                        .WithMany()
+                        .HasForeignKey("GoalId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("PersonaOS.Domain.Entities.PlannerItem", "PlannerItem")
+                        .WithMany()
+                        .HasForeignKey("PlannerItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Goal");
+
+                    b.Navigation("PlannerItem");
                 });
 
             modelBuilder.Entity("PersonaOS.Domain.Entities.Conversation", b =>
