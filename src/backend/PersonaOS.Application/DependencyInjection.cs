@@ -3,6 +3,8 @@ using PersonaOS.Application.Ai;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Auth;
 using PersonaOS.Application.Configuration;
+using PersonaOS.Application.Documents;
+using PersonaOS.Application.Documents.Tools;
 using PersonaOS.Application.Goals;
 using PersonaOS.Application.Goals.Tools;
 using PersonaOS.Application.Planner;
@@ -24,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IGoalService, GoalService>();
         services.AddScoped<IPlannerService, PlannerService>();
         services.AddScoped<IReminderService, ReminderService>();
+        services.AddScoped<IDocumentService, DocumentService>();
         services.AddScoped<IReminderDispatcher, ReminderDispatcher>();
 
         services.AddScoped<IPersonaToolRegistry, PersonaToolRegistry>();
@@ -38,6 +41,8 @@ public static class DependencyInjection
         services.AddScoped<IPersonaTool, GetRemindersTool>();
         services.AddScoped<IPersonaTool, CreateReminderTool>();
         services.AddScoped<IPersonaTool, CancelReminderTool>();
+        services.AddScoped<IPersonaTool, ListDocumentsTool>();
+        services.AddScoped<IPersonaTool, ReadDocumentTool>();
 
         return services;
     }
