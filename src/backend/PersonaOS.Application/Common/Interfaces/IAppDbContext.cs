@@ -18,6 +18,7 @@ public interface IAppDbContext
     DbSet<PlannerItem> PlannerItems { get; }
     DbSet<Reminder> Reminders { get; }
     DbSet<DeviceToken> DeviceTokens { get; }
+    DbSet<Document> Documents { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

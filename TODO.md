@@ -111,8 +111,22 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ## Phase 5 — Docs storage
 
-- [ ] `POST/GET /api/documents` — filesystem storage under `data/docs-storage/`
-- [ ] Claude tool `get_document(name)` (retrieval by name; NO RAG in v1)
+- [x] `POST/GET /api/documents` — filesystem storage under `data/docs-storage/`
+      — `Document` entity + migration `20260723055854_Documents`; `DocumentService` +
+      `DocumentsController` (list/search, metadata, download, upload multipart, edit
+      description, delete) behind `RequireFeature("docs")`.
+      `IDocumentStorage` port → `FileSystemDocumentStorage` (root from
+      `Documents:StoragePath`, default `<app>/data/docs-storage`).
+      **Security:** on-disk names are server-generated GUIDs, user names are only metadata,
+      and every resolved path is checked to stay inside the root. Verified: a filename of
+      `../../../../etc/passwd` collapses to `passwd`; 25 MB cap; empty upload rejected;
+      delete removes both the row and the file.
+- [x] Claude tool `get_document(name)` (retrieval by name; NO RAG in v1)
+      — shipped as `list_documents` + `read_document` (accepts `documentId` **or**
+      `fileName`, disambiguating multiple matches). Text formats only (txt/md/csv/json/
+      xml/code); PDFs/images/Office return a clear "cannot be read as text" message —
+      extraction stays out of scope per the PRD. Reads truncate at 20k characters.
+      **End-to-end tool call still needs the live-key smoke test** (same blocker as Phases 1–4).
 
 ## Phase 6 — Voice (push-to-talk)
 

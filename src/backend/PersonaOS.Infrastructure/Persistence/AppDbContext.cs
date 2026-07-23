@@ -21,10 +21,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PlannerItem> PlannerItems => Set<PlannerItem>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
+    public DbSet<Document> Documents => Set<Document>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Document>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.FileName).HasMaxLength(255).IsRequired();
+            cfg.Property(x => x.StorageName).HasMaxLength(100).IsRequired();
+            cfg.Property(x => x.ContentType).HasMaxLength(200).IsRequired();
+            cfg.Property(x => x.Description).HasMaxLength(2000);
+            cfg.HasIndex(x => x.StorageName).IsUnique();
+            cfg.HasIndex(x => x.CreatedAtUtc);
+        });
 
         modelBuilder.Entity<Reminder>(cfg =>
         {
