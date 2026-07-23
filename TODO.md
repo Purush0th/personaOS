@@ -98,8 +98,8 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
       never crashes the host). Prunes provider-rejected tokens; gives up after 5 attempts.
       Verified: with push unconfigured, due reminders stay **pending** (not failed) so they
       fire once FCM is added; cancelled reminders are skipped.
-      ⚠️ **Untested: the success path** (mark delivered / prune invalid token / retry-then-fail)
-      — needs either FCM or the test project below with a fake `IPushSender`.
+      ✅ The success path (mark delivered / prune invalid token / retry-then-fail) is now
+      covered by `ReminderDispatcherTests` with a fake `IPushSender`.
 - [x] Claude tool: conversational reminder creation (resolve relative times vs configured TZ)
       — tools `get_reminders`, `create_reminder`, `cancel_reminder`. `create_reminder` takes
       `dueAtLocal` (user wall-clock); the system prompt supplies their zone + today's date so
@@ -156,9 +156,18 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 ## Cross-cutting / anytime
 
 - [x] Initial git commit (`0ca5bbb`, 2026-07-20)
-- [ ] Backend unit tests project (`PersonaOS.Tests`) — none exist yet. **First target:**
-      `ReminderDispatcher` with a fake `IPushSender` (delivery success, invalid-token pruning,
-      retry-then-fail) — the one Phase 4 path that live testing can't reach without FCM.
-      Also cheap now that ports exist: `ChatService` tool loop with a fake `IAiMessageStreamer`.
+- [x] Backend unit tests project (`PersonaOS.Tests`) — xUnit, **35 tests, all passing**,
+      run with `dotnet test src/backend/PersonaOS.Tests`. Tests sit at the Application layer:
+      a `TestDbContext` implements `IAppDbContext` over EF InMemory, so no Infrastructure or
+      real DB is involved. Fakes in `TestSupport/` (`FakePushSender`, `FakeAiMessageStreamer`,
+      `FakeTool`, …) are scriptable — extend those rather than writing new mocks.
+      Covers: **ReminderDispatcher** (delivery, invalid-token pruning, retry-then-fail at 5,
+      recovery, unconfigured push, no devices, feature off) — closing the Phase 4 gap;
+      **ChatService tool loop** (tool executed + result fed back, parallel tool calls, unknown
+      tool degrades to an error result, disabled feature hides the tool, stream failure,
+      history replay, missing key); **GoalProgressCalculator**; **UserClock** (incl. the
+      DST spring-forward gap). Mutation-checked: breaking `MaxAttempts` fails a test.
+- [ ] Widen coverage: `PlannerService`, `GoalService`, `DocumentService` (esp. the
+      path-traversal guard), `PersonaToolRegistry` feature gating.
 - [ ] Personalization grep-check (no user data in source) before first public push
 - [ ] Node upgrade to ≥ 24.15 → unpin Angular 20 → Angular latest

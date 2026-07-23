@@ -64,6 +64,10 @@ data/           docs-storage/ (runtime files, gitignored)
 ## Build & run
 
 - Build: `dotnet build PersonaOS.slnx` (keep it at **0 warnings**; pin transitive CVEs).
+- Test: `dotnet test src/backend/PersonaOS.Tests` (xUnit; keep it green). Tests target the
+  **Application layer** — `TestDbContext` implements `IAppDbContext` over EF InMemory, and
+  `TestSupport/Fakes.cs` has scriptable fakes for the ports (push, AI streamer, tools).
+  Extend those fakes instead of introducing a mocking library.
 - EF migrations (tools pinned locally, NOT global dotnet-ef):
   `dotnet dotnet-ef migrations add <Name> --project src/backend/PersonaOS.Infrastructure --startup-project src/backend/PersonaOS.Infrastructure -o Persistence/Migrations`
 - Run API: from `src/backend/PersonaOS.Api`:
