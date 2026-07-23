@@ -20,6 +20,9 @@ builder.Services.AddOpenApi();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Delivers due reminders to registered devices without the app being open.
+builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.ReminderDispatchService>();
+
 // Data Protection encrypts the Anthropic API key at rest. Persist keys to a
 // configured path (the mounted data volume in Docker) so the ciphertext stays
 // decryptable across restarts/upgrades. In dev, the OS default store is used.

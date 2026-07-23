@@ -7,6 +7,8 @@ using PersonaOS.Application.Goals;
 using PersonaOS.Application.Goals.Tools;
 using PersonaOS.Application.Planner;
 using PersonaOS.Application.Planner.Tools;
+using PersonaOS.Application.Reminders;
+using PersonaOS.Application.Reminders.Tools;
 
 namespace PersonaOS.Application;
 
@@ -21,6 +23,8 @@ public static class DependencyInjection
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<IGoalService, GoalService>();
         services.AddScoped<IPlannerService, PlannerService>();
+        services.AddScoped<IReminderService, ReminderService>();
+        services.AddScoped<IReminderDispatcher, ReminderDispatcher>();
 
         services.AddScoped<IPersonaToolRegistry, PersonaToolRegistry>();
         services.AddScoped<IPersonaTool, GetGoalsTool>();
@@ -31,6 +35,9 @@ public static class DependencyInjection
         services.AddScoped<IPersonaTool, AddPlannerItemTool>();
         services.AddScoped<IPersonaTool, UpdatePlannerItemStatusTool>();
         services.AddScoped<IPersonaTool, MovePlannerItemTool>();
+        services.AddScoped<IPersonaTool, GetRemindersTool>();
+        services.AddScoped<IPersonaTool, CreateReminderTool>();
+        services.AddScoped<IPersonaTool, CancelReminderTool>();
 
         return services;
     }

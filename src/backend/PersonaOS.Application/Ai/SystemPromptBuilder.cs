@@ -32,7 +32,7 @@ public class SystemPromptBuilder(
         }
 
         // "Today" must be the user's local date, not the server's UTC date.
-        var today = TodayFor(config.TimeZone);
+        var today = Common.UserClock.Today(config.TimeZone);
         sb.Append("\n\nThe user's time zone is ").Append(config.TimeZone)
           .Append(", where today is ").Append(today.ToString("yyyy-MM-dd")).Append('.');
 
@@ -75,20 +75,26 @@ public class SystemPromptBuilder(
             }
         }
 
-        return sb.ToString();
-    }
+        if (config.Features.TryGetValue(InstanceConfig.Modules.Reminders, out var remindersOn) && remindersOn)
+        {
+            var upcoming = await db.Reminders.AsNoTracking()
+                .Where(r => r.Status == ReminderStatuses.Pending && r.DueAtUtc >= DateTime.UtcNow)
+                .OrderBy(r => r.DueAtUtc)
+                .Take(5)
+                .Select(r => new { r.Message, r.DueAtUtc })
+                .ToListAsync(ct);
+            if (upcoming.Count > 0)
+            {
+                sb.Append("\n\nUpcoming reminders (times in the user's zone):");
+                foreach (var r in upcoming)
+                {
+                    sb.Append("\n- ")
+                      .Append(Common.UserClock.ToLocal(r.DueAtUtc, config.TimeZone).ToString("yyyy-MM-dd HH:mm"))
+                      .Append(" — ").Append(r.Message);
+                }
+            }
+        }
 
-    /// <summary>The user's local date; falls back to UTC if the zone id is unknown.</summary>
-    private static DateOnly TodayFor(string timeZoneId)
-    {
-        try
-        {
-            var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone));
-        }
-        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
-        {
-            return DateOnly.FromDateTime(DateTime.UtcNow);
-        }
+        return sb.ToString();
     }
 }
