@@ -8,6 +8,7 @@ using PersonaOS.Application.Documents.Tools;
 using PersonaOS.Application.Goals;
 using PersonaOS.Application.Goals.Tools;
 using PersonaOS.Application.Planner;
+using PersonaOS.Application.Proactive;
 using PersonaOS.Application.Planner.Tools;
 using PersonaOS.Application.Reminders;
 using PersonaOS.Application.Reminders.Tools;
@@ -28,6 +29,9 @@ public static class DependencyInjection
         services.AddScoped<IReminderService, ReminderService>();
         services.AddScoped<IDocumentService, DocumentService>();
         services.AddScoped<IReminderDispatcher, ReminderDispatcher>();
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IProactiveBriefComposer, ProactiveBriefComposer>();
+        services.AddScoped<IProactiveService, ProactiveService>();
 
         services.AddScoped<IPersonaToolRegistry, PersonaToolRegistry>();
         services.AddScoped<IPersonaTool, GetGoalsTool>();

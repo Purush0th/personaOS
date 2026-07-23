@@ -37,6 +37,12 @@ public class InstanceConfig
     /// <summary>Feature toggle map (module name → enabled). Gates UI + endpoints.</summary>
     public Dictionary<string, bool> Features { get; set; } = new();
 
+    /// <summary>Local time the morning brief is sent; null disables just that job.</summary>
+    public TimeOnly? MorningBriefTime { get; set; } = new(7, 30);
+
+    /// <summary>Local time the evening rollup is sent; null disables just that job.</summary>
+    public TimeOnly? EveningRollupTime { get; set; } = new(21, 0);
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 

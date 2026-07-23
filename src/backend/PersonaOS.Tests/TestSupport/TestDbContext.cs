@@ -21,6 +21,7 @@ public class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<ProactiveJobRun> ProactiveJobRuns => Set<ProactiveJobRun>();
 
     public override Task<int> SaveChangesAsync(CancellationToken ct = default) => base.SaveChangesAsync(ct);
 

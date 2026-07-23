@@ -22,10 +22,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<ProactiveJobRun> ProactiveJobRuns => Set<ProactiveJobRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<ProactiveJobRun>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.JobName).HasMaxLength(50).IsRequired();
+            cfg.Property(x => x.Summary).HasMaxLength(4000);
+            // One run per job per local day: the DB enforces idempotency.
+            cfg.HasIndex(x => new { x.JobName, x.LocalDate }).IsUnique();
+        });
 
         modelBuilder.Entity<Document>(cfg =>
         {
