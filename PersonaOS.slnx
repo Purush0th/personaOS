@@ -4,5 +4,6 @@
     <Project Path="src/backend/PersonaOS.Application/PersonaOS.Application.csproj" />
     <Project Path="src/backend/PersonaOS.Domain/PersonaOS.Domain.csproj" />
     <Project Path="src/backend/PersonaOS.Infrastructure/PersonaOS.Infrastructure.csproj" />
+    <Project Path="src/backend/PersonaOS.Tests/PersonaOS.Tests.csproj" />
   </Folder>
 </Solution>
