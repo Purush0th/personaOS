@@ -85,11 +85,29 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ## Phase 4 — Reminders + FCM push
 
-- [ ] `Reminders` + `DeviceTokens` tables
-- [ ] Firebase project setup (FCM Android; APNs via FCM for iOS)
-- [ ] Device-token registration on login; server hosted-service sends push at due time
-- [ ] Claude tool: conversational reminder creation (resolve relative times vs configured TZ)
-- [ ] `flutter_local_notifications` for foreground display
+- [x] `Reminders` + `DeviceTokens` tables
+      — `Reminder.cs` (UTC `DueAtUtc`, pending/delivered/cancelled/failed, attempt counter,
+      optional Goal + PlannerItem links via `SetNull`) and `DeviceToken.cs` (unique token,
+      android/ios). Migration `20260723052926_RemindersAndDevices`, applied to dev DB.
+- [ ] Firebase project setup (FCM Android; APNs via FCM for iOS) — **owner task**, needs a
+      Firebase account. Backend is complete behind the `IPushSender` port; drop in an FCM
+      adapter and swap the `NullPushSender` registration in `Infrastructure/DependencyInjection`.
+- [x] Device-token registration on login; server hosted-service sends push at due time
+      — `POST/DELETE /api/reminders/devices` (idempotent per token, verified); dispatcher
+      `ReminderDispatcher` + `ReminderDispatchService` (30s `PeriodicTimer`, per-pass scope,
+      never crashes the host). Prunes provider-rejected tokens; gives up after 5 attempts.
+      Verified: with push unconfigured, due reminders stay **pending** (not failed) so they
+      fire once FCM is added; cancelled reminders are skipped.
+      ⚠️ **Untested: the success path** (mark delivered / prune invalid token / retry-then-fail)
+      — needs either FCM or the test project below with a fake `IPushSender`.
+- [x] Claude tool: conversational reminder creation (resolve relative times vs configured TZ)
+      — tools `get_reminders`, `create_reminder`, `cancel_reminder`. `create_reminder` takes
+      `dueAtLocal` (user wall-clock); the system prompt supplies their zone + today's date so
+      the model resolves "tomorrow 9am" itself. Verified: 09:00 Asia/Calcutta → 03:30 UTC and
+      back. New shared `UserClock` helper handles conversion incl. DST gaps.
+      System prompt now also lists the next 5 upcoming reminders.
+      **End-to-end tool call still needs the live-key smoke test** (same blocker as Phases 1–3).
+- [ ] `flutter_local_notifications` for foreground display (mobile session)
 
 ## Phase 5 — Docs storage
 
@@ -124,6 +142,9 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 ## Cross-cutting / anytime
 
 - [x] Initial git commit (`0ca5bbb`, 2026-07-20)
-- [ ] Backend unit tests project (`PersonaOS.Tests`) — none exist yet
+- [ ] Backend unit tests project (`PersonaOS.Tests`) — none exist yet. **First target:**
+      `ReminderDispatcher` with a fake `IPushSender` (delivery success, invalid-token pruning,
+      retry-then-fail) — the one Phase 4 path that live testing can't reach without FCM.
+      Also cheap now that ports exist: `ChatService` tool loop with a fake `IAiMessageStreamer`.
 - [ ] Personalization grep-check (no user data in source) before first public push
 - [ ] Node upgrade to ≥ 24.15 → unpin Angular 20 → Angular latest

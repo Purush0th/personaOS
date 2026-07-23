@@ -5,6 +5,7 @@ using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Infrastructure.Ai;
 using PersonaOS.Infrastructure.Auth;
 using PersonaOS.Infrastructure.Persistence;
+using PersonaOS.Infrastructure.Push;
 using PersonaOS.Infrastructure.Security;
 
 namespace PersonaOS.Infrastructure;
@@ -31,6 +32,9 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
         services.AddSingleton<IAiMessageStreamer, AnthropicMessageStreamer>();
+        // Push: no provider configured yet. Swap for the FCM adapter once Firebase
+        // credentials exist — the dispatcher keeps reminders pending until then.
+        services.AddSingleton<IPushSender, NullPushSender>();
 
         return services;
     }

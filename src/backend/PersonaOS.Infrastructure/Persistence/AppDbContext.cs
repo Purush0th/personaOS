@@ -19,10 +19,36 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserProfile> UserProfile => Set<UserProfile>();
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<PlannerItem> PlannerItems => Set<PlannerItem>();
+    public DbSet<Reminder> Reminders => Set<Reminder>();
+    public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Reminder>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Message).HasMaxLength(1000).IsRequired();
+            cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.LastError).HasMaxLength(1000);
+            // Deleting a goal / planner item keeps the reminder, just unlinked.
+            cfg.HasOne(x => x.Goal).WithMany()
+                .HasForeignKey(x => x.GoalId).OnDelete(DeleteBehavior.SetNull);
+            cfg.HasOne(x => x.PlannerItem).WithMany()
+                .HasForeignKey(x => x.PlannerItemId).OnDelete(DeleteBehavior.SetNull);
+            // The dispatcher's hot query: pending reminders that are now due.
+            cfg.HasIndex(x => new { x.Status, x.DueAtUtc });
+        });
+
+        modelBuilder.Entity<DeviceToken>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Token).HasMaxLength(500).IsRequired();
+            cfg.Property(x => x.Platform).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.DeviceName).HasMaxLength(200);
+            cfg.HasIndex(x => x.Token).IsUnique();
+        });
 
         modelBuilder.Entity<PlannerItem>(cfg =>
         {
