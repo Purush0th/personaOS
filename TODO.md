@@ -164,12 +164,33 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ## Phase 9 — Packaging + open-source release
 
-- [ ] Dockerfiles + `deploy/docker-compose.yml` (API + SQL Server + dashboard) + `.env.example`
-- [ ] `LICENSE` (Apache-2.0) + `NOTICE` + `README` + `CONTRIBUTING`
-- [ ] Release pipeline: tag → GHCR images (`:x.y.z` + `:latest`) → GitHub Release (compose + APK)
+- [x] Dockerfiles + `deploy/docker-compose.yml` (API + SQL Server + dashboard) + `.env.example`
+      — API Dockerfile (multi-stage, non-root, restore-layer cached, data dirs pre-chowned);
+      dashboard Dockerfile (Angular → nginx) with `nginx.conf` that proxies `/api`, disables
+      buffering on `/api/chat` (SSE would otherwise be held until the reply completed), and
+      caches hashed assets while marking `index.html` no-store.
+      Compose: **only the dashboard publishes a host port, bound to 127.0.0.1 by default**;
+      API and SQL Server are internal-only. DB healthcheck gates API start. Named volumes for
+      the database and for `api-data` (documents + Data Protection keyring).
+      `docker-compose.build.yml` overlay builds from source instead of pulling.
+      ⚠️ **Compose files validate (`docker compose config`) but the images have NOT been
+      built** — the Docker daemon would not start on this machine. See the unverified item below.
+- [x] `LICENSE` (Apache-2.0) + `NOTICE` + `README` + `CONTRIBUTING`
+      — NOTICE spells out that the licence covers the code, not the PersonaOS name/logo.
+      README is written for a self-hoster (install, Tailscale, update, where your data lives,
+      what happens if you lose the keyring volume). CONTRIBUTING documents the layer rules,
+      the ports pattern, the zero-warning bar, and the `TimeProvider`/fakes testing conventions.
+- [x] Release pipeline: tag → GHCR images (`:x.y.z` + `:latest`) → GitHub Release (compose + APK)
+      — `.github/workflows/release.yml` (tag `v*`), plus `ci.yml` running backend build
+      (`-warnaserror`) + tests, dashboard build, Flutter analyze/test, and an image build.
+      YAML validated locally; **not yet executed** (needs a GitHub remote).
 - [ ] In-dashboard "update available" banner (GitHub Releases API; notify-only)
+- [ ] **Build and run the container images** — blocked here: Docker Desktop would not start.
+      Run `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`
+      on a machine with a working daemon; expect to fix small path/build issues on first run.
 - [ ] Clean-machine install test; upgrade test (N → N+1, data survives, version gate works)
-- [ ] Self-hoster docs (install, Tailscale, BYO key, update)
+      — depends on the item above.
+- [x] Self-hoster docs (install, Tailscale, BYO key, update) — in README.md.
 
 ## Cross-cutting / anytime
 
