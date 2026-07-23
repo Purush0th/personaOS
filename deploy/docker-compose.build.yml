@@ -1,0 +1,15 @@
+# Overlay that builds the images from a source checkout instead of pulling them:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: src/backend/Dockerfile
+    image: personaos-api:local
+
+  dashboard:
+    build:
+      context: ../src/frontend/PersonaOS.Dashboard
+      dockerfile: Dockerfile
+    image: personaos-dashboard:local

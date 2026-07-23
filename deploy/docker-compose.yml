@@ -1,0 +1,66 @@
+# PersonaOS — self-hosted personal AI assistant.
+#
+#   cp .env.example .env      # then edit it (SA_PASSWORD and JWT_SIGNING_KEY are required)
+#   docker compose up -d
+#   open http://localhost:8080  → the Setup Wizard
+#
+# Published images are used by default. To build from a source checkout instead:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+
+name: personaos
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?set SA_PASSWORD in .env}
+      MSSQL_PID: Express
+    volumes:
+      - db-data:/var/opt/mssql
+    # Not published to the host: only the API needs to reach the database.
+    expose:
+      - "1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  api:
+    image: ghcr.io/personaos/personaos-api:${PERSONAOS_VERSION:-latest}
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__PersonaOS: >-
+        Server=db,1433;Database=PersonaOS;User Id=sa;Password=${SA_PASSWORD};
+        TrustServerCertificate=True;Encrypt=False
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
+      # Uploaded documents and the Data Protection keyring that encrypts your
+      # Anthropic API key. Losing this volume means re-entering the key.
+      Documents__StoragePath: /app/data/docs-storage
+      DataProtection__KeysPath: /app/data/dp-keys
+      ASPNETCORE_ENVIRONMENT: Production
+    volumes:
+      - api-data:/app/data
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  dashboard:
+    image: ghcr.io/personaos/personaos-dashboard:${PERSONAOS_VERSION:-latest}
+    depends_on:
+      - api
+    # The only port published to the host. Bound to loopback by default so the
+    # instance is reachable over Tailscale or a reverse proxy, not the open
+    # internet. Set PERSONAOS_BIND=0.0.0.0 only if you know what you're doing.
+    ports:
+      - "${PERSONAOS_BIND:-127.0.0.1}:${PERSONAOS_PORT:-8080}:8080"
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  api-data:

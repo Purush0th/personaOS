@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # The build must stay at zero warnings; -warnaserror makes CI enforce it.
+      - name: Build
+        run: dotnet build PersonaOS.slnx -c Release -warnaserror
+
+      - name: Test
+        run: dotnet test src/backend/PersonaOS.Tests -c Release --no-build
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend/PersonaOS.Dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/frontend/PersonaOS.Dashboard/package-lock.json
+      - run: npm ci
+      - run: npx ng build --configuration production
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend/PersonaOS.Mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  images:
+    # Proves the container images still build; publishing happens in release.yml.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -f src/backend/Dockerfile -t personaos-api:ci .
+      - name: Build dashboard image
+        run: docker build -t personaos-dashboard:ci src/frontend/PersonaOS.Dashboard
