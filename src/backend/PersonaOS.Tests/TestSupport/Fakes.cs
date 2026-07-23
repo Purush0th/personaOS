@@ -170,3 +170,11 @@ public class FakeTool(string name, string result = "{\"ok\":true}", string? requ
         return Task.FromResult(result);
     }
 }
+
+/// <summary>Clock frozen at a fixed instant so scheduling tests never depend on wall time.</summary>
+public class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+{
+    public DateTimeOffset Now { get; set; } = now;
+
+    public override DateTimeOffset GetUtcNow() => Now;
+}

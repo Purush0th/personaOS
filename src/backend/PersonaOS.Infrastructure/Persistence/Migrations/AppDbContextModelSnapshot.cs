@@ -268,12 +268,18 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<TimeOnly?>("EveningRollupTime")
+                        .HasColumnType("time");
+
                     b.Property<string>("Features")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsConfigured")
                         .HasColumnType("bit");
+
+                    b.Property<TimeOnly?>("MorningBriefTime")
+                        .HasColumnType("time");
 
                     b.Property<string>("PersonaTemplate")
                         .IsRequired()
@@ -340,6 +346,41 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.HasIndex("Date", "SortOrder");
 
                     b.ToTable("PlannerItems");
+                });
+
+            modelBuilder.Entity("PersonaOS.Domain.Entities.ProactiveJobRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("JobName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateOnly>("LocalDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("Pushed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("RanAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobName", "LocalDate")
+                        .IsUnique();
+
+                    b.ToTable("ProactiveJobRuns");
                 });
 
             modelBuilder.Entity("PersonaOS.Domain.Entities.Reminder", b =>
