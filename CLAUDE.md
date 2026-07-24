@@ -1,7 +1,7 @@
 # PersonaOS — session context
 
 Open-source (Apache-2.0), self-hosted, single-user personal AI assistant.
-.NET 10 API + SQL Server · Flutter mobile · Angular 20 dashboard · official Anthropic C# SDK.
+.NET 10 API + SQL Server · Flutter mobile · Angular 20 web app · official Anthropic C# SDK.
 
 ## Every session: working agreement
 
@@ -22,7 +22,7 @@ the files below.
 1. Read [TODO.md](TODO.md). Progress lives *only* there — never record status in the PRD or code comments.
 2. **Claim before coding**: change the task to `[~] (claimed: <area> session, <date>)` in TODO.md so
    parallel sessions don't collide. Mark `[x]` when done, with a one-line note for the next session.
-3. **Stay in your partition** (backend / dashboard / mobile / infra). Cross-area work goes solo.
+3. **Stay in your partition** (backend / web / mobile / infra). Cross-area work goes solo.
    If two sessions must touch the same project, use a `git worktree`.
 4. Keep the build at **0 warnings** and follow the layer rules below. Do **not** commit unless the
    owner explicitly asks.
@@ -31,7 +31,7 @@ the files below.
 
 ```
 src/backend/    PersonaOS.Api · PersonaOS.Application · PersonaOS.Domain · PersonaOS.Infrastructure
-src/frontend/   PersonaOS.Dashboard (Angular) · PersonaOS.Mobile (Flutter)
+src/frontend/   PersonaOS.Web (Angular) · PersonaOS.Mobile (Flutter)
 docs/           PRD.md
 data/           docs-storage/ (runtime files, gitignored)
 ```
@@ -74,7 +74,7 @@ data/           docs-storage/ (runtime files, gitignored)
   `ASPNETCORE_URLS="http://localhost:5080" ASPNETCORE_ENVIRONMENT=Development dotnet run --no-launch-profile`
   (auto-applies migrations). **Stop it with `taskkill //F //IM PersonaOS.Api.exe`** — killing
   the wrapper PID leaves a child that locks DLLs on the next build.
-- Dashboard: `npx ng serve` in `src/frontend/PersonaOS.Dashboard` (port 4200, proxies `/api` → :5080).
+- Web app: `npx ng serve` in `src/frontend/PersonaOS.Web` (port 4200, proxies `/api` → :5080).
   Angular CLI pinned to v20 (local Node 24.9 < latest CLI minimum).
 - Flutter: `flutter analyze && flutter test` in `src/frontend/PersonaOS.Mobile`.
 - Dev DB: LocalDB `(localdb)\MSSQLLocalDB`, database `PersonaOS`.
@@ -88,5 +88,5 @@ data/           docs-storage/ (runtime files, gitignored)
   business logic lives in `PersonaOS.Application`; technical adapters in `PersonaOS.Infrastructure`
   (see clean-architecture section above).
 - Do not commit to git unless the owner explicitly asks.
-- Parallel sessions: partition by area (backend / mobile / dashboard / infra); claim tasks in
+- Parallel sessions: partition by area (backend / mobile / web / infra); claim tasks in
   TODO.md first; prefer git worktrees if two sessions must touch the same project.
