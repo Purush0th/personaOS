@@ -1,0 +1,65 @@
+<h1>Settings</h1>
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else {
+  @if (error(); as message) {
+    <p class="error">{{ message }}</p>
+  }
+  @if (saved(); as message) {
+    <p class="saved">{{ message }}</p>
+  }
+
+  <form (ngSubmit)="save()">
+    <label>
+      Assistant nickname
+      <input name="nickname" [(ngModel)]="nickname" maxlength="100" />
+    </label>
+
+    <label>
+      Persona / tone
+      <textarea
+        name="persona"
+        [(ngModel)]="persona"
+        rows="4"
+        placeholder="e.g. Warm but concise. Skip pleasantries and get to the point."
+      ></textarea>
+    </label>
+
+    <label>
+      Claude model
+      <input name="model" [(ngModel)]="model" />
+    </label>
+
+    <label>
+      Time zone
+      <input name="timeZone" [(ngModel)]="timeZone" placeholder="Asia/Kolkata" />
+    </label>
+
+    <label>
+      Anthropic API key
+      <input
+        name="apiKey"
+        type="password"
+        [(ngModel)]="apiKey"
+        autocomplete="off"
+        [placeholder]="hasKey() ? 'A key is stored — leave blank to keep it' : 'No key set yet'"
+      />
+    </label>
+    <p class="muted small">
+      The key is encrypted at rest and never sent back to this page.
+    </p>
+
+    <fieldset>
+      <legend>Modules</legend>
+      @for (module of modules; track module) {
+        <label class="toggle">
+          <input type="checkbox" [(ngModel)]="features[module]" [name]="'feature-' + module" />
+          {{ module }}
+        </label>
+      }
+    </fieldset>
+
+    <button type="submit" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save settings' }}</button>
+  </form>
+}

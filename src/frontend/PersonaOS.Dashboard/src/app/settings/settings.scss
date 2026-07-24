@@ -1,0 +1,33 @@
+h1 {
+  font-size: 1.5rem;
+}
+
+form {
+  max-width: 32rem;
+}
+
+.saved {
+  color: #1a7f37;
+}
+
+fieldset {
+  margin: 1.2rem 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem 0.9rem;
+
+  legend {
+    font-weight: 600;
+    font-size: 0.92rem;
+    padding: 0 0.3rem;
+  }
+
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0.35rem 0;
+    font-weight: 400;
+    text-transform: capitalize;
+  }
+}

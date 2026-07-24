@@ -1,0 +1,59 @@
+<header class="page-head">
+  <h1>Planner</h1>
+  <div class="date-nav">
+    <button class="subtle" (click)="shiftDay(-1)" title="Previous day">‹</button>
+    <input type="date" [value]="date()" (change)="onDateChange($any($event.target).value)" />
+    <button class="subtle" (click)="shiftDay(1)" title="Next day">›</button>
+  </div>
+</header>
+
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+}
+
+<form class="add-form" (ngSubmit)="add()">
+  <input name="title" [(ngModel)]="draftTitle" placeholder="What needs doing?" />
+  <input name="time" type="time" [(ngModel)]="draftTime" title="Optional time" />
+  <button type="submit">Add</button>
+</form>
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else {
+  @if (items().length > 0) {
+    <p class="muted small">{{ doneCount }} of {{ items().length }} done</p>
+  }
+
+  @for (item of items(); track item.id) {
+    <article class="item" [class.done]="item.status === 'done'" [class.skipped]="item.status === 'skipped'">
+      <button
+        class="check"
+        (click)="cycleStatus(item)"
+        [title]="'Status: ' + item.status + ' — click to change'"
+      >
+        @switch (item.status) {
+          @case ('done') { ✓ }
+          @case ('skipped') { — }
+          @default { &nbsp; }
+        }
+      </button>
+
+      <div class="body">
+        <span class="title">
+          @if (item.scheduledTime) {
+            <span class="time">{{ item.scheduledTime.slice(0, 5) }}</span>
+          }
+          {{ item.title }}
+        </span>
+        @if (item.goalTitle) {
+          <span class="muted small">toward {{ item.goalTitle }}</span>
+        }
+      </div>
+
+      <button class="subtle" (click)="moveToTomorrow(item)" title="Move to the next day">→ Tomorrow</button>
+      <button class="subtle danger" (click)="remove(item)">Delete</button>
+    </article>
+  } @empty {
+    <p class="muted">Nothing planned for this day.</p>
+  }
+}
