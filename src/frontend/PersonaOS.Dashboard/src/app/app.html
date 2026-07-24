@@ -2,6 +2,23 @@
   <span class="product">PersonaOS</span>
   @if (brandingService.branding(); as b) {
     <span class="nickname">{{ b.assistantNickname }}</span>
+
+    @if (b.isConfigured && auth.isLoggedIn()) {
+      <nav>
+        <a routerLink="/chat" routerLinkActive="active">Chat</a>
+        @if (isEnabled('goals')) {
+          <a routerLink="/goals" routerLinkActive="active">Goals</a>
+        }
+        @if (isEnabled('planner')) {
+          <a routerLink="/planner" routerLinkActive="active">Planner</a>
+        }
+        @if (isEnabled('reminders')) {
+          <a routerLink="/reminders" routerLinkActive="active">Reminders</a>
+        }
+        <a routerLink="/settings" routerLinkActive="active">Settings</a>
+      </nav>
+      <button class="signout" (click)="auth.logout()">Sign out</button>
+    }
   }
 </header>
 
@@ -12,14 +29,9 @@
     @if (!b.isConfigured) {
       <setup-wizard (completed)="onSetupCompleted()" />
     } @else {
-      <section>
-        <h1>{{ b.assistantNickname }} is ready</h1>
-        <p>Enabled modules: {{ b.enabledFeatures.join(', ') }}</p>
-      </section>
+      <router-outlet />
     }
   } @else {
-    <p>Loading…</p>
+    <p class="muted">Loading…</p>
   }
 </main>
-
-<router-outlet />

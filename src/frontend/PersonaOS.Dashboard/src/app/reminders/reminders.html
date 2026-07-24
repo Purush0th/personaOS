@@ -1,0 +1,49 @@
+<header class="page-head">
+  <h1>Reminders</h1>
+  <button class="subtle" (click)="toggleCompleted()">
+    {{ includeCompleted() ? 'Pending only' : 'Show all' }}
+  </button>
+</header>
+
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+}
+
+<form class="add-form" (ngSubmit)="add()">
+  <input name="message" [(ngModel)]="draftMessage" placeholder="Remind me to…" />
+  <input name="due" type="datetime-local" [(ngModel)]="draftDue" />
+  <button type="submit">Add</button>
+</form>
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else {
+  @for (item of items(); track item.id) {
+    <article class="reminder" [class.inactive]="item.status !== 'pending'">
+      <div class="body">
+        <span class="message">{{ item.message }}</span>
+        <span class="muted small">
+          {{ item.dueAtLocal | date: 'EEE d MMM, HH:mm' }}
+          @if (item.status !== 'pending') {
+            · {{ item.status }}
+          }
+          @if (item.goalTitle) {
+            · toward {{ item.goalTitle }}
+          }
+          @if (item.plannerItemTitle) {
+            · for {{ item.plannerItemTitle }}
+          }
+        </span>
+      </div>
+
+      @if (item.status === 'pending') {
+        <button class="subtle" (click)="cancel(item)">Cancel</button>
+      }
+      <button class="subtle danger" (click)="remove(item)">Delete</button>
+    </article>
+  } @empty {
+    <p class="muted">
+      Nothing pending. Ask your assistant in chat — "remind me to call the dentist tomorrow at 9".
+    </p>
+  }
+}
