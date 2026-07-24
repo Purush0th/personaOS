@@ -152,7 +152,21 @@ lands on the previous UTC day and every date silently shifts back one. This ship
 where "next day" and "move to tomorrow" both resolved to the *current* day. Use
 `core/local-date.ts` (`todayLocal` / `shiftLocalDate`) instead.
 
-Not done: the "update available" banner (GitHub Releases API, notify-only), and a Documents view.
+- [x] Documents view (list, search, upload, download, delete), gated on the `docs` module.
+      Download goes through `HttpClient` (responseType blob) so the bearer interceptor runs —
+      a plain `<a href>` can't carry the Authorization header. Verified E2E: upload 201,
+      authed download 200, search filter, delete 204.
+- [x] "Update available" banner (`UpdatesService` + a dismissible banner in the app shell).
+      Notify-only: checks the GitHub Releases API for `personaos/personaos`, compares
+      `tag_name` against `/api/branding` `apiVersion` with a dotted-numeric `isNewer`, shows the
+      `docker compose pull && up -d` command + a release-notes link. **Fail-silent** — a private/
+      absent repo (currently a real 404), rate-limit, or offline just means no banner. Dismissal
+      is remembered per-version in localStorage. Verified both paths in the browser (real 404 →
+      no banner; injected newer release → banner renders; dismiss clears + persists).
+
+Phase 7 dashboard parity is complete. Remaining across the project: **Phase 6 (Flutter voice)**,
+plus the Flutter Goals/Planner/Reminders screens, and the live-key chat smoke test (blocked on a
+real Anthropic key).
 
 ## Phase 8 — Proactive scheduler (feature-toggled)
 
