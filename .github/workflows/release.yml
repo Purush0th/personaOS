@@ -41,14 +41,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push dashboard
+      - name: Build and push web
         uses: docker/build-push-action@v6
         with:
-          context: src/frontend/PersonaOS.Dashboard
+          context: src/frontend/PersonaOS.Web
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/personaos-dashboard:${{ steps.version.outputs.value }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/personaos-dashboard:latest
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/personaos-web:${{ steps.version.outputs.value }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/personaos-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -50,8 +50,8 @@ services:
       - "8080"
     restart: unless-stopped
 
-  dashboard:
-    image: ghcr.io/personaos/personaos-dashboard:${PERSONAOS_VERSION:-latest}
+  web:
+    image: ghcr.io/personaos/personaos-web:${PERSONAOS_VERSION:-latest}
     depends_on:
       - api
     # The only port published to the host. Bound to loopback by default so the

@@ -90,7 +90,7 @@ volume means re-entering the key. Back up both volumes together.
 ```bash
 dotnet build PersonaOS.slnx          # backend (keep it at 0 warnings)
 dotnet test src/backend/PersonaOS.Tests
-npx ng serve                          # dashboard, in src/frontend/PersonaOS.Dashboard
+npx ng serve                          # web app, in src/frontend/PersonaOS.Web
 flutter run                           # mobile, in src/frontend/PersonaOS.Mobile
 ```
 

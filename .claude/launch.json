@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "dashboard",
+      "name": "web",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["ng", "serve", "--port", "4200"],
-      "cwd": "src/frontend/PersonaOS.Dashboard",
+      "cwd": "src/frontend/PersonaOS.Web",
       "port": 4200
     },
     {

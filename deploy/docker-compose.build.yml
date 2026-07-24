@@ -8,8 +8,8 @@ services:
       dockerfile: src/backend/Dockerfile
     image: personaos-api:local
 
-  dashboard:
+  web:
     build:
-      context: ../src/frontend/PersonaOS.Dashboard
+      context: ../src/frontend/PersonaOS.Web
       dockerfile: Dockerfile
-    image: personaos-dashboard:local
+    image: personaos-web:local

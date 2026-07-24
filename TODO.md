@@ -8,7 +8,7 @@
 ## How to work in parallel sessions
 
 - **Partition by area** — the safest split is one session per column: `backend` (.NET),
-  `mobile` (Flutter), `dashboard` (Angular), `infra` (Docker/CI). Cross-area tasks go solo.
+  `mobile` (Flutter), `web` (Angular), `infra` (Docker/CI). Cross-area tasks go solo.
 - **Claim before you code**: edit this file first (`[ ]` → `[~] (claimed: <session>, <date>)`).
 - Prefer `git worktree` / separate branches when two sessions touch the same project.
 - After finishing: mark `[x]`, note anything a follow-up session must know.
