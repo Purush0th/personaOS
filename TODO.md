@@ -173,8 +173,9 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
       API and SQL Server are internal-only. DB healthcheck gates API start. Named volumes for
       the database and for `api-data` (documents + Data Protection keyring).
       `docker-compose.build.yml` overlay builds from source instead of pulling.
-      ⚠️ **Compose files validate (`docker compose config`) but the images have NOT been
-      built** — the Docker daemon would not start on this machine. See the unverified item below.
+      ✅ **Both images build and the full stack runs** (verified 2026-07-24, Docker 29.6.2):
+      API and dashboard images built first try; `docker compose up -d` brought the stack up
+      with the DB healthcheck correctly gating API start.
 - [x] `LICENSE` (Apache-2.0) + `NOTICE` + `README` + `CONTRIBUTING`
       — NOTICE spells out that the licence covers the code, not the PersonaOS name/logo.
       README is written for a self-hoster (install, Tailscale, update, where your data lives,
@@ -185,11 +186,22 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
       (`-warnaserror`) + tests, dashboard build, Flutter analyze/test, and an image build.
       YAML validated locally; **not yet executed** (needs a GitHub remote).
 - [ ] In-dashboard "update available" banner (GitHub Releases API; notify-only)
-- [ ] **Build and run the container images** — blocked here: Docker Desktop would not start.
-      Run `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`
-      on a machine with a working daemon; expect to fix small path/build issues on first run.
-- [ ] Clean-machine install test; upgrade test (N → N+1, data survives, version gate works)
-      — depends on the item above.
+- [x] **Build and run the container images** — done, no fixes needed.
+- [x] Clean-machine install test; upgrade test (data survives)
+      — **Install:** empty volumes → all 7 migrations applied automatically on first boot →
+      Setup Wizard → login → goals/planner/documents created through nginx. Dashboard renders
+      "Friday is ready" from the container. SSE chat streams **through nginx** as separate
+      frames (proves `proxy_buffering off` on `/api/chat` works). Uploads land in the
+      `api-data` volume under a GUID name; API runs **non-root** (uid 1654).
+      Port exposure confirmed: only `dashboard` publishes, on `127.0.0.1:8080`; API and
+      SQL Server are internal-only.
+      **Upgrade:** `up -d --force-recreate` (volumes kept) → second boot applied
+      *no* migrations ("already up to date") → nickname, admin login, goals, planner and
+      documents all intact → **the encrypted Anthropic key still decrypted**, proving the
+      Data Protection keyring survived (the failure mode that would silently force re-entry).
+      `down -v` removes both volumes cleanly.
+      ⚠️ Not yet tested: a genuine **N → N+1** upgrade across two different image versions
+      (needs a published prior release) and the `minSupportedClient` version gate.
 - [x] Self-hoster docs (install, Tailscale, BYO key, update) — in README.md.
 
 ## Cross-cutting / anytime
