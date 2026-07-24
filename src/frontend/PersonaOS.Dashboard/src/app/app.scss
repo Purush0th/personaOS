@@ -60,6 +60,38 @@
   }
 }
 
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1.5rem;
+  background: #fff6e0;
+  border-bottom: 1px solid #f0dfa8;
+  font-size: 0.9rem;
+
+  code {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.85em;
+  }
+
+  a {
+    color: var(--ink);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .dismiss {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 0.2rem 0.4rem;
+  }
+}
+
 .content {
   max-width: 68rem;
   margin: 1.5rem auto;
