@@ -29,6 +29,15 @@ public class SetupController(
         string? TimeZone,
         Dictionary<string, bool>? Features);
 
+    /// <summary>Current settings minus any secret. <c>HasAnthropicApiKey</c> stands in for the key itself.</summary>
+    public record CurrentSettingsResponse(
+        string AssistantNickname,
+        string PersonaTemplate,
+        string ClaudeModel,
+        string TimeZone,
+        Dictionary<string, bool> Features,
+        bool HasAnthropicApiKey);
+
     public record UpdateSettingsRequest(
         string? AssistantNickname,
         string? PersonaTemplate,
@@ -80,6 +89,24 @@ public class SetupController(
         }, ct);
 
         return Ok(new { message = $"Setup complete. Say hello to {request.AssistantNickname.Trim()}!" });
+    }
+
+    /// <summary>
+    /// Current settings, for prefilling the Settings page. Admin JWT required.
+    /// The Anthropic key is never returned — only whether one is set.
+    /// </summary>
+    [HttpGet]
+    [Authorize(Roles = "admin")]
+    public async Task<ActionResult<CurrentSettingsResponse>> Current(CancellationToken ct)
+    {
+        var config = await configService.GetOrCreateAsync(ct);
+        return Ok(new CurrentSettingsResponse(
+            config.AssistantNickname,
+            config.PersonaTemplate,
+            config.ClaudeModel,
+            config.TimeZone,
+            config.Features,
+            HasAnthropicApiKey: !string.IsNullOrEmpty(config.AnthropicApiKeyEncrypted)));
     }
 
     /// <summary>Edit settings after setup. Admin JWT required. Only provided fields change.</summary>

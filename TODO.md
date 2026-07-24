@@ -135,9 +135,24 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ## Phase 7 — Dashboard parity
 
-- [ ] Dashboard chat (reuse SSE endpoint)
-- [ ] Goals / Planner / Reminders views
-- [ ] Settings page (edit nickname/persona/model/key — wraps `PUT /api/setup`)
+- [x] Dashboard chat (reuse SSE endpoint) — `ChatService` reads the SSE stream with
+      `fetch` + `ReadableStream` (not `EventSource`, which cannot send the bearer header).
+      Conversation sidebar, streaming bubbles, per-call tool indicator, Enter-to-send.
+- [x] Goals / Planner / Reminders views — all three verified against a live API in the browser.
+      Auth is signal-based (`AuthService` + `authInterceptor` + `authGuard`); token in
+      localStorage, 401 → `sessionExpired()`.
+- [x] Settings page (edit nickname/persona/model/key — wraps `PUT /api/setup`).
+      Needed a new **admin-only `GET /api/setup`** to prefill it; it returns
+      `HasAnthropicApiKey` rather than the key — the key is never sent to a client.
+      Saving refreshes `/api/branding`, so toggling a module updates the nav immediately.
+
+**Gotcha for anyone doing dates on the frontend:** `new Date().toISOString().slice(0,10)`
+is wrong for calendar days — it converts to UTC first, so east of Greenwich local midnight
+lands on the previous UTC day and every date silently shifts back one. This shipped a bug
+where "next day" and "move to tomorrow" both resolved to the *current* day. Use
+`core/local-date.ts` (`todayLocal` / `shiftLocalDate`) instead.
+
+Not done: the "update available" banner (GitHub Releases API, notify-only), and a Documents view.
 
 ## Phase 8 — Proactive scheduler (feature-toggled)
 

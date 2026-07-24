@@ -1,0 +1,125 @@
+.chat-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1.5rem;
+  height: calc(100vh - 9rem);
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+
+    .conversations {
+      display: none;
+    }
+  }
+}
+
+.conversations {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  overflow-y: auto;
+
+  .new {
+    background: none;
+    border: 1px dashed #c9c9d4;
+    border-radius: 8px;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: #444;
+    font: inherit;
+  }
+
+  .conversation {
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 0.6rem;
+    cursor: pointer;
+    font: inherit;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover {
+      background: #ececf2;
+    }
+
+    &.active {
+      background: #1a1a2e;
+      color: #fff;
+    }
+  }
+}
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+
+  .empty {
+    margin: auto;
+  }
+}
+
+.bubble {
+  max-width: 42rem;
+  padding: 0.7rem 0.95rem;
+  border-radius: 14px;
+  background: #ececf2;
+  white-space: pre-wrap;
+  word-break: break-word;
+  align-self: flex-start;
+
+  &.user {
+    align-self: flex-end;
+    background: #1a1a2e;
+    color: #fff;
+  }
+
+  &.error {
+    background: #fdecec;
+    color: #b00020;
+  }
+
+  .tool,
+  .thinking {
+    color: #666;
+    font-style: italic;
+  }
+}
+
+.composer {
+  display: flex;
+  gap: 0.6rem;
+  padding-top: 0.9rem;
+
+  textarea {
+    flex: 1;
+    resize: vertical;
+    padding: 0.6rem 0.7rem;
+    font: inherit;
+    border: 1px solid #c9c9d4;
+    border-radius: 8px;
+
+    &:focus {
+      outline: 2px solid #1a1a2e;
+      border-color: transparent;
+    }
+  }
+
+  button {
+    align-self: stretch;
+    padding: 0 1.4rem;
+  }
+}

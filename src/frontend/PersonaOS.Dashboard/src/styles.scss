@@ -1,1 +1,86 @@
-/* You can add global styles to this file, and also import other style files */
+/* Shared primitives used across feature components. Component-specific layout
+   stays in each component's own stylesheet. */
+
+:root {
+  --ink: #1a1a2e;
+  --line: #c9c9d4;
+  --muted: #6b6b7b;
+  --danger: #b00020;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: var(--ink);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.error {
+  color: var(--danger);
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--ink);
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  &.subtle {
+    background: none;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    font-weight: 500;
+  }
+}
+
+label {
+  display: block;
+  margin: 0.9rem 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+
+  input:not([type='checkbox']),
+  select,
+  textarea {
+    display: block;
+    width: 100%;
+    margin-top: 0.3rem;
+    padding: 0.55rem 0.7rem;
+    font: inherit;
+    font-weight: 400;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: 2px solid var(--ink);
+      border-color: transparent;
+    }
+  }
+}
+
+.card {
+  max-width: 26rem;
+  margin: 3rem auto;
+
+  h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.4rem;
+  }
+}

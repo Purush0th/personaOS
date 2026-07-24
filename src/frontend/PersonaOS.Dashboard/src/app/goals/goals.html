@@ -1,0 +1,85 @@
+<header class="page-head">
+  <h1>Goals</h1>
+  <div class="actions">
+    <button class="subtle" (click)="toggleDropped()">
+      {{ includeDropped() ? 'Hide dropped' : 'Show dropped' }}
+    </button>
+    <button (click)="startAdd(null)">＋ New goal</button>
+  </div>
+</header>
+
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+}
+
+@if (addingUnder() !== undefined) {
+  <form class="add-form" (ngSubmit)="add()">
+    <input name="title" [(ngModel)]="draftTitle" placeholder="What do you want to achieve?" autofocus />
+    <select name="period" [(ngModel)]="draftPeriod">
+      <option value="year">Yearly</option>
+      <option value="quarter">Quarterly</option>
+      <option value="month">Monthly</option>
+    </select>
+    <input name="start" type="date" [(ngModel)]="draftStart" />
+    <button type="submit">Add</button>
+    <button type="button" class="subtle" (click)="cancelAdd()">Cancel</button>
+  </form>
+}
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else {
+  @for (row of flatten(tree()); track row.goal.id) {
+    <article class="goal" [style.margin-left.rem]="row.depth * 1.5" [class.dropped]="row.goal.status === 'dropped'">
+      <div class="head">
+        <span class="title">{{ row.goal.title }}</span>
+        <span class="badge">{{ row.goal.periodType }}</span>
+        @if (row.goal.status !== 'active') {
+          <span class="badge status">{{ row.goal.status }}</span>
+        }
+      </div>
+
+      <div class="bar" [title]="row.goal.effectiveProgress + '%'">
+        <div class="fill" [style.width.%]="row.goal.effectiveProgress"></div>
+      </div>
+
+      <div class="row">
+        <span class="muted small">{{ row.goal.effectiveProgress }}%</span>
+
+        @if (row.goal.children.length === 0) {
+          <input
+            class="progress"
+            type="number"
+            min="0"
+            max="100"
+            [value]="row.goal.progress"
+            (change)="setProgress(row.goal, $any($event.target).value)"
+            title="Set progress"
+          />
+        } @else {
+          <span class="muted small">
+            rolled up from {{ row.goal.children.length }}
+            {{ row.goal.children.length === 1 ? 'sub-goal' : 'sub-goals' }}
+          </span>
+        }
+
+        <span class="spacer"></span>
+
+        @if (row.goal.status !== 'completed') {
+          <button class="subtle" (click)="setStatus(row.goal, 'completed')">Complete</button>
+        }
+        @if (row.goal.status === 'active') {
+          <button class="subtle" (click)="setStatus(row.goal, 'dropped')">Drop</button>
+        } @else {
+          <button class="subtle" (click)="setStatus(row.goal, 'active')">Reactivate</button>
+        }
+        <button class="subtle" (click)="startAdd(row.goal.id)">＋ Sub-goal</button>
+        <button class="subtle danger" (click)="remove(row.goal)">Delete</button>
+      </div>
+    </article>
+  } @empty {
+    <p class="muted">
+      No goals yet. Add one above — or just ask your assistant to create it in chat.
+    </p>
+  }
+}
