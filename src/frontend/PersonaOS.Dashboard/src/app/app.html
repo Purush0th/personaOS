@@ -25,6 +25,18 @@
   }
 </header>
 
+@if (updates.update(); as u) {
+  <div class="update-banner">
+    <span>
+      <strong>PersonaOS {{ u.version }}</strong> is available.
+      To update, run
+      <code>docker compose pull &amp;&amp; docker compose up -d</code>.
+    </span>
+    <a [href]="u.notesUrl" target="_blank" rel="noopener">Release notes</a>
+    <button class="dismiss" (click)="updates.dismiss()" title="Dismiss">✕</button>
+  </div>
+}
+
 <main class="content">
   @if (brandingService.loadError(); as err) {
     <p class="error">{{ err }}</p>
