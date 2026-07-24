@@ -1,0 +1,38 @@
+<header class="page-head">
+  <h1>Documents</h1>
+  <label class="upload" [class.busy]="uploading()">
+    {{ uploading() ? 'Uploading…' : '↑ Upload' }}
+    <input type="file" (change)="onFileSelected($event)" [disabled]="uploading()" hidden />
+  </label>
+</header>
+
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+}
+
+<form class="search" (ngSubmit)="reload()">
+  <input name="search" [(ngModel)]="search" placeholder="Search by name or description" />
+  <button type="submit" class="subtle">Search</button>
+</form>
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else {
+  @for (doc of items(); track doc.id) {
+    <article class="doc">
+      <div class="body">
+        <span class="name">{{ doc.fileName }}</span>
+        <span class="muted small">
+          {{ formatSize(doc.sizeBytes) }}
+          @if (doc.description) {
+            · {{ doc.description }}
+          }
+        </span>
+      </div>
+      <button class="subtle" (click)="download(doc)">Download</button>
+      <button class="subtle danger" (click)="remove(doc)">Delete</button>
+    </article>
+  } @empty {
+    <p class="muted">No documents yet. Upload a file, or ask your assistant to pull one in chat.</p>
+  }
+}

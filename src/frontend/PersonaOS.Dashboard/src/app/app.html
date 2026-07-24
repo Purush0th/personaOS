@@ -15,6 +15,9 @@
         @if (isEnabled('reminders')) {
           <a routerLink="/reminders" routerLinkActive="active">Reminders</a>
         }
+        @if (isEnabled('docs')) {
+          <a routerLink="/documents" routerLinkActive="active">Documents</a>
+        }
         <a routerLink="/settings" routerLinkActive="active">Settings</a>
       </nav>
       <button class="signout" (click)="auth.logout()">Sign out</button>
