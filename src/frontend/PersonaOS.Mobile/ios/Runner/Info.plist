@@ -4,6 +4,11 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Voice (Phase 6): push-to-talk speech recognition + read-back. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>PersonaOS uses the microphone so you can speak to your assistant.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>PersonaOS transcribes your speech so you can dictate messages to your assistant.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

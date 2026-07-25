@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../voice_service.dart';
 
 class _Bubble {
   _Bubble({required this.isUser, required this.text});
@@ -18,10 +19,14 @@ class ChatScreen extends StatefulWidget {
     super.key,
     required this.api,
     required this.assistantNickname,
+    this.voiceEnabled = false,
   });
 
   final PersonaOsApi api;
   final String assistantNickname;
+
+  /// Whether the instance has the voice module enabled (mic + read-back).
+  final bool voiceEnabled;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -35,12 +40,46 @@ class _ChatScreenState extends State<ChatScreen> {
   int? _conversationId;
   bool _streaming = false;
 
+  final _voice = VoiceService();
+  bool _listening = false;
+  bool _readBack = false;
+
   @override
   void dispose() {
     _subscription?.cancel();
+    _voice.dispose();
     _input.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleMic() async {
+    if (_listening) {
+      await _voice.stopListening();
+      if (mounted) setState(() => _listening = false);
+      return;
+    }
+    final ready = await _voice.ensureStt(onStatus: (status) {
+      if (status == 'notListening' || status == 'done') {
+        if (mounted) setState(() => _listening = false);
+      }
+    });
+    if (!ready) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Microphone or speech recognition is unavailable.'),
+        ));
+      }
+      return;
+    }
+    setState(() => _listening = true);
+    await _voice.listen(
+      onResult: (words) => setState(() => _input.text = words),
+      onFinal: (words) {
+        setState(() => _listening = false);
+        if (words.trim().isNotEmpty) _send();
+      },
+    );
   }
 
   void _scrollToBottom() {
@@ -79,6 +118,7 @@ class _ChatScreenState extends State<ChatScreen> {
             _streaming = false;
           case 'done':
             _streaming = false;
+            if (_readBack) _voice.speak(assistantBubble.text);
         }
       });
       _scrollToBottom();
@@ -96,7 +136,20 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.assistantNickname)),
+      appBar: AppBar(
+        title: Text(widget.assistantNickname),
+        actions: [
+          if (widget.voiceEnabled)
+            IconButton(
+              tooltip: _readBack ? 'Read-back on' : 'Read-back off',
+              icon: Icon(_readBack ? Icons.volume_up : Icons.volume_off),
+              onPressed: () {
+                setState(() => _readBack = !_readBack);
+                if (!_readBack) _voice.stopSpeaking();
+              },
+            ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -133,6 +186,17 @@ class _ChatScreenState extends State<ChatScreen> {
                       onSubmitted: (_) => _send(),
                     ),
                   ),
+                  if (widget.voiceEnabled) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      tooltip: _listening ? 'Stop' : 'Speak',
+                      onPressed: _streaming ? null : _toggleMic,
+                      color: _listening
+                          ? Theme.of(context).colorScheme.error
+                          : null,
+                      icon: Icon(_listening ? Icons.mic : Icons.mic_none),
+                    ),
+                  ],
                   const SizedBox(width: 8),
                   IconButton.filled(
                     onPressed: _streaming ? null : _send,

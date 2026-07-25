@@ -317,8 +317,11 @@ class _HomeScreenState extends State<HomeScreen> {
               _ModuleCard(
                 icon: Icons.chat_bubble_outline,
                 title: 'Chat with $nickname',
-                onTap: () => _openAfterLogin(
-                    (_) => ChatScreen(api: _api, assistantNickname: nickname)),
+                onTap: () => _openAfterLogin((_) => ChatScreen(
+                      api: _api,
+                      assistantNickname: nickname,
+                      voiceEnabled: enabled('voice'),
+                    )),
               ),
               if (enabled('goals'))
                 _ModuleCard(
