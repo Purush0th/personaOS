@@ -59,7 +59,8 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 - [x] Feature-toggle functional test (disable goals → 403 + hidden in branding)
       — verified live: disabling `goals` drops it from `/api/branding` and returns 403
       `feature_disabled` on `/api/goals`; re-enabling restores 200.
-- [~] (claimed: mobile session, 2026-07-25) Flutter Goals screen (hierarchy view)
+- [x] Flutter Goals screen (hierarchy view) — indented tree, rollup bars, add/sub-goal/
+      set-progress/complete/drop/delete. `flutter analyze` clean, `flutter test` green.
 - [x] Dashboard Goals view — shipped in Phase 7 (flattened tree, rollup bars, add/complete/drop/delete).
 
 ## Phase 3 — Daily Planner
@@ -81,7 +82,7 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
       (`goal_validation_failed`). Subclass it for future modules — don't add a filter.
       System prompt now includes the user's local *today* + today's planner items.
       **End-to-end tool call still needs the live-key smoke test** (same blocker as Phases 1–2).
-- [~] (claimed: mobile session, 2026-07-25) Flutter planner day view
+- [x] Flutter planner day view — date nav, add (optional time), status cycle, move-to-tomorrow, delete.
 - [x] Dashboard planner view — shipped in Phase 7 (day nav, add, status cycle, move-to-tomorrow).
 
 ## Phase 4 — Reminders + FCM push
@@ -108,7 +109,7 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
       back. New shared `UserClock` helper handles conversion incl. DST gaps.
       System prompt now also lists the next 5 upcoming reminders.
       **End-to-end tool call still needs the live-key smoke test** (same blocker as Phases 1–3).
-- [~] (claimed: mobile session, 2026-07-25) Flutter Reminders screen (list, create, cancel, delete)
+- [x] Flutter Reminders screen (list, create with date+time picker, cancel, delete).
 - [ ] `flutter_local_notifications` for foreground display (mobile session)
 
 ## Phase 5 — Docs storage
@@ -132,8 +133,13 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ## Phase 6 — Voice (push-to-talk)
 
-- [~] (claimed: mobile session, 2026-07-25) Flutter mic button → `speech_to_text` → send as chat message
-- [~] (claimed: mobile session, 2026-07-25) `flutter_tts` read-back toggle
+- [x] Flutter mic button → `speech_to_text` → send as chat message. Push-to-talk: partial
+      results fill the composer live; on the final result it auto-sends. Gated on the `voice`
+      feature. `VoiceService` wraps both plugins; Android `RECORD_AUDIO` + recognizer `<queries>`
+      and iOS mic/speech `Info.plist` keys added.
+- [x] `flutter_tts` read-back toggle — AppBar toggle; when on, speaks each completed reply.
+      **Not runnable headless here** — mic capture + TTS audio need a device/emulator; verified
+      by `flutter analyze` (clean) + `flutter test` (green). Manual device check still pending.
 
 ## Phase 7 — Dashboard parity
 
