@@ -6,7 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api/personaos_api.dart';
 import 'screens/chat_screen.dart';
+import 'screens/goals_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/planner_screen.dart';
+import 'screens/reminders_screen.dart';
 
 /// PersonaOS mobile app.
 ///
@@ -229,20 +232,19 @@ class _HomeScreenState extends State<HomeScreen> {
     _branding = _fetchBranding();
   }
 
-  void _openChat(String nickname) {
+  /// Opens [builder]'s screen, first routing through login when needed.
+  void _openAfterLogin(WidgetBuilder builder) {
     if (_api.isLoggedIn) {
-      Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => ChatScreen(api: _api, assistantNickname: nickname),
-      ));
+      Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: builder));
       return;
     }
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (context) => LoginScreen(
         api: _api,
         onLoggedIn: () {
-          Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-            builder: (_) => ChatScreen(api: _api, assistantNickname: nickname),
-          ));
+          Navigator.of(context)
+              .pushReplacement(MaterialPageRoute<void>(builder: builder));
         },
       ),
     ));
@@ -286,39 +288,85 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
           final branding = snapshot.data!;
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  branding.isConfigured
-                      ? '${branding.assistantNickname} is ready'
-                      : 'Server needs setup',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+          final nickname = branding.assistantNickname;
+          if (!branding.isConfigured) {
+            return const Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Server needs setup',
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 12),
+                  Text('Open the web app on your server to run the Setup Wizard.'),
+                ],
+              ),
+            );
+          }
+          bool enabled(String feature) =>
+              branding.enabledFeatures.contains(feature);
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                child: Text('$nickname is ready',
+                    style: const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.bold)),
+              ),
+              _ModuleCard(
+                icon: Icons.chat_bubble_outline,
+                title: 'Chat with $nickname',
+                onTap: () => _openAfterLogin(
+                    (_) => ChatScreen(api: _api, assistantNickname: nickname)),
+              ),
+              if (enabled('goals'))
+                _ModuleCard(
+                  icon: Icons.flag_outlined,
+                  title: 'Goals',
+                  onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api)),
                 ),
-                const SizedBox(height: 12),
-                if (branding.isConfigured) ...[
-                  Text(
-                    'Enabled modules: ${branding.enabledFeatures.join(', ')}',
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: () => _openChat(branding.assistantNickname),
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    label: Text('Chat with ${branding.assistantNickname}'),
-                  ),
-                ] else
-                  const Text(
-                    'Open the dashboard on your server to run the Setup Wizard.',
-                  ),
-              ],
-            ),
+              if (enabled('planner'))
+                _ModuleCard(
+                  icon: Icons.event_note_outlined,
+                  title: 'Planner',
+                  onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api)),
+                ),
+              if (enabled('reminders'))
+                _ModuleCard(
+                  icon: Icons.alarm,
+                  title: 'Reminders',
+                  onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
+                ),
+            ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// A tappable card linking to one module from the home screen.
+class _ModuleCard extends StatelessWidget {
+  const _ModuleCard({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(title),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
       ),
     );
   }
