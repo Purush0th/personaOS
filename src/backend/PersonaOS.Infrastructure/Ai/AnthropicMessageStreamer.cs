@@ -20,11 +20,13 @@ public class AnthropicMessageStreamer : IAiMessageStreamer
     public async IAsyncEnumerable<AiStreamChunk> StreamAsync(
         string apiKey,
         string model,
+        string? baseUrl,
         string systemPrompt,
         IReadOnlyList<AiChatTurn> turns,
         IReadOnlyList<AiToolDefinition> tools,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
+        // baseUrl is for OpenAI-compatible providers; Anthropic uses its default endpoint.
         var client = new AnthropicClient { ApiKey = apiKey };
         var parameters = new MessageCreateParams
         {

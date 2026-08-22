@@ -43,16 +43,26 @@ public class AiStreamException(string userMessage, Exception? inner = null)
     : Exception(userMessage, inner);
 
 /// <summary>
-/// LLM streaming port. The Anthropic SDK adapter lives in Infrastructure;
-/// Application only sees provider-neutral chunks.
+/// LLM streaming port. Provider SDKs live in Infrastructure adapters; Application
+/// only ever sees provider-neutral chunks.
 /// </summary>
 public interface IAiMessageStreamer
 {
     IAsyncEnumerable<AiStreamChunk> StreamAsync(
         string apiKey,
         string model,
+        string? baseUrl,
         string systemPrompt,
         IReadOnlyList<AiChatTurn> turns,
         IReadOnlyList<AiToolDefinition> tools,
         CancellationToken ct = default);
+}
+
+/// <summary>Selects the streaming adapter for the configured provider.</summary>
+public interface IAiMessageStreamerFactory
+{
+    /// <summary>Returns the adapter for <paramref name="provider"/> (an
+    /// <c>InstanceConfig.Providers</c> value); falls back to the default provider
+    /// when unrecognized.</summary>
+    IAiMessageStreamer ForProvider(string provider);
 }

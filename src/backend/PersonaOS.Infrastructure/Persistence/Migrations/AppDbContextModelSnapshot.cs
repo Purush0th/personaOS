@@ -251,16 +251,25 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<int>("Id")
                         .HasColumnType("int");
 
+                    b.Property<string>("AiBaseUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("AiModel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("AiProvider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("AnthropicApiKeyEncrypted")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("AssistantNickname")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("ClaudeModel")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");

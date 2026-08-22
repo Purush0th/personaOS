@@ -54,10 +54,10 @@ Key decisions:
   `Application` → `Domain` (entities). Business logic never touches vendor SDKs directly —
   the Anthropic client sits behind an `IAiMessageStreamer` port, keeping the model provider
   swappable and use cases unit-testable. Layer rules: [CLAUDE.md](../CLAUDE.md).
-- **Claude integration**: **native Anthropic tool-use** — capabilities are declared in the Messages API `tools` param and dispatched to in-process domain services. No MCP in v1 (the app is the only tool consumer); tools are thin wrappers over the same services the REST endpoints use, so an MCP façade stays a small additive change.
+- **AI provider (pluggable)**: chat goes through the neutral `IAiMessageStreamer` port, so the model backend is per-install config, not a hardcoded dependency. Ships with two adapters — Anthropic (official C# SDK) and an OpenAI-compatible one that speaks the Chat Completions API for OpenAI, Ollama (local, free), Groq, OpenRouter, LM Studio, and others via a configurable base URL. Each adapter translates the neutral turns + tool definitions to its provider's **native tool-use** wire format (still no MCP — the app is the only tool consumer; tools are thin wrappers over the same services the REST endpoints use). A new provider is one more adapter behind the port; Application/Domain never change.
 - **Chat**: streaming via SSE; system prompt = nickname + persona template + user profile + active-goals summary; history windowing + rolling summarization; token usage logged per request.
 - **Auth**: JWT with a single admin username/password (created in the Setup Wizard).
-- **Secrets**: the user's Anthropic API key is encrypted at rest (ASP.NET Data Protection); JWT signing key via env/secrets. Nothing committed.
+- **Secrets**: the user's provider API key is encrypted at rest (ASP.NET Data Protection); JWT signing key via env/secrets. Nothing committed. Keyless local providers (e.g. Ollama) need no key.
 - **Notifications**: FCM push so server-created reminders reach a closed device; local notifications for foreground display.
 - **Time**: all timestamps UTC; one configured user time zone drives display/scheduling.
 - **Feature toggles**: each module (docs, voice, proactive…) can be disabled per install; UI hides and endpoints short-circuit.
