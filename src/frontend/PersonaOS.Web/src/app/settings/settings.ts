@@ -24,20 +24,33 @@ export class Settings implements OnInit {
   protected readonly saved = signal<string | null>(null);
   protected readonly hasKey = signal(false);
 
+  protected readonly providers = [
+    { id: 'anthropic', label: 'Anthropic (Claude)' },
+    { id: 'openai_compatible', label: 'OpenAI-compatible (OpenAI, Ollama, Groq, OpenRouter…)' },
+  ];
+
   nickname = '';
   persona = '';
+  provider = 'anthropic';
   model = '';
+  baseUrl = '';
   timeZone = '';
   /** Blank means "leave the stored key untouched" — we never receive the current one. */
   apiKey = '';
   features: Record<string, boolean> = {};
+
+  protected get isCompatible(): boolean {
+    return this.provider === 'openai_compatible';
+  }
 
   async ngOnInit(): Promise<void> {
     try {
       const current = await this.settings.get();
       this.nickname = current.assistantNickname;
       this.persona = current.personaTemplate;
-      this.model = current.claudeModel;
+      this.provider = current.aiProvider;
+      this.model = current.aiModel;
+      this.baseUrl = current.aiBaseUrl ?? '';
       this.timeZone = current.timeZone;
       this.features = { ...current.features };
       this.hasKey.set(current.hasAnthropicApiKey);
@@ -56,7 +69,10 @@ export class Settings implements OnInit {
     const update: SettingsUpdate = {
       assistantNickname: this.nickname.trim(),
       personaTemplate: this.persona.trim(),
-      claudeModel: this.model.trim(),
+      aiProvider: this.provider,
+      aiModel: this.model.trim(),
+      // Send the base URL for compatible providers; clear it (empty) for Anthropic.
+      aiBaseUrl: this.isCompatible ? this.baseUrl.trim() : '',
       timeZone: this.timeZone.trim(),
       features: this.features,
     };

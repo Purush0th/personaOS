@@ -25,7 +25,9 @@ public class SetupController(
         string AdminUsername,
         string AdminPassword,
         string AnthropicApiKey,
-        string? ClaudeModel,
+        string? AiProvider,
+        string? AiModel,
+        string? AiBaseUrl,
         string? TimeZone,
         Dictionary<string, bool>? Features);
 
@@ -33,7 +35,9 @@ public class SetupController(
     public record CurrentSettingsResponse(
         string AssistantNickname,
         string PersonaTemplate,
-        string ClaudeModel,
+        string AiProvider,
+        string AiModel,
+        string? AiBaseUrl,
         string TimeZone,
         Dictionary<string, bool> Features,
         bool HasAnthropicApiKey);
@@ -42,7 +46,9 @@ public class SetupController(
         string? AssistantNickname,
         string? PersonaTemplate,
         string? AnthropicApiKey,
-        string? ClaudeModel,
+        string? AiProvider,
+        string? AiModel,
+        string? AiBaseUrl,
         string? TimeZone,
         Dictionary<string, bool>? Features);
 
@@ -74,15 +80,19 @@ public class SetupController(
         if (!TryResolveTimeZone(request.TimeZone, out var timeZone))
             return BadRequest(new { error = $"Unknown time zone '{request.TimeZone}'." });
 
+        var providerError = ValidateProvider(request.AiProvider, request.AiBaseUrl);
+        if (providerError is not null)
+            return BadRequest(new { error = providerError });
+
         await authService.CreateAdminAsync(request.AdminUsername, request.AdminPassword, ct);
-        await configService.SetAnthropicApiKeyAsync(request.AnthropicApiKey, ct);
+        if (!string.IsNullOrWhiteSpace(request.AnthropicApiKey))
+            await configService.SetAnthropicApiKeyAsync(request.AnthropicApiKey, ct);
         await configService.UpdateAsync(c =>
         {
             c.AssistantNickname = request.AssistantNickname.Trim();
             c.PersonaTemplate = request.PersonaTemplate?.Trim() ?? string.Empty;
             c.TimeZone = timeZone;
-            if (!string.IsNullOrWhiteSpace(request.ClaudeModel))
-                c.ClaudeModel = request.ClaudeModel.Trim();
+            ApplyAiSettings(c, request.AiProvider, request.AiModel, request.AiBaseUrl);
             if (request.Features is not null)
                 ApplyFeatureToggles(c, request.Features);
             c.IsConfigured = true;
@@ -103,7 +113,9 @@ public class SetupController(
         return Ok(new CurrentSettingsResponse(
             config.AssistantNickname,
             config.PersonaTemplate,
-            config.ClaudeModel,
+            config.AiProvider,
+            config.AiModel,
+            config.AiBaseUrl,
             config.TimeZone,
             config.Features,
             HasAnthropicApiKey: !string.IsNullOrEmpty(config.AnthropicApiKeyEncrypted)));
@@ -125,14 +137,21 @@ public class SetupController(
         if (request.TimeZone is not null && !TryResolveTimeZone(request.TimeZone, out resolvedTimeZone!))
             return BadRequest(new { error = $"Unknown time zone '{request.TimeZone}'." });
 
+        // Validate the effective provider+baseUrl (fall back to what's already stored).
+        var current = await configService.GetOrCreateAsync(ct);
+        var effectiveProvider = string.IsNullOrWhiteSpace(request.AiProvider) ? current.AiProvider : request.AiProvider;
+        var effectiveBaseUrl = request.AiBaseUrl ?? current.AiBaseUrl;
+        var providerError = ValidateProvider(effectiveProvider, effectiveBaseUrl);
+        if (providerError is not null)
+            return BadRequest(new { error = providerError });
+
         await configService.UpdateAsync(c =>
         {
             if (!string.IsNullOrWhiteSpace(request.AssistantNickname))
                 c.AssistantNickname = request.AssistantNickname.Trim();
             if (request.PersonaTemplate is not null)
                 c.PersonaTemplate = request.PersonaTemplate.Trim();
-            if (!string.IsNullOrWhiteSpace(request.ClaudeModel))
-                c.ClaudeModel = request.ClaudeModel.Trim();
+            ApplyAiSettings(c, request.AiProvider, request.AiModel, request.AiBaseUrl);
             if (resolvedTimeZone is not null)
                 c.TimeZone = resolvedTimeZone;
             if (request.Features is not null)
@@ -149,8 +168,41 @@ public class SetupController(
         if (string.IsNullOrWhiteSpace(r.AdminUsername)) return "AdminUsername is required.";
         if (string.IsNullOrWhiteSpace(r.AdminPassword)) return "AdminPassword is required.";
         if (r.AdminPassword.Length < 8) return "AdminPassword must be at least 8 characters.";
-        if (string.IsNullOrWhiteSpace(r.AnthropicApiKey)) return "AnthropicApiKey is required.";
+        // Anthropic requires a key; OpenAI-compatible providers may be keyless (e.g. local Ollama).
+        var provider = string.IsNullOrWhiteSpace(r.AiProvider)
+            ? InstanceConfig.Providers.Anthropic
+            : r.AiProvider.Trim().ToLowerInvariant();
+        if (provider == InstanceConfig.Providers.Anthropic && string.IsNullOrWhiteSpace(r.AnthropicApiKey))
+            return "An Anthropic API key is required.";
         return null;
+    }
+
+    /// <summary>Rejects an unknown provider, or an OpenAI-compatible one with no base URL.</summary>
+    private static string? ValidateProvider(string? provider, string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(provider))
+            return null; // not being changed / left at default
+
+        var normalized = provider.Trim().ToLowerInvariant();
+        if (!InstanceConfig.Providers.All.Contains(normalized))
+            return $"Unknown AI provider '{provider}'. Use one of: {string.Join(", ", InstanceConfig.Providers.All)}.";
+
+        if (normalized == InstanceConfig.Providers.OpenAiCompatible && string.IsNullOrWhiteSpace(baseUrl))
+            return "AiBaseUrl is required for the openai_compatible provider (e.g. https://api.openai.com/v1 or http://localhost:11434/v1).";
+
+        return null;
+    }
+
+    /// <summary>Applies provided AI settings; null/blank fields are left unchanged.</summary>
+    private static void ApplyAiSettings(InstanceConfig config, string? provider, string? model, string? baseUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(provider))
+            config.AiProvider = provider.Trim().ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(model))
+            config.AiModel = model.Trim();
+        // Base URL: a non-null value updates it (empty string clears it for the Anthropic provider).
+        if (baseUrl is not null)
+            config.AiBaseUrl = string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim();
     }
 
     /// <summary>Only known module names can be toggled; unknown keys are ignored.</summary>

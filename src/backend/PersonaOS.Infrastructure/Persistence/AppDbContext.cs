@@ -93,7 +93,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.AssistantNickname).HasMaxLength(100).IsRequired();
             cfg.Property(x => x.PersonaTemplate).HasMaxLength(4000);
             cfg.Property(x => x.TimeZone).HasMaxLength(100).IsRequired();
-            cfg.Property(x => x.ClaudeModel).HasMaxLength(100).IsRequired();
+            cfg.Property(x => x.AiProvider).HasMaxLength(50).IsRequired();
+            cfg.Property(x => x.AiModel).HasMaxLength(100).IsRequired();
+            cfg.Property(x => x.AiBaseUrl).HasMaxLength(500);
             cfg.Property(x => x.AnthropicApiKeyEncrypted).HasMaxLength(2000);
 
             // Feature toggle map persisted as a JSON string column.

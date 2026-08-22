@@ -26,11 +26,22 @@ public class InstanceConfig
     /// <summary>IANA time zone id driving planner/reminder display and scheduling (e.g. "Asia/Kolkata").</summary>
     public string TimeZone { get; set; } = "UTC";
 
-    /// <summary>Claude model id the user selected at setup (e.g. "claude-opus-4-8").</summary>
-    public string ClaudeModel { get; set; } = "claude-opus-4-8";
+    /// <summary>Which AI backend to call. One of <see cref="Providers"/>.</summary>
+    public string AiProvider { get; set; } = Providers.Anthropic;
+
+    /// <summary>Model id the user selected (e.g. "claude-opus-4-8", "gpt-4o", "llama3.1").</summary>
+    public string AiModel { get; set; } = "claude-opus-4-8";
 
     /// <summary>
-    /// Anthropic API key, encrypted at rest via Data Protection. Never the raw key.
+    /// Base URL for the OpenAI-compatible provider (e.g. "https://api.openai.com/v1",
+    /// "http://localhost:11434/v1" for Ollama). Ignored for the Anthropic provider.
+    /// </summary>
+    public string? AiBaseUrl { get; set; }
+
+    /// <summary>
+    /// The configured provider's API key, encrypted at rest via Data Protection. Never the
+    /// raw key. Column name kept for backward compatibility — existing ciphertext is bound
+    /// to the protector purpose and must not be re-encrypted under a new one.
     /// </summary>
     public string? AnthropicApiKeyEncrypted { get; set; }
 
@@ -45,6 +56,20 @@ public class InstanceConfig
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Supported AI backends. The app talks to all of them through the neutral
+    /// <c>IAiMessageStreamer</c> port; the value selects which adapter handles a request.</summary>
+    public static class Providers
+    {
+        /// <summary>Anthropic Claude via the official SDK (default).</summary>
+        public const string Anthropic = "anthropic";
+
+        /// <summary>Any OpenAI Chat Completions-compatible endpoint: OpenAI, Ollama,
+        /// Groq, OpenRouter, LM Studio, etc. Requires <see cref="AiBaseUrl"/>.</summary>
+        public const string OpenAiCompatible = "openai_compatible";
+
+        public static readonly string[] All = [Anthropic, OpenAiCompatible];
+    }
 
     /// <summary>Canonical module names used as keys in <see cref="Features"/>.</summary>
     public static class Modules

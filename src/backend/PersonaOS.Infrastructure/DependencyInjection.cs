@@ -32,7 +32,10 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
-        services.AddSingleton<IAiMessageStreamer, AnthropicMessageStreamer>();
+        // AI providers: concrete adapters + a factory that selects one per InstanceConfig.
+        services.AddSingleton<AnthropicMessageStreamer>();
+        services.AddSingleton<OpenAiCompatibleMessageStreamer>();
+        services.AddSingleton<IAiMessageStreamerFactory, AiMessageStreamerFactory>();
         // Push: no provider configured yet. Swap for the FCM adapter once Firebase
         // credentials exist — the dispatcher keeps reminders pending until then.
         services.AddSingleton<IPushSender, NullPushSender>();

@@ -86,6 +86,7 @@ public class FakeAiMessageStreamer : IAiMessageStreamer
     public async IAsyncEnumerable<AiStreamChunk> StreamAsync(
         string apiKey,
         string model,
+        string? baseUrl,
         string systemPrompt,
         IReadOnlyList<AiChatTurn> turns,
         IReadOnlyList<AiToolDefinition> tools,
@@ -114,6 +115,12 @@ public class FakeAiMessageStreamer : IAiMessageStreamer
     }
 }
 
+/// <summary>Factory that always returns the one streamer it wraps, regardless of provider.</summary>
+public class FakeAiMessageStreamerFactory(IAiMessageStreamer streamer) : IAiMessageStreamerFactory
+{
+    public IAiMessageStreamer ForProvider(string provider) => streamer;
+}
+
 /// <summary>Returns a fixed system prompt so prompt content doesn't couple chat tests.</summary>
 public class FakeSystemPromptBuilder(string prompt = "You are a test assistant.") : ISystemPromptBuilder
 {
@@ -134,7 +141,7 @@ public class FakeInstanceConfigService(TestDbContext db, string? apiKey = "sk-an
             IsConfigured = true,
             AssistantNickname = "Friday",
             TimeZone = "UTC",
-            ClaudeModel = "claude-opus-4-8",
+            AiModel = "claude-opus-4-8",
             Features = InstanceConfig.DefaultFeatures(),
         };
         db.InstanceConfig.Add(config);

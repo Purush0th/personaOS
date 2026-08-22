@@ -13,7 +13,7 @@ public class ChatService(
     IAppDbContext db,
     IInstanceConfigService configService,
     ISystemPromptBuilder promptBuilder,
-    IAiMessageStreamer streamer,
+    IAiMessageStreamerFactory streamerFactory,
     IPersonaToolRegistry toolRegistry,
     ILogger<ChatService> logger) : IChatService
 {
@@ -37,9 +37,10 @@ public class ChatService(
         }
 
         var apiKey = await configService.GetAnthropicApiKeyAsync(ct);
-        if (string.IsNullOrWhiteSpace(apiKey))
+        // Anthropic always needs a key; OpenAI-compatible providers may be keyless (e.g. local Ollama).
+        if (config.AiProvider == InstanceConfig.Providers.Anthropic && string.IsNullOrWhiteSpace(apiKey))
         {
-            yield return new ChatStreamEvent("error", Error: "No Anthropic API key is configured.");
+            yield return new ChatStreamEvent("error", Error: "No Anthropic API key is set. Add one in Settings.");
             yield break;
         }
 
@@ -78,6 +79,7 @@ public class ChatService(
         // `yield` cannot live inside try/catch, so the enumerator is advanced
         // inside try and events are yielded outside it.
         var tools = await toolRegistry.GetEnabledToolDefinitionsAsync(ct);
+        var streamer = streamerFactory.ForProvider(config.AiProvider);
         var reply = new StringBuilder();
         long? inputTokens = null;
         long? outputTokens = null;
@@ -90,7 +92,7 @@ public class ChatService(
             string? stopReason = null;
 
             var stream = streamer
-                .StreamAsync(apiKey, config.ClaudeModel, systemPrompt, turns, tools, ct)
+                .StreamAsync(apiKey ?? string.Empty, config.AiModel, config.AiBaseUrl, systemPrompt, turns, tools, ct)
                 .GetAsyncEnumerator(ct);
             try
             {

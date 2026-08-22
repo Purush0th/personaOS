@@ -1,7 +1,8 @@
 # PersonaOS — session context
 
 Open-source (Apache-2.0), self-hosted, single-user personal AI assistant.
-.NET 10 API + SQL Server · Flutter mobile · Angular 20 web app · official Anthropic C# SDK.
+.NET 10 API + SQL Server · Flutter mobile · Angular 20 web app · pluggable AI providers
+(Anthropic + any OpenAI-compatible endpoint) behind a neutral streaming port.
 
 ## Every session: working agreement
 
@@ -43,13 +44,15 @@ data/           docs-storage/ (runtime files, gitignored)
   `ChatService`) + ports in `Common/Interfaces` (`IAppDbContext`, `ISecretProtector`,
   `IPasswordHasher`, `IJwtTokenGenerator`, `IAiMessageStreamer`). No EF SQL Server, no
   Anthropic SDK, no Data Protection here. Register via `AddApplication()`.
-- **Infrastructure** — adapters only: `AppDbContext` (+ migrations), `AnthropicMessageStreamer`
-  (the ONLY file touching the Anthropic SDK), `DataProtectionSecretProtector` (purpose string
-  `PersonaOS.AnthropicApiKey.v1` — never change it), `JwtTokenGenerator`, `IdentityPasswordHasher`.
+- **Infrastructure** — adapters only: `AppDbContext` (+ migrations), the AI provider adapters
+  (`AnthropicMessageStreamer` — the only file touching the Anthropic SDK — and
+  `OpenAiCompatibleMessageStreamer`, selected per install by `AiMessageStreamerFactory`),
+  `DataProtectionSecretProtector` (purpose string `PersonaOS.AnthropicApiKey.v1` — never change
+  it; it protects whichever provider's key), `JwtTokenGenerator`, `IdentityPasswordHasher`.
   Register via `AddInfrastructure(config)`.
 - **Api** — controllers use Application interfaces only (never `AppDbContext` directly);
   `Program.cs` is the composition root and hosts JWT *validation* + Data Protection setup.
-- New capability = port in Application + adapter in Infrastructure. Claude tools (Phase 2+)
+- New capability = port in Application + adapter in Infrastructure. Model tools (Phase 2+)
   get an Application-level tool registry dispatched inside `ChatService`.
 
 ## Non-negotiable product rules
@@ -57,8 +60,13 @@ data/           docs-storage/ (runtime files, gitignored)
 - The brand **"PersonaOS" is fixed everywhere** (namespaces, images, store). The ONLY
   per-install personalization is the assistant **nickname** + **persona/tone**, stored in the
   singleton `InstanceConfig` row. No theme/logo customization. Never hardcode user data.
-- **Native Anthropic tool-use, not MCP.** Tools must be thin wrappers over domain services.
-- BYO Anthropic API key, encrypted at rest (Data Protection). Never log or commit keys.
+- **Provider-neutral AI, native tool-use (not MCP).** Chat goes through the neutral
+  `IAiMessageStreamer` port; each provider is one adapter that translates the neutral turns +
+  tool definitions to that provider's wire format. Ships with Anthropic and an OpenAI-compatible
+  adapter (OpenAI, Ollama, Groq, OpenRouter, LM Studio, …). Tools stay thin wrappers over domain
+  services. A new provider = a new adapter behind the port — nothing in Application/Domain moves.
+- BYO provider API key, encrypted at rest (Data Protection). Never log or commit keys. The
+  OpenAI-compatible provider may be keyless (e.g. local Ollama); Anthropic always needs a key.
 - Module endpoints are gated with `[RequireFeature(InstanceConfig.Modules.X)]`.
 
 ## Build & run

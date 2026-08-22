@@ -3,7 +3,7 @@
   <p class="intro">
     Let's set up your private assistant. Everything here stays on your server —
     your API key is encrypted at rest and never leaves your machine except to
-    call Anthropic directly.
+    call the AI provider you choose.
   </p>
 
   <form (ngSubmit)="submit()">
@@ -40,21 +40,43 @@
         </label>
       </div>
 
-      <h2>Claude</h2>
+      <h2>AI provider</h2>
 
       <label>
-        Anthropic API key
-        <input name="anthropicApiKey" type="password" [(ngModel)]="anthropicApiKey" placeholder="sk-ant-…" required />
-        <small>Get one at console.anthropic.com — you pay Anthropic directly for usage.</small>
+        Provider
+        <select name="aiProvider" [(ngModel)]="aiProvider">
+          @for (p of providers; track p.id) {
+            <option [value]="p.id">{{ p.label }}</option>
+          }
+        </select>
+      </label>
+
+      @if (isCompatible) {
+        <label>
+          Base URL
+          <input name="aiBaseUrl" [(ngModel)]="aiBaseUrl"
+            placeholder="https://api.openai.com/v1  ·  http://localhost:11434/v1 (Ollama)" />
+          <small>The OpenAI-compatible endpoint. Works with OpenAI, Ollama, Groq, OpenRouter, LM Studio, and more.</small>
+        </label>
+      }
+
+      <label>
+        API key
+        <input name="apiKey" type="password" [(ngModel)]="apiKey"
+          [placeholder]="isCompatible ? 'Provider API key (leave blank for local Ollama)' : 'sk-ant-…'" />
+        <small>
+          @if (isCompatible) {
+            Optional for keyless local models; required for hosted providers.
+          } @else {
+            Get one at console.anthropic.com — you pay Anthropic directly for usage.
+          }
+        </small>
       </label>
 
       <label>
         Model
-        <select name="claudeModel" [(ngModel)]="claudeModel">
-          @for (m of models; track m.id) {
-            <option [value]="m.id">{{ m.label }}</option>
-          }
-        </select>
+        <input name="aiModel" [(ngModel)]="aiModel"
+          [placeholder]="isCompatible ? 'e.g. gpt-4o, llama3.1, mixtral' : 'e.g. claude-opus-4-8, claude-sonnet-5'" />
       </label>
 
       <h2>Preferences</h2>

@@ -35,8 +35,19 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 - [x] `ChatService` on official Anthropic C# SDK (streaming, history window 20, usage capture)
 - [x] SSE `POST /api/chat` (start/delta/done/error) + conversation history endpoints
 - [x] Flutter login + streaming chat screens
-- [ ] **Live-key smoke test** — set a real Anthropic key (`PUT /api/setup`), confirm a real
-      streamed reply end-to-end (blocked on: owner's API key)
+- [x] **Provider-neutral AI** — the app is no longer Claude-only. `OpenAiCompatibleMessageStreamer`
+      (thin `HttpClient` + SSE) sits behind the existing `IAiMessageStreamer` port alongside
+      `AnthropicMessageStreamer`; `AiMessageStreamerFactory` picks one per `InstanceConfig.AiProvider`.
+      One OpenAI Chat Completions adapter covers OpenAI, **local Ollama (free/keyless)**, Groq,
+      OpenRouter, LM Studio, etc. via `AiBaseUrl`. Migration `MultiProviderAi` renames
+      `ClaudeModel`→`AiModel` (value preserved) and adds `AiProvider`/`AiBaseUrl`; the encrypted-key
+      column + DP purpose are untouched. Setup Wizard + Settings expose provider/base-URL/model/key;
+      Anthropic requires a key, OpenAI-compatible may be keyless. Backend + web build 0-warning,
+      46 tests green. **Not yet run against a live OpenAI-compatible endpoint** (no local Ollama
+      here) — the Anthropic pipeline is proven; the compat adapter is unit-clean but needs one live run.
+- [~] **Live-key smoke test** — the Anthropic path is proven to the API boundary (real key
+      authenticated; only Anthropic *credits* gated an actual completion). Cheapest way to finish
+      *for free*: point the OpenAI-compatible provider at a local Ollama and run chat + a tool call.
 - [ ] Rolling summarization of older turns (windowing only for now)
 - [ ] UserProfile edit endpoint + UI (entity exists; no API surface yet)
 
