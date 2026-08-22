@@ -27,8 +27,32 @@
     </label>
 
     <label>
-      Claude model
-      <input name="model" [(ngModel)]="model" />
+      AI provider
+      <select name="provider" [(ngModel)]="provider">
+        @for (p of providers; track p.id) {
+          <option [value]="p.id">{{ p.label }}</option>
+        }
+      </select>
+    </label>
+
+    @if (isCompatible) {
+      <label>
+        Base URL
+        <input
+          name="baseUrl"
+          [(ngModel)]="baseUrl"
+          placeholder="https://api.openai.com/v1  ·  http://localhost:11434/v1 (Ollama)"
+        />
+      </label>
+    }
+
+    <label>
+      Model
+      <input
+        name="model"
+        [(ngModel)]="model"
+        [placeholder]="isCompatible ? 'e.g. gpt-4o, llama3.1, mixtral' : 'e.g. claude-sonnet-5, claude-haiku-4-5'"
+      />
     </label>
 
     <label>
@@ -37,7 +61,7 @@
     </label>
 
     <label>
-      Anthropic API key
+      API key
       <input
         name="apiKey"
         type="password"
@@ -47,7 +71,8 @@
       />
     </label>
     <p class="muted small">
-      The key is encrypted at rest and never sent back to this page.
+      Encrypted at rest and never sent back to this page.
+      @if (isCompatible) { Leave blank for keyless local models (e.g. Ollama). }
     </p>
 
     <fieldset>

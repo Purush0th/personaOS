@@ -11,8 +11,8 @@ interface FeatureOption {
 
 /**
  * First-run Setup Wizard. Collects the assistant nickname, persona, admin
- * credentials, the user's Anthropic API key, model, time zone, and feature
- * toggles, then POSTs them to /api/setup exactly once.
+ * credentials, the AI provider + model + key (or base URL for local/compatible
+ * providers), time zone, and feature toggles, then POSTs them to /api/setup once.
  */
 @Component({
   selector: 'setup-wizard',
@@ -33,15 +33,20 @@ export class SetupWizard {
   adminUsername = '';
   adminPassword = '';
   adminPasswordConfirm = '';
-  anthropicApiKey = '';
-  claudeModel = 'claude-opus-4-8';
+  apiKey = '';
+  aiProvider = 'anthropic';
+  aiModel = 'claude-opus-4-8';
+  aiBaseUrl = '';
   timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
 
-  readonly models = [
-    { id: 'claude-opus-4-8', label: 'Claude Opus 4.8 (most capable)' },
-    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 (balanced)' },
-    { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest)' },
+  readonly providers = [
+    { id: 'anthropic', label: 'Anthropic (Claude)' },
+    { id: 'openai_compatible', label: 'OpenAI-compatible (OpenAI, Ollama, Groq, OpenRouter…)' },
   ];
+
+  get isCompatible(): boolean {
+    return this.aiProvider === 'openai_compatible';
+  }
 
   readonly features: FeatureOption[] = [
     { key: 'goals', label: 'Goals (yearly / quarterly / monthly)', enabled: true },
@@ -59,7 +64,12 @@ export class SetupWizard {
     if (!this.adminUsername.trim()) { this.error.set('Choose an admin username.'); return; }
     if (this.adminPassword.length < 8) { this.error.set('Password must be at least 8 characters.'); return; }
     if (this.adminPassword !== this.adminPasswordConfirm) { this.error.set('Passwords do not match.'); return; }
-    if (!this.anthropicApiKey.trim()) { this.error.set('Your Anthropic API key is required.'); return; }
+    if (!this.isCompatible && !this.apiKey.trim()) { this.error.set('Your Anthropic API key is required.'); return; }
+    if (this.isCompatible && !this.aiBaseUrl.trim()) {
+      this.error.set('Enter the provider base URL (e.g. https://api.openai.com/v1 or http://localhost:11434/v1).');
+      return;
+    }
+    if (!this.aiModel.trim()) { this.error.set('Enter a model id.'); return; }
 
     this.submitting.set(true);
     try {
@@ -68,8 +78,10 @@ export class SetupWizard {
         personaTemplate: this.persona.trim() || null,
         adminUsername: this.adminUsername.trim(),
         adminPassword: this.adminPassword,
-        anthropicApiKey: this.anthropicApiKey.trim(),
-        claudeModel: this.claudeModel,
+        anthropicApiKey: this.apiKey.trim(),
+        aiProvider: this.aiProvider,
+        aiModel: this.aiModel.trim(),
+        aiBaseUrl: this.isCompatible ? this.aiBaseUrl.trim() : null,
         timeZone: this.timeZone,
         features: Object.fromEntries(this.features.map(f => [f.key, f.enabled])),
       }));

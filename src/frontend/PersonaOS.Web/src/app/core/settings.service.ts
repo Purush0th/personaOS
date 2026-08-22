@@ -5,7 +5,9 @@ import { firstValueFrom } from 'rxjs';
 export interface CurrentSettings {
   assistantNickname: string;
   personaTemplate: string;
-  claudeModel: string;
+  aiProvider: string;
+  aiModel: string;
+  aiBaseUrl: string | null;
   timeZone: string;
   features: Record<string, boolean>;
   /** The key itself is never returned — only whether one is stored. */
@@ -17,7 +19,9 @@ export interface SettingsUpdate {
   assistantNickname?: string;
   personaTemplate?: string;
   anthropicApiKey?: string;
-  claudeModel?: string;
+  aiProvider?: string;
+  aiModel?: string;
+  aiBaseUrl?: string;
   timeZone?: string;
   features?: Record<string, boolean>;
 }
