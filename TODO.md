@@ -43,11 +43,13 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
       `ClaudeModel`→`AiModel` (value preserved) and adds `AiProvider`/`AiBaseUrl`; the encrypted-key
       column + DP purpose are untouched. Setup Wizard + Settings expose provider/base-URL/model/key;
       Anthropic requires a key, OpenAI-compatible may be keyless. Backend + web build 0-warning,
-      46 tests green. **Not yet run against a live OpenAI-compatible endpoint** (no local Ollama
-      here) — the Anthropic pipeline is proven; the compat adapter is unit-clean but needs one live run.
-- [~] **Live-key smoke test** — the Anthropic path is proven to the API boundary (real key
-      authenticated; only Anthropic *credits* gated an actual completion). Cheapest way to finish
-      *for free*: point the OpenAI-compatible provider at a local Ollama and run chat + a tool call.
+      46 tests green. **Verified live against local Ollama** (`qwen2.5:latest`, keyless): a real
+      reply streamed, and the full native tool-use loop fired — model called `create_goal`, the
+      adapter assembled the streamed tool call, `ChatService` dispatched it, and the goal actually
+      persisted to the DB. Free, no Anthropic credits.
+- [x] **Live smoke test — DONE (free, via Ollama).** The blocker was Anthropic *credits*, not code:
+      the Anthropic path authenticated a real key and reached the API; the completion + native
+      tool-use loop is now proven end-to-end against a local OpenAI-compatible model instead.
 - [ ] Rolling summarization of older turns (windowing only for now)
 - [ ] UserProfile edit endpoint + UI (entity exists; no API surface yet)
 
