@@ -1,0 +1,13 @@
+# Litestream configuration (used only by docker-compose.litestream.yml).
+# Values come from the environment — set the LITESTREAM_* keys in your .env.
+# Docs: https://litestream.io/reference/config/
+dbs:
+  - path: /app/data/personaos.db
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET}
+        path: personaos
+        # For S3-compatible stores (MinIO, Backblaze B2, R2). Omit for AWS S3.
+        endpoint: ${LITESTREAM_ENDPOINT}
+        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}

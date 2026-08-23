@@ -1,0 +1,21 @@
+# Optional overlay: continuously replicate the SQLite database off-host with
+# Litestream (near-zero data loss). Requires an S3-compatible target — a real
+# S3 bucket, Backblaze B2, or a self-hosted MinIO — configured via .env
+# (LITESTREAM_* keys, see .env.example).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.litestream.yml up -d
+#
+# Litestream covers ONLY personaos.db. The uploaded documents and the Data
+# Protection keyring are captured by the nightly BackupService instead — keep
+# that running (Backup__Enabled=true) alongside this. See docs/BACKUP.md.
+
+services:
+  litestream:
+    image: litestream/litestream:0.3
+    depends_on:
+      - api
+    volumes:
+      - api-data:/app/data:ro
+      - ./litestream.yml:/etc/litestream.yml:ro
+    command: replicate -config /etc/litestream.yml
+    restart: unless-stopped
