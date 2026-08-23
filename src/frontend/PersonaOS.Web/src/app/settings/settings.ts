@@ -23,6 +23,8 @@ export class Settings implements OnInit {
   protected readonly error = signal<string | null>(null);
   protected readonly saved = signal<string | null>(null);
   protected readonly hasKey = signal(false);
+  protected readonly testing = signal(false);
+  protected readonly testResult = signal<{ ok: boolean; message: string } | null>(null);
 
   protected readonly providers = [
     { id: 'anthropic', label: 'Anthropic (Claude)' },
@@ -41,6 +43,28 @@ export class Settings implements OnInit {
 
   protected get isCompatible(): boolean {
     return this.provider === 'openai_compatible';
+  }
+
+  protected async test(): Promise<void> {
+    this.testing.set(true);
+    this.testResult.set(null);
+    try {
+      const result = await this.settings.testConnection({
+        aiProvider: this.provider,
+        aiModel: this.model.trim(),
+        aiBaseUrl: this.isCompatible ? this.baseUrl.trim() : '',
+        // Send a freshly-typed key if present; otherwise the server tests the stored one.
+        anthropicApiKey: this.apiKey.trim() || undefined,
+      });
+      this.testResult.set(result);
+    } catch (e: unknown) {
+      this.testResult.set({
+        ok: false,
+        message: (e as { error?: { error?: string } })?.error?.error ?? 'Could not run the test.',
+      });
+    } finally {
+      this.testing.set(false);
+    }
   }
 
   async ngOnInit(): Promise<void> {

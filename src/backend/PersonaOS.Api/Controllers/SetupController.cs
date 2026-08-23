@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Application.Auth;
+using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
 
 namespace PersonaOS.Api.Controllers;
@@ -15,7 +16,8 @@ namespace PersonaOS.Api.Controllers;
 [Route("api/setup")]
 public class SetupController(
     IInstanceConfigService configService,
-    IAuthService authService) : ControllerBase
+    IAuthService authService,
+    IAiMessageStreamerFactory streamerFactory) : ControllerBase
 {
     public record SetupStatusResponse(bool IsConfigured);
 
@@ -51,6 +53,18 @@ public class SetupController(
         string? AiBaseUrl,
         string? TimeZone,
         Dictionary<string, bool>? Features);
+
+    /// <summary>
+    /// Provider settings to test. Any omitted field falls back to what's stored, so the
+    /// page can test the current config, or a not-yet-saved change (incl. a fresh key).
+    /// </summary>
+    public record TestConnectionRequest(
+        string? AiProvider,
+        string? AiModel,
+        string? AiBaseUrl,
+        string? AnthropicApiKey);
+
+    public record TestConnectionResponse(bool Ok, string Message);
 
     /// <summary>Whether this instance has completed first-run setup.</summary>
     [HttpGet("status")]
@@ -159,6 +173,67 @@ public class SetupController(
         }, ct);
 
         return Ok(new { message = "Settings updated." });
+    }
+
+    /// <summary>
+    /// Verifies the provider is reachable and answering, without saving anything. Runs a
+    /// tiny completion through the selected adapter and stops at the first token. A provider
+    /// failure returns 200 with <c>Ok=false</c> so the page can show it inline; only a
+    /// malformed request (bad provider, missing base URL) is a 400.
+    /// </summary>
+    [HttpPost("test")]
+    [Authorize(Roles = "admin")]
+    public async Task<ActionResult<TestConnectionResponse>> TestConnection(
+        [FromBody] TestConnectionRequest request, CancellationToken ct)
+    {
+        var config = await configService.GetOrCreateAsync(ct);
+
+        var provider = (string.IsNullOrWhiteSpace(request.AiProvider) ? config.AiProvider : request.AiProvider)
+            .Trim().ToLowerInvariant();
+        var model = string.IsNullOrWhiteSpace(request.AiModel) ? config.AiModel : request.AiModel.Trim();
+        var baseUrl = request.AiBaseUrl ?? config.AiBaseUrl;
+
+        var providerError = ValidateProvider(provider, baseUrl);
+        if (providerError is not null)
+            return BadRequest(new { error = providerError });
+
+        // Prefer a freshly-typed key, else the stored one; blank is fine for keyless providers.
+        var apiKey = !string.IsNullOrWhiteSpace(request.AnthropicApiKey)
+            ? request.AnthropicApiKey.Trim()
+            : await configService.GetAnthropicApiKeyAsync(ct);
+        if (provider == InstanceConfig.Providers.Anthropic && string.IsNullOrWhiteSpace(apiKey))
+            return Ok(new TestConnectionResponse(false, "No Anthropic API key is set. Add one and test again."));
+
+        var streamer = streamerFactory.ForProvider(provider);
+        var turns = new[] { new AiChatTurn(ChatRoles.User, "Reply with the single word: OK") };
+
+        // Bound the probe so a hung endpoint doesn't hang the request.
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        try
+        {
+            await foreach (var chunk in streamer.StreamAsync(
+                apiKey ?? string.Empty, model, baseUrl,
+                "You are a connection test. Reply with a single short word.",
+                turns, [], cts.Token))
+            {
+                // First sign of life (text, usage, or a stop) means the round-trip works — stop early.
+                if (chunk.TextDelta is { Length: > 0 } || chunk.OutputTokens is not null || chunk.StopReason is not null)
+                    break;
+            }
+        }
+        catch (AiStreamException ex)
+        {
+            return Ok(new TestConnectionResponse(false, ex.Message));
+        }
+        catch (OperationCanceledException)
+        {
+            return Ok(new TestConnectionResponse(false, "The provider did not respond within 30 seconds."));
+        }
+
+        var where = provider == InstanceConfig.Providers.Anthropic ? "Anthropic" : baseUrl;
+        return Ok(new TestConnectionResponse(true, $"Connected — {model} responded via {where}."));
     }
 
     private static string? Validate(SetupRequest r)

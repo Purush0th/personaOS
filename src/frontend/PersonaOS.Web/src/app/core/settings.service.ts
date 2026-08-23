@@ -37,4 +37,22 @@ export class SettingsService {
   update(update: SettingsUpdate): Promise<{ message: string }> {
     return firstValueFrom(this.http.put<{ message: string }>('/api/setup', update));
   }
+
+  /** Verifies the provider is reachable and answering, without saving. Omitted fields fall
+   *  back to the stored config, so this can test a not-yet-saved change (incl. a fresh key). */
+  testConnection(test: TestConnection): Promise<TestConnectionResult> {
+    return firstValueFrom(this.http.post<TestConnectionResult>('/api/setup/test', test));
+  }
+}
+
+export interface TestConnection {
+  aiProvider?: string;
+  aiModel?: string;
+  aiBaseUrl?: string;
+  anthropicApiKey?: string;
+}
+
+export interface TestConnectionResult {
+  ok: boolean;
+  message: string;
 }

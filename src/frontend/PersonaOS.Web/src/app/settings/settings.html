@@ -85,6 +85,17 @@
       }
     </fieldset>
 
-    <button type="submit" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save settings' }}</button>
+    @if (testResult(); as result) {
+      <p [class.saved]="result.ok" [class.error]="!result.ok">
+        {{ result.ok ? '✓ ' : '✕ ' }}{{ result.message }}
+      </p>
+    }
+
+    <div class="actions">
+      <button type="button" class="subtle" (click)="test()" [disabled]="testing() || saving()">
+        {{ testing() ? 'Testing…' : 'Test connection' }}
+      </button>
+      <button type="submit" [disabled]="saving() || testing()">{{ saving() ? 'Saving…' : 'Save settings' }}</button>
+    </div>
   </form>
 }
