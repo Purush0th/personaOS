@@ -57,6 +57,8 @@ public static class DependencyInjection
         // credentials exist — the dispatcher keeps reminders pending until then.
         services.AddSingleton<IPushSender, NullPushSender>();
         services.AddSingleton<IDocumentStorage, FileSystemDocumentStorage>();
+        // Nightly self-contained snapshot (db + docs + keyring). See BackupService.
+        services.AddHostedService<BackupService>();
 
         return services;
     }
