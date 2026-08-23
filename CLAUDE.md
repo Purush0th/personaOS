@@ -1,7 +1,7 @@
 # PersonaOS — session context
 
 Open-source (Apache-2.0), self-hosted, single-user personal AI assistant.
-.NET 10 API + SQL Server · Flutter mobile · Angular 20 web app · pluggable AI providers
+.NET 10 API + SQLite · Flutter mobile · Angular 20 web app · pluggable AI providers
 (Anthropic + any OpenAI-compatible endpoint) behind a neutral streaming port.
 
 ## Every session: working agreement
@@ -42,7 +42,7 @@ data/           docs-storage/ (runtime files, gitignored)
 - **Domain** — entities only, no dependencies.
 - **Application** — use cases (`AuthService`, `InstanceConfigService`, `SystemPromptBuilder`,
   `ChatService`) + ports in `Common/Interfaces` (`IAppDbContext`, `ISecretProtector`,
-  `IPasswordHasher`, `IJwtTokenGenerator`, `IAiMessageStreamer`). No EF SQL Server, no
+  `IPasswordHasher`, `IJwtTokenGenerator`, `IAiMessageStreamer`). No EF SQLite, no
   Anthropic SDK, no Data Protection here. Register via `AddApplication()`.
 - **Infrastructure** — adapters only: `AppDbContext` (+ migrations), the AI provider adapters
   (`AnthropicMessageStreamer` — the only file touching the Anthropic SDK — and
@@ -85,10 +85,13 @@ data/           docs-storage/ (runtime files, gitignored)
 - Web app: `npx ng serve` in `src/frontend/PersonaOS.Web` (port 4200, proxies `/api` → :5080).
   Angular CLI pinned to v20 (local Node 24.9 < latest CLI minimum).
 - Flutter: `flutter analyze && flutter test` in `src/frontend/PersonaOS.Mobile`.
-- Dev DB: LocalDB `(localdb)\MSSQLLocalDB`, database `PersonaOS`.
-  Dev credentials: admin `purush` / `S3cure-Pass!`, nickname "Friday", **placeholder API key**
-  (real chat replies need a real key via authed `PUT /api/setup`).
-  Reset to unconfigured: `sqlcmd -S "(localdb)\MSSQLLocalDB" -d PersonaOS -Q "DELETE FROM AdminUsers; DELETE FROM InstanceConfig;"`
+- Dev DB: **embedded SQLite** at `src/backend/PersonaOS.Api/data/personaos.db` (WAL; created +
+  migrated on first run; gitignored). No LocalDB / SQL Server. Path is `Database:Path` in config.
+  Dev credentials once set up: admin `purush` / `S3cure-Pass!`. Free local chat: point the
+  OpenAI-compatible provider at Ollama (`http://localhost:11434/v1`, model e.g. `qwen2.5:latest`,
+  keyless) via the Setup Wizard or `POST /api/setup`.
+  Reset to unconfigured: stop the API, then `rm src/backend/PersonaOS.Api/data/personaos.db*`
+  (deletes the db + `-wal`/`-shm`); the next run recreates an empty, unconfigured instance.
 
 ## Conventions
 

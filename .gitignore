@@ -38,3 +38,9 @@ Thumbs.db
 
 # ---- Claude Code local ----
 .claude/settings.local.json
+
+# Local SQLite database (dev) + WAL sidecars, and runtime backup snapshots
+**/personaos.db
+**/personaos.db-wal
+**/personaos.db-shm
+src/backend/PersonaOS.Api/data/

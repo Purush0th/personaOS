@@ -13,7 +13,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
     public AppDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=PersonaOS;Trusted_Connection=True;TrustServerCertificate=True;")
+            .UseSqlite("Data Source=data/personaos.db")
             .Options;
 
         return new AppDbContext(options);
