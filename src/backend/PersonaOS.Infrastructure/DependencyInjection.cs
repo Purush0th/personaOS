@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Common.Interfaces;
+using PersonaOS.Domain.Entities;
 using PersonaOS.Infrastructure.Ai;
 using PersonaOS.Infrastructure.Auth;
 using PersonaOS.Infrastructure.Persistence;
@@ -72,6 +73,21 @@ public static class DependencyInjection
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.MigrateAsync(ct);
+
+        // Seed the singleton InstanceConfig row once, here — before the host starts serving
+        // requests or running background services. Otherwise several callers can race to create
+        // it on a fresh DB and collide on the primary key (SQLite's fast single writer surfaces
+        // the race that SQL Server masked).
+        if (!await db.InstanceConfig.AnyAsync(ct))
+        {
+            db.InstanceConfig.Add(new InstanceConfig
+            {
+                Id = InstanceConfig.SingletonId,
+                IsConfigured = false,
+                Features = InstanceConfig.DefaultFeatures(),
+            });
+            await db.SaveChangesAsync(ct);
+        }
 
         // WAL lets readers proceed during writes and is a persistent setting stored in the
         // file, so setting it once here is enough. synchronous=NORMAL is the durable-enough,
