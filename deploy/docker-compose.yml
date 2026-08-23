@@ -1,8 +1,11 @@
 # PersonaOS — self-hosted personal AI assistant.
 #
-#   cp .env.example .env      # then edit it (SA_PASSWORD and JWT_SIGNING_KEY are required)
+#   cp .env.example .env      # then edit it (JWT_SIGNING_KEY is required)
 #   docker compose up -d
 #   open http://localhost:8080  → the Setup Wizard
+#
+# No database service: PersonaOS uses embedded SQLite, so the whole stack is just
+# the API + the web host. Everything persists in the `api-data` volume.
 #
 # Published images are used by default. To build from a source checkout instead:
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
@@ -10,37 +13,17 @@
 name: personaos
 
 services:
-  db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?set SA_PASSWORD in .env}
-      MSSQL_PID: Express
-    volumes:
-      - db-data:/var/opt/mssql
-    # Not published to the host: only the API needs to reach the database.
-    expose:
-      - "1433"
-    healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-    restart: unless-stopped
-
   api:
     image: ghcr.io/personaos/personaos-api:${PERSONAOS_VERSION:-latest}
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
-      ConnectionStrings__PersonaOS: >-
-        Server=db,1433;Database=PersonaOS;User Id=sa;Password=${SA_PASSWORD};
-        TrustServerCertificate=True;Encrypt=False
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
-      # Uploaded documents and the Data Protection keyring that encrypts your
-      # Anthropic API key. Losing this volume means re-entering the key.
+      # The whole instance persists under /app/data (one volume):
+      #   personaos.db        — the SQLite database (config, chat, goals, encrypted key)
+      #   docs-storage/       — uploaded document files
+      #   dp-keys/            — Data Protection keyring that decrypts the stored API key
+      # Back this volume up as a unit — the ciphertext (db) and its keyring live together.
+      # See docs/BACKUP.md for the nightly backup job and off-host options.
+      Database__Path: /app/data/personaos.db
       Documents__StoragePath: /app/data/docs-storage
       DataProtection__KeysPath: /app/data/dp-keys
       ASPNETCORE_ENVIRONMENT: Production
@@ -62,5 +45,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  db-data:
   api-data:
