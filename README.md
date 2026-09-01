@@ -1,15 +1,17 @@
 # PersonaOS
 
-**A private, self-hosted personal AI assistant.** It runs on your own machine, uses your own
-Anthropic API key, and manages your goals, daily planner, reminders, and documents through a
-Claude-powered chat and voice interface.
+**A private, self-hosted personal AI assistant.** It runs on your own machine and manages your
+goals, daily planner, reminders, and documents through a chat and voice interface — powered by
+**the AI provider you choose**: Anthropic Claude, OpenAI, or any OpenAI-compatible endpoint,
+**including a free local model via [Ollama](https://ollama.com/)**.
 
-Give it any name you like — "Friday", "Jarvis", whatever — and it becomes yours. Your data
-never leaves your machine except for the calls it makes to Anthropic with your key.
+Give it any name you like — "Juno", "Friday", "Jarvis", whatever — and it becomes yours. Your
+data never leaves your machine except for the calls it makes to whichever model you point it at
+(and with a local model, nothing leaves at all).
 
-> **Status: pre-release.** The backend is feature-complete and tested; the mobile and web
-> clients are still catching up (see [TODO.md](TODO.md)). Published container images do not
-> exist yet — build from source with the overlay shown below.
+> **Status: pre-release.** Feature-complete and tested; see [TODO.md](TODO.md) for what's left.
+> Published container images don't exist yet — build from source with the overlay shown below.
+> Images build for both x86-64 and ARM (Raspberry Pi, Apple Silicon).
 
 ---
 
@@ -17,7 +19,7 @@ never leaves your machine except for the calls it makes to Anthropic with your k
 
 | | |
 |---|---|
-| **Chat** | Streaming conversation with Claude, with your profile and context in every prompt |
+| **Chat** | Streaming conversation, with your profile and context in every prompt |
 | **Goals** | Yearly → quarterly → monthly hierarchy with progress that rolls up automatically |
 | **Planner** | A day-by-day plan; tasks can link to the goal they serve |
 | **Reminders** | Scheduled push notifications, created conversationally ("remind me tomorrow at 9") |
@@ -27,10 +29,24 @@ never leaves your machine except for the calls it makes to Anthropic with your k
 The assistant does all of this through **native tool use** — it isn't a chatbot bolted onto a
 CRUD app. Ask it to "move everything I didn't finish to tomorrow" and it will.
 
+## AI providers
+
+Pick your backend in the Setup Wizard (and change it anytime in Settings). PersonaOS talks to
+every provider through one neutral streaming port, so switching is a config change, not a
+rebuild:
+
+- **Anthropic (Claude)** — bring your own [API key](https://console.anthropic.com/); you pay
+  Anthropic directly for usage.
+- **OpenAI-compatible** — one setting (a base URL) covers **OpenAI, local Ollama, Groq,
+  OpenRouter, LM Studio**, and more. Local models like Ollama are **free and need no key**.
+
+A **"Test connection"** button verifies the provider, model, and key before you save.
+
 ## Requirements
 
 - Docker and Docker Compose
-- An [Anthropic API key](https://console.anthropic.com/) (you pay Anthropic directly for usage)
+- An AI provider — either an API key (Anthropic / OpenAI / …) **or** a free local model
+  (run [Ollama](https://ollama.com/) with a tool-capable model such as `qwen2.5` or `llama3.1`)
 
 ## Install
 
@@ -40,9 +56,8 @@ cd personaos/deploy
 cp .env.example .env
 ```
 
-Edit `.env` and set the two required values:
+Edit `.env` and set the one required value:
 
-- `SA_PASSWORD` — a SQL Server password (8+ chars, mixed case, a digit or symbol)
 - `JWT_SIGNING_KEY` — any long random string; generate one with `openssl rand -base64 48`
 
 Then start it. Until published images exist, build from source:
@@ -52,7 +67,19 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 ```
 
 Open <http://localhost:8080> and the **Setup Wizard** will ask for your assistant's name, an
-admin login, your Anthropic API key, and which modules you want. That's it.
+admin login, your AI provider (key, or base URL for a local model), and which modules you want.
+That's it — no database to set up; PersonaOS uses embedded SQLite.
+
+### Free, fully local setup (Ollama)
+
+Run PersonaOS with no API key and no cloud calls at all:
+
+```bash
+ollama pull qwen2.5          # a tool-capable local model
+```
+
+In the Setup Wizard pick **OpenAI-compatible**, base URL `http://host.docker.internal:11434/v1`
+(so the container reaches Ollama on your host), model `qwen2.5`, and leave the key blank.
 
 ## Reaching it from your phone
 
@@ -75,15 +102,19 @@ Database migrations run automatically on start; your data and settings are prese
 version for reproducible upgrades, set `PERSONAOS_VERSION` in `.env` — and to roll back, set it
 to the previous version and run the same command.
 
-## Your data
+## Your data & backups
 
-Everything lives in two Docker volumes:
+Everything lives in **one** Docker volume, `personaos_api-data`:
 
-- `personaos_db-data` — the database (goals, planner, reminders, chat history)
-- `personaos_api-data` — uploaded documents and the encryption keyring
+- `personaos.db` — the SQLite database (config, chat, goals, planner, reminders, and the
+  **encrypted** provider API key)
+- `docs-storage/` — uploaded document files
+- `dp-keys/` — the Data Protection keyring that **decrypts** the stored key
 
-Your Anthropic API key is **encrypted at rest** using a keyring in `api-data`. Losing that
-volume means re-entering the key. Back up both volumes together.
+Because the ciphertext (in the db) and its keyring live in the same volume, **back that volume
+up as a unit**. PersonaOS also writes a nightly self-contained snapshot, and an optional
+[Litestream](https://litestream.io/) overlay gives continuous off-host replication — see
+**[docs/BACKUP.md](docs/BACKUP.md)** for the full backup & restore runbook.
 
 ## Building and developing
 
@@ -94,8 +125,9 @@ npx ng serve                          # web app, in src/frontend/PersonaOS.Web
 flutter run                           # mobile, in src/frontend/PersonaOS.Mobile
 ```
 
-See [CLAUDE.md](CLAUDE.md) for the architecture, layer rules, and working conventions, and
-[docs/PRD.md](docs/PRD.md) for what the product is and why.
+The dev backend uses embedded SQLite at `src/backend/PersonaOS.Api/data/personaos.db` (created
+on first run). See [CLAUDE.md](CLAUDE.md) for the architecture, layer rules, and working
+conventions, and [docs/PRD.md](docs/PRD.md) for what the product is and why.
 
 ## Licence
 

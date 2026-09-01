@@ -22,6 +22,9 @@ jobs:
         id: version
         run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      # QEMU + buildx so images are multi-arch — SQLite makes ARM (Raspberry Pi,
+      # Apple Silicon) a first-class target, so publish for it too.
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -34,6 +37,7 @@ jobs:
         with:
           context: .
           file: src/backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/personaos-api:${{ steps.version.outputs.value }}
@@ -45,6 +49,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: src/frontend/PersonaOS.Web
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/personaos-web:${{ steps.version.outputs.value }}
@@ -99,11 +104,13 @@ jobs:
             mkdir personaos && cd personaos
             curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/docker-compose.yml
             curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/.env.example
-            cp .env.example .env   # set SA_PASSWORD and JWT_SIGNING_KEY
+            cp .env.example .env   # set JWT_SIGNING_KEY
             docker compose up -d
             ```
 
-            Then open <http://localhost:8080> for the Setup Wizard.
+            Then open <http://localhost:8080> for the Setup Wizard. Runs on x86-64
+            and ARM (Raspberry Pi, Apple Silicon). No database service — PersonaOS
+            uses embedded SQLite; back up the `api-data` volume (see docs/BACKUP.md).
 
             ## Upgrade
 
