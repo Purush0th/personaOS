@@ -27,7 +27,12 @@ public class AuthService(
 
     public async Task<AuthResult?> LoginAsync(string username, string password, CancellationToken ct = default)
     {
-        var admin = await db.AdminUsers.FirstOrDefaultAsync(u => u.Username == username.Trim(), ct);
+        // Match the username case-insensitively and explicitly, rather than leaning on the
+        // provider's default collation: SQL Server's default is case-insensitive but SQLite's
+        // is BINARY, so a plain `==` silently changed login behaviour when the store moved.
+        // The column is also declared COLLATE NOCASE, which keeps the unique index in step.
+        var normalized = username.Trim().ToLowerInvariant();
+        var admin = await db.AdminUsers.FirstOrDefaultAsync(u => u.Username.ToLower() == normalized, ct);
         if (admin is null)
             return null;
 
