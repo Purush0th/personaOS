@@ -51,7 +51,7 @@ A **"Test connection"** button verifies the provider, model, and key before you 
 ## Install
 
 ```bash
-git clone https://github.com/personaos/personaos.git
+git clone https://github.com/Purush0th/personaOS.git
 cd personaos/deploy
 cp .env.example .env
 ```

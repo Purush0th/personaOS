@@ -14,7 +14,7 @@ name: personaos
 
 services:
   api:
-    image: ghcr.io/personaos/personaos-api:${PERSONAOS_VERSION:-latest}
+    image: ghcr.io/purush0th/personaos-api:${PERSONAOS_VERSION:-latest}
     environment:
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
       # The whole instance persists under /app/data (one volume):
@@ -40,7 +40,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: ghcr.io/personaos/personaos-web:${PERSONAOS_VERSION:-latest}
+    image: ghcr.io/purush0th/personaos-web:${PERSONAOS_VERSION:-latest}
     depends_on:
       - api
     # The only port published to the host. Bound to loopback by default so the
