@@ -3,7 +3,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { BrandingService } from './branding.service';
 
 /** The upstream repo self-hosters track for releases (see README quickstart). */
-const REPO = 'personaos/personaos';
+const REPO = 'Purush0th/personaOS';
 
 /** localStorage key remembering the version the user dismissed. */
 const DISMISSED_KEY = 'personaos.dismissedUpdate';
