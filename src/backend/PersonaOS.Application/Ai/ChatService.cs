@@ -159,6 +159,25 @@ public class ChatService(
             yield break;
         }
 
+        // A weak model may print a tool call as text rather than emitting it through the
+        // provider's tool-call channel. Nothing ran, so strip it: otherwise the user is shown
+        // internals, and the next turn reads it back from history and copies the mistake.
+        var raw = reply.ToString();
+        var finalText = LeakedToolCallScrubber.Scrub(raw, tools.Select(t => t.Name).ToArray());
+        var scrubbed = !ReferenceEquals(finalText, raw);
+        if (scrubbed)
+        {
+            logger.LogWarning(
+                "Model {Model} wrote a tool call as text instead of calling it; stripped from the reply.",
+                config.AiModel);
+
+            if (finalText.Length == 0)
+            {
+                finalText = "I tried to use one of my tools but formed the request incorrectly, "
+                          + "so nothing was changed. Could you rephrase that?";
+            }
+        }
+
         // Persist the exchange (also when the stream broke mid-reply — keep the partial).
         var now = DateTime.UtcNow;
         db.ChatMessages.Add(new ChatMessage
@@ -172,7 +191,7 @@ public class ChatService(
         {
             ConversationId = conversation.Id,
             Role = ChatRoles.Assistant,
-            Content = reply.ToString(),
+            Content = finalText,
             InputTokens = inputTokens is null ? null : (int)inputTokens,
             OutputTokens = outputTokens is null ? null : (int)outputTokens,
             CreatedAtUtc = now.AddMilliseconds(1),
@@ -186,8 +205,11 @@ public class ChatService(
             yield break;
         }
 
+        // Text on "done" means the streamed deltas no longer match what was stored —
+        // the client should replace the bubble it built up. Absent when nothing changed.
         yield return new ChatStreamEvent(
             "done",
+            Text: scrubbed ? finalText : null,
             ConversationId: conversation.Id,
             InputTokens: inputTokens,
             OutputTokens: outputTokens);

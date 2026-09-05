@@ -203,4 +203,51 @@ public class ChatServiceToolLoopTests
         Assert.Equal("error", error.Type);
         Assert.Contains("API key", error.Error);
     }
+
+    [Fact]
+    public async Task Tool_call_written_as_text_is_stripped_before_it_is_stored()
+    {
+        // A weak model prints the call instead of emitting it, so nothing runs. The raw
+        // JSON must not reach the transcript: the next turn would read it back from
+        // history and copy the mistake.
+        var (db, chat, streamer) = Setup(new FakeTool("get_goals"));
+        streamer.EnqueueText("""I will check. {"name": "get_goals", "arguments": {}}""");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "What are my goals?"));
+
+        var stored = await db.ChatMessages.OrderBy(m => m.Id).LastAsync();
+        Assert.Equal("I will check.", stored.Content);
+        Assert.DoesNotContain("get_goals", stored.Content);
+
+        // 'done' carries the corrected text so the client can replace what it streamed.
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.Equal("I will check.", done.Text);
+    }
+
+    [Fact]
+    public async Task A_reply_that_was_only_a_leaked_call_is_replaced_with_an_explanation()
+    {
+        var (db, chat, streamer) = Setup(new FakeTool("get_goals"));
+        streamer.EnqueueText("""{"name": "get_goals", "arguments": {}}""");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "What are my goals?"));
+
+        var stored = await db.ChatMessages.OrderBy(m => m.Id).LastAsync();
+        Assert.DoesNotContain("get_goals", stored.Content);
+        Assert.Contains("nothing was changed", stored.Content);
+        Assert.Equal(stored.Content, Assert.Single(events, e => e.Type == "done").Text);
+    }
+
+    [Fact]
+    public async Task An_ordinary_reply_is_stored_verbatim_and_done_carries_no_text()
+    {
+        var (db, chat, streamer) = Setup(new FakeTool("get_goals"));
+        streamer.EnqueueText("""Here is an example config: {"name": "my-service", "port": 8080}""");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Show me a config"));
+
+        var stored = await db.ChatMessages.OrderBy(m => m.Id).LastAsync();
+        Assert.Equal("""Here is an example config: {"name": "my-service", "port": 8080}""", stored.Content);
+        Assert.Null(Assert.Single(events, e => e.Type == "done").Text);
+    }
 }
