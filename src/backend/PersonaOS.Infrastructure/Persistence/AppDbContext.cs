@@ -115,7 +115,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<AdminUser>(cfg =>
         {
             cfg.HasKey(x => x.Id);
-            // NOCASE so the unique index treats "purush" and "Purush" as the same account.
+            // NOCASE so the unique index treats "admin" and "Admin" as the same account.
             // SQL Server's default collation was case-insensitive; SQLite's BINARY default is
             // not, so without this the move to SQLite quietly weakened the constraint.
             cfg.Property(x => x.Username).HasMaxLength(100).IsRequired().UseCollation("NOCASE");

@@ -13,9 +13,9 @@ namespace PersonaOS.Tests.Auth;
 /// </summary>
 public class AuthServiceTests
 {
-    private const string Password = "S3cure-Pass!";
+    private const string Password = "test-password";
 
-    private static async Task<(AuthService Auth, FakePasswordHasher Hasher)> SetupAsync(string username = "purush")
+    private static async Task<(AuthService Auth, FakePasswordHasher Hasher)> SetupAsync(string username = "admin")
     {
         var db = TestDbContext.Create();
         var hasher = new FakePasswordHasher();
@@ -25,13 +25,13 @@ public class AuthServiceTests
     }
 
     [Theory]
-    [InlineData("purush")]
-    [InlineData("Purush")]
-    [InlineData("PURUSH")]
-    [InlineData("pUrUsH")]
+    [InlineData("admin")]
+    [InlineData("Admin")]
+    [InlineData("ADMIN")]
+    [InlineData("aDmIn")]
     public async Task Login_succeeds_regardless_of_username_casing(string attempted)
     {
-        var (auth, _) = await SetupAsync("purush");
+        var (auth, _) = await SetupAsync("admin");
 
         var result = await auth.LoginAsync(attempted, Password);
 
@@ -41,9 +41,9 @@ public class AuthServiceTests
     [Fact]
     public async Task Login_matches_when_the_stored_username_is_the_mixed_case_one()
     {
-        var (auth, _) = await SetupAsync("Purush");
+        var (auth, _) = await SetupAsync("Admin");
 
-        var result = await auth.LoginAsync("purush", Password);
+        var result = await auth.LoginAsync("admin", Password);
 
         Assert.NotNull(result);
     }
@@ -51,11 +51,11 @@ public class AuthServiceTests
     [Fact]
     public async Task Login_returns_the_stored_casing_not_what_was_typed()
     {
-        var (auth, _) = await SetupAsync("Purush");
+        var (auth, _) = await SetupAsync("Admin");
 
-        var result = await auth.LoginAsync("PURUSH", Password);
+        var result = await auth.LoginAsync("ADMIN", Password);
 
-        Assert.Equal("Purush", result!.Username);
+        Assert.Equal("Admin", result!.Username);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class AuthServiceTests
     {
         var (auth, _) = await SetupAsync();
 
-        var result = await auth.LoginAsync("  PuRuSh  ", Password);
+        var result = await auth.LoginAsync("  aDmIn  ", Password);
 
         Assert.NotNull(result);
     }
@@ -73,7 +73,7 @@ public class AuthServiceTests
     {
         var (auth, _) = await SetupAsync();
 
-        Assert.Null(await auth.LoginAsync("PURUSH", "wrong-password"));
+        Assert.Null(await auth.LoginAsync("ADMIN", "not-the-password"));
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public class AuthServiceTests
         hasher.Hashed.Clear();
         hasher.NextVerifyResult = PasswordVerifyResult.SuccessRehashNeeded;
 
-        var result = await auth.LoginAsync("PURUSH", Password);
+        var result = await auth.LoginAsync("ADMIN", Password);
 
         Assert.NotNull(result);
         Assert.Single(hasher.Hashed);
