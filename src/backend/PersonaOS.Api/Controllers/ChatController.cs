@@ -20,6 +20,8 @@ public class ChatController(IChatService chatService) : ControllerBase
     /// <summary>
     /// Sends a message and streams the assistant's reply as Server-Sent Events:
     /// `start` {conversationId} → `delta` {text}* → `done` {usage} (or `error`).
+    /// `done` also carries `text` when the stored reply differs from the streamed deltas
+    /// (a tool call the model wrote as prose was stripped) — clients replace the bubble.
     /// </summary>
     [HttpPost]
     public async Task Send([FromBody] SendMessageRequest request, CancellationToken ct)

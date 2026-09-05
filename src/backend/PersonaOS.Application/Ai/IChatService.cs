@@ -3,8 +3,10 @@ namespace PersonaOS.Application.Ai;
 /// <summary>
 /// One event in the chat SSE stream.
 /// Types: "start" (carries ConversationId), "delta" (carries Text),
-/// "tool" (carries ToolName while a Claude tool runs),
-/// "done" (carries token usage), "error" (carries Error).
+/// "tool" (carries ToolName while a tool runs),
+/// "done" (carries token usage, and Text only when the stored reply differs from the
+/// streamed deltas — e.g. a leaked tool call was stripped — so clients replace the bubble),
+/// "error" (carries Error).
 /// </summary>
 public record ChatStreamEvent(
     string Type,

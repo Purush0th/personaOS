@@ -95,6 +95,12 @@ export class Chat implements OnInit {
           case 'delta':
             patch({ tool: null, text: this.bubbles()[replyIndex].text + (event.text ?? '') });
             break;
+          case 'done':
+            // Text on 'done' means the stored reply differs from the deltas we streamed
+            // (the server stripped a tool call the model wrote as prose). Replace the
+            // bubble so the view matches history instead of showing raw internals.
+            if (event.text) patch({ tool: null, text: event.text });
+            break;
           case 'error':
             patch({ tool: null, isError: true, text: event.error ?? 'Something went wrong.' });
             break;
