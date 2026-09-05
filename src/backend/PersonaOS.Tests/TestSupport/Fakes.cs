@@ -185,3 +185,40 @@ public class FixedTimeProvider(DateTimeOffset now) : TimeProvider
 
     public override DateTimeOffset GetUtcNow() => Now;
 }
+
+/// <summary>
+/// Reversible stand-in for the real hasher: "hash" is just a prefixed copy of the
+/// password, so tests can assert on rehashing without running a KDF. Set
+/// <see cref="NextVerifyResult"/> to script the outcome of the next Verify call.
+/// </summary>
+public class FakePasswordHasher : IPasswordHasher
+{
+    private const string Prefix = "hashed:";
+
+    public PasswordVerifyResult? NextVerifyResult { get; set; }
+    public List<string> Hashed { get; } = new();
+
+    public string Hash(string password)
+    {
+        Hashed.Add(password);
+        return Prefix + password;
+    }
+
+    public PasswordVerifyResult Verify(string hash, string password)
+    {
+        if (NextVerifyResult is { } scripted) return scripted;
+        return hash == Prefix + password ? PasswordVerifyResult.Success : PasswordVerifyResult.Failed;
+    }
+}
+
+/// <summary>Token generator that records who it was asked to issue for.</summary>
+public class FakeJwtTokenGenerator : IJwtTokenGenerator
+{
+    public List<AdminUser> Issued { get; } = new();
+
+    public TokenResult CreateToken(AdminUser admin)
+    {
+        Issued.Add(admin);
+        return new TokenResult($"token-for-{admin.Username}", DateTime.UtcNow.AddHours(12));
+    }
+}

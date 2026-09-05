@@ -7,7 +7,7 @@ using PersonaOS.Domain.Entities;
 namespace PersonaOS.Infrastructure.Persistence;
 
 /// <summary>
-/// EF Core context for the PersonaOS install. SQL Server backed; implements the
+/// EF Core context for the PersonaOS install. Backed by embedded SQLite; implements the
 /// Application persistence port. Migrations are auto-applied on API startup.
 /// </summary>
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), IAppDbContext
@@ -115,7 +115,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<AdminUser>(cfg =>
         {
             cfg.HasKey(x => x.Id);
-            cfg.Property(x => x.Username).HasMaxLength(100).IsRequired();
+            // NOCASE so the unique index treats "purush" and "Purush" as the same account.
+            // SQL Server's default collation was case-insensitive; SQLite's BINARY default is
+            // not, so without this the move to SQLite quietly weakened the constraint.
+            cfg.Property(x => x.Username).HasMaxLength(100).IsRequired().UseCollation("NOCASE");
             cfg.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
             cfg.HasIndex(x => x.Username).IsUnique();
         });
@@ -146,8 +149,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.Description).HasMaxLength(4000);
             cfg.Property(x => x.PeriodType).HasMaxLength(20).IsRequired();
             cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
-            // Self-referencing FK: SQL Server forbids cascade here; the subtree is
-            // deleted explicitly in GoalService.DeleteAsync.
+            // Self-referencing FK is deliberately Restrict, so a delete cannot silently wipe a
+            // whole subtree; GoalService.DeleteAsync collects and removes it explicitly.
             cfg.HasOne(x => x.Parent)
                 .WithMany(x => x.Children)
                 .HasForeignKey(x => x.ParentGoalId)

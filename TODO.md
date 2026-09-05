@@ -253,6 +253,25 @@ real Anthropic key).
       `down -v` removes both volumes cleanly.
       ⚠️ Not yet tested: a genuine **N → N+1** upgrade across two different image versions
       (needs a published prior release) and the `minSupportedClient` version gate.
+- [ ] **Re-run the clean-machine install + upgrade test on the SQLite stack.** The verification
+      recorded above was performed against the old **SQL Server** compose stack (before `5ae9092`),
+      so it is no longer evidence for what ships today: there is no DB container or healthcheck
+      any more, and the database now lives inside the `api-data` volume alongside the Data
+      Protection keyring. The keyring-survives-upgrade check in particular is worth repeating,
+      since a lost keyring silently forces re-entry of the provider API key.
+      ✅ **Install half DONE on the SQLite stack (2026-09-05, Docker 29.7.2).** Built both images
+      from source (`-f docker-compose.yml -f docker-compose.build.yml up -d --build`) into empty
+      volumes: `InitialCreate` applied, WAL + `synchronous=NORMAL` set, integrity check passed,
+      nightly backup written, singleton config seeded pre-serving. Drove the **real UI** at
+      `127.0.0.1:8080` through nginx: Setup Wizard → login → chat. Verified only `web` publishes a
+      port (api is `expose`-only); `proactive` stays off and is absent from both `/api/branding`
+      and the nav. Full loop proven through the proxy — the model called `add_planner_item`, it
+      persisted to SQLite, and the Planner view rendered it. Provider was local Ollama
+      (`llama3.1:8b`, keyless) reached from the container at `http://host.docker.internal:11434/v1`
+      — **note `localhost` does NOT work from inside the container**; the name resolves to an IPv6
+      address and worked fine.
+      ⬜ Still open: the **upgrade** half (N → N+1 across two image versions, keyring survival) and
+      the `minSupportedClient` gate.
 - [x] Self-hoster docs (install, Tailscale, BYO key, update) — in README.md.
 
 ## Cross-cutting / anytime
@@ -269,7 +288,39 @@ real Anthropic key).
       tool degrades to an error result, disabled feature hides the tool, stream failure,
       history replay, missing key); **GoalProgressCalculator**; **UserClock** (incl. the
       DST spring-forward gap). Mutation-checked: breaking `MaxAttempts` fails a test.
+- [x] **Fixed: username login was case-sensitive — regression from
+      the SQLite migration (`5ae9092`).** `AuthService` did a plain `u.Username == username`, so
+      case sensitivity is decided by the column collation. SQL Server defaulted to
+      `SQL_Latin1_General_CP1_CI_AS` (case-INsensitive); SQLite defaults to `BINARY`
+      (case-SENSITIVE), and nothing configures a collation. Verified live: `purush` → 200,
+      `Purush`/`PURUSH` → 401. Also means `IX_AdminUsers_Username` no longer prevents `purush`
+      and `Purush` coexisting.
+      **Fix (two halves, deliberately):** `AuthService.LoginAsync` now lower-cases both sides
+      explicitly instead of trusting the provider's collation — that is what makes the behaviour
+      testable and provider-independent, since EF InMemory (which every test here uses) ignores
+      collation entirely. Separately the column is declared `.UseCollation("NOCASE")`, migration
+      `20260905182358_AdminUsernameCaseInsensitive`, so `IX_AdminUsers_Username` also stops
+      treating `purush` and `Purush` as different accounts.
+      **Tests:** new `Auth/AuthServiceTests.cs` (10 cases: casing variants, stored-mixed-case,
+      whitespace, returned casing, wrong password, unknown user, rehash path) plus
+      `FakePasswordHasher` + `FakeJwtTokenGenerator` added to `TestSupport/Fakes.cs`.
+      56 tests green, build 0-warning. **Mutation-checked:** restoring the plain `==` fails 7.
+      **Verified live in the container** after rebuild: `purush` / `Purush` / `PURUSH` /
+      `"  pUrUsH  "` all → 200, wrong password still 401, and the SQLite table rebuild preserved
+      the admin row, nickname and planner data.
 - [ ] Widen coverage: `PlannerService`, `GoalService`, `DocumentService` (esp. the
       path-traversal guard), `PersonaToolRegistry` feature gating.
+- [x] Fix the wrong upstream repo slug (2026-09-01) — `personaos/personaos` was hardcoded in
+      four places but the real remote is `Purush0th/personaOS`, and `release.yml` pushes images
+      to `ghcr.io/${{ github.repository_owner }}/…` = `ghcr.io/purush0th/*`. So the **shipped
+      compose file pulled images that will never exist**, and the update banner could never fire
+      (its 404 was being read as intended fail-silent behaviour). Fixed in `updates.service.ts`,
+      `README.md` clone URL, and both `deploy/docker-compose.yml` image names. Also cleared
+      post-SQLite doc rot: `docs/PRD.md` (arch diagram, backend/packaging bullets, and the
+      Anthropic-only prose that predates provider-neutral) and stale "SQL Server" comments in
+      `AppDbContext.cs` + `GoalService.cs`. Backend build 0-warning `-warnaserror`, 46 tests green.
+      ⚠️ **The Angular build was NOT run — Node is not installed on this machine any more**
+      (`where node` empty, nothing on PATH). The web change is a one-line string constant, but a
+      session with Node should run `npx ng build` to confirm.
 - [ ] Personalization grep-check (no user data in source) before first public push
 - [ ] Node upgrade to ≥ 24.15 → unpin Angular 20 → Angular latest
