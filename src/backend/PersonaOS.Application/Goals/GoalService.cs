@@ -127,7 +127,7 @@ public class GoalService(IAppDbContext db) : IGoalService
         var root = all.FirstOrDefault(g => g.Id == id);
         if (root is null) return false;
 
-        // Collect the whole subtree (self-referencing FKs cannot cascade on SQL Server).
+        // Collect the whole subtree explicitly (the self-referencing FK is Restrict, not cascade).
         var childrenByParent = all.Where(g => g.ParentGoalId is not null).ToLookup(g => g.ParentGoalId!.Value);
         var doomed = new List<Goal>();
         var queue = new Queue<Goal>([root]);

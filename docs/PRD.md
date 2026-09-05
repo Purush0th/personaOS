@@ -1,9 +1,9 @@
 # PersonaOS — Product Requirements & Architecture
 
 > **PersonaOS** is an open-source, self-hosted, single-user personal AI assistant.
-> You run it on your own machine, bring your own Anthropic API key, give your
-> assistant any nickname you like — and it manages your goals, daily planner,
-> reminders, documents, and a Claude-powered chat/voice interface.
+> You run it on your own machine, bring your own AI provider key (or point it at a
+> local model), give your assistant any nickname you like — and it manages your goals,
+> daily planner, reminders, documents, and an AI chat/voice interface.
 
 > **Which doc does what:** this PRD = *what & why*; [TODO.md](../TODO.md) = *live progress*
 > (the only status source); [CLAUDE.md](../CLAUDE.md) = *how to work* + the session protocol
@@ -14,7 +14,7 @@
 A **truly private** personal assistant:
 
 - **Self-hosted** — runs on your PC/VM, reachable only over your private Tailscale network (public/cloud hosting is a later option).
-- **Yours** — you name the assistant anything ("Siri", "Jarvis", …) and tune its persona/tone. Your data never leaves your machine except for calls to the Anthropic API with your own key.
+- **Yours** — you name the assistant anything ("Siri", "Jarvis", …) and tune its persona/tone. Your data never leaves your machine except for calls to whichever AI provider you configure with your own key — and with a local model (Ollama), not even those.
 - **Open source** — Apache-2.0. No paid tier, no license keys, no phone-home.
 
 ### Brand model (important)
@@ -37,10 +37,10 @@ Nothing user-chosen (nickname, persona, API key, personal facts) is ever hardcod
 │   └── Angular dashboard   (web UI + first-run Setup Wizard)     │
 │                    │  REST + SSE (JWT)                          │
 │                    ▼                                            │
-│  ASP.NET Core WebAPI  ──────────────►  Anthropic Messages API   │
-│   ├── Claude agentic loop (native tool-use, no MCP)             │
+│  ASP.NET Core WebAPI  ──────────────►  AI provider (pluggable)  │
+│   ├── Agentic loop (native tool-use, no MCP)                    │
 │   ├── Domain services (goals/planner/reminders/docs)            │
-│   ├── EF Core ──► SQL Server                                    │
+│   ├── EF Core ──► SQLite (embedded, WAL)                        │
 │   ├── Filesystem docs storage                                   │
 │   └── FCM push (reminders)                                      │
 └─────────────────────────────────────────────────────────────────┘
@@ -48,11 +48,11 @@ Nothing user-chosen (nickname, persona, API key, personal facts) is ever hardcod
 
 Key decisions:
 
-- **Backend**: ASP.NET Core (.NET), C#. SQL Server via EF Core; migrations auto-apply on startup.
+- **Backend**: ASP.NET Core (.NET), C#. **Embedded SQLite** (WAL) via EF Core; migrations auto-apply on startup.
   **Clean architecture** (`src/backend/`): `Api` (controllers + composition root) → `Application`
   (use cases + ports) ← `Infrastructure` (EF Core, Anthropic SDK, Data Protection, JWT adapters);
   `Application` → `Domain` (entities). Business logic never touches vendor SDKs directly —
-  the Anthropic client sits behind an `IAiMessageStreamer` port, keeping the model provider
+  each provider client sits behind the `IAiMessageStreamer` port, keeping the model provider
   swappable and use cases unit-testable. Layer rules: [CLAUDE.md](../CLAUDE.md).
 - **AI provider (pluggable)**: chat goes through the neutral `IAiMessageStreamer` port, so the model backend is per-install config, not a hardcoded dependency. Ships with two adapters — Anthropic (official C# SDK) and an OpenAI-compatible one that speaks the Chat Completions API for OpenAI, Ollama (local, free), Groq, OpenRouter, LM Studio, and others via a configurable base URL. Each adapter translates the neutral turns + tool definitions to its provider's **native tool-use** wire format (still no MCP — the app is the only tool consumer; tools are thin wrappers over the same services the REST endpoints use). A new provider is one more adapter behind the port; Application/Domain never change.
 - **Chat**: streaming via SSE; system prompt = nickname + persona template + user profile + active-goals summary; history windowing + rolling summarization; token usage logged per request.
@@ -68,7 +68,7 @@ First-run **Setup Wizard** (dashboard-served, CLI fallback) collects:
 
 1. Assistant nickname + persona/tone
 2. Admin username/password
-3. Anthropic API key (BYO) + Claude model choice
+3. AI provider + base URL + model, and a BYO API key (keyless for local providers)
 4. Feature toggles
 5. Time zone
 
@@ -78,7 +78,7 @@ Writes the singleton `InstanceConfig`, seeds the admin user, runs migrations. Re
 
 ## 4. Distribution & updates
 
-- **Packaging**: Docker Compose bundle (API + SQL Server + dashboard host). `docker compose up` → Setup Wizard → working assistant.
+- **Packaging**: Docker Compose bundle (API + dashboard host; the database is embedded in the API container's data volume). `docker compose up` → Setup Wizard → working assistant.
 - **Channels**: public GitHub repo, versioned public images (GHCR), GitHub Releases carrying compose file + Android APK + docs. Mobile also published to app stores under the PersonaOS brand.
 - **Updates**: `docker compose pull && docker compose up -d`; migrations auto-run; config/data preserved; previous tag pinnable for rollback. In-dashboard "update available" banner (checks GitHub Releases; notify-only, never unattended auto-update). API stays backward-compatible within a major version and advertises `minSupportedClientVersion`.
 
@@ -92,7 +92,7 @@ Writes the singleton `InstanceConfig`, seeds the admin user, runs migrations. Re
 | 0 | Solution scaffolding, EF Core + `InstanceConfig`, JWT auth, `/api/branding`, system-prompt builder |
 | 0.5 | Setup Wizard (admin + config seeding), feature-toggle middleware |
 | 1 | Chat: SSE streaming, agentic loop, history windowing, client-version gate, Flutter chat screen |
-| 2 | Goals: Y/Q/M hierarchy (`ParentGoalId`), progress rollup, CRUD + Claude tools |
+| 2 | Goals: Y/Q/M hierarchy (`ParentGoalId`), progress rollup, CRUD + model tools |
 | 3 | Daily planner: CRUD + tools, day view |
 | 4 | Reminders + FCM push, device tokens, conversational reminder creation |
 | 5 | Docs: filesystem upload/download, `get_document` tool (no RAG) |
