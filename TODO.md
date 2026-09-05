@@ -308,6 +308,64 @@ real Anthropic key).
       **Verified live in the container** after rebuild: `purush` / `Purush` / `PURUSH` /
       `"  pUrUsH  "` all → 200, wrong password still 401, and the SQLite table rebuild preserved
       the admin row, nickname and planner data.
+- [x] **Guard against weak models faking tool use (2026-09-06).** Live testing with `llama3.1:8b`
+      surfaced two failures. (1) It *narrated* actions it never took — claimed a planner item and a
+      reminder were created when the DB had neither; the tool loop itself was fine (an explicit
+      "use the add_planner_item tool" fired and persisted correctly). (2) It printed tool calls as
+      prose using the **definition** shape (`"parameters"`, not `"arguments"`); nothing executed,
+      the raw JSON was shown to the user AND stored, so the next turn read it back from history and
+      copied the pattern — a self-reinforcing loop.
+      **Fix:** `SystemPromptBuilder` now states tool rules explicitly — never write a call as text,
+      never claim an action without a tool result, never invent a tool/parameter/document name.
+      New `LeakedToolCallScrubber` strips JSON objects whose `name` matches a **registered** tool
+      (so ordinary JSON in a reply survives); `ChatService` scrubs before persisting, logs a
+      warning, and substitutes an explanation if the whole reply was a leaked call. The `done` SSE
+      event now carries `text` **only when** the stored reply differs from the streamed deltas, and
+      the web client replaces the bubble on it — so the user stops seeing internals live, not just
+      after a reload.
+      73 tests green, 0 warnings. Mutation-checked: storing the unscrubbed text fails 2.
+      ⚠️ **Flutter not updated** — the mobile client ignores `text` on `done`, so it still shows the
+      raw stream until reload. Mobile-partition follow-up.
+      ⚠️ Known limitation: if a user genuinely asks "show me the JSON to call get_goals", the reply
+      is scrubbed. Judged acceptable — the shape needs a real tool name plus an args key.
+      **qwen2.5 retest (2026-09-06), same flows, same instance:** the *action* class is fixed —
+      "Whats on my list today?" → real `get_planner`; "Yes - travel to home" → real
+      `add_planner_item`, item **actually persisted**; "set a reminder for 6pm" → real
+      `create_reminder`, stored correctly (18:00 Asia/Calcutta → 12:30 UTC). No JSON leak; nothing
+      needed scrubbing. llama3.1:8b faked all three. **Recommend qwen2.5 as the documented minimum
+      for local use.**
+      ⚠️ **Two hallucination classes survive the model swap:**
+      (a) *Factual invention about the product* — asked how to install the mobile app, qwen2.5
+      confidently said to search the App Store / Play Store for "Juno". The app is published
+      nowhere. Fluent and plausible, so worse than the old JSON leak. Fix: ground the system
+      prompt with what PersonaOS actually is (self-hosted; no store listing; APK from GitHub
+      Releases) and tell it to say it does not know rather than invent.
+      (b) *Wrong narration of a correct action* — it created the 6pm reminder correctly but
+      described it as "6pm UTC, which is 12:30pm your time", inverting local and UTC. The write
+      was right; the sentence would mislead. Tool receipts (showing stored values) would expose
+      this; the prompt cannot reliably.
+- [x] **Ground the assistant + guarantee one behavioural
+      contract across providers.** qwen2.5 invented App Store install steps for "Juno"; the model
+      knows nothing about the app it runs inside. Grounding goes in `SystemPromptBuilder`
+      (Application), which every adapter shares — so the rules are identical for Anthropic and
+      every OpenAI-compatible model by construction. **Design rule: never put behavioural or
+      prompt logic in an adapter** — adapters translate wire formats only, or providers drift apart.
+      **Done.** `SystemPromptBuilder` now appends (a) product grounding — self-hosted, no app-store
+      listing, APK from GitHub releases, private-network access, data stays on the server, fixed
+      brand vs chosen nickname; (b) the **real** project/releases URLs as constants; (c) a list of
+      the modules actually enabled, naming the switched-off ones so the model stops offering them;
+      (d) "say I don't know rather than guess".
+      **Key lesson: forbidding invention does not work — supplying the fact does.** With only
+      "never invent URLs", qwen2.5 still emitted a confident link to `github.com/PersomalAI/
+      perspective`, which does not exist. Adding the true URL fixed it.
+      **Cross-model proof of the contract (same prompt, same question, model swapped live):**
+      qwen2.5 → correct steps with the correct URL; llama3.1:8b → *"I don't know. …refer to the
+      README at https://github.com/Purush0th/personaOS."* Different fluency, neither fabricates —
+      that is the achievable form of model-agnostic: identical contract, not identical prose.
+      83 tests green, 0 warnings, incl. a test asserting the prompt is byte-identical across
+      providers so behaviour cannot start diverging per model.
+      ⚠️ `ProjectUrl` in `SystemPromptBuilder` must stay in step with `REPO` in the web
+      `updates.service.ts` — two copies of the same fact.
 - [ ] Widen coverage: `PlannerService`, `GoalService`, `DocumentService` (esp. the
       path-traversal guard), `PersonaToolRegistry` feature gating.
 - [x] Fix the wrong upstream repo slug (2026-09-01) — `personaos/personaos` was hardcoded in
