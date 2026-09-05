@@ -17,7 +17,7 @@ public class InstanceConfig
     /// <summary>False until the Setup Wizard has completed.</summary>
     public bool IsConfigured { get; set; }
 
-    /// <summary>Free-form name the assistant refers to itself by (e.g. "Siri", "Purush").</summary>
+    /// <summary>Free-form name the assistant refers to itself by (e.g. "Siri", "Jarvis").</summary>
     public string AssistantNickname { get; set; } = "Assistant";
 
     /// <summary>Editable system-prompt tone/personality template (formal / friendly / concise …).</summary>
