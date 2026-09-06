@@ -2,7 +2,7 @@ import { Component, OnInit, effect, inject, signal, viewChild, ElementRef } from
 import { FormsModule } from '@angular/forms';
 
 import { BrandingService } from '../core/branding.service';
-import { ChatService, ConversationSummary } from '../core/chat.service';
+import { ChatService, ConversationSummary, ToolReceipt } from '../core/chat.service';
 
 interface Bubble {
   role: 'user' | 'assistant';
@@ -10,6 +10,8 @@ interface Bubble {
   isError?: boolean;
   /** Tool currently running, shown while the assistant works. */
   tool?: string | null;
+  /** What the tools actually did — shown so the reply can be checked against it. */
+  actions?: ToolReceipt[] | null;
 }
 
 @Component({
@@ -62,7 +64,9 @@ export class Chat implements OnInit {
   protected async open(id: number): Promise<void> {
     const detail = await this.chat.getConversation(id);
     this.conversationId.set(detail.id);
-    this.bubbles.set(detail.messages.map(m => ({ role: m.role, text: m.content })));
+    this.bubbles.set(
+      detail.messages.map(m => ({ role: m.role, text: m.content, actions: m.toolActions ?? null }))
+    );
   }
 
   protected async send(): Promise<void> {
@@ -99,7 +103,12 @@ export class Chat implements OnInit {
             // Text on 'done' means the stored reply differs from the deltas we streamed
             // (the server stripped a tool call the model wrote as prose). Replace the
             // bubble so the view matches history instead of showing raw internals.
-            if (event.text) patch({ tool: null, text: event.text });
+            // Actions are what the tools actually did, so the reply can be checked.
+            patch({
+              tool: null,
+              actions: event.actions ?? null,
+              ...(event.text ? { text: event.text } : {}),
+            });
             break;
           case 'error':
             patch({ tool: null, isError: true, text: event.error ?? 'Something went wrong.' });

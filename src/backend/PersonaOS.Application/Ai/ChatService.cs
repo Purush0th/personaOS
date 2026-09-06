@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Ai.Tools;
@@ -81,6 +82,7 @@ public class ChatService(
         var tools = await toolRegistry.GetEnabledToolDefinitionsAsync(ct);
         var streamer = streamerFactory.ForProvider(config.AiProvider);
         var reply = new StringBuilder();
+        var receipts = new List<ToolReceipt>();
         long? inputTokens = null;
         long? outputTokens = null;
         string? streamError = null;
@@ -148,7 +150,11 @@ public class ChatService(
             foreach (var call in toolCalls)
             {
                 yield return new ChatStreamEvent("tool", ToolName: call.Name, ConversationId: conversation.Id);
-                results.Add(await toolRegistry.ExecuteAsync(call, ct));
+                var result = await toolRegistry.ExecuteAsync(call, ct);
+                results.Add(result);
+                // Record what actually happened, from the tool's own result — the only
+                // account of the turn that does not depend on the model telling the truth.
+                receipts.Add(ToolReceiptBuilder.Build(call.Name, result.Content, result.IsError));
             }
             turns.Add(new AiChatTurn(ChatRoles.User, string.Empty, ToolResults: results));
         }
@@ -194,6 +200,7 @@ public class ChatService(
             Content = finalText,
             InputTokens = inputTokens is null ? null : (int)inputTokens,
             OutputTokens = outputTokens is null ? null : (int)outputTokens,
+            ToolActionsJson = receipts.Count == 0 ? null : JsonSerializer.Serialize(receipts),
             CreatedAtUtc = now.AddMilliseconds(1),
         });
         conversation.UpdatedAtUtc = now;
@@ -212,7 +219,8 @@ public class ChatService(
             Text: scrubbed ? finalText : null,
             ConversationId: conversation.Id,
             InputTokens: inputTokens,
-            OutputTokens: outputTokens);
+            OutputTokens: outputTokens,
+            Actions: receipts.Count == 0 ? null : receipts);
     }
 
     public async Task<IReadOnlyList<ConversationSummary>> ListConversationsAsync(CancellationToken ct = default) =>
@@ -232,15 +240,42 @@ public class ChatService(
                 c.CreatedAtUtc,
                 Messages = c.Messages
                     .OrderBy(m => m.CreatedAtUtc).ThenBy(m => m.Id)
-                    .Select(m => new ChatMessageDto(
-                        m.Id, m.Role, m.Content, m.InputTokens, m.OutputTokens, m.CreatedAtUtc))
+                    .Select(m => new
+                    {
+                        m.Id, m.Role, m.Content, m.InputTokens, m.OutputTokens, m.CreatedAtUtc,
+                        m.ToolActionsJson,
+                    })
                     .ToList(),
             })
             .FirstOrDefaultAsync(ct);
 
-        return conversation is null
-            ? null
-            : new ConversationDetail(conversation.Id, conversation.Title, conversation.CreatedAtUtc, conversation.Messages);
+        if (conversation is null) return null;
+
+        // Receipts are deserialized here rather than in the query: EF cannot translate it,
+        // and a malformed row must not take the whole conversation down.
+        var messages = conversation.Messages
+            .Select(m => new ChatMessageDto(
+                m.Id, m.Role, m.Content, m.InputTokens, m.OutputTokens, m.CreatedAtUtc,
+                ReadReceipts(m.ToolActionsJson)))
+            .ToList();
+
+        return new ConversationDetail(
+            conversation.Id, conversation.Title, conversation.CreatedAtUtc, messages);
+    }
+
+    private IReadOnlyList<ToolReceipt>? ReadReceipts(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<ToolReceipt>>(json);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Could not read stored tool receipts; showing the message without them.");
+            return null;
+        }
     }
 
     private static Conversation CreateConversation(string firstMessage)
