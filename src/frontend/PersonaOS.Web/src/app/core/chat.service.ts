@@ -4,6 +4,13 @@ import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from './auth.service';
 
+/** What a tool actually did in a turn — the app's own record, not the model's claim. */
+export interface ToolReceipt {
+  tool: string;
+  ok: boolean;
+  summary?: string | null;
+}
+
 export interface ChatEvent {
   type: 'start' | 'delta' | 'tool' | 'done' | 'error';
   text?: string;
@@ -12,6 +19,7 @@ export interface ChatEvent {
   outputTokens?: number;
   error?: string;
   toolName?: string;
+  actions?: ToolReceipt[];
 }
 
 export interface ConversationSummary {
@@ -28,6 +36,7 @@ export interface ChatMessageDto {
   inputTokens: number | null;
   outputTokens: number | null;
   createdAtUtc: string;
+  toolActions?: ToolReceipt[] | null;
 }
 
 export interface ConversationDetail {

@@ -239,6 +239,58 @@ public class ChatServiceToolLoopTests
     }
 
     [Fact]
+    public async Task Executed_tools_are_recorded_on_the_message_and_returned_on_done()
+    {
+        var tool = new FakeTool("add_planner_item", """{"id":1,"title":"Buy milk","date":"2026-09-06"}""");
+        var (db, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("call-1", "add_planner_item", """{"title":"Buy milk"}""");
+        streamer.EnqueueText("Added it.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add buy milk"));
+
+        var done = Assert.Single(events, e => e.Type == "done");
+        var receipt = Assert.Single(done.Actions!);
+        Assert.Equal("add_planner_item", receipt.Tool);
+        Assert.True(receipt.Ok);
+        Assert.Contains("Buy milk", receipt.Summary);
+
+        // Persisted, so the evidence survives a reload rather than living only in the stream.
+        var stored = await db.ChatMessages.OrderBy(m => m.Id).LastAsync();
+        Assert.NotNull(stored.ToolActionsJson);
+        Assert.Contains("add_planner_item", stored.ToolActionsJson);
+    }
+
+    [Fact]
+    public async Task Receipts_come_back_when_the_conversation_is_reopened()
+    {
+        var tool = new FakeTool("add_planner_item", """{"id":1,"title":"Buy milk","date":"2026-09-06"}""");
+        var (_, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("call-1", "add_planner_item", """{"title":"Buy milk"}""");
+        streamer.EnqueueText("Added it.");
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add buy milk"));
+        var conversationId = events[0].ConversationId!.Value;
+
+        var detail = await chat.GetConversationAsync(conversationId);
+
+        var assistant = detail!.Messages.Last(m => m.Role == ChatRoles.Assistant);
+        var receipt = Assert.Single(assistant.ToolActions!);
+        Assert.Contains("Buy milk", receipt.Summary);
+    }
+
+    [Fact]
+    public async Task A_turn_with_no_tools_records_none()
+    {
+        var (db, chat, streamer) = Setup();
+        streamer.EnqueueText("Just talking.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Hi"));
+
+        Assert.Null(Assert.Single(events, e => e.Type == "done").Actions);
+        var stored = await db.ChatMessages.OrderBy(m => m.Id).LastAsync();
+        Assert.Null(stored.ToolActionsJson);
+    }
+
+    [Fact]
     public async Task An_ordinary_reply_is_stored_verbatim_and_done_carries_no_text()
     {
         var (db, chat, streamer) = Setup(new FakeTool("get_goals"));

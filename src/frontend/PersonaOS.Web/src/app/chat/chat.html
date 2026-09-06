@@ -26,6 +26,22 @@
           } @else {
             <span class="thinking">…</span>
           }
+
+          <!-- What actually happened, recorded from the tool results themselves. Shown so
+               the reply above can be checked against it rather than taken on trust. -->
+          @if (bubble.actions?.length) {
+            <ul class="receipts" aria-label="What was actually done">
+              @for (action of bubble.actions; track $index) {
+                <li [class.failed]="!action.ok">
+                  <span class="mark" aria-hidden="true">{{ action.ok ? '✓' : '✕' }}</span>
+                  <code>{{ action.tool }}</code>
+                  @if (action.summary) {
+                    <span class="detail">{{ action.summary }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
         </div>
       } @empty {
         <p class="muted empty">

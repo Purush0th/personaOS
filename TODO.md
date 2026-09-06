@@ -366,6 +366,29 @@ real Anthropic key).
       providers so behaviour cannot start diverging per model.
       ⚠️ `ProjectUrl` in `SystemPromptBuilder` must stay in step with `REPO` in the web
       `updates.service.ts` — two copies of the same fact.
+- [x] **Tool receipts — show what the app actually did.**
+      qwen2.5 stored a 6pm reminder correctly then described it as "6pm UTC, which is 12:30pm your
+      time", inverting local and UTC. Prompting cannot reliably fix wrong narration of a correct
+      action; showing the stored values can. Record what each tool actually executed and return,
+      persist it on the assistant message, and render it under the reply so prose is never the
+      only evidence.
+      **Done.** `ToolReceiptBuilder` summarises each executed tool from its own result JSON —
+      label (`title`/`message`/`fileName`) plus context (`dueAtLocal`/`date`/`status`), ISO stamps
+      tidied, long values truncated. Receipts persist on the assistant message
+      (`ChatMessage.ToolActionsJson`, migration `20260905194831_ChatMessageToolActions`), ride the
+      `done` SSE event, and are returned by the history endpoint so they survive a reload. The web
+      chat renders them as a quiet checklist under the reply, red when a tool failed. Built from
+      tool output only — never model text — so it is provider-neutral like the rest of the contract.
+      95 tests green, 0 warnings. **Verified live over the API** on the exact case that was
+      misdescribed: "Remind me to call the bank at 6pm today" →
+      `create_reminder ✓ "Call the bank — 2026-09-06 18:00 · pending"`. A test pins that the receipt
+      shows the stored **local** time and never the UTC value, since showing UTC is the confusion
+      it exists to prevent.
+      ⚠️ **Browser rendering is NOT yet verified** — Docker Desktop crashed mid-check (orphaned
+      AF_UNIX sockets under %LOCALAPPDATA%/Docker/run after a force-kill; needs a reboot). The
+      Angular build compiled and deployed, but nobody has seen the receipts painted on screen.
+      Confirm before treating this as complete.
+      ⚠️ Flutter does not render receipts either — same mobile-partition gap as the `done` text.
 - [ ] Widen coverage: `PlannerService`, `GoalService`, `DocumentService` (esp. the
       path-traversal guard), `PersonaToolRegistry` feature gating.
 - [x] Fix the wrong upstream repo slug (2026-09-01) — `personaos/personaos` was hardcoded in

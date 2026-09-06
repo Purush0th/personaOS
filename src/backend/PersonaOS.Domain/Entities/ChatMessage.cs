@@ -23,5 +23,13 @@ public class ChatMessage
     public int? InputTokens { get; set; }
     public int? OutputTokens { get; set; }
 
+    /// <summary>
+    /// What the tools actually did during this turn, as a JSON array of receipts
+    /// (assistant messages only; null when no tool ran). This is the app's own record —
+    /// derived from real executions, never from what the model said it did — so a reply
+    /// that misdescribes an action can be checked against it.
+    /// </summary>
+    public string? ToolActionsJson { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }

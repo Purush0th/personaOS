@@ -15,12 +15,14 @@ public record ChatStreamEvent(
     long? InputTokens = null,
     long? OutputTokens = null,
     string? Error = null,
-    string? ToolName = null);
+    string? ToolName = null,
+    IReadOnlyList<ToolReceipt>? Actions = null);
 
 public record ConversationSummary(int Id, string Title, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 
 public record ChatMessageDto(
-    long Id, string Role, string Content, int? InputTokens, int? OutputTokens, DateTime CreatedAtUtc);
+    long Id, string Role, string Content, int? InputTokens, int? OutputTokens, DateTime CreatedAtUtc,
+    IReadOnlyList<ToolReceipt>? ToolActions = null);
 
 public record ConversationDetail(
     int Id, string Title, DateTime CreatedAtUtc, IReadOnlyList<ChatMessageDto> Messages);
