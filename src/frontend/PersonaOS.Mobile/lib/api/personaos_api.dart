@@ -12,12 +12,35 @@ class ChatEvent {
         text: json['text'] as String?,
         conversationId: json['conversationId'] as int?,
         error: json['error'] as String?,
+        actions: (json['actions'] as List<dynamic>?)
+            ?.map((a) => ToolReceipt.fromJson(a as Map<String, dynamic>))
+            .toList(),
       );
 
-  final String type; // start | delta | done | error
+  final String type; // start | delta | tool | done | error
   final String? text;
   final int? conversationId;
   final String? error;
+
+  /// On `done`: what the tools actually did this turn. Null when none ran.
+  final List<ToolReceipt>? actions;
+}
+
+/// What a tool actually did, recorded by the server from the tool's own result
+/// rather than from anything the model said. Shown under a reply so a claim like
+/// "I set your reminder for 6pm" can be checked against what was stored.
+class ToolReceipt {
+  ToolReceipt({required this.tool, required this.ok, this.summary});
+
+  factory ToolReceipt.fromJson(Map<String, dynamic> json) => ToolReceipt(
+        tool: json['tool'] as String,
+        ok: json['ok'] as bool? ?? true,
+        summary: json['summary'] as String?,
+      );
+
+  final String tool;
+  final bool ok;
+  final String? summary;
 }
 
 /// A failed API call carrying a user-presentable message. The server returns
