@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
+using PersonaOS.Domain;
 using PersonaOS.Domain.Entities;
 
 namespace PersonaOS.Application.Ai;
@@ -10,13 +11,9 @@ public class SystemPromptBuilder(
     IInstanceConfigService configService,
     IAppDbContext db) : ISystemPromptBuilder
 {
-    /// <summary>
-    /// Canonical project home. Fixed like the brand itself (see the PRD's brand model), and it
-    /// must stay in step with the repo the update banner polls (web `updates.service.ts`).
-    /// </summary>
-    private const string ProjectUrl = "https://github.com/Purush0th/personaOS";
+    private const string ProjectUrl = PersonaOsProject.Url;
 
-    private const string ReleasesUrl = ProjectUrl + "/releases";
+    private const string ReleasesUrl = PersonaOsProject.ReleasesUrl;
 
     /// <summary>
     /// Facts about the product the assistant runs inside. Models otherwise invent them —

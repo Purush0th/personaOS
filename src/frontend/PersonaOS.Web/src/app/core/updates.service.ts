@@ -2,9 +2,6 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { BrandingService } from './branding.service';
 
-/** The upstream repo self-hosters track for releases (see README quickstart). */
-const REPO = 'Purush0th/personaOS';
-
 /** localStorage key remembering the version the user dismissed. */
 const DISMISSED_KEY = 'personaos.dismissedUpdate';
 
@@ -35,11 +32,16 @@ export class UpdatesService {
   });
 
   async check(): Promise<void> {
-    const current = this.branding.branding()?.apiVersion;
-    if (!current) return;
+    const branding = this.branding.branding();
+    const current = branding?.apiVersion;
+    // The repo comes from the API, so the backend stays the single source of truth.
+    // A second hardcoded copy here is exactly how this banner ended up polling a
+    // repository that does not exist.
+    const repo = branding?.repository;
+    if (!current || !repo) return;
 
     try {
-      const response = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+      const response = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
         headers: { Accept: 'application/vnd.github+json' },
       });
       if (!response.ok) return; // 404 (no public repo/release yet), rate limit, etc.
@@ -55,7 +57,7 @@ export class UpdatesService {
       this.latest.set({
         version: latestVersion,
         name: release.name || `v${latestVersion}`,
-        notesUrl: release.html_url ?? `https://github.com/${REPO}/releases`,
+        notesUrl: release.html_url ?? `https://github.com/${repo}/releases`,
       });
     } catch {
       // Offline or blocked — stay silent.
