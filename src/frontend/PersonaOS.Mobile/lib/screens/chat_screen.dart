@@ -11,6 +11,9 @@ class _Bubble {
   final bool isUser;
   String text;
   bool isError = false;
+
+  /// What the tools actually did during this turn, shown beneath the reply.
+  List<ToolReceipt>? actions;
 }
 
 /// Streaming chat with the assistant. Deltas append to the live bubble.
@@ -118,6 +121,11 @@ class _ChatScreenState extends State<ChatScreen> {
             _streaming = false;
           case 'done':
             _streaming = false;
+            // Text on 'done' means the server stored something different from the
+            // deltas we streamed — it stripped a tool call the model wrote as prose.
+            // Replace before speaking, or read-back would say the raw JSON aloud.
+            if (event.text != null) assistantBubble.text = event.text!;
+            assistantBubble.actions = event.actions;
             if (_readBack) _voice.speak(assistantBubble.text);
         }
       });
@@ -247,12 +255,77 @@ class _BubbleView extends StatelessWidget {
           color: background,
           borderRadius: BorderRadius.circular(14),
         ),
-        child: bubble.text.isEmpty && !bubble.isUser
-            ? const SizedBox(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (bubble.text.isEmpty && !bubble.isUser)
+              const SizedBox(
                 width: 32,
                 child: Text('…', textAlign: TextAlign.center),
               )
-            : SelectableText(bubble.text, style: TextStyle(color: foreground)),
+            else
+              SelectableText(bubble.text, style: TextStyle(color: foreground)),
+            if (bubble.actions?.isNotEmpty ?? false)
+              _ReceiptList(actions: bubble.actions!, foreground: foreground),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The app's own record of what ran, beneath the reply. Deliberately quieter than
+/// the reply text — it is evidence to check against, not the main content.
+class _ReceiptList extends StatelessWidget {
+  const _ReceiptList({required this.actions, required this.foreground});
+
+  final List<ToolReceipt> actions;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Divider(height: 9, color: foreground.withValues(alpha: 0.18)),
+          for (final action in actions)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    action.ok ? '✓ ' : '✕ ',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: action.ok
+                          ? const Color(0xFF3D6B45)
+                          : theme.colorScheme.error,
+                    ),
+                  ),
+                  Flexible(
+                    child: Text(
+                      action.summary == null
+                          ? action.tool
+                          : '${action.tool}  ${action.summary}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: action.ok
+                            ? const Color(0xFF3D6B45)
+                            : theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
