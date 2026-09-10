@@ -324,8 +324,8 @@ real Anthropic key).
       the web client replaces the bubble on it — so the user stops seeing internals live, not just
       after a reload.
       73 tests green, 0 warnings. Mutation-checked: storing the unscrubbed text fails 2.
-      ⚠️ **Flutter not updated** — the mobile client ignores `text` on `done`, so it still shows the
-      raw stream until reload. Mobile-partition follow-up.
+      ✅ Flutter updated 2026-09-10 — it now applies `text` on `done` (see the receipts entry
+      below), though it is still uncompiled here for want of the SDK.
       ⚠️ Known limitation: if a user genuinely asks "show me the JSON to call get_goals", the reply
       is scrubbed. Judged acceptable — the shape needs a real tool name plus an args key.
       **qwen2.5 retest (2026-09-06), same flows, same instance:** the *action* class is fixed —
@@ -364,8 +364,11 @@ real Anthropic key).
       that is the achievable form of model-agnostic: identical contract, not identical prose.
       83 tests green, 0 warnings, incl. a test asserting the prompt is byte-identical across
       providers so behaviour cannot start diverging per model.
-      ⚠️ `ProjectUrl` in `SystemPromptBuilder` must stay in step with `REPO` in the web
-      `updates.service.ts` — two copies of the same fact.
+      ✅ Deduplicated 2026-09-10: the canonical repo now lives once, in
+      `PersonaOS.Domain/PersonaOsProject.cs`. `SystemPromptBuilder` uses it, `/api/branding`
+      serves it as `repository`, and the web `updates.service.ts` reads it from branding instead
+      of its own constant — so the banner can no longer poll a different repo than the backend
+      believes in. Verified live: branding returns `"repository":"Purush0th/personaOS"`.
 - [x] **Tool receipts — show what the app actually did.**
       qwen2.5 stored a 6pm reminder correctly then described it as "6pm UTC, which is 12:30pm your
       time", inverting local and UTC. Prompting cannot reliably fix wrong narration of a correct
@@ -384,11 +387,21 @@ real Anthropic key).
       `create_reminder ✓ "Call the bank — 2026-09-06 18:00 · pending"`. A test pins that the receipt
       shows the stored **local** time and never the UTC value, since showing UTC is the confusion
       it exists to prevent.
-      ⚠️ **Browser rendering is NOT yet verified** — Docker Desktop crashed mid-check (orphaned
+      ✅ **Browser rendering VERIFIED 2026-09-10**: opening an old conversation renders
+      `✓ create_reminder Call the bank — 2026-09-06 18:00 · pending` beneath the reply, styled
+      (border-top applied, green, bold mark) — and since it came from history, receipts survive a
+      reload as intended. Superseded note below:
+      ⚠️ ~~**Browser rendering is NOT yet verified**~~ — Docker Desktop crashed mid-check (orphaned
       AF_UNIX sockets under %LOCALAPPDATA%/Docker/run after a force-kill; needs a reboot). The
       Angular build compiled and deployed, but nobody has seen the receipts painted on screen.
       Confirm before treating this as complete.
-      ⚠️ Flutter does not render receipts either — same mobile-partition gap as the `done` text.
+      ✅ Flutter now handles both (2026-09-10): `ChatEvent` parses `actions` into a new
+      `ToolReceipt`, the `done` case applies `event.text` **before** read-back (TTS would
+      otherwise have spoken the raw JSON aloud) and stores the receipts, and `_ReceiptList`
+      renders them under the bubble. ⚠️ **Compiled and tested by nobody — the Flutter SDK is not
+      installed on this machine**, so `flutter analyze`/`flutter test` could not run. Reviewed
+      against the codebase (`withValues` needs Flutter ≥3.27; pubspec pins Dart ^3.11.5, so it is
+      available) but a mobile session must confirm before this is trusted.
 - [ ] Widen coverage: `PlannerService`, `GoalService`, `DocumentService` (esp. the
       path-traversal guard), `PersonaToolRegistry` feature gating.
 - [x] Fix the wrong upstream repo slug (2026-09-01) — `personaos/personaos` was hardcoded in
@@ -400,8 +413,15 @@ real Anthropic key).
       post-SQLite doc rot: `docs/PRD.md` (arch diagram, backend/packaging bullets, and the
       Anthropic-only prose that predates provider-neutral) and stale "SQL Server" comments in
       `AppDbContext.cs` + `GoalService.cs`. Backend build 0-warning `-warnaserror`, 46 tests green.
-      ⚠️ **The Angular build was NOT run — Node is not installed on this machine any more**
-      (`where node` empty, nothing on PATH). The web change is a one-line string constant, but a
-      session with Node should run `npx ng build` to confirm.
+      ✅ Angular build confirmed 2026-09-10 — Node 24.19.0 has since been installed, `npm ci` +
+      `npx ng build` run clean on the host. (The note that Node was missing is now historical.)
 - [ ] Personalization grep-check (no user data in source) before first public push
-- [ ] Node upgrade to ≥ 24.15 → unpin Angular 20 → Angular latest
+- [ ] Unpin Angular 20 → Angular latest. (Node half is **done**: 24.19.0 installed 2026-09-05,
+      which is ≥ 24.15, so the constraint that forced the CLI pin is gone. Only the version bump
+      itself remains, and it should be its own change — it is a framework upgrade, not a fix.)
+- [x] **Web app is usable on a phone (2026-09-10).** `.topbar` was a no-wrap flex row with six
+      nav links, brand and Sign out; on a narrow screen Reminders/Documents/Settings were simply
+      clipped and the page scrolled sideways. Now the topbar wraps, and under 720px the nav takes
+      its own full-width row that scrolls horizontally. Verified at a real 380px viewport:
+      media query matches, `document.scrollWidth` no longer exceeds the viewport, and scrolling
+      the nav reaches Settings. Update banner wraps too; content padding tightened on mobile.
