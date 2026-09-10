@@ -8,6 +8,8 @@ export interface Branding {
   enabledFeatures: string[];
   apiVersion: string;
   minSupportedClient: string;
+  /** GitHub "owner/name" to poll for releases; served so it is defined in one place. */
+  repository: string;
 }
 
 /**

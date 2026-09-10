@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PersonaOS.Application.Configuration;
+using PersonaOS.Domain;
 
 namespace PersonaOS.Api.Controllers;
 
@@ -18,7 +19,9 @@ public class BrandingController(IInstanceConfigService configService) : Controll
         bool IsConfigured,
         IReadOnlyList<string> EnabledFeatures,
         string ApiVersion,
-        string MinSupportedClient);
+        string MinSupportedClient,
+        /// <summary>GitHub "owner/name" the dashboard polls for releases.</summary>
+        string Repository);
 
     [HttpGet]
     [AllowAnonymous]
@@ -38,6 +41,7 @@ public class BrandingController(IInstanceConfigService configService) : Controll
             IsConfigured: config.IsConfigured,
             EnabledFeatures: enabled,
             ApiVersion: ApiVersionInfo.ApiVersion,
-            MinSupportedClient: ApiVersionInfo.MinSupportedClient));
+            MinSupportedClient: ApiVersionInfo.MinSupportedClient,
+            Repository: PersonaOsProject.Repository));
     }
 }
