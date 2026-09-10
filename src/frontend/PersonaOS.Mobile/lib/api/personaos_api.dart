@@ -5,7 +5,13 @@ import 'package:http/http.dart' as http;
 
 /// One event from the chat SSE stream.
 class ChatEvent {
-  ChatEvent({required this.type, this.text, this.conversationId, this.error});
+  ChatEvent({
+    required this.type,
+    this.text,
+    this.conversationId,
+    this.error,
+    this.actions,
+  });
 
   factory ChatEvent.fromJson(Map<String, dynamic> json) => ChatEvent(
         type: json['type'] as String,

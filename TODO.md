@@ -398,10 +398,14 @@ real Anthropic key).
       ✅ Flutter now handles both (2026-09-10): `ChatEvent` parses `actions` into a new
       `ToolReceipt`, the `done` case applies `event.text` **before** read-back (TTS would
       otherwise have spoken the raw JSON aloud) and stores the receipts, and `_ReceiptList`
-      renders them under the bubble. ⚠️ **Compiled and tested by nobody — the Flutter SDK is not
-      installed on this machine**, so `flutter analyze`/`flutter test` could not run. Reviewed
-      against the codebase (`withValues` needs Flutter ≥3.27; pubspec pins Dart ^3.11.5, so it is
-      available) but a mobile session must confirm before this is trusted.
+      renders them under the bubble.
+      ✅ **Verified: Flutter SDK 3.47.3 installed at `D:\flutter` (2026-09-10).**
+      `flutter analyze` clean, `flutter test` **7 passing**. Worth noting why this mattered:
+      analyze immediately found 2 real compile errors — the `actions` field had been added to
+      `ChatEvent` without adding it to the constructor, so the client would not have built at
+      all. Code review had not caught it. **Do not ship Dart changes on review alone.**
+      New `test/chat_event_test.dart` pins the SSE parsing contract (receipts present/absent,
+      failed tool, missing summary, corrected `text` on `done`) since that is precisely what broke.
 - [ ] Widen coverage: `PlannerService`, `GoalService`, `DocumentService` (esp. the
       path-traversal guard), `PersonaToolRegistry` feature gating.
 - [x] Fix the wrong upstream repo slug (2026-09-01) — `personaos/personaos` was hardcoded in
