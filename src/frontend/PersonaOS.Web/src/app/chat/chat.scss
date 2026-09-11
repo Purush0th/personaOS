@@ -29,7 +29,46 @@
     font: inherit;
   }
 
+  .conversation-row {
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
+
+    &:hover {
+      background: #ececf2;
+    }
+
+    // The row carries the active state now, so the title and the ✕ highlight together.
+    &.active {
+      background: #1a1a2e;
+
+      .conversation,
+      .delete {
+        color: #fff;
+      }
+    }
+
+    // Keep the ✕ out of the way until the row is hovered or focused within.
+    .delete {
+      opacity: 0;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font: inherit;
+      color: #777;
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+    }
+
+    &:hover .delete,
+    &:focus-within .delete {
+      opacity: 1;
+    }
+  }
+
   .conversation {
+    flex: 1;
+    min-width: 0;
     text-align: left;
     background: none;
     border: none;
@@ -41,14 +80,39 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
 
-    &:hover {
-      background: #ececf2;
+  // Deleting a thread is irreversible, so the row turns into an explicit question.
+  .confirm-delete {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.82rem;
+
+    .ask {
+      flex: 1;
+      min-width: 8rem;
     }
 
-    &.active {
-      background: #1a1a2e;
+    button {
+      font: inherit;
+      font-size: 0.82rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .danger {
+      background: #b00020;
       color: #fff;
+    }
+
+    .cancel {
+      background: none;
+      border-color: rgba(0, 0, 0, 0.25);
     }
   }
 }

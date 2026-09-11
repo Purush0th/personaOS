@@ -59,6 +59,16 @@ public class ChatController(IChatService chatService) : ControllerBase
     }
 
     /// <summary>
+    /// Permanently deletes a conversation with its messages and any pending proposals.
+    /// </summary>
+    [HttpDelete("conversations/{idOrPublicId}")]
+    public async Task<IActionResult> DeleteConversation(string idOrPublicId, CancellationToken ct)
+    {
+        var deleted = await chatService.DeleteConversationAsync(idOrPublicId, ct);
+        return deleted ? NoContent() : NotFound();
+    }
+
+    /// <summary>
     /// Runs a data-changing action the assistant proposed. This is the only route by which a
     /// model-requested write reaches the database — the chat loop never executes one directly.
     /// </summary>
