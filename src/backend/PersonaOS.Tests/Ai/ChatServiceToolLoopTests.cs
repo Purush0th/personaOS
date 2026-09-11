@@ -310,6 +310,142 @@ public class ChatServiceToolLoopTests
     }
 
     [Fact]
+    public async Task A_tool_that_writes_is_proposed_rather_than_executed()
+    {
+        // The whole point of the gate: models have created goals and reminders nobody asked
+        // for. Nothing may reach the database on the model's say-so.
+        var tool = new FakeTool("create_goal", """{"created":{"id":1,"title":"Learn C#"}}""", mutates: true);
+        var (db, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#","periodType":"month"}""");
+        streamer.EnqueueText("I can create that — confirm when you're ready.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+
+        Assert.Empty(tool.Invocations);
+        var done = Assert.Single(events, e => e.Type == "done");
+        var proposal = Assert.Single(done.Pending!);
+        Assert.Equal("create_goal", proposal.Tool);
+        Assert.Equal(PendingActionStatuses.Pending, proposal.Status);
+        Assert.Contains("Learn C#", proposal.Summary);
+        Assert.Null(done.Actions);
+
+        Assert.Equal(PendingActionStatuses.Pending, (await db.PendingActions.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task The_model_is_told_the_action_did_not_run()
+    {
+        // Otherwise it reports success for something still waiting on the user.
+        var tool = new FakeTool("create_goal", mutates: true);
+        var (_, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
+        streamer.EnqueueText("ok");
+
+        await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+
+        var resultTurn = Assert.Single(streamer.ReceivedTurns[1], t => t.ToolResults is { Count: > 0 });
+        Assert.Contains("NOT EXECUTED", resultTurn.ToolResults![0].Content);
+    }
+
+    [Fact]
+    public async Task Confirming_runs_the_tool_and_records_what_happened()
+    {
+        var tool = new FakeTool(
+            "create_goal",
+            """{"created":{"id":1,"title":"Learn C#","periodType":"month","periodStart":"2026-09-01"}}""",
+            mutates: true);
+        var (db, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
+        streamer.EnqueueText("Confirm?");
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var id = Assert.Single(Assert.Single(events, e => e.Type == "done").Pending!).Id;
+
+        var confirmed = await chat.ConfirmActionAsync(id);
+
+        Assert.Single(tool.Invocations);
+        Assert.Equal(PendingActionStatuses.Confirmed, confirmed!.Status);
+        Assert.True(confirmed.ResultOk);
+        Assert.Contains("Learn C#", confirmed.ResultSummary);
+        Assert.Equal(PendingActionStatuses.Confirmed, (await db.PendingActions.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Confirming_twice_does_not_run_the_tool_twice()
+    {
+        var tool = new FakeTool("create_goal", mutates: true);
+        var (_, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
+        streamer.EnqueueText("Confirm?");
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var id = Assert.Single(Assert.Single(events, e => e.Type == "done").Pending!).Id;
+
+        await chat.ConfirmActionAsync(id);
+        await chat.ConfirmActionAsync(id);
+
+        Assert.Single(tool.Invocations);
+    }
+
+    [Fact]
+    public async Task Discarding_never_runs_the_tool()
+    {
+        var tool = new FakeTool("create_goal", mutates: true);
+        var (_, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
+        streamer.EnqueueText("Confirm?");
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var id = Assert.Single(Assert.Single(events, e => e.Type == "done").Pending!).Id;
+
+        var discarded = await chat.DiscardActionAsync(id);
+
+        Assert.Empty(tool.Invocations);
+        Assert.Equal(PendingActionStatuses.Discarded, discarded!.Status);
+        // And it stays discarded — confirming afterwards must not resurrect it.
+        await chat.ConfirmActionAsync(id);
+        Assert.Empty(tool.Invocations);
+    }
+
+    [Fact]
+    public async Task A_reading_tool_still_runs_without_asking()
+    {
+        // Reads are not gated; the gate would be unusable if every question needed a tap.
+        var tool = new FakeTool("get_goals", """{"goals":[]}""");
+        var (_, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "get_goals", "{}");
+        streamer.EnqueueText("You have none.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "What are my goals?"));
+
+        Assert.Single(tool.Invocations);
+        Assert.Null(Assert.Single(events, e => e.Type == "done").Pending);
+    }
+
+    [Fact]
+    public async Task Proposals_come_back_when_the_conversation_is_reopened()
+    {
+        var tool = new FakeTool("create_goal", mutates: true);
+        var (_, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
+        streamer.EnqueueText("Confirm?");
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var conversationId = events[0].ConversationId!.Value;
+
+        var detail = await chat.GetConversationAsync(conversationId.ToString());
+
+        var assistant = detail!.Messages.Last(m => m.Role == ChatRoles.Assistant);
+        var proposal = Assert.Single(assistant.PendingActions!);
+        Assert.Equal(PendingActionStatuses.Pending, proposal.Status);
+    }
+
+    [Fact]
+    public async Task An_unknown_action_id_returns_null()
+    {
+        var (_, chat, _) = Setup();
+
+        Assert.Null(await chat.ConfirmActionAsync("zzzzzzzz"));
+        Assert.Null(await chat.DiscardActionAsync("zzzzzzzz"));
+    }
+
+    [Fact]
     public async Task Each_conversation_gets_its_own_public_id()
     {
         var (db, chat, streamer) = Setup();

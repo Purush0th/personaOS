@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PersonaOS.Application.Ai;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Infrastructure.Ai;
@@ -65,6 +66,36 @@ public static class DependencyInjection
     }
 
     /// <summary>
+    /// Repairs assistant messages stored by a build that let an unclosed ``` fence through.
+    /// Scrubbing happens on write, so replies saved before that fix keep the stray marker
+    /// sitting in the middle of the text forever — a self-hoster upgrading should not have to
+    /// live with it.
+    ///
+    /// Passed no tool names deliberately: that limits the scrubber to fence repair, so this can
+    /// never retroactively strip JSON out of an old reply that legitimately contained some.
+    /// Cheap (only rows containing a fence are considered) and idempotent — scrubbing clean
+    /// text is a no-op, so running it on every boot is harmless.
+    /// </summary>
+    private static async Task RepairLeakedFencesAsync(AppDbContext db, CancellationToken ct)
+    {
+        var candidates = await db.ChatMessages
+            .Where(m => m.Role == ChatRoles.Assistant && m.Content.Contains("```"))
+            .ToListAsync(ct);
+
+        var repaired = 0;
+        foreach (var message in candidates)
+        {
+            var cleaned = LeakedToolCallScrubber.Scrub(message.Content, []);
+            if (cleaned == message.Content) continue;
+
+            message.Content = cleaned;
+            repaired++;
+        }
+
+        if (repaired > 0) await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
     /// Applies any pending EF Core migrations. Called on API startup so a
     /// self-hoster's `docker compose pull` upgrade migrates the schema automatically.
     /// </summary>
@@ -88,6 +119,8 @@ public static class DependencyInjection
             });
             await db.SaveChangesAsync(ct);
         }
+
+        await RepairLeakedFencesAsync(db, ct);
 
         // WAL lets readers proceed during writes and is a persistent setting stored in the
         // file, so setting it once here is enough. synchronous=NORMAL is the durable-enough,

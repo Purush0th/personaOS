@@ -3,7 +3,12 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { BrandingService } from '../core/branding.service';
-import { ChatService, ConversationSummary, ToolReceipt } from '../core/chat.service';
+import {
+  ChatService,
+  ConversationSummary,
+  PendingAction,
+  ToolReceipt,
+} from '../core/chat.service';
 import { conversationRefFromSlug, conversationSlug } from '../core/conversation-slug';
 
 interface Bubble {
@@ -12,6 +17,8 @@ interface Bubble {
   isError?: boolean;
   /** Tool currently running, shown while the assistant works. */
   tool?: string | null;
+  /** Data-changing actions awaiting the user's confirmation. */
+  pending?: PendingAction[] | null;
   /** What the tools actually did — shown so the reply can be checked against it. */
   actions?: ToolReceipt[] | null;
 }
@@ -36,6 +43,8 @@ export class Chat implements OnInit {
   /** Public id of the open conversation; what appears in the URL. */
   private readonly conversationPublicId = signal<string | null>(null);
   protected readonly streaming = signal(false);
+  /** Action ids with a confirm/discard in flight, so the buttons can't be double-tapped. */
+  private readonly resolving = signal(new Set<string>());
 
   draft = '';
 
@@ -105,7 +114,12 @@ export class Chat implements OnInit {
       this.conversationId.set(detail.id);
       this.conversationPublicId.set(detail.publicId);
       this.bubbles.set(
-        detail.messages.map(m => ({ role: m.role, text: m.content, actions: m.toolActions ?? null }))
+        detail.messages.map(m => ({
+          role: m.role,
+          text: m.content,
+          actions: m.toolActions ?? null,
+          pending: m.pendingActions ?? null,
+        }))
       );
 
       // An old numeric link still resolves; quietly upgrade the address bar to the public id
@@ -159,6 +173,7 @@ export class Chat implements OnInit {
             patch({
               tool: null,
               actions: event.actions ?? null,
+              pending: event.pending ?? null,
               ...(event.text ? { text: event.text } : {}),
             });
             break;
@@ -194,6 +209,41 @@ export class Chat implements OnInit {
     if (conversationRefFromSlug(this.route.snapshot.paramMap.get('slug')) === slug) return;
 
     void this.router.navigate(['/chat', slug], { replaceUrl: true });
+  }
+
+  /**
+   * Confirm or discard a proposed change. Nothing has touched the database until Confirm —
+   * the assistant cannot write on its own say-so.
+   */
+  protected async resolveAction(action: PendingAction, confirm: boolean): Promise<void> {
+    if (action.status !== 'pending' || this.resolving().has(action.id)) return;
+
+    this.resolving.update(set => new Set(set).add(action.id));
+    try {
+      const updated = confirm
+        ? await this.chat.confirmAction(action.id)
+        : await this.chat.discardAction(action.id);
+
+      // Replace in place so the card becomes a receipt without reloading the thread.
+      this.bubbles.update(list =>
+        list.map(bubble => ({
+          ...bubble,
+          pending: bubble.pending?.map(p => (p.id === action.id ? updated : p)) ?? null,
+        }))
+      );
+    } catch {
+      // Leave the card pending so the user can try again rather than losing the action.
+    } finally {
+      this.resolving.update(set => {
+        const next = new Set(set);
+        next.delete(action.id);
+        return next;
+      });
+    }
+  }
+
+  protected isResolving(id: string): boolean {
+    return this.resolving().has(id);
   }
 
   protected onKeydown(event: KeyboardEvent): void {

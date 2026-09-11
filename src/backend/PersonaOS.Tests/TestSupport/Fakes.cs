@@ -162,12 +162,22 @@ public class FakeInstanceConfigService(TestDbContext db, string? apiKey = "sk-an
 }
 
 /// <summary>A tool that records its invocations and returns a canned result.</summary>
-public class FakeTool(string name, string result = "{\"ok\":true}", string? requiredFeature = null) : PersonaOS.Application.Ai.Tools.IPersonaTool
+public class FakeTool(
+    string name,
+    string result = "{\"ok\":true}",
+    string? requiredFeature = null,
+    bool mutates = false) : PersonaOS.Application.Ai.Tools.IPersonaTool
 {
     public string Name { get; } = name;
     public string Description => $"Fake {Name} tool.";
     public string InputSchemaJson => """{"type":"object","properties":{}}""";
     public string? RequiredFeature { get; } = requiredFeature;
+
+    /// <summary>
+    /// Defaults to false so a test that just wants a tool to run says so by saying nothing.
+    /// Pass true to exercise the confirmation gate.
+    /// </summary>
+    public bool Mutates { get; } = mutates;
 
     public List<string> Invocations { get; } = new();
 

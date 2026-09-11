@@ -83,6 +83,7 @@ public class ChatService(
         var streamer = streamerFactory.ForProvider(config.AiProvider);
         var reply = new StringBuilder();
         var receipts = new List<ToolReceipt>();
+        var proposals = new List<ProposedAction>();
         long? inputTokens = null;
         long? outputTokens = null;
         string? streamError = null;
@@ -149,6 +150,22 @@ public class ChatService(
             var results = new List<AiToolResult>(toolCalls.Count);
             foreach (var call in toolCalls)
             {
+                // Anything that writes is proposed, not run. Models have created goals and
+                // reminders nobody asked for — including straight after "let's discuss before
+                // we add anything" — and prompt rules did not stop it. The user decides.
+                if (await toolRegistry.MutatesAsync(call.Name, ct))
+                {
+                    proposals.Add(new ProposedAction(call.Name, call.InputJson));
+                    // The model is told plainly, so it stops claiming the thing is done.
+                    results.Add(new AiToolResult(
+                        call.Id,
+                        $"NOT EXECUTED. '{call.Name}' changes the user's data, so it is waiting for "
+                        + "their confirmation. Tell them what you are proposing and that they need "
+                        + "to confirm it. Do not say it is done, and do not call the tool again.",
+                        IsError: false));
+                    continue;
+                }
+
                 yield return new ChatStreamEvent("tool", ToolName: call.Name, ConversationId: conversation.Id);
                 var result = await toolRegistry.ExecuteAsync(call, ct);
                 results.Add(result);
@@ -206,6 +223,30 @@ public class ChatService(
         conversation.UpdatedAtUtc = now;
         await db.SaveChangesAsync(CancellationToken.None);
 
+        // Persist proposals against the message that made them, now that it has an id.
+        var pending = new List<PendingActionDto>();
+        if (proposals.Count > 0)
+        {
+            var assistantMessage = db.ChatMessages.Local.Last(m => m.Role == ChatRoles.Assistant);
+            foreach (var proposal in proposals)
+            {
+                var action = new PendingAction
+                {
+                    ConversationId = conversation.Id,
+                    ChatMessageId = assistantMessage.Id,
+                    ToolName = proposal.ToolName,
+                    InputJson = string.IsNullOrWhiteSpace(proposal.InputJson) ? "{}" : proposal.InputJson,
+                    Summary = ProposedActionSummary.Describe(proposal.ToolName, proposal.InputJson),
+                };
+                db.PendingActions.Add(action);
+                pending.Add(new PendingActionDto(
+                    action.PublicId, action.ToolName, action.Summary,
+                    PendingActionStatuses.Pending, null, null));
+            }
+
+            await db.SaveChangesAsync(CancellationToken.None);
+        }
+
         if (streamError is not null)
         {
             yield return new ChatStreamEvent("error", Error: streamError, ConversationId: conversation.Id);
@@ -220,7 +261,8 @@ public class ChatService(
             ConversationId: conversation.Id,
             InputTokens: inputTokens,
             OutputTokens: outputTokens,
-            Actions: receipts.Count == 0 ? null : receipts);
+            Actions: receipts.Count == 0 ? null : receipts,
+            Pending: pending.Count == 0 ? null : pending);
     }
 
     public async Task<IReadOnlyList<ConversationSummary>> ListConversationsAsync(CancellationToken ct = default) =>
@@ -256,12 +298,20 @@ public class ChatService(
 
         if (conversation is null) return null;
 
+        var actions = await db.PendingActions.AsNoTracking()
+            .Where(a => a.ConversationId == conversation.Id)
+            .OrderBy(a => a.Id)
+            .ToListAsync(ct);
+
         // Receipts are deserialized here rather than in the query: EF cannot translate it,
         // and a malformed row must not take the whole conversation down.
         var messages = conversation.Messages
             .Select(m => new ChatMessageDto(
                 m.Id, m.Role, m.Content, m.InputTokens, m.OutputTokens, m.CreatedAtUtc,
-                ReadReceipts(m.ToolActionsJson)))
+                ReadReceipts(m.ToolActionsJson),
+                actions.Where(a => a.ChatMessageId == m.Id).Select(ToDto).ToList() is { Count: > 0 } p
+                    ? p
+                    : null))
             .ToList();
 
         return new ConversationDetail(
@@ -282,6 +332,46 @@ public class ChatService(
             return null;
         }
     }
+
+    public async Task<PendingActionDto?> ConfirmActionAsync(string actionId, CancellationToken ct = default)
+    {
+        var action = await db.PendingActions.FirstOrDefaultAsync(a => a.PublicId == actionId, ct);
+        if (action is null) return null;
+
+        // Confirming twice must not run the tool twice.
+        if (action.Status != PendingActionStatuses.Pending) return ToDto(action);
+
+        var result = await toolRegistry.ExecuteAsync(
+            new AiToolCall(action.PublicId, action.ToolName, action.InputJson), ct);
+
+        var receipt = ToolReceiptBuilder.Build(action.ToolName, result.Content, result.IsError);
+        action.Status = PendingActionStatuses.Confirmed;
+        action.ResultOk = !result.IsError;
+        action.ResultSummary = receipt.Summary;
+        action.ResolvedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        logger.LogInformation(
+            "Confirmed action {Tool} ({Action}); ok={Ok}", action.ToolName, action.PublicId, action.ResultOk);
+
+        return ToDto(action);
+    }
+
+    public async Task<PendingActionDto?> DiscardActionAsync(string actionId, CancellationToken ct = default)
+    {
+        var action = await db.PendingActions.FirstOrDefaultAsync(a => a.PublicId == actionId, ct);
+        if (action is null) return null;
+        if (action.Status != PendingActionStatuses.Pending) return ToDto(action);
+
+        action.Status = PendingActionStatuses.Discarded;
+        action.ResolvedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        return ToDto(action);
+    }
+
+    private static PendingActionDto ToDto(PendingAction a) =>
+        new(a.PublicId, a.ToolName, a.Summary, a.Status, a.ResultSummary, a.ResultOk);
 
     private static Conversation CreateConversation(string firstMessage)
     {

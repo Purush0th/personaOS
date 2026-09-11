@@ -16,14 +16,28 @@ public record ChatStreamEvent(
     long? OutputTokens = null,
     string? Error = null,
     string? ToolName = null,
-    IReadOnlyList<ToolReceipt>? Actions = null);
+    IReadOnlyList<ToolReceipt>? Actions = null,
+    IReadOnlyList<PendingActionDto>? Pending = null);
+
+/// <summary>
+/// A data-changing tool the assistant proposed. Nothing has happened yet: the user confirms
+/// or discards it. Once confirmed, <paramref name="ResultSummary"/> says what actually ran.
+/// </summary>
+public record PendingActionDto(
+    string Id,
+    string Tool,
+    string Summary,
+    string Status,
+    string? ResultSummary,
+    bool? ResultOk);
 
 public record ConversationSummary(
     int Id, string PublicId, string Title, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 
 public record ChatMessageDto(
     long Id, string Role, string Content, int? InputTokens, int? OutputTokens, DateTime CreatedAtUtc,
-    IReadOnlyList<ToolReceipt>? ToolActions = null);
+    IReadOnlyList<ToolReceipt>? ToolActions = null,
+    IReadOnlyList<PendingActionDto>? PendingActions = null);
 
 public record ConversationDetail(
     int Id, string PublicId, string Title, DateTime CreatedAtUtc, IReadOnlyList<ChatMessageDto> Messages);
@@ -46,4 +60,14 @@ public interface IChatService
     /// ids, its numeric row id.
     /// </summary>
     Task<ConversationDetail?> GetConversationAsync(string idOrPublicId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Runs a proposed data-changing action after the user confirmed it. This is the only path
+    /// by which a model-requested write reaches the database. Returns null when the id is
+    /// unknown; an already-resolved action is returned unchanged rather than run twice.
+    /// </summary>
+    Task<PendingActionDto?> ConfirmActionAsync(string actionId, CancellationToken ct = default);
+
+    /// <summary>Marks a proposed action as declined. Nothing is executed.</summary>
+    Task<PendingActionDto?> DiscardActionAsync(string actionId, CancellationToken ct = default);
 }

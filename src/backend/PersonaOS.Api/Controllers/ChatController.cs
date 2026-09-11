@@ -58,6 +58,25 @@ public class ChatController(IChatService chatService) : ControllerBase
         return conversation is null ? NotFound() : Ok(conversation);
     }
 
+    /// <summary>
+    /// Runs a data-changing action the assistant proposed. This is the only route by which a
+    /// model-requested write reaches the database — the chat loop never executes one directly.
+    /// </summary>
+    [HttpPost("actions/{actionId}/confirm")]
+    public async Task<IActionResult> ConfirmAction(string actionId, CancellationToken ct)
+    {
+        var action = await chatService.ConfirmActionAsync(actionId, ct);
+        return action is null ? NotFound() : Ok(action);
+    }
+
+    /// <summary>Declines a proposed action. Nothing is executed.</summary>
+    [HttpPost("actions/{actionId}/discard")]
+    public async Task<IActionResult> DiscardAction(string actionId, CancellationToken ct)
+    {
+        var action = await chatService.DiscardActionAsync(actionId, ct);
+        return action is null ? NotFound() : Ok(action);
+    }
+
     private async Task WriteEventAsync(ChatStreamEvent evt, CancellationToken ct)
     {
         var payload = JsonSerializer.Serialize(evt, JsonOpts);

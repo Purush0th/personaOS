@@ -20,6 +20,14 @@ public interface IPersonaTool
     /// <summary>Feature toggle gating this tool, or null when always available.</summary>
     string? RequiredFeature { get; }
 
+    /// <summary>
+    /// True when running this tool changes the user's data. Those are never executed straight
+    /// from a model's request: they are proposed to the user and only run once confirmed.
+    /// Declared per tool rather than guessed from the name, so a new tool cannot quietly slip
+    /// past the gate by being called something unexpected. Defaults to the safe answer.
+    /// </summary>
+    bool Mutates => true;
+
     /// <summary>Executes the tool and returns a JSON string result for the model.</summary>
     Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default);
 }
@@ -34,4 +42,11 @@ public interface IPersonaToolRegistry
     /// features, and execution failures come back as error results for the model.
     /// </summary>
     Task<AiToolResult> ExecuteAsync(AiToolCall call, CancellationToken ct = default);
+
+    /// <summary>
+    /// True when the named tool changes data and so needs the user's confirmation before it
+    /// runs. Unknown names are treated as mutating: the safe answer for something we cannot
+    /// classify.
+    /// </summary>
+    Task<bool> MutatesAsync(string toolName, CancellationToken ct = default);
 }

@@ -20,6 +20,7 @@ public interface IAppDbContext
     DbSet<DeviceToken> DeviceTokens { get; }
     DbSet<Document> Documents { get; }
     DbSet<ProactiveJobRun> ProactiveJobRuns { get; }
+    DbSet<PendingAction> PendingActions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

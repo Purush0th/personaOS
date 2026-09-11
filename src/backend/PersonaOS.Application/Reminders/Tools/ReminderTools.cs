@@ -12,6 +12,8 @@ public abstract class ReminderToolBase : IPersonaTool
     public abstract string Name { get; }
     public abstract string Description { get; }
     public abstract string InputSchemaJson { get; }
+    /// <summary>Writes by default; read-only tools override this to false.</summary>
+    public virtual bool Mutates => true;
     public string? RequiredFeature => InstanceConfig.Modules.Reminders;
 
     public abstract Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default);
@@ -43,6 +45,7 @@ public abstract class ReminderToolBase : IPersonaTool
 public class GetRemindersTool(IReminderService reminders) : ReminderToolBase
 {
     public override string Name => "get_reminders";
+    public override bool Mutates => false;
     public override string Description =>
         "Lists the user's reminders with their due times. Pending only by default; " +
         "set includeCompleted to also see delivered, cancelled, and failed ones.";

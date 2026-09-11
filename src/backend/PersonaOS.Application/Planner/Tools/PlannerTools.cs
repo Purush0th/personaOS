@@ -13,6 +13,8 @@ public abstract class PlannerToolBase : IPersonaTool
     public abstract string Name { get; }
     public abstract string Description { get; }
     public abstract string InputSchemaJson { get; }
+    /// <summary>Writes by default; read-only tools override this to false.</summary>
+    public virtual bool Mutates => true;
     public string? RequiredFeature => InstanceConfig.Modules.Planner;
 
     public abstract Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default);
@@ -66,6 +68,7 @@ public abstract class PlannerToolBase : IPersonaTool
 public class GetPlannerTool(IPlannerService planner) : PlannerToolBase
 {
     public override string Name => "get_planner";
+    public override bool Mutates => false;
     public override string Description =>
         "Reads the user's daily planner. Pass 'date' for a single day, or 'from'+'to' for a range " +
         "(e.g. a week). Each item has a status (planned/done/skipped) and may link to a goal.";

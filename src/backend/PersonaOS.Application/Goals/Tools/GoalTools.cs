@@ -12,6 +12,8 @@ public abstract class GoalToolBase : IPersonaTool
     public abstract string Name { get; }
     public abstract string Description { get; }
     public abstract string InputSchemaJson { get; }
+    /// <summary>Writes by default; read-only tools override this to false.</summary>
+    public virtual bool Mutates => true;
     public string? RequiredFeature => InstanceConfig.Modules.Goals;
 
     public abstract Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default);
@@ -46,6 +48,7 @@ public abstract class GoalToolBase : IPersonaTool
 public class GetGoalsTool(IGoalService goals) : GoalToolBase
 {
     public override string Name => "get_goals";
+    public override bool Mutates => false;
     public override string Description =>
         "Lists the user's goals as a hierarchy (yearly > quarterly > monthly). Each goal has an " +
         "effectiveProgress (0-100) rolled up from its children. Dropped goals are hidden unless includeDropped is true.";
