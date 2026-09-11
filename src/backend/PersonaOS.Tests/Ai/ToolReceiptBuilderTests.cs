@@ -43,6 +43,45 @@ public class ToolReceiptBuilderTests
     }
 
     [Fact]
+    public void Sees_through_the_wrapper_create_goal_returns()
+    {
+        // Observed 2026-09-11: create_goal returns {"created": {…}}, so the receipt came back
+        // with a null summary — and the user had nothing to check the reply against at the exact
+        // moment the model got the period wrong and skipped the parent link.
+        const string result = """
+            {"created":{"id":2,"title":"Learn C# for AI applications","description":null,
+             "parentGoalId":null,"periodType":"month","periodStart":"2026-10-01",
+             "status":"active","progress":0}}
+            """;
+
+        var receipt = ToolReceiptBuilder.Build("create_goal", result, isError: false);
+
+        Assert.Contains("Learn C# for AI applications", receipt.Summary);
+        // The period must be visible: seeing "2026-10-01" is what reveals a goal filed
+        // under the wrong month.
+        Assert.Contains("2026-10-01", receipt.Summary);
+        Assert.Contains("month", receipt.Summary);
+    }
+
+    [Fact]
+    public void Sees_through_a_wrapper_around_a_collection()
+    {
+        // get_goals returns {"goals": [...]}.
+        var receipt = ToolReceiptBuilder.Build(
+            "get_goals", """{"goals":[{"id":1},{"id":2},{"id":3}]}""", isError: false);
+
+        Assert.Equal("3 items", receipt.Summary);
+    }
+
+    [Fact]
+    public void Does_not_unwrap_a_single_scalar_property()
+    {
+        var receipt = ToolReceiptBuilder.Build("some_tool", """{"ok":true}""", isError: false);
+
+        Assert.Null(receipt.Summary);
+    }
+
+    [Fact]
     public void Reports_how_many_rows_a_read_returned()
     {
         var receipt = ToolReceiptBuilder.Build("get_goals", """[{"id":1},{"id":2}]""", isError: false);

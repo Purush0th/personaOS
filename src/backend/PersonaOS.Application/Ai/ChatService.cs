@@ -174,7 +174,7 @@ public class ChatService(
         if (scrubbed)
         {
             logger.LogWarning(
-                "Model {Model} wrote a tool call as text instead of calling it; stripped from the reply.",
+                "Model {Model} emitted tool-call syntax or a stray code fence in its reply text; cleaned before storing.",
                 config.AiModel);
 
             if (finalText.Length == 0)

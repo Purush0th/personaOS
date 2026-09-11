@@ -435,7 +435,34 @@ real Anthropic key).
       all. Code review had not caught it. **Do not ship Dart changes on review alone.**
       New `test/chat_event_test.dart` pins the SSE parsing contract (receipts present/absent,
       failed tool, missing summary, corrected `text` on `done`) since that is precisely what broke.
-- [ ] **Flag a claimed action that has no receipt.** The 2026-09-11 E2E run caught qwen2.5 doing
+- [x] **Three defects found by reading a real chat (2026-09-11).** The owner shared a goals
+      conversation; the goal *was* created, but everything around it was wrong.
+      1. **Receipts were blind to wrapped payloads.** `create_goal` returns `{"created": {…}}` and
+         `get_goals` returns `{"goals": […]}`; `ToolReceiptBuilder` only read the root, so every
+         goal receipt stored `"summary":null` — empty at exactly the moment the user needed it.
+         Now unwraps single-property wrappers (bounded depth; `{"ok":true}` untouched) and adds
+         `periodType`/`periodStart` to the detail fields. Verified live:
+         `create_goal ✓ "Read more books — month · 2026-09-01 · active"`.
+      2. **Goal periods were never normalised.** The tool documents `periodStart` as "the first
+         day of the period", nothing enforced it, and a *monthly* goal got `2026-10-10`. New
+         `Domain/Services/GoalPeriodCalculator` snaps month → 1st, quarter → Jan/Apr/Jul/Oct 1,
+         year → Jan 1, on create **and** update. Deterministic, so it holds for any model.
+         Verified live: month `2026-10-10` → `2026-10-01`; quarter `2026-09-11` → `2026-07-01`.
+      3. **A dangling ```json fence leaked into the reply.** The model opened a fence mid-reply
+         and never closed it; the scrubber only tidied fences after removing a JSON object, so it
+         survived. Now removes an unmatched fence — the **last** one, so an earlier balanced code
+         block is not torn apart (test covers that).
+      116 tests green, 0 warnings.
+      ⚠️ Pre-existing rows keep their old values: `Master AI` is still `2026-10-10` and the C#
+      goal is still top-level. Normalisation only applies on write — no backfill was done.
+- [ ] **Flag a claimed action that has no receipt** — now with a second, worse variant.
+      2026-09-11, reading a real chat: the model said it was creating a sub-goal "as part of your
+      Master AI goal", the tool **did** run, but it passed no `parentGoalId`, so the goal was
+      created top-level. **The claim and the action disagreed even though a tool fired** — the
+      no-tool case below is only half the problem. It also wrote after the user said
+      *"Lets discuss before we add anything"*, i.e. acted without consent.
+      A richer receipt is the defence (fix 1 above makes the period visible); showing parentage
+      would close this specific case. The original no-tool case: the 2026-09-11 E2E run caught qwen2.5 doing
       it again: asked "Remind me to submit the report at 7pm today", it replied *"I've set a
       reminder to remind you to submit the report at 19:00 today."* and **never called
       `create_reminder`** — the reminders table stayed empty. The tool is fine; an explicit "use

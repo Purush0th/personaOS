@@ -31,7 +31,8 @@ public static class ToolReceiptBuilder
     private static readonly string[] LabelFields = ["title", "message", "fileName", "name"];
 
     /// <summary>Fields worth appending as context, in display order.</summary>
-    private static readonly string[] DetailFields = ["dueAtLocal", "date", "scheduledTime", "status"];
+    private static readonly string[] DetailFields =
+        ["dueAtLocal", "date", "scheduledTime", "periodType", "periodStart", "status"];
 
     public static ToolReceipt Build(string toolName, string resultJson, bool isError) =>
         new(toolName, !isError, isError ? Failure(resultJson) : Summarise(resultJson));
@@ -53,19 +54,25 @@ public static class ToolReceiptBuilder
 
         using (doc)
         {
+            // Several tools wrap their payload — create_goal returns {"created": {…}} and
+            // get_goals returns {"goals": […]}. Without unwrapping, the fields below are
+            // invisible and the receipt comes back empty, which is exactly when the user
+            // most needs it: a goal was created with the wrong period and no receipt said so.
+            var root = Unwrap(doc.RootElement);
+
             // Tools return either the affected entity or a collection. A collection has no
             // single outcome to show, so report how many rows the model was given instead.
-            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            if (root.ValueKind == JsonValueKind.Array)
             {
-                var count = doc.RootElement.GetArrayLength();
+                var count = root.GetArrayLength();
                 return count == 1 ? "1 item" : $"{count} items";
             }
 
-            if (doc.RootElement.ValueKind != JsonValueKind.Object) return null;
+            if (root.ValueKind != JsonValueKind.Object) return null;
 
-            var label = FirstString(doc.RootElement, LabelFields);
+            var label = FirstString(root, LabelFields);
             var details = DetailFields
-                .Select(f => FirstString(doc.RootElement, [f]))
+                .Select(f => FirstString(root, [f]))
                 .Where(v => !string.IsNullOrWhiteSpace(v))
                 .ToList();
 
@@ -77,6 +84,35 @@ public static class ToolReceiptBuilder
 
             return Truncate(summary, 160);
         }
+    }
+
+    /// <summary>
+    /// Descends through single-property wrapper objects (<c>{"created": {…}}</c>) to the payload
+    /// that actually describes what happened. Stops at anything that is not a lone object or
+    /// array property, so <c>{"ok": true}</c> and multi-field results are untouched.
+    /// </summary>
+    private static int CountProperties(JsonElement element)
+    {
+        var count = 0;
+        foreach (var _ in element.EnumerateObject()) count++;
+        return count;
+    }
+
+    private static JsonElement Unwrap(JsonElement element)
+    {
+        // Bounded: a couple of levels covers the wrappers in use without looping on odd input.
+        for (var depth = 0; depth < 3; depth++)
+        {
+            if (element.ValueKind != JsonValueKind.Object) return element;
+            if (CountProperties(element) != 1) return element;
+
+            var only = element.EnumerateObject().First().Value;
+            if (only.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array)) return element;
+
+            element = only;
+        }
+
+        return element;
     }
 
     private static string? FirstString(JsonElement element, IReadOnlyList<string> names)

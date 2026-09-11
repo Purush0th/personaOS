@@ -94,7 +94,61 @@ public class LeakedToolCallScrubberTests
         Assert.Equal(string.Empty, LeakedToolCallScrubber.Scrub(text, Tools));
     }
 
+    [Fact]
+    public void Removes_a_json_fence_the_model_opened_and_never_closed()
+    {
+        // Observed 2026-09-11: qwen2.5 opened ```json mid-reply then carried on in prose,
+        // leaving the marker sitting in the middle of the user's message.
+        const string text = """
+            Would you also like to include a short description?
+            ```json
+            Your sub-goal "Learn C#" has been created for the current month.
+            """;
+
+        var result = LeakedToolCallScrubber.Scrub(text, Tools);
+
+        Assert.DoesNotContain("```", result);
+        Assert.Contains("short description", result);
+        Assert.Contains("has been created", result);
+    }
+
+    [Fact]
+    public void Removes_the_stray_fence_without_breaking_an_earlier_code_block()
+    {
+        const string text = """
+            Here is a config:
+            ```yaml
+            port: 8080
+            ```
+            And then ```json
+            it kept talking.
+            """;
+
+        var result = LeakedToolCallScrubber.Scrub(text, Tools);
+
+        // The balanced yaml block survives; only the unmatched trailing marker goes.
+        Assert.Contains("```yaml", result);
+        Assert.Contains("port: 8080", result);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(result, "```").Count);
+        Assert.Contains("it kept talking.", result);
+    }
+
     // --- must NOT strip ------------------------------------------------------
+
+    [Fact]
+    public void Leaves_a_balanced_code_block_completely_alone()
+    {
+        const string text = """
+            Example:
+            ```json
+            {"port": 8080}
+            ```
+            That is the shape.
+            """;
+
+        Assert.Equal(text, LeakedToolCallScrubber.Scrub(text, Tools));
+    }
+
 
     [Fact]
     public void Leaves_json_that_names_something_that_is_not_a_registered_tool()

@@ -42,7 +42,9 @@ public class GoalService(IAppDbContext db) : IGoalService
             Description = NormalizeDescription(request.Description),
             ParentGoalId = request.ParentGoalId,
             PeriodType = request.PeriodType,
-            PeriodStart = request.PeriodStart,
+            // Snap to the first day of the period: the tool contract promises it, and a model
+            // asked for a "monthly" goal has been seen passing the 10th of the month.
+            PeriodStart = GoalPeriodCalculator.NormalizeStart(request.PeriodType, request.PeriodStart),
             Progress = request.Progress,
         };
         db.Goals.Add(goal);
@@ -68,6 +70,9 @@ public class GoalService(IAppDbContext db) : IGoalService
             goal.PeriodType = request.PeriodType;
         }
         if (request.PeriodStart is DateOnly start) goal.PeriodStart = start;
+        // Re-snap after either field may have changed, so editing the type alone still lands
+        // on a valid first-day-of-period.
+        goal.PeriodStart = GoalPeriodCalculator.NormalizeStart(goal.PeriodType, goal.PeriodStart);
         if (request.Progress is int progress)
         {
             ValidateProgress(progress);

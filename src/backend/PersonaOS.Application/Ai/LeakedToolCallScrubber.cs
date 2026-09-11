@@ -27,12 +27,39 @@ public static class LeakedToolCallScrubber
     private static readonly Regex ExcessBlankLines = new(@"(\r?\n){3,}", RegexOptions.Compiled);
 
     /// <summary>
+    /// A ```json fence that is never closed. Observed in the wild: qwen2.5 opened one mid-reply
+    /// and then carried on in prose, so the marker sat in the middle of the user's message with
+    /// nothing to fence. Only ever matched when the fence count is odd (see <see cref="Scrub"/>),
+    /// so a real, balanced code block in an answer is never touched.
+    /// </summary>
+    private static readonly Regex DanglingFence = new(@"\r?\n?```[a-zA-Z]*[ \t]*(\r?\n|$)", RegexOptions.Compiled);
+
+    /// <summary>
     /// Returns <paramref name="text"/> with any leaked calls to <paramref name="toolNames"/>
     /// removed. Returns it unchanged when there is nothing to strip.
     /// </summary>
     public static string Scrub(string text, IReadOnlyCollection<string> toolNames)
     {
-        if (string.IsNullOrEmpty(text) || toolNames.Count == 0 || !text.Contains('{'))
+        if (string.IsNullOrEmpty(text)) return text;
+
+        // An odd number of fences means one was opened and never closed — an artifact, not a
+        // code block. Handled before the JSON pass, because the model sometimes emits the
+        // fence with no JSON after it at all.
+        if (CountFences(text) % 2 == 1)
+        {
+            // Remove the LAST fence, not the first: with an earlier balanced block plus a
+            // stray opener, the stray one is the unmatched trailing marker. Removing the
+            // first would tear apart a legitimate code block.
+            var matches = DanglingFence.Matches(text);
+            if (matches.Count > 0)
+            {
+                var stray = matches[^1];
+                var withoutFence = text.Remove(stray.Index, stray.Length).Insert(stray.Index, "\n");
+                text = ExcessBlankLines.Replace(withoutFence, "\n\n").Trim();
+            }
+        }
+
+        if (toolNames.Count == 0 || !text.Contains('{'))
         {
             return text;
         }
@@ -146,6 +173,19 @@ public static class LeakedToolCallScrubber
                 || doc.RootElement.TryGetProperty("input", out _)
                 || CountProperties(doc.RootElement) == 1;
         }
+    }
+
+    private static int CountFences(string text)
+    {
+        var count = 0;
+        var i = text.IndexOf("```", StringComparison.Ordinal);
+        while (i >= 0)
+        {
+            count++;
+            i = text.IndexOf("```", i + 3, StringComparison.Ordinal);
+        }
+
+        return count;
     }
 
     private static int CountProperties(JsonElement element)
