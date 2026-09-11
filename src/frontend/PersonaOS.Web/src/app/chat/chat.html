@@ -3,13 +3,31 @@
     <button class="new" (click)="startNew()">＋ New conversation</button>
 
     @for (conversation of conversations(); track conversation.id) {
-      <button
-        class="conversation"
-        [class.active]="conversation.id === conversationId()"
-        (click)="open(conversation)"
-      >
-        {{ conversation.title }}
-      </button>
+      <div class="conversation-row" [class.active]="conversation.id === conversationId()">
+        @if (confirmingDelete() === conversation.publicId) {
+          <!-- Deleting a thread cannot be undone, so it takes a second deliberate tap. -->
+          <span class="confirm-delete">
+            <span class="ask">Delete this conversation?</span>
+            <button type="button" class="danger" (click)="deleteConversation(conversation)">
+              Delete
+            </button>
+            <button type="button" class="cancel" (click)="cancelDelete()">Cancel</button>
+          </span>
+        } @else {
+          <button class="conversation" (click)="open(conversation)">
+            {{ conversation.title }}
+          </button>
+          <button
+            type="button"
+            class="delete"
+            [attr.aria-label]="'Delete ' + conversation.title"
+            title="Delete conversation"
+            (click)="askDelete(conversation)"
+          >
+            ✕
+          </button>
+        }
+      </div>
     } @empty {
       <p class="muted small">No conversations yet.</p>
     }
