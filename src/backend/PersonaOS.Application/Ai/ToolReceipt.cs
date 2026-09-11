@@ -27,9 +27,6 @@ public record ToolReceipt(string Tool, bool Ok, string? Summary);
 /// </summary>
 public static class ToolReceiptBuilder
 {
-    /// <summary>Fields that identify what was acted on, in order of preference.</summary>
-    private static readonly string[] LabelFields = ["title", "message", "fileName", "name"];
-
     /// <summary>Fields worth appending as context, in display order.</summary>
     private static readonly string[] DetailFields =
         ["dueAtLocal", "date", "scheduledTime", "periodType", "periodStart", "status"];
@@ -38,7 +35,7 @@ public static class ToolReceiptBuilder
         new(toolName, !isError, isError ? Failure(resultJson) : Summarise(resultJson));
 
     /// <summary>Error results are plain text from the registry; keep them short.</summary>
-    private static string? Failure(string resultJson) => Truncate(resultJson.Trim(), 160);
+    private static string? Failure(string resultJson) => ToolPayloadText.Truncate(resultJson.Trim(), 160);
 
     private static string? Summarise(string resultJson)
     {
@@ -70,9 +67,9 @@ public static class ToolReceiptBuilder
 
             if (root.ValueKind != JsonValueKind.Object) return null;
 
-            var label = FirstString(root, LabelFields);
+            var label = ToolPayloadText.FirstValue(root, ToolPayloadText.LabelFields);
             var details = DetailFields
-                .Select(f => FirstString(root, [f]))
+                .Select(f => ToolPayloadText.FirstValue(root, [f]))
                 .Where(v => !string.IsNullOrWhiteSpace(v))
                 .ToList();
 
@@ -82,7 +79,7 @@ public static class ToolReceiptBuilder
                 ? string.Join(" · ", details)
                 : details.Count == 0 ? label : $"{label} — {string.Join(" · ", details)}";
 
-            return Truncate(summary, 160);
+            return ToolPayloadText.Truncate(summary, 160);
         }
     }
 
@@ -91,20 +88,13 @@ public static class ToolReceiptBuilder
     /// that actually describes what happened. Stops at anything that is not a lone object or
     /// array property, so <c>{"ok": true}</c> and multi-field results are untouched.
     /// </summary>
-    private static int CountProperties(JsonElement element)
-    {
-        var count = 0;
-        foreach (var _ in element.EnumerateObject()) count++;
-        return count;
-    }
-
     private static JsonElement Unwrap(JsonElement element)
     {
         // Bounded: a couple of levels covers the wrappers in use without looping on odd input.
         for (var depth = 0; depth < 3; depth++)
         {
             if (element.ValueKind != JsonValueKind.Object) return element;
-            if (CountProperties(element) != 1) return element;
+            if (ToolPayloadText.CountProperties(element) != 1) return element;
 
             var only = element.EnumerateObject().First().Value;
             if (only.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array)) return element;
@@ -115,38 +105,4 @@ public static class ToolReceiptBuilder
         return element;
     }
 
-    private static string? FirstString(JsonElement element, IReadOnlyList<string> names)
-    {
-        foreach (var name in names)
-        {
-            if (!element.TryGetProperty(name, out var value)) continue;
-
-            var text = value.ValueKind switch
-            {
-                JsonValueKind.String => value.GetString(),
-                JsonValueKind.Number => value.ToString(),
-                _ => null,
-            };
-
-            if (!string.IsNullOrWhiteSpace(text)) return Tidy(text);
-        }
-
-        return null;
-    }
-
-    /// <summary>ISO timestamps read badly in a one-line receipt; drop the 'T' and seconds.</summary>
-    private static string Tidy(string value)
-    {
-        if (DateTime.TryParse(value, out var parsed) && value.Contains('T'))
-        {
-            return parsed.TimeOfDay == TimeSpan.Zero
-                ? parsed.ToString("yyyy-MM-dd")
-                : parsed.ToString("yyyy-MM-dd HH:mm");
-        }
-
-        return value;
-    }
-
-    private static string Truncate(string value, int max) =>
-        value.Length <= max ? value : value[..(max - 1)] + "…";
 }

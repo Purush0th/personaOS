@@ -16,9 +16,6 @@ public record ProposedAction(string ToolName, string InputJson);
 /// </summary>
 public static class ProposedActionSummary
 {
-    /// <summary>Fields that name the thing being acted on, in order of preference.</summary>
-    private static readonly string[] LabelFields = ["title", "message", "task", "fileName", "name"];
-
     /// <summary>Extra fields worth showing, with the label to print them under.</summary>
     private static readonly (string Field, string Label)[] Details =
     [
@@ -50,13 +47,13 @@ public static class ProposedActionSummary
 
         var sb = new StringBuilder(action);
 
-        var label = FirstValue(input, LabelFields);
-        if (label is not null) sb.Append(" “").Append(Truncate(label, 80)).Append('”');
+        var label = ToolPayloadText.FirstValue(input, ToolPayloadText.LabelFields);
+        if (label is not null) sb.Append(" “").Append(ToolPayloadText.Truncate(label, 80)).Append('”');
 
         var parts = new List<string>();
         foreach (var (field, prefix) in Details)
         {
-            var value = FirstValue(input, [field]);
+            var value = ToolPayloadText.FirstValue(input, [field]);
             if (!string.IsNullOrWhiteSpace(value)) parts.Add(prefix + value);
         }
 
@@ -64,13 +61,13 @@ public static class ProposedActionSummary
         // rather than only when present.
         if (toolName is "create_goal")
         {
-            var parent = FirstValue(input, ["parentGoalId"]);
+            var parent = ToolPayloadText.FirstValue(input, ["parentGoalId"]);
             parts.Add(parent is null ? "top-level" : $"under goal {parent}");
         }
 
         if (parts.Count > 0) sb.Append(" — ").Append(string.Join(" · ", parts));
 
-        return Truncate(sb.ToString(), 500);
+        return ToolPayloadText.Truncate(sb.ToString(), 500);
     }
 
     /// <summary>Tool names are snake_case verbs; "create_goal" reads fine as "Create goal".</summary>
@@ -81,41 +78,4 @@ public static class ProposedActionSummary
 
         return char.ToUpperInvariant(words[0]) + words[1..];
     }
-
-    private static string? FirstValue(JsonElement element, IReadOnlyList<string> names)
-    {
-        foreach (var name in names)
-        {
-            if (!element.TryGetProperty(name, out var value)) continue;
-
-            var text = value.ValueKind switch
-            {
-                JsonValueKind.String => value.GetString(),
-                JsonValueKind.Number => value.ToString(),
-                JsonValueKind.True => "yes",
-                JsonValueKind.False => "no",
-                _ => null,
-            };
-
-            if (!string.IsNullOrWhiteSpace(text)) return Tidy(text);
-        }
-
-        return null;
-    }
-
-    /// <summary>ISO timestamps read badly on a one-line card; drop the 'T' and seconds.</summary>
-    private static string Tidy(string value)
-    {
-        if (value.Contains('T') && DateTime.TryParse(value, out var parsed))
-        {
-            return parsed.TimeOfDay == TimeSpan.Zero
-                ? parsed.ToString("yyyy-MM-dd")
-                : parsed.ToString("yyyy-MM-dd HH:mm");
-        }
-
-        return value;
-    }
-
-    private static string Truncate(string value, int max) =>
-        value.Length <= max ? value : value[..(max - 1)] + "…";
 }

@@ -171,7 +171,7 @@ public static class LeakedToolCallScrubber
             return doc.RootElement.TryGetProperty("arguments", out _)
                 || doc.RootElement.TryGetProperty("parameters", out _)
                 || doc.RootElement.TryGetProperty("input", out _)
-                || CountProperties(doc.RootElement) == 1;
+                || ToolPayloadText.CountProperties(doc.RootElement) == 1;
         }
     }
 
@@ -185,13 +185,6 @@ public static class LeakedToolCallScrubber
             i = text.IndexOf("```", i + 3, StringComparison.Ordinal);
         }
 
-        return count;
-    }
-
-    private static int CountProperties(JsonElement element)
-    {
-        var count = 0;
-        foreach (var _ in element.EnumerateObject()) count++;
         return count;
     }
 }

@@ -44,9 +44,9 @@ public interface IPersonaToolRegistry
     Task<AiToolResult> ExecuteAsync(AiToolCall call, CancellationToken ct = default);
 
     /// <summary>
-    /// True when the named tool changes data and so needs the user's confirmation before it
-    /// runs. Unknown names are treated as mutating: the safe answer for something we cannot
-    /// classify.
+    /// Names of the enabled tools that change data, and so need the user's confirmation before
+    /// they run. Fetched once per turn rather than asked per call, because answering it reads
+    /// the instance config.
     /// </summary>
-    Task<bool> MutatesAsync(string toolName, CancellationToken ct = default);
+    Task<IReadOnlySet<string>> GetMutatingToolNamesAsync(CancellationToken ct = default);
 }
