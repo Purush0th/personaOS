@@ -98,6 +98,72 @@
     font-style: italic;
   }
 
+  // Proposed changes. Louder than a receipt on purpose — this one needs a decision,
+  // and it is the last thing standing between a model's whim and the user's data.
+  .proposals {
+    list-style: none;
+    margin: 0.6rem 0 0;
+    padding: 0;
+    white-space: normal;
+
+    li {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.6rem;
+      border: 1px solid #d9c48a;
+      border-radius: 8px;
+      background: #fff8e6;
+      font-size: 0.86rem;
+
+      + li {
+        margin-top: 0.35rem;
+      }
+
+      &.resolved {
+        border-color: rgba(0, 0, 0, 0.1);
+        background: transparent;
+        color: #3d6b45;
+      }
+    }
+
+    .what {
+      flex: 1;
+      min-width: 12rem;
+    }
+
+    .mark {
+      font-weight: 700;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    button {
+      font-size: 0.82rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      border: 1px solid transparent;
+
+      &.confirm {
+        background: var(--ink);
+        color: #fff;
+      }
+
+      &.discard {
+        background: none;
+        border-color: rgba(0, 0, 0, 0.25);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+      }
+    }
+  }
+
   // Receipts of what the tools actually did. Quieter than the reply, but always
   // present when something ran — they are the evidence, not decoration.
   .receipts {

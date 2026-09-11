@@ -455,6 +455,29 @@ real Anthropic key).
       116 tests green, 0 warnings.
       ⚠️ Pre-existing rows keep their old values: `Master AI` is still `2026-10-10` and the C#
       goal is still top-level. Normalisation only applies on write — no backfill was done.
+- [x] **Nothing writes without the user's confirmation (2026-09-11).** The owner's call after a
+      third unbidden write (a sub-goal nobody asked for, right after "Lets discuss before we add
+      anything"). Prompt rules never held, so this is enforced in code instead.
+      `IPersonaTool.Mutates` is declared per tool — **not guessed from the name**, so a new tool
+      cannot slip past by being called something unexpected — and reads (`get_goals`,
+      `get_planner`, `get_reminders`, `list_documents`, `read_document`) stay ungated, since the
+      gate would be unusable if every question needed a tap. `ChatService` turns a mutating call
+      into a `PendingAction` row instead of executing it, and hands the model back a result
+      beginning `NOT EXECUTED`, so it stops announcing things as done. The reply renders a card
+      ("Create goal “Learn Rust” — month · 2026-09-01 · **top-level**") with Confirm / Discard;
+      `POST /api/chat/actions/{id}/confirm|discard` is the *only* path by which a model-requested
+      write reaches the database.
+      The card deliberately states parentage either way — that is the detail a model has actually
+      got wrong, and "top-level" on screen catches it *before* it is saved.
+      Confirm is idempotent, discard is final (confirming afterwards is refused), and proposals
+      survive a reload. Migration `PendingActions`. 127 backend + 10 web specs green.
+      Verified live: asking for a goal left `/api/goals` **unchanged** until Confirm; confirming
+      twice created one row; a discarded proposal never ran; in the browser, Confirm turned the
+      card into `✓ Water the plants — 2026-09-11 20:00 · pending` and the reminder appeared.
+      ⚠️ **Flutter shows no card**, so a mobile user sees the reply but cannot confirm — writes
+      are effectively blocked on mobile until the client renders `pendingActions`. Mobile-partition
+      follow-up, and the most urgent one on the board.
+      ⚠️ Always on; there is no "trust it" setting. Add one only if the tapping becomes tiresome.
 - [ ] **Flag a claimed action that has no receipt** — now with a second, worse variant.
       2026-09-11, reading a real chat: the model said it was creating a sub-goal "as part of your
       Master AI goal", the tool **did** run, but it passed no `parentGoalId`, so the goal was
