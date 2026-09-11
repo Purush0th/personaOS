@@ -491,6 +491,24 @@ real Anthropic key).
 - [ ] Unpin Angular 20 → Angular latest. (Node half is **done**: 24.19.0 installed 2026-09-05,
       which is ≥ 24.15, so the constraint that forced the CLI pin is gone. Only the version bump
       itself remains, and it should be its own change — it is a framework upgrade, not a fix.)
+- [x] **Conversations have linkable URLs (2026-09-11).** `/chat/<id>-<slugified title>`, e.g.
+      `/chat/14-what-are-my-goals`. The **id leads** so a link survives a retitle or a title with
+      nothing slugifiable (emoji/CJK) — the tail is for humans and is never used for lookup.
+      New route `chat/:slug` alongside `chat`; the URL is the source of truth (the component
+      loads from the route param, so Back/Forward work); opening a conversation navigates rather
+      than mutating state; a new thread gets its slug via `replaceUrl` once the server auto-titles
+      it. Dead id → falls back to `/chat`; slug with no id → URL normalised to `/chat`.
+      Pure helper in `core/conversation-slug.ts` with 11 specs.
+      **Found and fixed a real race while verifying:** `ngOnInit` awaited `refreshConversations()`
+      *before* subscribing to `paramMap`. Send a message inside that window and the subscription
+      fired late with no slug, resetting `conversationId` to null and **wiping the thread on
+      screen mid-reply**. Now it subscribes first, and the null branch refuses to clear while
+      `streaming()`. Reproduced (submit immediately after load) and confirmed fixed.
+      Also repaired `app.spec.ts`, which was still the untouched CLI scaffold: it provided no
+      `HttpClient` (BrandingService needs it) and asserted the long-deleted "Hello, PersonaOS.Web"
+      text, so `ng test` had been red. **12 web specs green**, `ng build` clean.
+      ⚠️ No delete endpoint for conversations, so three throwaway test threads (ids 16–18) are
+      still in the owner's instance.
 - [x] **Web app is usable on a phone (2026-09-10).** `.topbar` was a no-wrap flex row with six
       nav links, brand and Sign out; on a narrow screen Reminders/Documents/Settings were simply
       clipped and the page scrolled sideways. Now the topbar wraps, and under 720px the nav takes
