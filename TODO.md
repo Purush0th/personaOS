@@ -253,7 +253,36 @@ real Anthropic key).
       `down -v` removes both volumes cleanly.
       ⚠️ Not yet tested: a genuine **N → N+1** upgrade across two different image versions
       (needs a published prior release) and the `minSupportedClient` version gate.
-- [ ] **Re-run the clean-machine install + upgrade test on the SQLite stack.** The verification
+- [x] **Full E2E pass DONE 2026-09-11** — clean install *and* restart-with-volumes, on the SQLite
+      stack. Run against an **isolated instance** (`docker compose -p personaos-e2e`, port 8081,
+      own volumes) so the owner's live instance was never touched; torn down with `down -v` after.
+      **Install:** empty volumes → 3 migrations applied → WAL + `synchronous=NORMAL` → integrity
+      check → nightly backup written → singleton config seeded. Only `web` publishes a port.
+      **Through the real UI:** Setup Wizard (provider switched to OpenAI-compatible, which
+      revealed the Base URL field) → login **as `E2E-Admin` for the stored `e2e-admin`**, proving
+      the case-insensitive fix end to end → chat → `add_planner_item` fired and the receipt
+      rendered inline under the reply.
+      **Modules:** goals rollup `effectiveProgress` 40 = avg(0,80); planner status cycle;
+      documents upload/list/**authed download 200 / unauthenticated 401**/delete removes row+file;
+      feature toggle → hidden in `/api/branding` + 403 `feature_disabled` → re-enable restores 200.
+      **Path traversal properly defended:** a hand-built multipart upload with filename
+      `../../../../etc/passwd` stored metadata `passwd` only, wrote a GUID inside `docs-storage`,
+      escaped nothing, and left the container's real `/etc/passwd` untouched.
+      **Restart with volumes kept:** *zero* migrations on second boot, integrity passed, and
+      nickname/admin/planner/goals/reminder/document/conversations **and both tool receipts** all
+      survived.
+      ✅ **Keyring gap CLOSED** — the thing earlier runs could not test because the instance was
+      keyless. Set a provider key (plaintext absent from `personaos.db`, keyring file present),
+      recreated the containers, and after restart `POST /api/setup/test` returned
+      `{"ok":true,...}` — i.e. the stored key still *decrypts*, not merely "is present". Zero
+      crypto errors in the log.
+      ⚠️ Still untested: a genuine **N → N+1** across two published image versions, and the
+      `minSupportedClient` gate. Both need a release, which is deliberately not being cut yet.
+      ⚠️ During teardown the owner's own containers were removed too (cause unclear — the `down -v`
+      targeted only the `personaos-e2e` project). No data lost: `personaos_api-data` survived and
+      `up -d` restored everything. If running a second project again, check `docker ps` afterwards.
+- [-] ~~Re-run the clean-machine install + upgrade test on the SQLite stack.~~ Superseded by the
+      entry above. Original note: the verification
       recorded above was performed against the old **SQL Server** compose stack (before `5ae9092`),
       so it is no longer evidence for what ships today: there is no DB container or healthcheck
       any more, and the database now lives inside the `api-data` volume alongside the Data
@@ -406,6 +435,18 @@ real Anthropic key).
       all. Code review had not caught it. **Do not ship Dart changes on review alone.**
       New `test/chat_event_test.dart` pins the SSE parsing contract (receipts present/absent,
       failed tool, missing summary, corrected `text` on `done`) since that is precisely what broke.
+- [ ] **Flag a claimed action that has no receipt.** The 2026-09-11 E2E run caught qwen2.5 doing
+      it again: asked "Remind me to submit the report at 7pm today", it replied *"I've set a
+      reminder to remind you to submit the report at 19:00 today."* and **never called
+      `create_reminder`** — the reminders table stayed empty. The tool is fine; an explicit "use
+      the create_reminder tool" fired it and stored 19:00 local → 13:30 UTC correctly. So this is
+      the model ignoring the prompt rule, which prompting cannot fix.
+      Receipts worked exactly as designed — no tool ran, so no receipt appeared. **But absence is
+      a weak signal**: a user reading a confident "I've set a reminder" will not notice that
+      nothing was rendered beneath it. `ChatService` already knows whether any *mutating* tool ran
+      this turn, so it can detect claim-without-receipt and either force one corrective round or
+      mark the reply. This is the last meaningful hallucination gap and it now has concrete
+      evidence behind it.
 - [ ] Widen coverage: `PlannerService`, `GoalService`, `DocumentService` (esp. the
       path-traversal guard), `PersonaToolRegistry` feature gating.
 - [x] Fix the wrong upstream repo slug (2026-09-01) — `personaos/personaos` was hardcoded in
