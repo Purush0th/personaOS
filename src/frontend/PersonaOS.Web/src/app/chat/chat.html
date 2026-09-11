@@ -27,6 +27,44 @@
             <span class="thinking">…</span>
           }
 
+          <!-- Changes the assistant proposed. Nothing has been saved until Confirm: the
+               model cannot write to the user's data on its own say-so. -->
+          @if (bubble.pending?.length) {
+            <ul class="proposals" aria-label="Changes awaiting your confirmation">
+              @for (action of bubble.pending; track action.id) {
+                <li [class.resolved]="action.status !== 'pending'">
+                  @if (action.status === 'pending') {
+                    <span class="what">{{ action.summary }}</span>
+                    <span class="buttons">
+                      <button
+                        type="button"
+                        class="confirm"
+                        [disabled]="isResolving(action.id)"
+                        (click)="resolveAction(action, true)"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        class="discard"
+                        [disabled]="isResolving(action.id)"
+                        (click)="resolveAction(action, false)"
+                      >
+                        Discard
+                      </button>
+                    </span>
+                  } @else if (action.status === 'confirmed') {
+                    <span class="mark" aria-hidden="true">{{ action.resultOk ? '✓' : '✕' }}</span>
+                    <span class="what">{{ action.resultSummary || action.summary }}</span>
+                  } @else {
+                    <span class="mark" aria-hidden="true">—</span>
+                    <span class="what">Discarded: {{ action.summary }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
           <!-- What actually happened, recorded from the tool results themselves. Shown so
                the reply above can be checked against it rather than taken on trust. -->
           @if (bubble.actions?.length) {

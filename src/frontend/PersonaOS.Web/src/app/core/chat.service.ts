@@ -11,6 +11,16 @@ export interface ToolReceipt {
   summary?: string | null;
 }
 
+/** A data-changing action the assistant proposed; nothing has run until it is confirmed. */
+export interface PendingAction {
+  id: string;
+  tool: string;
+  summary: string;
+  status: "pending" | "confirmed" | "discarded";
+  resultSummary?: string | null;
+  resultOk?: boolean | null;
+}
+
 export interface ChatEvent {
   type: 'start' | 'delta' | 'tool' | 'done' | 'error';
   text?: string;
@@ -20,6 +30,7 @@ export interface ChatEvent {
   error?: string;
   toolName?: string;
   actions?: ToolReceipt[];
+  pending?: PendingAction[];
 }
 
 export interface ConversationSummary {
@@ -39,6 +50,7 @@ export interface ChatMessageDto {
   outputTokens: number | null;
   createdAtUtc: string;
   toolActions?: ToolReceipt[] | null;
+  pendingActions?: PendingAction[] | null;
 }
 
 export interface ConversationDetail {
@@ -56,6 +68,18 @@ export class ChatService {
 
   listConversations(): Promise<ConversationSummary[]> {
     return firstValueFrom(this.http.get<ConversationSummary[]>('/api/chat/conversations'));
+  }
+
+  confirmAction(id: string): Promise<PendingAction> {
+    return firstValueFrom(
+      this.http.post<PendingAction>(`/api/chat/actions/${encodeURIComponent(id)}/confirm`, {})
+    );
+  }
+
+  discardAction(id: string): Promise<PendingAction> {
+    return firstValueFrom(
+      this.http.post<PendingAction>(`/api/chat/actions/${encodeURIComponent(id)}/discard`, {})
+    );
   }
 
   /** Accepts a public id, or a numeric id for links predating public ids. */

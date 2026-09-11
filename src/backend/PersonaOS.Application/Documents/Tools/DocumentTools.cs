@@ -12,6 +12,8 @@ public abstract class DocumentToolBase : IPersonaTool
     public abstract string Name { get; }
     public abstract string Description { get; }
     public abstract string InputSchemaJson { get; }
+    /// <summary>Writes by default; read-only tools override this to false.</summary>
+    public virtual bool Mutates => true;
     public string? RequiredFeature => InstanceConfig.Modules.Docs;
 
     public abstract Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default);
@@ -32,6 +34,7 @@ public abstract class DocumentToolBase : IPersonaTool
 public class ListDocumentsTool(IDocumentService documents) : DocumentToolBase
 {
     public override string Name => "list_documents";
+    public override bool Mutates => false;
     public override string Description =>
         "Lists the files the user has uploaded, with their id, name, type, and description. " +
         "Use this to find a document before reading it.";
@@ -51,6 +54,7 @@ public class ListDocumentsTool(IDocumentService documents) : DocumentToolBase
 public class ReadDocumentTool(IDocumentService documents) : DocumentToolBase
 {
     public override string Name => "read_document";
+    public override bool Mutates => false;
     public override string Description =>
         "Reads the text of an uploaded document so you can answer questions about it. " +
         "Only plain-text formats (txt, md, csv, json, xml, code) can be read; PDFs, images, " +

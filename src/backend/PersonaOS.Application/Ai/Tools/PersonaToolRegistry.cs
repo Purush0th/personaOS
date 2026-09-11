@@ -17,6 +17,16 @@ public class PersonaToolRegistry(
         return enabled.Select(t => new AiToolDefinition(t.Name, t.Description, t.InputSchemaJson)).ToList();
     }
 
+    public async Task<bool> MutatesAsync(string toolName, CancellationToken ct = default)
+    {
+        var enabled = await GetEnabledToolsAsync(ct);
+        // An unknown or disabled tool reports false so it falls through to ExecuteAsync, which
+        // returns a clear error. Gating it instead would show the user a confirm card for an
+        // action that cannot happen, and tell the model nothing. There is no safety cost:
+        // ExecuteAsync refuses to run anything not in this list.
+        return enabled.FirstOrDefault(t => t.Name == toolName)?.Mutates ?? false;
+    }
+
     public async Task<AiToolResult> ExecuteAsync(AiToolCall call, CancellationToken ct = default)
     {
         var enabled = await GetEnabledToolsAsync(ct);

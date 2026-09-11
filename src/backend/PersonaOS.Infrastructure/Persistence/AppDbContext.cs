@@ -23,6 +23,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<ProactiveJobRun> ProactiveJobRuns => Set<ProactiveJobRun>();
+    public DbSet<PendingAction> PendingActions => Set<PendingAction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -143,6 +144,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.Role).HasMaxLength(20).IsRequired();
             cfg.Property(x => x.Content).IsRequired();
             cfg.HasIndex(x => new { x.ConversationId, x.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<PendingAction>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.PublicId).HasMaxLength(16).IsRequired();
+            cfg.HasIndex(x => x.PublicId).IsUnique();
+            cfg.Property(x => x.ToolName).HasMaxLength(100).IsRequired();
+            cfg.Property(x => x.InputJson).IsRequired();
+            cfg.Property(x => x.Summary).HasMaxLength(500).IsRequired();
+            cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.ResultSummary).HasMaxLength(500);
+            // Proposals belong to the message that made them; deleting the thread clears them.
+            cfg.HasOne(x => x.Conversation).WithMany()
+                .HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
+            cfg.HasOne(x => x.ChatMessage).WithMany()
+                .HasForeignKey(x => x.ChatMessageId).OnDelete(DeleteBehavior.Cascade);
+            cfg.HasIndex(x => x.ChatMessageId);
         });
 
         modelBuilder.Entity<Goal>(cfg =>
