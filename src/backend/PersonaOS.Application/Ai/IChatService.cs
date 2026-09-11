@@ -18,14 +18,15 @@ public record ChatStreamEvent(
     string? ToolName = null,
     IReadOnlyList<ToolReceipt>? Actions = null);
 
-public record ConversationSummary(int Id, string Title, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
+public record ConversationSummary(
+    int Id, string PublicId, string Title, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 
 public record ChatMessageDto(
     long Id, string Role, string Content, int? InputTokens, int? OutputTokens, DateTime CreatedAtUtc,
     IReadOnlyList<ToolReceipt>? ToolActions = null);
 
 public record ConversationDetail(
-    int Id, string Title, DateTime CreatedAtUtc, IReadOnlyList<ChatMessageDto> Messages);
+    int Id, string PublicId, string Title, DateTime CreatedAtUtc, IReadOnlyList<ChatMessageDto> Messages);
 
 public interface IChatService
 {
@@ -40,5 +41,9 @@ public interface IChatService
 
     Task<IReadOnlyList<ConversationSummary>> ListConversationsAsync(CancellationToken ct = default);
 
-    Task<ConversationDetail?> GetConversationAsync(int id, CancellationToken ct = default);
+    /// <summary>
+    /// Loads a conversation by its public id (as used in URLs) or, for links predating public
+    /// ids, its numeric row id.
+    /// </summary>
+    Task<ConversationDetail?> GetConversationAsync(string idOrPublicId, CancellationToken ct = default);
 }
