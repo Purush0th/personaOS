@@ -333,6 +333,23 @@ public class ChatService(
         }
     }
 
+    public async Task<bool> DeleteConversationAsync(string idOrPublicId, CancellationToken ct = default)
+    {
+        var numericId = int.TryParse(idOrPublicId, out var parsed) ? parsed : (int?)null;
+
+        var conversation = await db.Conversations
+            .FirstOrDefaultAsync(c => c.PublicId == idOrPublicId || (numericId != null && c.Id == numericId), ct);
+        if (conversation is null) return false;
+
+        // Messages and pending actions are cascade-deleted by their foreign keys, so the
+        // thread leaves nothing orphaned behind it.
+        db.Conversations.Remove(conversation);
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("Deleted conversation {PublicId}", conversation.PublicId);
+        return true;
+    }
+
     public async Task<PendingActionDto?> ConfirmActionAsync(string actionId, CancellationToken ct = default)
     {
         var action = await db.PendingActions.FirstOrDefaultAsync(a => a.PublicId == actionId, ct);

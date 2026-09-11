@@ -62,6 +62,12 @@ public interface IChatService
     Task<ConversationDetail?> GetConversationAsync(string idOrPublicId, CancellationToken ct = default);
 
     /// <summary>
+    /// Permanently deletes a conversation and everything hanging off it — messages, receipts
+    /// and any proposals still awaiting confirmation. Returns false when it does not exist.
+    /// </summary>
+    Task<bool> DeleteConversationAsync(string idOrPublicId, CancellationToken ct = default);
+
+    /// <summary>
     /// Runs a proposed data-changing action after the user confirmed it. This is the only path
     /// by which a model-requested write reaches the database. Returns null when the id is
     /// unknown; an already-resolved action is returned unchanged rather than run twice.

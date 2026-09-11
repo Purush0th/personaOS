@@ -551,8 +551,18 @@ real Anthropic key).
       Also repaired `app.spec.ts`, which was still the untouched CLI scaffold: it provided no
       `HttpClient` (BrandingService needs it) and asserted the long-deleted "Hello, PersonaOS.Web"
       text, so `ng test` had been red. **12 web specs green**, `ng build` clean.
-      ⚠️ No delete endpoint for conversations, so three throwaway test threads (ids 16–18) are
-      still in the owner's instance.
+      ✅ Delete shipped 2026-09-11 (see below), so throwaway threads can be cleared.
+- [x] **Conversations can be deleted (2026-09-11).** `DELETE /api/chat/conversations/{idOrPublicId}`
+      plus a ✕ on each sidebar row. Messages, receipts and any **unconfirmed proposals** cascade,
+      so nothing is orphaned — a pending write must not outlive the thread that proposed it.
+      Irreversible, so the row turns into an explicit "Delete this conversation? Delete / Cancel"
+      rather than acting on one stray click; the ✕ stays hidden until hover/focus-within so it
+      cannot be hit by accident. Deleting the thread that is **open** clears it and returns to
+      `/chat`, since the URL would otherwise point at something gone.
+      130 backend + 10 web specs green. Verified in the UI: Cancel deletes nothing (22 rows before
+      and after), Delete removes exactly one row, and deleting the open thread redirected
+      `/chat/00b13469` → `/chat` with the transcript cleared.
+      ⚠️ Flutter has no conversation list at all, so nothing to add there yet.
 - [x] **Web app is usable on a phone (2026-09-10).** `.topbar` was a no-wrap flex row with six
       nav links, brand and Sign out; on a narrow screen Reminders/Documents/Settings were simply
       clipped and the page scrolled sideways. Now the topbar wraps, and under 720px the nav takes

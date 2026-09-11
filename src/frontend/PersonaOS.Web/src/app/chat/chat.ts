@@ -45,6 +45,8 @@ export class Chat implements OnInit {
   protected readonly streaming = signal(false);
   /** Action ids with a confirm/discard in flight, so the buttons can't be double-tapped. */
   private readonly resolving = signal(new Set<string>());
+  /** Public id of the conversation showing its delete confirmation, if any. */
+  protected readonly confirmingDelete = signal<string | null>(null);
 
   draft = '';
 
@@ -100,6 +102,35 @@ export class Chat implements OnInit {
   /** Opening a conversation is a navigation; the route subscription does the loading. */
   protected open(conversation: ConversationSummary): void {
     void this.router.navigate(['/chat', conversationSlug(conversation.publicId, conversation.id)]);
+  }
+
+  protected askDelete(conversation: ConversationSummary): void {
+    this.confirmingDelete.set(conversation.publicId);
+  }
+
+  protected cancelDelete(): void {
+    this.confirmingDelete.set(null);
+  }
+
+  /**
+   * Permanently removes a conversation. If it is the one on screen, the thread is cleared and
+   * the URL returns to /chat — otherwise the address bar would point at something gone.
+   */
+  protected async deleteConversation(conversation: ConversationSummary): Promise<void> {
+    this.confirmingDelete.set(null);
+    const wasOpen = conversation.publicId === this.conversationPublicId();
+
+    try {
+      await this.chat.deleteConversation(conversation.publicId);
+    } catch {
+      return; // Leave the list untouched; the conversation is still there.
+    }
+
+    await this.refreshConversations();
+    if (wasOpen) {
+      this.showEmptyThread();
+      void this.router.navigate(['/chat'], { replaceUrl: true });
+    }
   }
 
   private showEmptyThread(): void {

@@ -70,6 +70,13 @@ export class ChatService {
     return firstValueFrom(this.http.get<ConversationSummary[]>('/api/chat/conversations'));
   }
 
+  /** Permanently deletes a conversation, its messages and any pending proposals. */
+  deleteConversation(ref: string): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>(`/api/chat/conversations/${encodeURIComponent(ref)}`)
+    );
+  }
+
   confirmAction(id: string): Promise<PendingAction> {
     return firstValueFrom(
       this.http.post<PendingAction>(`/api/chat/actions/${encodeURIComponent(id)}/confirm`, {})

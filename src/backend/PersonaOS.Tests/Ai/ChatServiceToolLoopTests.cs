@@ -437,6 +437,56 @@ public class ChatServiceToolLoopTests
     }
 
     [Fact]
+    public async Task Deleting_a_conversation_removes_its_messages_and_proposals()
+    {
+        var tool = new FakeTool("create_goal", mutates: true);
+        var (db, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
+        streamer.EnqueueText("Confirm?");
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var publicId = (await db.Conversations.SingleAsync()).PublicId;
+        Assert.NotEmpty(await db.ChatMessages.ToListAsync());
+        Assert.NotEmpty(await db.PendingActions.ToListAsync());
+
+        Assert.True(await chat.DeleteConversationAsync(publicId));
+
+        Assert.Empty(await db.Conversations.ToListAsync());
+        // Nothing orphaned: an unconfirmed proposal must not outlive the thread that made it.
+        Assert.Empty(await db.ChatMessages.ToListAsync());
+        Assert.Empty(await db.PendingActions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Deleting_accepts_a_numeric_id_too_and_reports_the_unknown()
+    {
+        var (db, chat, streamer) = Setup();
+        streamer.EnqueueText("hi");
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Hello"));
+        var id = events[0].ConversationId!.Value;
+
+        Assert.False(await chat.DeleteConversationAsync("zzzzzzzz"));
+        Assert.True(await chat.DeleteConversationAsync(id.ToString()));
+        Assert.Empty(await db.Conversations.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Deleting_one_conversation_leaves_the_others_alone()
+    {
+        var (db, chat, streamer) = Setup();
+        streamer.EnqueueText("one");
+        await CollectAsync(chat.StreamChatAsync(null, "first"));
+        streamer.EnqueueText("two");
+        await CollectAsync(chat.StreamChatAsync(null, "second"));
+        var first = (await db.Conversations.OrderBy(c => c.Id).FirstAsync()).PublicId;
+
+        await chat.DeleteConversationAsync(first);
+
+        var remaining = await db.Conversations.SingleAsync();
+        Assert.Equal("second", remaining.Title);
+        Assert.All(await db.ChatMessages.ToListAsync(), m => Assert.Equal(remaining.Id, m.ConversationId));
+    }
+
+    [Fact]
     public async Task An_unknown_action_id_returns_null()
     {
         var (_, chat, _) = Setup();
