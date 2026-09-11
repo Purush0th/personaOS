@@ -53,6 +53,65 @@ void main() {
       expect(event.actions!.single.tool, 'get_goals');
     });
 
+    test('reads proposed changes awaiting confirmation', () {
+      // Without this the mobile client shows the reply and no way to confirm, which
+      // leaves the assistant unable to change anything at all on a phone.
+      final event = ChatEvent.fromJson({
+        'type': 'done',
+        'pending': [
+          {
+            'id': 'nr6wbqw4',
+            'tool': 'create_goal',
+            'summary': 'Create goal “Learn Rust” — month · 2026-09-01 · top-level',
+            'status': 'pending',
+          },
+        ],
+      });
+
+      final proposal = event.pending!.single;
+      expect(proposal.id, 'nr6wbqw4');
+      expect(proposal.isPending, isTrue);
+      expect(proposal.summary, contains('top-level'));
+      // Nothing ran, so there is no receipt to show alongside it.
+      expect(event.actions, isNull);
+    });
+
+    test('reads a confirmed proposal with its outcome', () {
+      final event = ChatEvent.fromJson({
+        'type': 'done',
+        'pending': [
+          {
+            'id': 'nr6wbqw4',
+            'tool': 'create_goal',
+            'summary': 'Create goal “Learn Rust”',
+            'status': 'confirmed',
+            'resultSummary': 'Learn Rust — month · 2026-09-01 · active',
+            'resultOk': true,
+          },
+        ],
+      });
+
+      final proposal = event.pending!.single;
+      expect(proposal.isPending, isFalse);
+      expect(proposal.resultOk, isTrue);
+      expect(proposal.resultSummary, contains('Learn Rust'));
+    });
+
+    test('treats a discarded proposal as resolved', () {
+      final event = ChatEvent.fromJson({
+        'type': 'done',
+        'pending': [
+          {'id': 'a8k8jg5c', 'tool': 'create_goal', 'summary': 'Create goal', 'status': 'discarded'},
+        ],
+      });
+
+      expect(event.pending!.single.isPending, isFalse);
+    });
+
+    test('leaves pending null when nothing was proposed', () {
+      expect(ChatEvent.fromJson({'type': 'done'}).pending, isNull);
+    });
+
     test('leaves actions null when no tool ran', () {
       final event = ChatEvent.fromJson({'type': 'done', 'conversationId': 1});
 
