@@ -1,8 +1,10 @@
 import { Component, OnInit, effect, inject, signal, viewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { BrandingService } from '../core/branding.service';
 import { ChatService, ConversationSummary, ToolReceipt } from '../core/chat.service';
+import { conversationIdFromSlug, conversationSlug } from '../core/conversation-slug';
 
 interface Bubble {
   role: 'user' | 'assistant';
@@ -22,6 +24,8 @@ interface Bubble {
 })
 export class Chat implements OnInit {
   private readonly chat = inject(ChatService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   protected readonly branding = inject(BrandingService);
 
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
@@ -45,6 +49,28 @@ export class Chat implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    // Subscribe BEFORE any await. Awaiting first leaves a window in which a message can be
+    // sent and answered, and this subscription then fires late with no slug and wipes the
+    // conversation that was just created — losing the thread on screen.
+    // The URL is the source of truth for which conversation is open, so a link like
+    // /chat/14-what-are-my-goals restores the thread and Back/Forward work.
+    this.route.paramMap.subscribe(params => {
+      const slug = params.get('slug');
+      const id = conversationIdFromSlug(slug);
+      if (id === null) {
+        // Never clear a thread that is mid-reply: a late or spurious emission must not
+        // throw away the conversation the user is currently talking to.
+        if (this.streaming()) return;
+
+        this.showEmptyThread();
+        // A slug that carries no usable id is a typo or a dead link; don't leave the user
+        // sitting on a nonsense URL.
+        if (slug) void this.router.navigate(['/chat'], { replaceUrl: true });
+      } else if (id !== this.conversationId()) {
+        void this.load(id);
+      }
+    });
+
     await this.refreshConversations();
   }
 
@@ -57,16 +83,32 @@ export class Chat implements OnInit {
   }
 
   protected startNew(): void {
+    void this.router.navigate(['/chat']);
+  }
+
+  /** Opening a conversation is a navigation; the route subscription does the loading. */
+  protected open(conversation: ConversationSummary): void {
+    void this.router.navigate(['/chat', conversationSlug(conversation.id, conversation.title)]);
+  }
+
+  private showEmptyThread(): void {
     this.conversationId.set(null);
     this.bubbles.set([]);
   }
 
-  protected async open(id: number): Promise<void> {
-    const detail = await this.chat.getConversation(id);
-    this.conversationId.set(detail.id);
-    this.bubbles.set(
-      detail.messages.map(m => ({ role: m.role, text: m.content, actions: m.toolActions ?? null }))
-    );
+  private async load(id: number): Promise<void> {
+    try {
+      const detail = await this.chat.getConversation(id);
+      this.conversationId.set(detail.id);
+      this.bubbles.set(
+        detail.messages.map(m => ({ role: m.role, text: m.content, actions: m.toolActions ?? null }))
+      );
+    } catch {
+      // A link to a conversation that no longer exists shouldn't strand the user on a
+      // broken page — fall back to a fresh thread.
+      this.showEmptyThread();
+      void this.router.navigate(['/chat'], { replaceUrl: true });
+    }
   }
 
   protected async send(): Promise<void> {
@@ -120,7 +162,26 @@ export class Chat implements OnInit {
     } finally {
       this.streaming.set(false);
       await this.refreshConversations();
+      this.syncUrlToConversation();
     }
+  }
+
+  /**
+   * After the first message of a new thread the server has assigned an id and auto-titled it,
+   * so put the slug in the URL — replacing history rather than pushing, since the user did not
+   * navigate. Until this runs the address bar still says /chat, which is not linkable.
+   */
+  private syncUrlToConversation(): void {
+    const id = this.conversationId();
+    if (id === null) return;
+
+    const current = conversationIdFromSlug(this.route.snapshot.paramMap.get('slug'));
+    if (current === id) return;
+
+    const conversation = this.conversations().find(c => c.id === id);
+    void this.router.navigate(['/chat', conversationSlug(id, conversation?.title)], {
+      replaceUrl: true,
+    });
   }
 
   protected onKeydown(event: KeyboardEvent): void {

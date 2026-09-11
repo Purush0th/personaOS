@@ -6,7 +6,7 @@
       <button
         class="conversation"
         [class.active]="conversation.id === conversationId()"
-        (click)="open(conversation.id)"
+        (click)="open(conversation)"
       >
         {{ conversation.title }}
       </button>
