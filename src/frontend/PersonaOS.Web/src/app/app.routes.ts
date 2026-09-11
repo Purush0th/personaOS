@@ -14,6 +14,12 @@ export const routes: Routes = [
     loadComponent: () => import('./chat/chat').then(m => m.Chat),
   },
   {
+    // /chat/14-what-are-my-goals — the id leads, the readable tail is for humans.
+    path: 'chat/:slug',
+    canActivate: [authGuard],
+    loadComponent: () => import('./chat/chat').then(m => m.Chat),
+  },
+  {
     path: 'goals',
     canActivate: [authGuard],
     loadComponent: () => import('./goals/goals').then(m => m.Goals),
