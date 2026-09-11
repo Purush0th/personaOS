@@ -115,6 +115,30 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
       ⚠️ Licence acceptance **cannot** be done from the PowerShell tool: it runs non-interactive
       with stdin from null, so `sdkmanager --licenses` silently accepts nothing and the install
       then does nothing. Use the Bash tool: `yes | sdkmanager.bat --sdk_root=... --licenses`.
+- [x] 🔴 **CRITICAL, found only by running a release build (2026-09-11): the mobile app had no
+      network access at all.** Flutter puts `android.permission.INTERNET` in the *debug* and
+      *profile* manifests only — never in `main`. So every **release** APK shipped with just
+      `RECORD_AUDIO`, could not open a single socket, and would have failed for every self-hoster
+      with "Could not reach a PersonaOS server at that address" no matter what they typed.
+      Confirmed by `aapt2 dump permissions` on the built APK, and invisible until today because
+      nobody had ever built and run a release build — `flutter analyze`, `flutter test` and even
+      `flutter run` (debug) all pass happily, because debug *does* have the permission.
+      Fixed by declaring INTERNET in `main/AndroidManifest.xml`, plus a
+      `network_security_config.xml` allowing cleartext: PersonaOS is HTTP-by-design over a
+      private network, and Android blocks cleartext from API 28, so that would have been the
+      very next wall.
+      Also made the failure diagnosable — `_connect` swallowed the exception (`catch (_)`) and
+      showed one generic line, which is why a missing permission looked identical to a typo'd
+      address. It now reports the actual reason.
+- [x] **Confirmation cards verified on a real Android build (2026-09-11).** Emulator (Pixel 6,
+      API 36) with `adb reverse tcp:8080 tcp:8080`, so the device reached the instance over the
+      cable with **no change to network exposure** — `PERSONAOS_BIND` stayed on loopback.
+      Setup → login → asked for a monthly goal → the card rendered
+      `Create goal “Mobile Test” — month · 2026-09-01 · top-level` with Discard/Confirm, and the
+      assistant said it was *proposing*, not claiming it was done. `/api/goals` held **only**
+      "Master AI" at that point — nothing written. Tapping Confirm turned the card into
+      `✓ Mobile Test — month · 2026-09-01 · active` and the goal appeared. Period normalisation
+      also held (the 1st, not today's date).
       ⚠️ The APK is unsigned-for-release (debug signing) and is **not** on a phone yet: the stack
       still binds to `127.0.0.1`, so a device on the tailnet cannot reach it — set
       `PERSONAOS_BIND=100.90.80.20` first.
