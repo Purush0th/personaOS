@@ -80,6 +80,9 @@ public class ChatService(
         // `yield` cannot live inside try/catch, so the enumerator is advanced
         // inside try and events are yielded outside it.
         var tools = await toolRegistry.GetEnabledToolDefinitionsAsync(ct);
+        // Which tools need confirmation is fixed for the turn, so resolve it once rather than
+        // re-reading the instance config for every tool the model asks for.
+        var mutatingTools = await toolRegistry.GetMutatingToolNamesAsync(ct);
         var streamer = streamerFactory.ForProvider(config.AiProvider);
         var reply = new StringBuilder();
         var receipts = new List<ToolReceipt>();
@@ -153,7 +156,7 @@ public class ChatService(
                 // Anything that writes is proposed, not run. Models have created goals and
                 // reminders nobody asked for — including straight after "let's discuss before
                 // we add anything" — and prompt rules did not stop it. The user decides.
-                if (await toolRegistry.MutatesAsync(call.Name, ct))
+                if (mutatingTools.Contains(call.Name))
                 {
                     proposals.Add(new ProposedAction(call.Name, call.InputJson));
                     // The model is told plainly, so it stops claiming the thing is done.
