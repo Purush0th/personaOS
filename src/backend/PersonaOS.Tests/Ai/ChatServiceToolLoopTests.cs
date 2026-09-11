@@ -270,11 +270,58 @@ public class ChatServiceToolLoopTests
         var events = await CollectAsync(chat.StreamChatAsync(null, "Add buy milk"));
         var conversationId = events[0].ConversationId!.Value;
 
-        var detail = await chat.GetConversationAsync(conversationId);
+        var detail = await chat.GetConversationAsync(conversationId.ToString());
 
         var assistant = detail!.Messages.Last(m => m.Role == ChatRoles.Assistant);
         var receipt = Assert.Single(assistant.ToolActions!);
         Assert.Contains("Buy milk", receipt.Summary);
+    }
+
+    [Fact]
+    public async Task A_conversation_is_reachable_by_its_public_id_as_well_as_its_row_id()
+    {
+        // The public id is what appears in URLs; the numeric id keeps older links working.
+        var (db, chat, streamer) = Setup();
+        streamer.EnqueueText("Hello there");
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Hi"));
+        var id = events[0].ConversationId!.Value;
+        var publicId = (await db.Conversations.SingleAsync(c => c.Id == id)).PublicId;
+
+        Assert.Equal(8, publicId.Length);
+        Assert.Matches("^[a-z0-9]+$", publicId);
+
+        var byPublicId = await chat.GetConversationAsync(publicId);
+        var byRowId = await chat.GetConversationAsync(id.ToString());
+
+        Assert.NotNull(byPublicId);
+        Assert.Equal(id, byPublicId!.Id);
+        Assert.Equal(publicId, byPublicId.PublicId);
+        Assert.Equal(id, byRowId!.Id);
+    }
+
+    [Fact]
+    public async Task An_unknown_reference_returns_null_rather_than_throwing()
+    {
+        var (_, chat, _) = Setup();
+
+        Assert.Null(await chat.GetConversationAsync("zzzzzzzz"));
+        Assert.Null(await chat.GetConversationAsync("9999"));
+        Assert.Null(await chat.GetConversationAsync("not-an-id"));
+    }
+
+    [Fact]
+    public async Task Each_conversation_gets_its_own_public_id()
+    {
+        var (db, chat, streamer) = Setup();
+        streamer.EnqueueText("one");
+        await CollectAsync(chat.StreamChatAsync(null, "first"));
+        streamer.EnqueueText("two");
+        await CollectAsync(chat.StreamChatAsync(null, "second"));
+
+        var ids = await db.Conversations.Select(c => c.PublicId).ToListAsync();
+
+        Assert.Equal(2, ids.Count);
+        Assert.Equal(2, ids.Distinct().Count());
     }
 
     [Fact]

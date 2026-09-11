@@ -1,42 +1,33 @@
 /**
- * Conversation URLs are `/chat/<id>-<slugified title>`, e.g. `/chat/14-what-are-my-goals`.
+ * Conversation URLs are `/chat/<publicId>`, e.g. `/chat/k3n9x2qp`.
  *
- * The id leads so a link keeps working when a title changes or contains nothing slugifiable
- * (emoji, CJK, punctuation only) — the readable tail is for humans, never for lookup.
+ * The id is an opaque 8-character code assigned by the server, deliberately not the title
+ * (which would leak what was discussed into history, bookmarks and proxy logs) and not the
+ * sequential row id (which would advertise how many conversations exist).
+ *
+ * Numeric ids are still accepted so links made before public ids existed keep working — the
+ * API resolves either form.
  */
 
-/** Longest readable tail we append; keeps URLs sane for very long first messages. */
-const MAX_TAIL = 60;
+/** Longest id we will carry in a URL; keeps obviously-bogus input out of API calls. */
+const MAX_LENGTH = 16;
 
-/** Builds the URL segment for a conversation. */
-export function conversationSlug(id: number, title: string | null | undefined): string {
-  const tail = slugifyTitle(title ?? '');
-  return tail ? `${id}-${tail}` : `${id}`;
+/** The URL segment for a conversation. */
+export function conversationSlug(publicId: string | null | undefined, id?: number): string {
+  return publicId?.trim() || String(id ?? '');
 }
 
 /**
- * Reads the conversation id from a URL segment, or null when there isn't one.
- * Tolerates a stale or hand-edited tail: only the leading digits matter.
+ * The conversation reference from a URL segment, or null when the segment cannot be one.
+ * Returned verbatim: the server owns the format, so the client does not second-guess it
+ * beyond rejecting empty or absurd values.
  */
-export function conversationIdFromSlug(slug: string | null | undefined): number | null {
+export function conversationRefFromSlug(slug: string | null | undefined): string | null {
   if (!slug) return null;
 
-  const match = /^(\d+)(?:-|$)/.exec(slug);
-  if (!match) return null;
+  const trimmed = slug.trim();
+  if (!trimmed || trimmed.length > MAX_LENGTH) return null;
 
-  const id = Number(match[1]);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
-}
-
-function slugifyTitle(title: string): string {
-  return title
-    .normalize('NFKD')
-    // Strip accents so "Café" becomes "cafe" rather than losing the letter entirely.
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, MAX_TAIL)
-    // A trim after slicing, in case the cut landed on a separator.
-    .replace(/-+$/g, '');
+  // Public ids are alphanumeric; legacy links are digits. Anything else is not a reference.
+  return /^[a-zA-Z0-9]+$/.test(trimmed) ? trimmed : null;
 }

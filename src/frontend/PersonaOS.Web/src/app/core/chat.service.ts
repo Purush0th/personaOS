@@ -24,6 +24,8 @@ export interface ChatEvent {
 
 export interface ConversationSummary {
   id: number;
+  /** Opaque 8-char id used in URLs. */
+  publicId: string;
   title: string;
   createdAtUtc: string;
   updatedAtUtc: string;
@@ -41,6 +43,7 @@ export interface ChatMessageDto {
 
 export interface ConversationDetail {
   id: number;
+  publicId: string;
   title: string;
   createdAtUtc: string;
   messages: ChatMessageDto[];
@@ -55,8 +58,11 @@ export class ChatService {
     return firstValueFrom(this.http.get<ConversationSummary[]>('/api/chat/conversations'));
   }
 
-  getConversation(id: number): Promise<ConversationDetail> {
-    return firstValueFrom(this.http.get<ConversationDetail>(`/api/chat/conversations/${id}`));
+  /** Accepts a public id, or a numeric id for links predating public ids. */
+  getConversation(ref: string): Promise<ConversationDetail> {
+    return firstValueFrom(
+      this.http.get<ConversationDetail>(`/api/chat/conversations/${encodeURIComponent(ref)}`)
+    );
   }
 
   /**

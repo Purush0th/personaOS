@@ -126,6 +126,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<Conversation>(cfg =>
         {
             cfg.HasKey(x => x.Id);
+            // The id that appears in URLs. Unique so a link can never resolve to two threads.
+            cfg.Property(x => x.PublicId).HasMaxLength(16).IsRequired();
+            cfg.HasIndex(x => x.PublicId).IsUnique();
             cfg.Property(x => x.Title).HasMaxLength(200).IsRequired();
             cfg.HasMany(x => x.Messages)
                 .WithOne(m => m.Conversation)

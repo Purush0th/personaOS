@@ -47,11 +47,14 @@ public class ChatController(IChatService chatService) : ControllerBase
     public async Task<IActionResult> ListConversations(CancellationToken ct) =>
         Ok(await chatService.ListConversationsAsync(ct));
 
-    /// <summary>Returns one conversation with its full message history.</summary>
-    [HttpGet("conversations/{id:int}")]
-    public async Task<IActionResult> GetConversation(int id, CancellationToken ct)
+    /// <summary>
+    /// Returns one conversation with its full message history, addressed by its public id
+    /// (what appears in URLs) or its numeric id, so links made before public ids still work.
+    /// </summary>
+    [HttpGet("conversations/{idOrPublicId}")]
+    public async Task<IActionResult> GetConversation(string idOrPublicId, CancellationToken ct)
     {
-        var conversation = await chatService.GetConversationAsync(id, ct);
+        var conversation = await chatService.GetConversationAsync(idOrPublicId, ct);
         return conversation is null ? NotFound() : Ok(conversation);
     }
 

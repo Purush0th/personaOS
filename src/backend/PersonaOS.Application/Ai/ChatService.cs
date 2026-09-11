@@ -226,16 +226,21 @@ public class ChatService(
     public async Task<IReadOnlyList<ConversationSummary>> ListConversationsAsync(CancellationToken ct = default) =>
         await db.Conversations.AsNoTracking()
             .OrderByDescending(c => c.UpdatedAtUtc)
-            .Select(c => new ConversationSummary(c.Id, c.Title, c.CreatedAtUtc, c.UpdatedAtUtc))
+            .Select(c => new ConversationSummary(c.Id, c.PublicId, c.Title, c.CreatedAtUtc, c.UpdatedAtUtc))
             .ToListAsync(ct);
 
-    public async Task<ConversationDetail?> GetConversationAsync(int id, CancellationToken ct = default)
+    public async Task<ConversationDetail?> GetConversationAsync(
+        string idOrPublicId, CancellationToken ct = default)
     {
+        // Public id is the normal case; a numeric id keeps links made before public ids working.
+        var numericId = int.TryParse(idOrPublicId, out var parsed) ? parsed : (int?)null;
+
         var conversation = await db.Conversations.AsNoTracking()
-            .Where(c => c.Id == id)
+            .Where(c => c.PublicId == idOrPublicId || (numericId != null && c.Id == numericId))
             .Select(c => new
             {
                 c.Id,
+                c.PublicId,
                 c.Title,
                 c.CreatedAtUtc,
                 Messages = c.Messages
@@ -260,7 +265,7 @@ public class ChatService(
             .ToList();
 
         return new ConversationDetail(
-            conversation.Id, conversation.Title, conversation.CreatedAtUtc, messages);
+            conversation.Id, conversation.PublicId, conversation.Title, conversation.CreatedAtUtc, messages);
     }
 
     private IReadOnlyList<ToolReceipt>? ReadReceipts(string? json)
