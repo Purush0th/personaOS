@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PersonaOS instances are plain HTTP by design: the compose bundle ships no TLS, and the
+  instance is reached over the user's own private network (Tailscale) rather than the public
+  internet. Android blocks cleartext by default from API 28, which would make every
+  self-hosted server unreachable.
+
+  This permits cleartext to any host because the server address is whatever the user enters —
+  their tailnet name, a LAN IP, or localhost — and cannot be known in advance. Traffic is still
+  carried inside the user's private network; Tailscale encrypts it at the WireGuard layer.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
