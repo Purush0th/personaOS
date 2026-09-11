@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -131,15 +133,27 @@ class _ServerUrlScreenState extends State<ServerUrlScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kServerUrlPref, url);
       widget.onSaved(url);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
           _checking = false;
-          _error = 'Could not reach a PersonaOS server at that address.';
+          // Say why. Swallowing the exception here made a missing INTERNET permission look
+          // identical to a wrong address, and left a self-hoster nothing to act on.
+          _error = 'Could not reach a PersonaOS server at that address.\n${_reason(e)}';
         });
       }
     }
   }
+
+  /// A short, human reason for a failed connection attempt.
+  static String _reason(Object error) => switch (error) {
+        SocketException e when e.osError != null => 'Network error: ${e.osError!.message}.',
+        SocketException _ => 'Could not open a connection to that host.',
+        TimeoutException _ => 'The server did not respond within 8 seconds.',
+        HandshakeException _ => 'TLS failed — if the server is plain HTTP, use http:// not https://.',
+        FormatException _ => 'That does not look like a valid URL.',
+        _ => '$error',
+      };
 
   @override
   Widget build(BuildContext context) {
