@@ -14,6 +14,9 @@ class _Bubble {
 
   /// What the tools actually did during this turn, shown beneath the reply.
   List<ToolReceipt>? actions;
+
+  /// Changes awaiting the user's confirmation. Nothing has been written yet.
+  List<PendingAction>? pending;
 }
 
 /// Streaming chat with the assistant. Deltas append to the live bubble.
@@ -39,6 +42,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   final List<_Bubble> _bubbles = [];
+
+  /// Action ids with a confirm/discard in flight, so a card can't be double-tapped.
+  final Set<String> _resolving = {};
   StreamSubscription<ChatEvent>? _subscription;
   int? _conversationId;
   bool _streaming = false;
@@ -126,6 +132,7 @@ class _ChatScreenState extends State<ChatScreen> {
             // Replace before speaking, or read-back would say the raw JSON aloud.
             if (event.text != null) assistantBubble.text = event.text!;
             assistantBubble.actions = event.actions;
+            assistantBubble.pending = event.pending;
             if (_readBack) _voice.speak(assistantBubble.text);
         }
       });
@@ -139,6 +146,39 @@ class _ChatScreenState extends State<ChatScreen> {
     }, onDone: () {
       if (mounted && _streaming) setState(() => _streaming = false);
     });
+  }
+
+  /// Confirms or discards a proposed change, replacing the card with its outcome.
+  /// Nothing has touched the database until confirm returns.
+  Future<void> _resolveAction(PendingAction action, bool confirm) async {
+    if (!action.isPending || _resolving.contains(action.id)) return;
+
+    setState(() => _resolving.add(action.id));
+    try {
+      final updated = confirm
+          ? await widget.api.confirmAction(action.id)
+          : await widget.api.discardAction(action.id);
+
+      if (!mounted) return;
+      setState(() {
+        for (final bubble in _bubbles) {
+          final list = bubble.pending;
+          if (list == null) continue;
+          for (var i = 0; i < list.length; i++) {
+            if (list[i].id == action.id) list[i] = updated;
+          }
+        }
+      });
+    } catch (_) {
+      // Leave the card pending so it can be retried rather than lost.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not reach the server. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _resolving.remove(action.id));
+    }
   }
 
   @override
@@ -172,7 +212,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _scroll,
                     padding: const EdgeInsets.all(12),
                     itemCount: _bubbles.length,
-                    itemBuilder: (context, i) => _BubbleView(bubble: _bubbles[i]),
+                    itemBuilder: (context, i) =>
+                        _BubbleView(bubble: _bubbles[i], onResolve: _resolveAction),
                   ),
           ),
           SafeArea(
@@ -227,9 +268,12 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class _BubbleView extends StatelessWidget {
-  const _BubbleView({required this.bubble});
+  const _BubbleView({required this.bubble, required this.onResolve});
 
   final _Bubble bubble;
+
+  /// Confirm (true) or discard (false) a proposed change.
+  final Future<void> Function(PendingAction action, bool confirm) onResolve;
 
   @override
   Widget build(BuildContext context) {
@@ -266,6 +310,8 @@ class _BubbleView extends StatelessWidget {
               )
             else
               SelectableText(bubble.text, style: TextStyle(color: foreground)),
+            if (bubble.pending?.isNotEmpty ?? false)
+              _ProposalList(actions: bubble.pending!, onResolve: onResolve),
             if (bubble.actions?.isNotEmpty ?? false)
               _ReceiptList(actions: bubble.actions!, foreground: foreground),
           ],
@@ -273,6 +319,80 @@ class _BubbleView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Changes the assistant wants to make, with Confirm / Discard.
+///
+/// Louder than a receipt on purpose: this is the last thing standing between a model's
+/// whim and the user's data, and without it the assistant cannot write at all on mobile.
+class _ProposalList extends StatelessWidget {
+  const _ProposalList({required this.actions, required this.onResolve});
+
+  final List<PendingAction> actions;
+  final Future<void> Function(PendingAction action, bool confirm) onResolve;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final action in actions)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: action.isPending ? const Color(0xFFFFF8E6) : Colors.transparent,
+                border: Border.all(
+                  color: action.isPending
+                      ? const Color(0xFFD9C48A)
+                      : theme.dividerColor,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _label(action),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: action.isPending ? const Color(0xFF5A4A1F) : null,
+                    ),
+                  ),
+                  if (action.isPending)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => onResolve(action, false),
+                          child: const Text('Discard'),
+                        ),
+                        const SizedBox(width: 4),
+                        FilledButton(
+                          onPressed: () => onResolve(action, true),
+                          child: const Text('Confirm'),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _label(PendingAction action) => switch (action.status) {
+        'confirmed' =>
+          '${action.resultOk == false ? '✕' : '✓'} ${action.resultSummary ?? action.summary}',
+        'discarded' => '— Discarded: ${action.summary}',
+        _ => action.summary,
+      };
 }
 
 /// The app's own record of what ran, beneath the reply. Deliberately quieter than

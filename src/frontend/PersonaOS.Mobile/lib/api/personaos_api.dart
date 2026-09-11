@@ -11,6 +11,7 @@ class ChatEvent {
     this.conversationId,
     this.error,
     this.actions,
+    this.pending,
   });
 
   factory ChatEvent.fromJson(Map<String, dynamic> json) => ChatEvent(
@@ -21,6 +22,9 @@ class ChatEvent {
         actions: (json['actions'] as List<dynamic>?)
             ?.map((a) => ToolReceipt.fromJson(a as Map<String, dynamic>))
             .toList(),
+        pending: (json['pending'] as List<dynamic>?)
+            ?.map((a) => PendingAction.fromJson(a as Map<String, dynamic>))
+            .toList(),
       );
 
   final String type; // start | delta | tool | done | error
@@ -30,6 +34,50 @@ class ChatEvent {
 
   /// On `done`: what the tools actually did this turn. Null when none ran.
   final List<ToolReceipt>? actions;
+
+  /// On `done`: changes the assistant wants to make, awaiting confirmation. Null when none.
+  final List<PendingAction>? pending;
+}
+
+/// A data-changing action the assistant proposed.
+///
+/// Nothing has been written: the server refuses to run a mutating tool on the model's say-so,
+/// because models have created goals and reminders nobody asked for. It stays here until the
+/// user confirms or discards it, so the client must render it — otherwise the assistant simply
+/// cannot change anything on this device.
+class PendingAction {
+  PendingAction({
+    required this.id,
+    required this.tool,
+    required this.summary,
+    required this.status,
+    this.resultSummary,
+    this.resultOk,
+  });
+
+  factory PendingAction.fromJson(Map<String, dynamic> json) => PendingAction(
+        id: json['id'] as String,
+        tool: json['tool'] as String,
+        summary: json['summary'] as String? ?? '',
+        status: json['status'] as String? ?? 'pending',
+        resultSummary: json['resultSummary'] as String?,
+        resultOk: json['resultOk'] as bool?,
+      );
+
+  final String id;
+  final String tool;
+
+  /// What will happen, in the user's terms, e.g. `Create goal “Learn C#” — month · top-level`.
+  final String summary;
+
+  /// pending | confirmed | discarded.
+  final String status;
+
+  /// Once confirmed: what actually happened, from the tool's own result.
+  final String? resultSummary;
+  final bool? resultOk;
+
+  bool get isPending => status == 'pending';
 }
 
 /// What a tool actually did, recorded by the server from the tool's own result
@@ -268,6 +316,21 @@ class PersonaOsApi {
   Future<void> cancelReminder(int id) => _post('/api/reminders/$id/cancel', const {});
 
   Future<void> deleteReminder(int id) => _delete('/api/reminders/$id');
+
+  // --- Proposed changes ------------------------------------------------------
+
+  /// Runs a change the assistant proposed. The only route by which a model-requested
+  /// write reaches the database.
+  Future<PendingAction> confirmAction(String id) async {
+    final data = await _post('/api/chat/actions/$id/confirm', const {});
+    return PendingAction.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Declines a proposed change; nothing is executed.
+  Future<PendingAction> discardAction(String id) async {
+    final data = await _post('/api/chat/actions/$id/discard', const {});
+    return PendingAction.fromJson(data as Map<String, dynamic>);
+  }
 
   // --- Chat (SSE) ----------------------------------------------------------
 

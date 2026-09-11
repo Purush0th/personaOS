@@ -104,6 +104,20 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
       — `Reminder.cs` (UTC `DueAtUtc`, pending/delivered/cancelled/failed, attempt counter,
       optional Goal + PlannerItem links via `SetNull`) and `DeviceToken.cs` (unique token,
       android/ios). Migration `20260723052926_RemindersAndDevices`, applied to dev DB.
+- [x] **Android toolchain installed, and the first APK actually builds (2026-09-11).**
+      Per the owner's convention everything lives under `C:\Apps\SDK\`: `Java\jdk-17.0.20.1+1`
+      (Temurin; `sdkmanager` needs a JDK and none was installed) and `Android\` with
+      cmdline-tools 9862592, platform-tools, platforms;android-36, build-tools;36.0.0.
+      `flutter config --android-sdk` / `--jdk-dir` point Flutter at them, and
+      **`flutter doctor` now reports "No issues found!"** where the Android toolchain used to fail.
+      `flutter build apk --release` produced **app-release.apk, 50.7 MB** — the first APK this
+      project has ever produced.
+      ⚠️ Licence acceptance **cannot** be done from the PowerShell tool: it runs non-interactive
+      with stdin from null, so `sdkmanager --licenses` silently accepts nothing and the install
+      then does nothing. Use the Bash tool: `yes | sdkmanager.bat --sdk_root=... --licenses`.
+      ⚠️ The APK is unsigned-for-release (debug signing) and is **not** on a phone yet: the stack
+      still binds to `127.0.0.1`, so a device on the tailnet cannot reach it — set
+      `PERSONAOS_BIND=100.90.80.20` first.
 - [ ] Firebase project setup (FCM Android; APNs via FCM for iOS) — **owner task**, needs a
       Firebase account. Backend is complete behind the `IPushSender` port; drop in an FCM
       adapter and swap the `NullPushSender` registration in `Infrastructure/DependencyInjection`.
@@ -474,9 +488,12 @@ real Anthropic key).
       Verified live: asking for a goal left `/api/goals` **unchanged** until Confirm; confirming
       twice created one row; a discarded proposal never ran; in the browser, Confirm turned the
       card into `✓ Water the plants — 2026-09-11 20:00 · pending` and the reminder appeared.
-      ⚠️ **Flutter shows no card**, so a mobile user sees the reply but cannot confirm — writes
-      are effectively blocked on mobile until the client renders `pendingActions`. Mobile-partition
-      follow-up, and the most urgent one on the board.
+      ✅ **Flutter renders the cards too (2026-09-11)** — `PendingAction` model, `confirmAction`
+      / `discardAction` on the API client, and a `_ProposalList` widget under the bubble with
+      Confirm / Discard, replaced in place by the outcome. Double-tap guarded; a failed call
+      leaves the card pending and shows a snackbar rather than losing the action. Writes work on
+      mobile again. `flutter analyze` clean, **11 tests** (4 new, covering pending/confirmed/
+      discarded/absent parsing).
       ⚠️ Always on; there is no "trust it" setting. Add one only if the tapping becomes tiresome.
 - [ ] **Flag a claimed action that has no receipt** — now with a second, worse variant.
       2026-09-11, reading a real chat: the model said it was creating a sub-goal "as part of your
