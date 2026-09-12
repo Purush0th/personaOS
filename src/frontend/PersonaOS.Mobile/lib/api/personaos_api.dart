@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../date_utils.dart';
+
 /// One event from the chat SSE stream.
 class ChatEvent {
   ChatEvent({
@@ -216,6 +218,151 @@ class Reminder {
   final String? plannerItemTitle;
 }
 
+/// One conversation in the history list.
+class ConversationSummary {
+  ConversationSummary({
+    required this.id,
+    required this.publicId,
+    required this.title,
+    required this.updatedAtUtc,
+  });
+
+  factory ConversationSummary.fromJson(Map<String, dynamic> json) => ConversationSummary(
+        id: json['id'] as int,
+        publicId: json['publicId'] as String? ?? '',
+        title: json['title'] as String? ?? 'Untitled',
+        updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
+      );
+
+  final int id;
+  final String publicId;
+  final String title;
+  final DateTime updatedAtUtc;
+}
+
+/// One stored message, replayed when an old conversation is opened.
+class ChatMessageDto {
+  ChatMessageDto({
+    required this.role,
+    required this.content,
+    this.toolActions,
+    this.pendingActions,
+  });
+
+  factory ChatMessageDto.fromJson(Map<String, dynamic> json) => ChatMessageDto(
+        role: json['role'] as String,
+        content: json['content'] as String? ?? '',
+        toolActions: (json['toolActions'] as List<dynamic>?)
+            ?.map((a) => ToolReceipt.fromJson(a as Map<String, dynamic>))
+            .toList(),
+        pendingActions: (json['pendingActions'] as List<dynamic>?)
+            ?.map((a) => PendingAction.fromJson(a as Map<String, dynamic>))
+            .toList(),
+      );
+
+  final String role; // user | assistant
+  final String content;
+  final List<ToolReceipt>? toolActions;
+  final List<PendingAction>? pendingActions;
+}
+
+/// A conversation with its full message history.
+class ConversationDetail {
+  ConversationDetail({
+    required this.id,
+    required this.title,
+    required this.messages,
+  });
+
+  factory ConversationDetail.fromJson(Map<String, dynamic> json) => ConversationDetail(
+        id: json['id'] as int,
+        title: json['title'] as String? ?? 'Untitled',
+        messages: (json['messages'] as List<dynamic>? ?? [])
+            .map((m) => ChatMessageDto.fromJson(m as Map<String, dynamic>))
+            .toList(),
+      );
+
+  final int id;
+  final String title;
+  final List<ChatMessageDto> messages;
+}
+
+/// An uploaded document.
+class DocumentDto {
+  DocumentDto({
+    required this.id,
+    required this.fileName,
+    required this.sizeBytes,
+    required this.createdAtUtc,
+    this.description,
+  });
+
+  factory DocumentDto.fromJson(Map<String, dynamic> json) => DocumentDto(
+        id: json['id'] as int,
+        fileName: json['fileName'] as String? ?? '',
+        sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+        createdAtUtc: parseServerUtc(json['createdAtUtc'] as String),
+        description: json['description'] as String?,
+      );
+
+  final int id;
+  final String fileName;
+  final int sizeBytes;
+  final DateTime createdAtUtc;
+  final String? description;
+}
+
+/// Instance settings, as returned for prefilling the settings screen.
+///
+/// The provider API key is deliberately absent: the server never returns it, only whether
+/// one is stored. Sending a blank key back means "leave the stored one alone".
+class InstanceSettings {
+  InstanceSettings({
+    required this.assistantNickname,
+    required this.personaTemplate,
+    required this.aiProvider,
+    required this.aiModel,
+    required this.aiBaseUrl,
+    required this.timeZone,
+    required this.features,
+    required this.hasApiKey,
+  });
+
+  factory InstanceSettings.fromJson(Map<String, dynamic> json) => InstanceSettings(
+        assistantNickname: json['assistantNickname'] as String? ?? '',
+        personaTemplate: json['personaTemplate'] as String? ?? '',
+        aiProvider: json['aiProvider'] as String? ?? 'anthropic',
+        aiModel: json['aiModel'] as String? ?? '',
+        aiBaseUrl: json['aiBaseUrl'] as String? ?? '',
+        timeZone: json['timeZone'] as String? ?? '',
+        features: ((json['features'] as Map<String, dynamic>?) ?? {})
+            .map((k, v) => MapEntry(k, v == true)),
+        hasApiKey: json['hasAnthropicApiKey'] == true,
+      );
+
+  final String assistantNickname;
+  final String personaTemplate;
+  final String aiProvider;
+  final String aiModel;
+  final String aiBaseUrl;
+  final String timeZone;
+  final Map<String, bool> features;
+  final bool hasApiKey;
+}
+
+/// Result of testing the configured AI provider.
+class ConnectionTest {
+  ConnectionTest({required this.ok, required this.message});
+
+  factory ConnectionTest.fromJson(Map<String, dynamic> json) => ConnectionTest(
+        ok: json['ok'] == true,
+        message: json['message'] as String? ?? '',
+      );
+
+  final bool ok;
+  final String message;
+}
+
 /// Thin client for the PersonaOS server API.
 class PersonaOsApi {
   PersonaOsApi({required this.serverUrl});
@@ -330,6 +477,82 @@ class PersonaOsApi {
   Future<PendingAction> discardAction(String id) async {
     final data = await _post('/api/chat/actions/$id/discard', const {});
     return PendingAction.fromJson(data as Map<String, dynamic>);
+  }
+
+  // --- Conversations -------------------------------------------------------
+
+  Future<List<ConversationSummary>> getConversations() async {
+    final data = await _get('/api/chat/conversations') as List<dynamic>;
+    return data
+        .map((e) => ConversationSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<ConversationDetail> getConversation(String idOrPublicId) async {
+    final data = await _get('/api/chat/conversations/$idOrPublicId');
+    return ConversationDetail.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<void> deleteConversation(String idOrPublicId) =>
+      _delete('/api/chat/conversations/$idOrPublicId');
+
+  // --- Documents -----------------------------------------------------------
+
+  Future<List<DocumentDto>> getDocuments({String? search}) async {
+    final query = (search == null || search.isEmpty)
+        ? ''
+        : '?search=${Uri.encodeQueryComponent(search)}';
+    final data = await _get('/api/documents$query') as List<dynamic>;
+    return data.map((e) => DocumentDto.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Uploads a file as multipart/form-data, the shape the server's `IFormFile` expects.
+  Future<DocumentDto> uploadDocument({
+    required String filePath,
+    required String fileName,
+    String? description,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$serverUrl/api/documents'),
+    );
+    if (_token != null) request.headers['Authorization'] = 'Bearer $_token';
+    request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
+    if (description != null && description.isNotEmpty) {
+      request.fields['description'] = description;
+    }
+
+    final streamed = await request.send().timeout(const Duration(seconds: 120));
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode == 401) {
+      _token = null;
+      throw ApiException('Session expired. Log in again.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(_errorFrom(response));
+    }
+    return DocumentDto.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<void> updateDocumentDescription(int id, String? description) =>
+      _put('/api/documents/$id/description', {'description': description});
+
+  Future<void> deleteDocument(int id) => _delete('/api/documents/$id');
+
+  // --- Settings ------------------------------------------------------------
+
+  Future<InstanceSettings> getSettings() async {
+    final data = await _get('/api/setup');
+    return InstanceSettings.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Sends only the fields given; the server leaves anything omitted untouched.
+  Future<void> updateSettings(Map<String, Object?> changes) =>
+      _put('/api/setup', changes);
+
+  Future<ConnectionTest> testConnection(Map<String, Object?> settings) async {
+    final data = await _post('/api/setup/test', settings);
+    return ConnectionTest.fromJson(data as Map<String, dynamic>);
   }
 
   // --- Chat (SSE) ----------------------------------------------------------

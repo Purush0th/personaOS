@@ -8,10 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api/personaos_api.dart';
 import 'screens/chat_screen.dart';
+import 'screens/documents_screen.dart';
 import 'screens/goals_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/planner_screen.dart';
 import 'screens/reminders_screen.dart';
+import 'screens/settings_screen.dart';
 
 /// PersonaOS mobile app.
 ///
@@ -24,15 +26,85 @@ void main() {
 
 const _kServerUrlPref = 'server_url';
 
-/// Fixed PersonaOS look — matches the dashboard's identity.
-final ThemeData personaOsTheme = ThemeData(
-  colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A1A2E)),
-  appBarTheme: const AppBarTheme(
-    backgroundColor: Color(0xFF1A1A2E),
-    foregroundColor: Colors.white,
-  ),
-  useMaterial3: true,
-);
+/// The one brand colour. PersonaOS's identity is fixed, so this is a constant,
+/// not a per-install setting — only the assistant's nickname and persona vary.
+const Color personaOsSeed = Color(0xFF5B5BD6);
+
+/// Fixed PersonaOS look, in light and dark.
+///
+/// Both are built from the same seed so the two themes stay in step: colours
+/// come from the scheme rather than being written per widget, which is what
+/// keeps the dark theme from drifting into an unreadable mix as screens are
+/// added. Surfaces are tinted and borderless, and the shared shapes live here
+/// rather than being repeated at every call site.
+ThemeData _personaOsTheme(Brightness brightness) {
+  final scheme = ColorScheme.fromSeed(
+    seedColor: personaOsSeed,
+    brightness: brightness,
+  );
+
+  return ThemeData(
+    colorScheme: scheme,
+    useMaterial3: true,
+    scaffoldBackgroundColor: scheme.surface,
+    appBarTheme: AppBarTheme(
+      backgroundColor: scheme.surface,
+      foregroundColor: scheme.onSurface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0.5,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+        color: scheme.onSurface,
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.2,
+      ),
+    ),
+    cardTheme: CardThemeData(
+      color: scheme.surfaceContainerLow,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+    ),
+    listTileTheme: const ListTileThemeData(
+      contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: scheme.surfaceContainerHigh,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: scheme.primary, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(52),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ),
+    dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
+  );
+}
+
+final ThemeData personaOsTheme = _personaOsTheme(Brightness.light);
+final ThemeData personaOsDarkTheme = _personaOsTheme(Brightness.dark);
 
 class PersonaOsApp extends StatelessWidget {
   const PersonaOsApp({super.key});
@@ -42,6 +114,11 @@ class PersonaOsApp extends StatelessWidget {
     return MaterialApp(
       title: 'PersonaOS',
       theme: personaOsTheme,
+      darkTheme: personaOsDarkTheme,
+      // Follow the phone. A self-hosted assistant that ignores the system's
+      // dark mode looks broken at night, and there is no per-install theming
+      // to configure instead.
+      themeMode: ThemeMode.system,
       home: const _Bootstrapper(),
     );
   }
@@ -319,45 +396,121 @@ class _HomeScreenState extends State<HomeScreen> {
           }
           bool enabled(String feature) =>
               branding.enabledFeatures.contains(feature);
+          final scheme = Theme.of(context).colorScheme;
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                child: Text('$nickname is ready',
-                    style: const TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold)),
-              ),
+              _Hero(nickname: nickname),
+              const SizedBox(height: 20),
               _ModuleCard(
-                icon: Icons.chat_bubble_outline,
+                icon: Icons.auto_awesome,
                 title: 'Chat with $nickname',
+                subtitle: 'Ask, plan, or talk hands-free',
+                prominent: true,
                 onTap: () => _openAfterLogin((_) => ChatScreen(
                       api: _api,
                       assistantNickname: nickname,
                       voiceEnabled: enabled('voice'),
                     )),
               ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 10),
+                child: Text(
+                  'MODULES',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: scheme.primary,
+                  ),
+                ),
+              ),
               if (enabled('goals'))
                 _ModuleCard(
                   icon: Icons.flag_outlined,
                   title: 'Goals',
+                  subtitle: 'What you are working towards',
                   onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api)),
                 ),
               if (enabled('planner'))
                 _ModuleCard(
                   icon: Icons.event_note_outlined,
                   title: 'Planner',
+                  subtitle: 'Your day, item by item',
                   onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api)),
                 ),
               if (enabled('reminders'))
                 _ModuleCard(
                   icon: Icons.alarm,
                   title: 'Reminders',
+                  subtitle: 'Nudges at the right time',
                   onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
                 ),
+              if (enabled('docs'))
+                _ModuleCard(
+                  icon: Icons.folder_outlined,
+                  title: 'Documents',
+                  subtitle: 'Files the assistant can read',
+                  onTap: () => _openAfterLogin((_) => DocumentsScreen(api: _api)),
+                ),
+              _ModuleCard(
+                icon: Icons.tune,
+                title: 'Settings',
+                subtitle: 'Persona, provider, modules',
+                onTap: () => _openAfterLogin((_) => SettingsScreen(api: _api)),
+              ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// The greeting at the top of the home screen.
+class _Hero extends StatelessWidget {
+  const _Hero({required this.nickname});
+
+  final String nickname;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [scheme.primaryContainer, scheme.secondaryContainer],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'PersonaOS',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$nickname is ready',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+              color: scheme.onPrimaryContainer,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -369,21 +522,86 @@ class _ModuleCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.onTap,
+    this.subtitle,
+    this.prominent = false,
   });
 
   final IconData icon;
   final String title;
+  final String? subtitle;
   final VoidCallback onTap;
+
+  /// Chat is the reason the app exists, so it gets the filled treatment.
+  final bool prominent;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
+    final scheme = Theme.of(context).colorScheme;
+    final foreground = prominent ? scheme.onPrimary : scheme.onSurface;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: prominent ? scheme.primary : scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: prominent
+                        ? scheme.onPrimary.withValues(alpha: 0.18)
+                        : scheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 22,
+                    color: prominent ? scheme.onPrimary : scheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: foreground,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: prominent
+                                ? scheme.onPrimary.withValues(alpha: 0.8)
+                                : scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right,
+                    color: prominent
+                        ? scheme.onPrimary.withValues(alpha: 0.8)
+                        : scheme.outline),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

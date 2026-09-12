@@ -191,7 +191,16 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 - [x] `flutter_tts` read-back toggle — AppBar toggle; when on, speaks each completed reply.
       **Not runnable headless here** — mic capture + TTS audio need a device/emulator; verified
       by `flutter analyze` (clean) + `flutter test` (green). Manual device check still pending.
-- [~] (claimed: mobile session, 2026-09-12) Voice input fails silently. Found on the emulator:
+- [x] Voice input failed silently — fixed in `ba4dbf3`, and **confirmed working on a real device
+      on 2026-09-12**: dictation transcribes, no mic errors. The emulator still cannot transcribe
+      (no SODA language pack), so test voice on hardware, never on the AVD.
+- [x] Mobile parity + modern UI + hands-free voice (2026-09-12). The
+      owner tested the alpha on a real phone and asked for four things: a more modern interface,
+      a hands-free voice mode rather than push-to-talk, chat history, and every feature the web
+      app has. Gaps found by inventory — mobile has chat, goals, planner, reminders, login; the
+      web also has conversation history (list/open/delete), documents, and settings. The backend
+      endpoints for all three already exist, so this is client work only.
+- [ ] (superseded, kept for the record) Voice input fails silently. Found on the emulator:
       the mic turns on, Android shows the recording indicator, and then nothing ever comes back.
       `VoiceService.ensureStt` passes `onError: (_) {}`, so every recognition error is discarded
       and the chat screen leaves `_listening` true forever — the mic looks stuck on and the user
