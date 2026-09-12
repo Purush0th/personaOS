@@ -83,7 +83,10 @@ data/           docs-storage/ (runtime files, gitignored)
   (auto-applies migrations). **Stop it with `taskkill //F //IM PersonaOS.Api.exe`** — killing
   the wrapper PID leaves a child that locks DLLs on the next build.
 - Web app: `npx ng serve` in `src/frontend/PersonaOS.Web` (port 4200, proxies `/api` → :5080).
-  Angular CLI pinned to v20 (local Node 24.9 < latest CLI minimum).
+  Angular is on v20 (`@angular/cli` `^20.3.3`), matched to `@angular/core` `^20.3.0`. This is an
+  ordinary version choice, not a Node constraint: the old note here claimed the local Node was
+  too old for a newer CLI, which no longer holds. Moving off v20 means a real Angular major
+  upgrade, so treat it as work, not a version bump.
 - Flutter: `flutter analyze && flutter test` in `src/frontend/PersonaOS.Mobile`.
 - Dev DB: **embedded SQLite** at `src/backend/PersonaOS.Api/data/personaos.db` (WAL; created +
   migrated on first run; gitignored). No LocalDB / SQL Server. Path is `Database:Path` in config.
