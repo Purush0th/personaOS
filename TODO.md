@@ -191,6 +191,16 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 - [x] `flutter_tts` read-back toggle — AppBar toggle; when on, speaks each completed reply.
       **Not runnable headless here** — mic capture + TTS audio need a device/emulator; verified
       by `flutter analyze` (clean) + `flutter test` (green). Manual device check still pending.
+- [~] (claimed: mobile session, 2026-09-12) Voice input fails silently. Found on the emulator:
+      the mic turns on, Android shows the recording indicator, and then nothing ever comes back.
+      `VoiceService.ensureStt` passes `onError: (_) {}`, so every recognition error is discarded
+      and the chat screen leaves `_listening` true forever — the mic looks stuck on and the user
+      is told nothing. Surface the error and reset the mic state. Separately, `listen` never
+      passes a `localeId`, so it uses the device default with no fallback to a locale the
+      recognizer actually has. Note the emulator itself cannot transcribe — the AOSP image has no
+      SODA language pack (`Failed to get language pack of required locale: error 13`) and the
+      online recognizer needs a signed-in Google account — so confirming a *successful*
+      transcription still needs a real device.
 
 ## Phase 7 — Dashboard parity
 
