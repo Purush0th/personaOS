@@ -11,6 +11,7 @@ class VoiceService {
   final FlutterTts _tts = FlutterTts();
 
   bool _sttReady = false;
+  bool _ttsAwaits = false;
   String? _localeId;
 
   bool get isListening => _stt.isListening;
@@ -40,6 +41,8 @@ class VoiceService {
   Future<void> listen({
     required void Function(String words) onResult,
     required void Function(String words) onFinal,
+    Duration? pauseFor,
+    Duration? listenFor,
   }) async {
     await _stt.listen(
       onResult: (result) {
@@ -48,6 +51,8 @@ class VoiceService {
       },
       listenOptions: SpeechListenOptions(
         localeId: await _usableLocaleId(),
+        pauseFor: pauseFor,
+        listenFor: listenFor,
         listenMode: ListenMode.dictation,
         cancelOnError: true,
         partialResults: true,
@@ -78,8 +83,16 @@ class VoiceService {
   }
 
   /// Speaks [text], interrupting any read-back already in progress.
+  ///
+  /// Awaits until the speech actually finishes, not merely until it starts.
+  /// Hands-free mode depends on that: it must not reopen the microphone while
+  /// the phone is still talking, or the assistant transcribes its own voice.
   Future<void> speak(String text) async {
     if (text.trim().isEmpty) return;
+    if (!_ttsAwaits) {
+      await _tts.awaitSpeakCompletion(true);
+      _ttsAwaits = true;
+    }
     await _tts.stop();
     await _tts.speak(text);
   }
