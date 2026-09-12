@@ -68,11 +68,23 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) setState(() => _listening = false);
       return;
     }
-    final ready = await _voice.ensureStt(onStatus: (status) {
-      if (status == 'notListening' || status == 'done') {
-        if (mounted) setState(() => _listening = false);
-      }
-    });
+    final ready = await _voice.ensureStt(
+      onStatus: (status) {
+        if (status == 'notListening' || status == 'done') {
+          if (mounted) setState(() => _listening = false);
+        }
+      },
+      // Recognition can fail after the microphone is already live — no language
+      // pack for the locale, no network for the online recognizer. Without this
+      // the mic stays lit and the user waits for a transcript that never comes.
+      onError: (error) {
+        if (!mounted) return;
+        setState(() => _listening = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not hear you: $error')),
+        );
+      },
+    );
     if (!ready) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
