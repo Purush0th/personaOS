@@ -39,6 +39,8 @@ dependencies:
   # Voice (Phase 6): push-to-talk STT + optional TTS read-back.
   speech_to_text: ^7.0.0
   file_picker: ^8.1.7
+  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.4
   flutter_tts: ^4.2.0
 
 dev_dependencies:
