@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../api/personaos_api.dart';
 import '../voice_service.dart';
@@ -446,6 +447,54 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
+/// An assistant reply, rendered as Markdown.
+///
+/// Models format their answers — bold, bullets, numbered lists — and shown as
+/// plain text that arrives as literal `**Learn Rust**`. The styles are tightened
+/// from the defaults, which assume a full-width document rather than a chat
+/// bubble and leave far too much space around headings and lists.
+class _MarkdownReply extends StatelessWidget {
+  const _MarkdownReply({required this.text, required this.foreground});
+
+  final String text;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final body = TextStyle(color: foreground, fontSize: 15, height: 1.35);
+
+    return MarkdownBody(
+      data: text,
+      selectable: true,
+      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+        p: body,
+        listBullet: body,
+        strong: body.copyWith(fontWeight: FontWeight.w700),
+        em: body.copyWith(fontStyle: FontStyle.italic),
+        h1: body.copyWith(fontSize: 19, fontWeight: FontWeight.w700),
+        h2: body.copyWith(fontSize: 17, fontWeight: FontWeight.w700),
+        h3: body.copyWith(fontSize: 16, fontWeight: FontWeight.w700),
+        code: body.copyWith(
+          fontFamily: 'monospace',
+          fontSize: 13,
+          backgroundColor: theme.colorScheme.surfaceContainerHigh,
+        ),
+        codeblockDecoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        blockquoteDecoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        blockSpacing: 8,
+        listIndent: 18,
+      ),
+    );
+  }
+}
+
 /// Says what hands-free mode is doing right now.
 ///
 /// Without it the mode is invisible: the phone is silent between turns either
@@ -537,15 +586,17 @@ class _BubbleView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Taken from the scheme, not hardcoded: the old fixed navy was a light-theme
+    // colour and all but vanished against a dark background.
     final background = bubble.isError
         ? theme.colorScheme.errorContainer
         : bubble.isUser
-            ? const Color(0xFF1A1A2E)
+            ? theme.colorScheme.primary
             : theme.colorScheme.surfaceContainerHighest;
     final foreground = bubble.isError
         ? theme.colorScheme.onErrorContainer
         : bubble.isUser
-            ? Colors.white
+            ? theme.colorScheme.onPrimary
             : theme.colorScheme.onSurface;
 
     return Align(
@@ -567,8 +618,12 @@ class _BubbleView extends StatelessWidget {
                 width: 32,
                 child: Text('…', textAlign: TextAlign.center),
               )
+            else if (bubble.isUser || bubble.isError)
+              // Your own words and server errors are literal — rendering them
+              // as Markdown would silently eat characters you actually typed.
+              SelectableText(bubble.text, style: TextStyle(color: foreground))
             else
-              SelectableText(bubble.text, style: TextStyle(color: foreground)),
+              _MarkdownReply(text: bubble.text, foreground: foreground),
             if (bubble.pending?.isNotEmpty ?? false)
               _ProposalList(actions: bubble.pending!, onResolve: onResolve),
             if (bubble.actions?.isNotEmpty ?? false)

@@ -42,6 +42,7 @@ dependencies:
   local_auth: ^2.3.0
   flutter_secure_storage: ^9.2.4
   flutter_tts: ^4.2.0
+  flutter_markdown_plus: ^1.0.12
 
 dev_dependencies:
   flutter_test:
