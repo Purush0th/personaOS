@@ -1,6 +1,39 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+/// Strips Markdown so a reply can be spoken rather than recited.
+///
+/// Models format their answers, and a screen reader does not know that `**` is
+/// emphasis: read back verbatim, "**Learn Rust**" comes out as "asterisk
+/// asterisk Learn Rust asterisk asterisk", and a fenced code block is read
+/// character by character. Only the visible words should be spoken.
+String speakableText(String markdown) {
+  var text = markdown;
+
+  // Fenced code: unreadable aloud, so drop it rather than spell it out.
+  text = text.replaceAll(RegExp(r'```[\s\S]*?```'), ' ');
+  // Links: keep the label, drop the URL.
+  text = text.replaceAllMapped(
+      RegExp(r'\[([^\]]+)\]\([^)]*\)'), (m) => m.group(1) ?? '');
+  // Inline code, bold, strikethrough — markers only, keep the words.
+  text = text.replaceAll(RegExp(r'[`*~]'), '');
+  // Underscore emphasis, but ONLY around a whole word. Stripping every
+  // underscore turns `get_goals` into "getgoals", and the assistant names its
+  // tools constantly.
+  text = text.replaceAllMapped(
+      RegExp(r'(?<![A-Za-z0-9_])_([^_\n]+)_(?![A-Za-z0-9_])'),
+      (m) => m.group(1) ?? '');
+  // Headings and blockquote markers at the start of a line.
+  text = text.replaceAll(RegExp(r'^\s{0,3}#{1,6}\s*', multiLine: true), '');
+  text = text.replaceAll(RegExp(r'^\s{0,3}>\s?', multiLine: true), '');
+  // Bullet markers. Numbered items keep their number: "1." reads naturally.
+  text = text.replaceAll(RegExp(r'^\s*[-+]\s+', multiLine: true), '');
+  // Horizontal rules.
+  text = text.replaceAll(RegExp(r'^\s*([-*_]\s*){3,}$', multiLine: true), ' ');
+
+  return text.replaceAll(RegExp(r'[ \t]+'), ' ').trim();
+}
+
 /// Push-to-talk speech-to-text plus optional text-to-speech read-back.
 ///
 /// Kept deliberately thin: the chat screen owns the UI state (whether the mic
@@ -88,6 +121,7 @@ class VoiceService {
   /// Hands-free mode depends on that: it must not reopen the microphone while
   /// the phone is still talking, or the assistant transcribes its own voice.
   Future<void> speak(String text) async {
+    text = speakableText(text);
     if (text.trim().isEmpty) return;
     if (!_ttsAwaits) {
       await _tts.awaitSpeakCompletion(true);
