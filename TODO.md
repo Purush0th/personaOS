@@ -194,6 +194,12 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 - [x] Voice input failed silently — fixed in `ba4dbf3`, and **confirmed working on a real device
       on 2026-09-12**: dictation transcribes, no mic errors. The emulator still cannot transcribe
       (no SODA language pack), so test voice on hardware, never on the AVD.
+- [x] Fingerprint sign-in (2026-09-13). Verified on the emulator with an enrolled print: the
+      biometric prompt fires on cold start and one touch reaches chat with no password typed.
+      Credentials go in `EncryptedSharedPreferences` (Keystore-backed) and are read only after
+      the prompt passes. Chosen over storing the JWT because the access token lasts 12h and there
+      is no refresh endpoint, so a token alone would still mean typing a password daily. Revisit
+      if refresh tokens ever land — that removes the password from the phone entirely.
 - [x] Mobile parity + modern UI + hands-free voice (2026-09-12). The
       owner tested the alpha on a real phone and asked for four things: a more modern interface,
       a hands-free voice mode rather than push-to-talk, chat history, and every feature the web
