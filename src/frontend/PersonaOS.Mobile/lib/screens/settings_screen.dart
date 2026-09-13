@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../auth_vault.dart';
 
 /// Module keys the server accepts. Unknown keys are ignored server-side, and
 /// this list matches the web app's so the two screens cannot drift apart.
@@ -52,10 +53,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   bool get _isCompatible => _provider == 'openai_compatible';
 
+  final _vault = AuthVault();
+  bool _hasSavedSignIn = false;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _vault.hasSavedCredentials.then((saved) {
+      if (mounted) setState(() => _hasSavedSignIn = saved);
+    });
+  }
+
+  Future<void> _forgetSignIn() async {
+    await _vault.clear();
+    if (!mounted) return;
+    setState(() => _hasSavedSignIn = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Saved sign-in removed from this phone.')),
+    );
   }
 
   @override
@@ -319,6 +335,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onPressed: _saving ? null : _save,
                       child: Text(_saving ? 'Saving…' : 'Save settings'),
                     ),
+
+                    if (_hasSavedSignIn) ...[
+                      const _SectionLabel('Sign-in'),
+                      // The only way to remove a stored password from the
+                      // phone. Without it, opting in to fingerprint unlock
+                      // would be one-way.
+                      OutlinedButton.icon(
+                        onPressed: _forgetSignIn,
+                        icon: const Icon(Icons.logout),
+                        label: const Text('Forget saved sign-in'),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 4),
+                        child: Text(
+                          'Removes the credentials kept for fingerprint unlock. '
+                          'You will type your password next time.',
+                          style: TextStyle(
+                              fontSize: 12, color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
     );

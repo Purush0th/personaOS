@@ -7,6 +7,9 @@
       The app is nothing but a client for a self-hosted instance, so this is essential.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Fingerprint/face unlock for sign-in (local_auth). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
         android:label="personaos_mobile"
         android:name="${applicationName}"
