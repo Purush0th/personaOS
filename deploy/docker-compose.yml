@@ -31,6 +31,8 @@ services:
       Backup__Enabled: "true"
       Backup__Path: /app/data/backups
       ASPNETCORE_ENVIRONMENT: Production
+      # Push notifications are configured in the web app (Settings → Push notifications), by
+      # uploading your own Firebase project's files. Nothing to set here.
     volumes:
       - api-data:/app/data
       # Recommended: put backups on a different disk than api-data, e.g.

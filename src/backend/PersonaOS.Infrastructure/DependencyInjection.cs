@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -50,14 +51,25 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
-        services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
+        // Explicit factories: the protector has a purpose-taking constructor too, and resolving
+        // it by convention would leave which purpose you get to constructor-selection rules.
+        services.AddSingleton<ISecretProtector>(sp =>
+            new DataProtectionSecretProtector(sp.GetRequiredService<IDataProtectionProvider>()));
+        services.AddKeyedSingleton<ISecretProtector>(SecretPurposes.PushCredentials, (sp, _) =>
+            new DataProtectionSecretProtector(
+                sp.GetRequiredService<IDataProtectionProvider>(), SecretPurposes.PushCredentials));
         // AI providers: concrete adapters + a factory that selects one per InstanceConfig.
         services.AddSingleton<AnthropicMessageStreamer>();
         services.AddSingleton<OpenAiCompatibleMessageStreamer>();
         services.AddSingleton<IAiMessageStreamerFactory, AiMessageStreamerFactory>();
-        // Push: no provider configured yet. Swap for the FCM adapter once Firebase
-        // credentials exist — the dispatcher keeps reminders pending until then.
-        services.AddSingleton<IPushSender, NullPushSender>();
+        // Push: bring-your-own Firebase, configured from the admin page at runtime. One sender
+        // instance serves both roles — the app sends through it, and uploading a key reconfigures
+        // it — so the two can never disagree about whether push is on. Until a key is uploaded it
+        // reports "not configured" and due reminders wait as pending.
+        services.AddSingleton<ConfigurablePushSender>();
+        services.AddSingleton<IPushSender>(sp => sp.GetRequiredService<ConfigurablePushSender>());
+        services.AddSingleton<IPushProviderConfigurator>(sp => sp.GetRequiredService<ConfigurablePushSender>());
+        services.AddHostedService<PushConfigLoader>();
         services.AddSingleton<IDocumentStorage, FileSystemDocumentStorage>();
         // Nightly self-contained snapshot (db + docs + keyring). See BackupService.
         services.AddHostedService<BackupService>();

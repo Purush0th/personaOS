@@ -45,6 +45,26 @@ public class InstanceConfig
     /// </summary>
     public string? AnthropicApiKeyEncrypted { get; set; }
 
+    /// <summary>
+    /// The owner's Firebase service-account key (the whole JSON), encrypted at rest under its
+    /// own Data Protection purpose — never the AI key's, so neither ciphertext can be passed
+    /// off as the other. Null means push is not configured. Bring-your-own: each install uses
+    /// its own Firebase project, so no key is ever shared between installs.
+    /// </summary>
+    public string? FcmServiceAccountEncrypted { get; set; }
+
+    /// <summary>
+    /// The Firebase <em>client</em> options the mobile app starts Firebase with (API key, app id,
+    /// sender id, project id), extracted from the uploaded google-services.json. Stored in plain
+    /// text on purpose: these values are identifiers, not secrets, and ship inside every
+    /// ordinary Firebase app. Keeping them server-side is what lets the release APK carry no
+    /// Firebase config at all, and lets a reinstalled app recover push on sign-in.
+    /// </summary>
+    public string? FcmClientConfigJson { get; set; }
+
+    /// <summary>The Firebase project both uploaded files were verified to belong to.</summary>
+    public string? FcmProjectId { get; set; }
+
     /// <summary>Feature toggle map (module name → enabled). Gates UI + endpoints.</summary>
     public Dictionary<string, bool> Features { get; set; } = new();
 
