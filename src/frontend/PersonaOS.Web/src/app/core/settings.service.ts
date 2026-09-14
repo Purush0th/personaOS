@@ -43,6 +43,27 @@ export class SettingsService {
   testConnection(test: TestConnection): Promise<TestConnectionResult> {
     return firstValueFrom(this.http.post<TestConnectionResult>('/api/setup/test', test));
   }
+
+  /** Whether push is on, and for which Firebase project. Never includes the key. */
+  getPush(): Promise<PushStatus> {
+    return firstValueFrom(this.http.get<PushStatus>('/api/setup/push'));
+  }
+
+  /** Uploads both Firebase files; the server rejects the pair unless they share a project. */
+  setPush(serviceAccountJson: string, googleServicesJson: string): Promise<PushStatus> {
+    return firstValueFrom(
+      this.http.put<PushStatus>('/api/setup/push', { serviceAccountJson, googleServicesJson })
+    );
+  }
+
+  clearPush(): Promise<void> {
+    return firstValueFrom(this.http.delete<void>('/api/setup/push'));
+  }
+}
+
+export interface PushStatus {
+  configured: boolean;
+  projectId: string | null;
 }
 
 export interface TestConnection {
