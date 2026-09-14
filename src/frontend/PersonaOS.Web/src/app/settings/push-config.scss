@@ -1,0 +1,50 @@
+.push {
+  max-width: 32rem;
+  margin-top: 2.2rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--line);
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 0 0 0.6rem;
+}
+
+.state {
+  font-weight: 600;
+
+  &.on {
+    color: #1a7f37;
+  }
+
+  &.off {
+    color: var(--muted, #6b6b76);
+  }
+}
+
+.steps {
+  padding-left: 1.2rem;
+  margin: 0.2rem 0 1rem;
+
+  li {
+    margin: 0.3rem 0;
+  }
+}
+
+.file {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.8rem 0;
+}
+
+.saved {
+  color: #1a7f37;
+}
+
+.actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.6rem;
+}

@@ -3,13 +3,14 @@ import { FormsModule } from '@angular/forms';
 
 import { BrandingService } from '../core/branding.service';
 import { SettingsService, SettingsUpdate } from '../core/settings.service';
+import { PushConfig } from './push-config';
 
 /** Module keys the server accepts; unknown keys are ignored server-side. */
 const MODULES = ['goals', 'planner', 'reminders', 'docs', 'voice', 'proactive'] as const;
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule],
+  imports: [FormsModule, PushConfig],
   templateUrl: './settings.html',
   styleUrl: './settings.scss',
 })
