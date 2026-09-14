@@ -22,6 +22,9 @@ public class FakePushSender : IPushSender
     public int SendCount { get; private set; }
     public List<string> SentBodies { get; } = new();
 
+    /// <summary>Every data-only payload sent, in order.</summary>
+    public List<IReadOnlyDictionary<string, string>> SentData { get; } = new();
+
     public Task<IReadOnlyList<PushResult>> SendAsync(
         IReadOnlyList<string> tokens,
         string title,
@@ -31,7 +34,24 @@ public class FakePushSender : IPushSender
     {
         SendCount++;
         SentBodies.Add(body);
+        return Task.FromResult(ResultsFor(tokens));
+    }
 
+    public Task<IReadOnlyList<PushResult>> SendDataAsync(
+        IReadOnlyList<string> tokens,
+        IReadOnlyDictionary<string, string> data,
+        CancellationToken ct = default)
+    {
+        SendCount++;
+        SentData.Add(data);
+        // Reminder payloads carry their text as "message"; recording it keeps assertions that
+        // check what was sent working whichever kind of send produced it.
+        if (data.TryGetValue("message", out var message)) SentBodies.Add(message);
+        return Task.FromResult(ResultsFor(tokens));
+    }
+
+    private IReadOnlyList<PushResult> ResultsFor(IReadOnlyList<string> tokens)
+    {
         IReadOnlyList<PushResult> results = tokens.Select(t =>
             InvalidTokens.Contains(t)
                 ? new PushResult(t, Success: false, TokenInvalid: true, Error: "unregistered token")
@@ -40,7 +60,7 @@ public class FakePushSender : IPushSender
                     : new PushResult(t, Success: false, Error: FailureReason))
             .ToList();
 
-        return Task.FromResult(results);
+        return results;
     }
 }
 
@@ -230,5 +250,38 @@ public class FakeJwtTokenGenerator : IJwtTokenGenerator
     {
         Issued.Add(admin);
         return new TokenResult($"token-for-{admin.Username}", DateTime.UtcNow.AddHours(12));
+    }
+}
+
+/// <summary>
+/// Reversible stand-in for Data Protection. Prefixes rather than passes through, so a test can
+/// tell that a value really was protected before it was stored.
+/// </summary>
+public class FakeSecretProtector : ISecretProtector
+{
+    private const string Prefix = "protected:";
+
+    public string Protect(string plaintext) => Prefix + plaintext;
+
+    public string Unprotect(string ciphertext) =>
+        ciphertext.StartsWith(Prefix, StringComparison.Ordinal)
+            ? ciphertext[Prefix.Length..]
+            : throw new InvalidOperationException("Not a value this protector produced.");
+}
+
+/// <summary>Records what the live push sender was pointed at, and can be told to reject a key.</summary>
+public class FakePushProviderConfigurator : IPushProviderConfigurator
+{
+    public List<string?> Applied { get; } = [];
+
+    /// <summary>When set, Configure throws this — simulates a key that is well-formed but will not load.</summary>
+    public Exception? FailWith { get; set; }
+
+    public string? Current => Applied.Count == 0 ? null : Applied[^1];
+
+    public void Configure(string? serviceAccountJson)
+    {
+        if (FailWith is not null && serviceAccountJson is not null) throw FailWith;
+        Applied.Add(serviceAccountJson);
     }
 }

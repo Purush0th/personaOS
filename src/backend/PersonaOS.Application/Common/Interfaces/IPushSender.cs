@@ -27,4 +27,19 @@ public interface IPushSender
         string body,
         IReadOnlyDictionary<string, string>? data = null,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Sends a data-only message — no notification — to each token, at high priority.
+    ///
+    /// The difference matters on Android. A message carrying a notification is drawn by the
+    /// system while the app is in the background, and the app's own code never runs, so it can
+    /// only ever be an ordinary notification. A data-only message wakes the app instead, which
+    /// is what lets it schedule an exact alarm or take over the screen for one. The app is then
+    /// responsible for showing something: data messages that produce nothing visible get
+    /// deprioritised by Android.
+    /// </summary>
+    Task<IReadOnlyList<PushResult>> SendDataAsync(
+        IReadOnlyList<string> tokens,
+        IReadOnlyDictionary<string, string> data,
+        CancellationToken ct = default);
 }

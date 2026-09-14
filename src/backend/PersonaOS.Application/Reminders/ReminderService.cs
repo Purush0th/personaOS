@@ -8,7 +8,8 @@ namespace PersonaOS.Application.Reminders;
 
 public class ReminderService(
     IAppDbContext db,
-    IInstanceConfigService configService) : IReminderService
+    IInstanceConfigService configService,
+    IReminderAlarmPublisher alarms) : IReminderService
 {
     public async Task<IReadOnlyList<ReminderDto>> ListAsync(
         bool includeCompleted = false, CancellationToken ct = default)
@@ -59,6 +60,7 @@ public class ReminderService(
 
         db.Reminders.Add(reminder);
         await db.SaveChangesAsync(ct);
+        await alarms.PublishScheduledAsync(reminder, ct);
         return await GetAsync(reminder.Id, ct) ?? Map(reminder, timeZone);
     }
 
@@ -83,6 +85,7 @@ public class ReminderService(
 
         reminder.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        await alarms.PublishScheduledAsync(reminder, ct);
         return await GetAsync(id, ct);
     }
 
@@ -97,6 +100,7 @@ public class ReminderService(
         reminder.Status = ReminderStatuses.Cancelled;
         reminder.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        await alarms.PublishRemovedAsync(reminder.Id, ct);
         return await GetAsync(id, ct);
     }
 
@@ -107,6 +111,7 @@ public class ReminderService(
 
         db.Reminders.Remove(reminder);
         await db.SaveChangesAsync(ct);
+        await alarms.PublishRemovedAsync(id, ct);
         return true;
     }
 
@@ -122,23 +127,37 @@ public class ReminderService(
                 $"Platform must be one of: {string.Join(", ", DevicePlatforms.All)}.");
 
         var existing = await db.DeviceTokens.FirstOrDefaultAsync(d => d.Token == token, ct);
-        if (existing is null)
-        {
-            db.DeviceTokens.Add(new DeviceToken
-            {
-                Token = token,
-                Platform = platform,
-                DeviceName = request.DeviceName?.Trim(),
-            });
-        }
-        else
+        if (existing is not null)
         {
             existing.Platform = platform;
             existing.DeviceName = request.DeviceName?.Trim() ?? existing.DeviceName;
             existing.LastSeenUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            return;
         }
 
-        await db.SaveChangesAsync(ct);
+        var added = new DeviceToken
+        {
+            Token = token,
+            Platform = platform,
+            DeviceName = request.DeviceName?.Trim(),
+        };
+        db.DeviceTokens.Add(added);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Check-then-insert races with itself. The app registers from two places that fire
+            // together on first launch — the initial token fetch and FCM's token-refresh event —
+            // so two requests both saw "not registered" and both inserted; the unique index
+            // rejected the second and it surfaced as a 500. Losing that race means the token IS
+            // registered, which is exactly what the caller asked for.
+            db.DeviceTokens.Remove(added);
+            if (!await db.DeviceTokens.AnyAsync(d => d.Token == token, ct)) throw;
+        }
     }
 
     public async Task<bool> UnregisterDeviceAsync(string token, CancellationToken ct = default)
