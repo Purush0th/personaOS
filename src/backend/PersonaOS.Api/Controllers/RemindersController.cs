@@ -48,17 +48,4 @@ public class RemindersController(IReminderService reminders) : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct) =>
         await reminders.DeleteAsync(id, ct) ? NoContent() : NotFound();
-
-    /// <summary>Registers or refreshes this device's push token.</summary>
-    [HttpPost("devices")]
-    public async Task<IActionResult> RegisterDevice([FromBody] RegisterDeviceRequest request, CancellationToken ct)
-    {
-        await reminders.RegisterDeviceAsync(request, ct);
-        return NoContent();
-    }
-
-    /// <summary>Removes a device token (logout / uninstall).</summary>
-    [HttpDelete("devices/{token}")]
-    public async Task<IActionResult> UnregisterDevice(string token, CancellationToken ct) =>
-        await reminders.UnregisterDeviceAsync(token, ct) ? NoContent() : NotFound();
 }

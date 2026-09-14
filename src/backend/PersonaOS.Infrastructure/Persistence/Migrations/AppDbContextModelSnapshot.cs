@@ -275,6 +275,15 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<TimeOnly?>("EveningRollupTime")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("FcmClientConfigJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FcmProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FcmServiceAccountEncrypted")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Features")
                         .IsRequired()
                         .HasColumnType("TEXT");

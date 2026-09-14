@@ -65,15 +65,13 @@ public class ReminderDispatcher(
 
         foreach (var reminder in due)
         {
-            var results = await pushSender.SendAsync(
+            // Data-only, so the phone's own code decides what to show. Its exact alarm has
+            // normally fired already; this is the fallback for a phone that missed the schedule
+            // push, and the phone ignores it for any reminder it has already raised — otherwise
+            // every reminder would alert twice.
+            var results = await pushSender.SendDataAsync(
                 tokens,
-                title: config.AssistantNickname,
-                body: reminder.Message,
-                data: new Dictionary<string, string>
-                {
-                    ["type"] = "reminder",
-                    ["reminderId"] = reminder.Id.ToString(),
-                },
+                ReminderPushMessages.ForDue(reminder, config.AssistantNickname),
                 ct);
 
             foreach (var failed in results.Where(r => r.TokenInvalid))
