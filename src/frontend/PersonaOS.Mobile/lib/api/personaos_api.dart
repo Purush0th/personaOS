@@ -196,6 +196,7 @@ class Reminder {
     required this.id,
     required this.message,
     required this.dueAtLocal,
+    required this.dueAtUtc,
     required this.status,
     required this.goalTitle,
     required this.plannerItemTitle,
@@ -205,6 +206,7 @@ class Reminder {
         id: json['id'] as int,
         message: json['message'] as String,
         dueAtLocal: DateTime.parse(json['dueAtLocal'] as String),
+        dueAtUtc: parseServerUtc(json['dueAtUtc'] as String),
         status: json['status'] as String,
         goalTitle: json['goalTitle'] as String?,
         plannerItemTitle: json['plannerItemTitle'] as String?,
@@ -213,6 +215,10 @@ class Reminder {
   final int id;
   final String message;
   final DateTime dueAtLocal;
+
+  /// The actual instant it is due — what an alarm is scheduled against. dueAtLocal is the
+  /// server's wall-clock rendering for display, and carries no zone.
+  final DateTime dueAtUtc;
   final String status; // pending | delivered | cancelled | failed
   final String? goalTitle;
   final String? plannerItemTitle;
@@ -310,6 +316,28 @@ class DocumentDto {
   final int sizeBytes;
   final DateTime createdAtUtc;
   final String? description;
+}
+
+/// Firebase client options for this install's own Firebase project. Identifiers, not secrets.
+class FcmClientOptions {
+  FcmClientOptions({
+    required this.apiKey,
+    required this.appId,
+    required this.messagingSenderId,
+    required this.projectId,
+  });
+
+  factory FcmClientOptions.fromJson(Map<String, dynamic> json) => FcmClientOptions(
+        apiKey: json['apiKey'] as String,
+        appId: json['appId'] as String,
+        messagingSenderId: json['messagingSenderId'] as String,
+        projectId: json['projectId'] as String,
+      );
+
+  final String apiKey;
+  final String appId;
+  final String messagingSenderId;
+  final String projectId;
 }
 
 /// Instance settings, as returned for prefilling the settings screen.
@@ -478,6 +506,24 @@ class PersonaOsApi {
     final data = await _post('/api/chat/actions/$id/discard', const {});
     return PendingAction.fromJson(data as Map<String, dynamic>);
   }
+
+  // --- Push devices --------------------------------------------------------
+
+  /// The Firebase client options this install's own Firebase project uses, or null when the
+  /// admin has not set up push. Fetched rather than compiled in, so the release APK carries no
+  /// Firebase config and each self-hosted instance brings its own.
+  Future<FcmClientOptions?> getPushConfig() async {
+    final data = await _get('/api/devices/push-config');
+    return data == null ? null : FcmClientOptions.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Registers this device's push token. Idempotent: re-sending a known token only refreshes it.
+  Future<void> registerDevice(String token, {required String platform, String? deviceName}) =>
+      _post('/api/devices', {
+        'token': token,
+        'platform': platform,
+        'deviceName': ?deviceName,
+      });
 
   // --- Conversations -------------------------------------------------------
 

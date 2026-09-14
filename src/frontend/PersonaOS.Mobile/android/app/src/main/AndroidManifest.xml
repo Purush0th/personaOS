@@ -10,8 +10,26 @@
 
     <!-- Fingerprint/face unlock for sign-in (local_auth). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+
+    <!-- Reminders and briefs. Android 13+ shows nothing without this runtime permission,
+         and FCM delivers silently into the void rather than erroring. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Alarm-style reminders. A reminder fires from an exact alarm on the phone, not from a push
+         sent at the due time: a push is never punctual (the server polls, Doze holds messages),
+         while an alarm-clock alarm fires to the second, even offline.
+         USE_EXACT_ALARM is granted without a prompt from Android 13 (API 33); Android 12 only
+         knows SCHEDULE_EXACT_ALARM, so it is requested there and nowhere else. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32"/>
+    <!-- Lets a reminder take over the screen like an alarm clock or incoming call. From Android 14
+         the user has to allow this once for a sideloaded app; the app asks for it. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <!-- Scheduled alarms are wiped when the phone reboots. Without this the plugin cannot put
+         them back, and every reminder set before a restart would silently never ring. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
-        android:label="personaos_mobile"
+        android:label="PersonaOS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:networkSecurityConfig="@xml/network_security_config">
@@ -23,6 +41,8 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:windowSoftInputMode="adjustResize">
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
@@ -37,6 +57,20 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- flutter_local_notifications: these receivers are what actually fire a scheduled alarm,
+             restore alarms after a reboot or an app update, and deliver the Dismiss / Snooze
+             buttons back to the app. Without them scheduling "succeeds" and nothing ever rings. -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
