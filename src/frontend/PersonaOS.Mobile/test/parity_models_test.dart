@@ -59,7 +59,7 @@ void main() {
   group('InstanceSettings.fromJson', () {
     test('reads the settings the server does return', () {
       final settings = InstanceSettings.fromJson({
-        'assistantNickname': 'Juno',
+        'assistantNickname': 'Friday',
         'personaTemplate': 'Warm and brief',
         'aiProvider': 'openai_compatible',
         'aiModel': 'qwen2.5:latest',
@@ -69,7 +69,7 @@ void main() {
         'hasAnthropicApiKey': true,
       });
 
-      expect(settings.assistantNickname, 'Juno');
+      expect(settings.assistantNickname, 'Friday');
       expect(settings.features['goals'], isTrue);
       expect(settings.features['docs'], isFalse);
       expect(settings.hasApiKey, isTrue);
@@ -79,12 +79,31 @@ void main() {
       // The key itself is never returned, so the flag is the only signal the
       // settings screen has for whether a blank field means "keep" or "none".
       final settings = InstanceSettings.fromJson({
-        'assistantNickname': 'Juno',
+        'assistantNickname': 'Friday',
         'hasAnthropicApiKey': false,
       });
 
       expect(settings.hasApiKey, isFalse);
       expect(settings.features, isEmpty);
+    });
+  });
+
+  group('FcmClientOptions.fromJson', () {
+    test('reads the camelCase shape the server serialises', () {
+      // The server's FcmClientOptions record goes out through ASP.NET's default camelCase
+      // naming. A mismatch here would not throw anywhere visible — Firebase would simply never
+      // start, and push would stay silently off.
+      final options = FcmClientOptions.fromJson({
+        'apiKey': 'AIza-test-key',
+        'appId': '1:123456789012:android:abc',
+        'messagingSenderId': '123456789012',
+        'projectId': 'persona-test',
+      });
+
+      expect(options.apiKey, 'AIza-test-key');
+      expect(options.appId, '1:123456789012:android:abc');
+      expect(options.messagingSenderId, '123456789012');
+      expect(options.projectId, 'persona-test');
     });
   });
 

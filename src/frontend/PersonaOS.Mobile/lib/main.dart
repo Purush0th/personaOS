@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api/personaos_api.dart';
+import 'push_service.dart';
+import 'reminder_alarms.dart';
+import 'screens/alarm_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/goals_screen.dart';
@@ -20,11 +23,49 @@ import 'screens/settings_screen.dart';
 /// The PersonaOS product brand and visual identity are fixed. On first launch
 /// the user points the app at their self-hosted server; the app then fetches
 /// the instance's assistant nickname + enabled features from /api/branding.
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Before the first frame, not later: when a reminder rings over the lock screen, Android
+  // starts the app to show it, and that launch is only visible while starting up.
+  final alarms = ReminderAlarms.instance;
+  await alarms.init();
+  alarms.onOpen = _showAlarm;
+
   runApp(const PersonaOsApp());
+
+  final launchedBy = await alarms.launchedFrom();
+  if (launchedBy != null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showAlarm(launchedBy));
+  }
+}
+
+/// Lets the alarm screen open from anywhere — including before any other screen exists, and
+/// regardless of whether the user is signed in. A ringing alarm must not wait behind a login.
+final appNavigatorKey = GlobalKey<NavigatorState>();
+
+void _showAlarm(ReminderAlarm alarm) {
+  appNavigatorKey.currentState?.push(MaterialPageRoute<void>(
+    fullscreenDialog: true,
+    builder: (_) => AlarmScreen(alarm: alarm),
+  ));
 }
 
 const _kServerUrlPref = 'server_url';
+
+/// Turns a connection failure into something the user can act on.
+///
+/// "Could not reach the server" alone does not say whether the server is down,
+/// the address is wrong, or — the usual cause here — the VPN carrying the
+/// connection is switched off.
+String connectionFailureReason(Object error) => switch (error) {
+      SocketException e when e.osError != null => 'Network error: ${e.osError!.message}.',
+      SocketException _ => 'Could not open a connection to that host.',
+      TimeoutException _ => 'The server did not respond within 8 seconds.',
+      HandshakeException _ => 'TLS failed — if the server is plain HTTP, use http:// not https://.',
+      FormatException _ => 'That does not look like a valid URL.',
+      _ => '$error',
+    };
 
 /// The one brand colour. PersonaOS's identity is fixed, so this is a constant,
 /// not a per-install setting — only the assistant's nickname and persona vary.
@@ -90,7 +131,12 @@ ThemeData _personaOsTheme(Brightness brightness) {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
+        // Height only — NOT Size.fromHeight, which also sets the minimum width to infinity.
+        // That worked for buttons in a full-width column, but inside a Row (dialog actions, the
+        // confirm card) an infinite-width child cannot be laid out, and release builds simply
+        // draw nothing: the Confirm button vanished, as did every dialog's primary action.
+        // Screens that want a full-width button get it from their layout, not from the theme.
+        minimumSize: const Size(64, 52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
@@ -112,6 +158,7 @@ class PersonaOsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'PersonaOS',
       theme: personaOsTheme,
       darkTheme: personaOsDarkTheme,
@@ -216,21 +263,13 @@ class _ServerUrlScreenState extends State<ServerUrlScreen> {
           _checking = false;
           // Say why. Swallowing the exception here made a missing INTERNET permission look
           // identical to a wrong address, and left a self-hoster nothing to act on.
-          _error = 'Could not reach a PersonaOS server at that address.\n${_reason(e)}';
+          _error = 'Could not reach a PersonaOS server at that address.\n${connectionFailureReason(e)}';
         });
       }
     }
   }
 
   /// A short, human reason for a failed connection attempt.
-  static String _reason(Object error) => switch (error) {
-        SocketException e when e.osError != null => 'Network error: ${e.osError!.message}.',
-        SocketException _ => 'Could not open a connection to that host.',
-        TimeoutException _ => 'The server did not respond within 8 seconds.',
-        HandshakeException _ => 'TLS failed — if the server is plain HTTP, use http:// not https://.',
-        FormatException _ => 'That does not look like a valid URL.',
-        _ => '$error',
-      };
 
   @override
   Widget build(BuildContext context) {
@@ -314,6 +353,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<Branding> _branding;
+
+  /// Titles the reminder alarms this phone schedules. Kept from the last branding fetch.
+  String _nickname = 'PersonaOS';
   late final PersonaOsApi _api;
 
   @override
@@ -334,6 +376,10 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => LoginScreen(
         api: _api,
         onLoggedIn: () {
+          // Registering needs a signed-in session, so it happens here rather than at launch.
+          // Not awaited: push setup can prompt for permission and talk to Firebase, and the
+          // user asked to open a screen, not to wait for that.
+          unawaited(PushService.instance.start(_api, assistantNickname: _nickname));
           Navigator.of(context)
               .pushReplacement(MaterialPageRoute<void>(builder: builder));
         },
@@ -345,7 +391,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final response = await http
         .get(Uri.parse('${widget.serverUrl}/api/branding'))
         .timeout(const Duration(seconds: 8));
-    return Branding.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    final branding = Branding.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    _nickname = branding.assistantNickname;
+    return branding;
+  }
+
+  /// Re-fetches branding after a failed connection.
+  ///
+  /// The usual cause is the VPN being off, which the user fixes outside the app
+  /// and then comes back — so the failure must be recoverable in place. Without
+  /// this the screen was a dead end reachable only by force-quitting.
+  void _retry() {
+    setState(() => _branding = _fetchBranding());
   }
 
   Future<void> _forgetServer() async {
@@ -374,8 +431,11 @@ class _HomeScreenState extends State<HomeScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Could not reach ${widget.serverUrl}'),
+            return _Unreachable(
+              serverUrl: widget.serverUrl,
+              reason: connectionFailureReason(snapshot.error!),
+              onRetry: _retry,
+              onChangeServer: _forgetServer,
             );
           }
           final branding = snapshot.data!;
@@ -463,6 +523,90 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Shown when the server cannot be reached, with a way out.
+///
+/// A self-hosted instance on a tailnet or LAN is unreachable often and normally:
+/// the VPN is off, the phone is on mobile data, the machine is asleep. That is
+/// an ordinary state to recover from, not an error to be stuck in.
+class _Unreachable extends StatelessWidget {
+  const _Unreachable({
+    required this.serverUrl,
+    required this.reason,
+    required this.onRetry,
+    required this.onChangeServer,
+  });
+
+  final String serverUrl;
+  final String reason;
+  final VoidCallback onRetry;
+  final VoidCallback onChangeServer;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off, size: 48, color: scheme.outline),
+            const SizedBox(height: 16),
+            const Text(
+              'Can’t reach your server',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              serverUrl,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              reason,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            // Named rather than generic: this address is only reachable over
+            // the tailnet or the home network, and a VPN left off is the most
+            // common reason to land here.
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                'Check that Tailscale is connected, or that you are on the '
+                'same network as your server.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try again'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: onChangeServer,
+              child: const Text('Change server'),
+            ),
+          ],
+        ),
       ),
     );
   }
