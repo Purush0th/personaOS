@@ -44,3 +44,6 @@ Thumbs.db
 **/personaos.db-wal
 **/personaos.db-shm
 src/backend/PersonaOS.Api/data/
+
+# Firebase client config: per-install, identifies the owner's own Firebase project.
+src/frontend/PersonaOS.Mobile/android/app/google-services.json
