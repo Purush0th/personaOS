@@ -145,6 +145,104 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 - [ ] Firebase project setup (FCM Android; APNs via FCM for iOS) — **owner task**, needs a
       Firebase account. Backend is complete behind the `IPushSender` port; drop in an FCM
       adapter and swap the `NullPushSender` registration in `Infrastructure/DependencyInjection`.
+- [x] **Alarm-style reminders + push fixes (2026-09-14).** Confirmed on the owner's phone: the alarm
+      rang full screen. Follow-up found and fixed there: Dismiss/Snooze left the screen open
+      (`maybePop()` honoured the alarm's own `PopScope(canPop: false)`; now `pop()`), and the
+      confirm card lost its Confirm button (theme `Size.fromHeight` = infinite width in a Row).
+      Original report: owner tested
+      the push build on his phone: the reminder arrived ~29 s late, the notification header read
+      "2032y", and he wants a prominent alarm rather than a notification. Causes: (1) the
+      dispatcher polls every 30 s and Doze adds more, so a push sent at due time can never be
+      punctual; (2) FirebaseAdmin 3.6's `AndroidNotification.EventTimestamp` is a NON-nullable
+      `DateTime` that serialises `event_time: 0001-01-01T00:00:00Z` when unset — confirmed by
+      reflection on the DLL — so Android dates the notification ~2000 years ago; (3) two
+      concurrent `POST /api/devices` for one token raced the unique index → 500. Plan: the server
+      pushes the reminder SCHEDULE (data-only) when a reminder is created/changed/cancelled, the
+      phone sets an exact alarm-clock alarm that fires a full-screen alarm with looping sound and
+      Dismiss/Snooze; the due-time push stays as a data-only fallback the phone ignores if it
+      already raised that alarm. Alarms resync on sign-in, and survive reboot via the plugin's
+      boot receiver.
+      **Built and ✅ verified on the emulator 2026-09-14** (deployed to the live stack):
+      server `ReminderAlarmPublisher` pushes `reminder_scheduled` / `reminder_removed` from all
+      four `ReminderService` mutations (best-effort — a push outage never fails the reminder);
+      the dispatcher's due push is now data-only `reminder_due`; `IPushSender.SendDataAsync`
+      added; `EventTimestamp` set explicitly; `RegisterDeviceAsync` survives the insert race.
+      App: `ReminderAlarms` (exact `alarmClock` schedules, UTC-based, state in shared prefs so
+      background isolates work), `AlarmScreen` over the lock screen, Snooze 10 min / Dismiss,
+      a background FCM handler, sync on sign-in that runs even with push unconfigured.
+      Evidence: a reminder created via the API became an exact alarm on the device within 8 s
+      (`origWhen` = due time, `window=0`, `exactAllowReason=policy_permission`); with the screen
+      locked it rang **0.8 s after due** (audio focus 20:48:36.820, `USAGE_ALARM`, INSISTENT,
+      importance 5) and the full-screen AlarmScreen showed — also when the app process was
+      already alive. Snooze stopped the sound and scheduled exactly +10 min; Dismiss stopped it
+      and scheduled nothing; cancelling a reminder removed its alarm; the fallback due push
+      woke the background handler and produced no second alert; a single `POST /api/devices`
+      per sign-in (the race is gone). Backend 0 warnings, 153 tests; mobile 37 tests.
+      **Caught in own code before shipping:** `PushService` re-initialised the notification
+      plugin, which would have replaced the alarm engine's callbacks and silently broken
+      Snooze, Dismiss and opening an alarm — removed.
+      **NOT verified:** the owner's real phone (APK sent); alarms restored after a REBOOT (boot
+      receiver is wired but was not exercised); the Android 14+ full-screen permission was
+      already granted on the emulator, so the settings prompt path was not seen.
+      **Heads-up:** the previous test build on the phone does not understand data-only reminder
+      messages, so it gets no reminders from this server until updated. Status-bar alarm icon
+      still uses the launcher icon (renders as a white blob) until real artwork exists.
+- [x] FCM push, end to end (2026-09-14; confirmed on the owner's phone). The owner chose FCM over a
+      self-hosted distributor (would have needed the separate ntfy app on the phone) and over
+      server-synced local alarms. Found while planning: **the mobile app has no FCM code at all** —
+      the "device-token registration" item below is backend-only — and **device registration is
+      gated behind the `reminders` feature**, so turning reminders off also silently stops
+      proactive briefs, which push to the same tokens. Plan: `FcmPushSender` adapter selected
+      only when a credentials file is present (falls back to `NullPushSender`); move device
+      endpoints to an ungated `/api/devices`; mobile registers its token on login and on refresh,
+      shows foreground notifications, and builds cleanly WITHOUT `google-services.json` so the
+      open-source repo stays buildable. Credentials stay out of git and out of the image.
+      **Redesigned the same day to bring-your-own FCM, configured in the UI** (owner's call): the
+      release APK must not carry any Firebase config, and other self-hosters must be able to use
+      their own Firebase project without rebuilding the app. The first cut — a key file mounted
+      from `deploy/secrets/` plus `google-services.json` compiled in via a conditional Gradle
+      plugin — was never committed and has been removed.
+      **How it works now:** the admin uploads BOTH Firebase files on the web Settings page
+      (`PushConfig` component → `PUT /api/setup/push`, admin-only). `FirebaseConfigParser`
+      validates them — refuses swapped files, files from different projects, and a
+      google-services.json with no `com.personaos.personaos_mobile` app. The service-account
+      key is encrypted under its own Data Protection purpose `PersonaOS.FcmServiceAccount.v1`
+      (keyed `ISecretProtector`; never the AI key's purpose) and is never returned by any
+      endpoint. The public client options go to the app via `GET /api/devices/push-config`, and
+      `PushService` starts Firebase at runtime with them — so a reinstall recovers push on sign-in.
+      `ConfigurablePushSender` swaps the live sender without a restart; `PushConfigLoader` restores
+      it at startup. `NullPushSender` is deleted. Migration `FcmPushConfig` adds three nullable
+      columns (safe for existing rows).
+      **Ordering matters:** `SetAsync` loads the key into the live sender BEFORE saving it, so a
+      well-formed file with an unparseable private key is rejected with nothing stored.
+      **Verified:** backend 0 warnings, 145 tests (15 new); mobile analyze clean, 32 tests; web
+      image builds; migration applied to the live DB. Live against the real Firebase SDK:
+      swapped files, mismatched projects, and a fake private key each return a specific 400,
+      and status stays `configured: false`. Also still true from the first cut: registration
+      returns 204 with reminders disabled (was 403).
+      **✅ Verified END TO END on the emulator, 2026-09-14, with the owner's real Firebase project
+     ** uploaded through the web page: sign-in → app fetched the client
+      options → `Firebase.initializeApp(options:)` started Firebase with NO google-services.json
+      in the APK → notification permission granted → token registered → the dispatcher sent a
+      queued reminder → notification shown (the reminder text, channel `reminders`, importance HIGH).
+      Reminder 6 flipped to `delivered` at 13:04:30 UTC, the same second the device logged the
+      FCM receipt. Before any device registered, the dispatcher correctly held the reminder
+      ("no devices are registered") rather than consuming it.
+      **Still to do:** (1) the owner's real phone — it runs alpha.4, which has no push code, so it
+      needs a new build; (2) **the notification shows the app as `personaos_mobile` with the
+      default Flutter icon** — `android:label` and the launcher icon were never set, which breaks
+      the fixed "PersonaOS" brand rule; (3) the emulator's token is still registered, so reminders
+      now go to it as well as the phone until it is removed or the app is uninstalled there
+      (FCM then reports it `Unregistered` and the dispatcher prunes it).
+      Decisions worth knowing: `MulticastMessage.Tokens` is obsolete in FirebaseAdmin 3.6 in favour
+      of FIDs, but firebase_messaging 16.6.0 has no FID API, so tokens stay behind a scoped
+      `#pragma` — move to `Fids` when the client can register by FID. Only `Unregistered` /
+      `SenderIdMismatch` prune a token; `InvalidArgument` does not, since it can mean a bad
+      payload and pruning on it would delete every device at once. Changing Firebase project
+      while the app runs needs an app restart — Firebase cannot re-initialise its default app.
+      **Next:** owner uploads both files in Settings, signs in on the phone, sends a reminder.
+      **Open product question:** this BYO path serves technical self-hosters. A project-run push
+      relay (or UnifiedPush as an opt-in) is what would serve everyone else — undecided.
 - [x] Device-token registration on login; server hosted-service sends push at due time
       — `POST/DELETE /api/reminders/devices` (idempotent per token, verified); dispatcher
       `ReminderDispatcher` + `ReminderDispatchService` (30s `PeriodicTimer`, per-pass scope,
