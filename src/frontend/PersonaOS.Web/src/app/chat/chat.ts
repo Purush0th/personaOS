@@ -21,6 +21,8 @@ interface Bubble {
   pending?: PendingAction[] | null;
   /** What the tools actually did — shown so the reply can be checked against it. */
   actions?: ToolReceipt[] | null;
+  /** The reply says something was changed, but no tool changed anything. */
+  unverifiedClaim?: boolean;
 }
 
 @Component({
@@ -150,6 +152,7 @@ export class Chat implements OnInit {
           text: m.content,
           actions: m.toolActions ?? null,
           pending: m.pendingActions ?? null,
+          unverifiedClaim: m.unverifiedClaim ?? false,
         }))
       );
 
@@ -205,6 +208,7 @@ export class Chat implements OnInit {
               tool: null,
               actions: event.actions ?? null,
               pending: event.pending ?? null,
+              unverifiedClaim: event.unverifiedClaim ?? false,
               ...(event.text ? { text: event.text } : {}),
             });
             break;

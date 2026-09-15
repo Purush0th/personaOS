@@ -31,6 +31,8 @@ export interface ChatEvent {
   toolName?: string;
   actions?: ToolReceipt[];
   pending?: PendingAction[];
+  /** True when the reply says a change was made but no tool made one. */
+  unverifiedClaim?: boolean;
 }
 
 export interface ConversationSummary {
@@ -51,6 +53,7 @@ export interface ChatMessageDto {
   createdAtUtc: string;
   toolActions?: ToolReceipt[] | null;
   pendingActions?: PendingAction[] | null;
+  unverifiedClaim?: boolean;
 }
 
 export interface ConversationDetail {

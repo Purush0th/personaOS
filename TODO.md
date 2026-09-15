@@ -642,25 +642,31 @@ real Anthropic key).
       mobile again. `flutter analyze` clean, **11 tests** (4 new, covering pending/confirmed/
       discarded/absent parsing).
       ⚠️ Always on; there is no "trust it" setting. Add one only if the tapping becomes tiresome.
-- [ ] **Flag a claimed action that has no receipt** — now with a second, worse variant.
+- [x] **Flag a claimed action that has no receipt** (no-tool case, 2026-09-15). `ActionClaimDetector`
+      (Application/Ai) is an English heuristic: a first-person or completed-passive change verb
+      plus a domain noun (reminder, goal, planner, …), skipping questions, offers, proposals and
+      negatives. When a finished reply matches and nothing was proposed this turn, `ChatService`
+      runs **one corrective round**: the draft plus an "[Automatic check]" user turn naming the
+      claim (never stored). The model then either calls the tool — which becomes a normal
+      confirmation card — or rewrites the reply; `done.Text` replaces the streamed false claim.
+      If the claim survives, or the corrective call fails, the reply is kept and stored with
+      `ChatMessage.UnverifiedClaim` (migration `ChatMessageUnverifiedClaim`), sent as
+      `done.unverifiedClaim` and in history. Web and mobile render an amber "This reply says a
+      change was made, but nothing was saved" note; hands-free mobile speaks it too. Tests:
+      `ActionClaimDetectorTests`, `ChatServiceClaimCheckTests`, mobile `chat_event_test` +
+      `unverified_claim_note_test`. Live check 2026-09-15: qwen2.5 called `create_reminder` /
+      `update_goal_status` properly in 5 tries, so the corrective path has not been seen live
+      yet, and the web note has not been looked at in a browser. Honest replies cost nothing
+      extra; a flagged one costs one more model call.
+- [ ] **Claim and action disagree even though a tool fired** (split from the item above).
       2026-09-11, reading a real chat: the model said it was creating a sub-goal "as part of your
       Master AI goal", the tool **did** run, but it passed no `parentGoalId`, so the goal was
       created top-level. **The claim and the action disagreed even though a tool fired** — the
       no-tool case below is only half the problem. It also wrote after the user said
       *"Lets discuss before we add anything"*, i.e. acted without consent.
       A richer receipt is the defence (fix 1 above makes the period visible); showing parentage
-      would close this specific case. The original no-tool case: the 2026-09-11 E2E run caught qwen2.5 doing
-      it again: asked "Remind me to submit the report at 7pm today", it replied *"I've set a
-      reminder to remind you to submit the report at 19:00 today."* and **never called
-      `create_reminder`** — the reminders table stayed empty. The tool is fine; an explicit "use
-      the create_reminder tool" fired it and stored 19:00 local → 13:30 UTC correctly. So this is
-      the model ignoring the prompt rule, which prompting cannot fix.
-      Receipts worked exactly as designed — no tool ran, so no receipt appeared. **But absence is
-      a weak signal**: a user reading a confident "I've set a reminder" will not notice that
-      nothing was rendered beneath it. `ChatService` already knows whether any *mutating* tool ran
-      this turn, so it can detect claim-without-receipt and either force one corrective round or
-      mark the reply. This is the last meaningful hallucination gap and it now has concrete
-      evidence behind it.
+      would close this specific case. (Writes now go through the confirmation card, so the
+      consent half is covered; the parentage mismatch is not.)
 - [ ] Widen coverage: `PlannerService`, `GoalService`, `DocumentService` (esp. the
       path-traversal guard), `PersonaToolRegistry` feature gating.
 - [x] Fix the wrong upstream repo slug (2026-09-01) — `personaos/personaos` was hardcoded in

@@ -230,6 +230,16 @@
 
   // Receipts of what the tools actually did. Quieter than the reply, but always
   // present when something ran — they are the evidence, not decoration.
+  .unverified {
+    margin: 0.55rem 0 0;
+    padding: 0.45rem 0.6rem;
+    border-left: 3px solid #b26a00;
+    background: rgba(178, 106, 0, 0.08);
+    color: #7a4a00;
+    font-size: 0.82rem;
+    white-space: normal;
+  }
+
   .receipts {
     list-style: none;
     margin: 0.55rem 0 0;
