@@ -25,6 +25,11 @@ export const routes: Routes = [
     loadComponent: () => import('./goals/goals').then(m => m.Goals),
   },
   {
+    path: 'board',
+    canActivate: [authGuard],
+    loadComponent: () => import('./board/board').then(m => m.Board),
+  },
+  {
     path: 'planner',
     canActivate: [authGuard],
     loadComponent: () => import('./planner/planner').then(m => m.Planner),

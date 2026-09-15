@@ -10,6 +10,7 @@ import 'api/personaos_api.dart';
 import 'push_service.dart';
 import 'reminder_alarms.dart';
 import 'screens/alarm_screen.dart';
+import 'screens/board_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/goals_screen.dart';
@@ -491,14 +492,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.flag_outlined,
                   title: 'Goals',
                   subtitle: 'What you are working towards',
-                  onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api)),
+                  onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api, boardEnabled: enabled('board'))),
+                ),
+              if (enabled('board'))
+                _ModuleCard(
+                  icon: Icons.view_kanban_outlined,
+                  title: 'Board',
+                  subtitle: "This week's sprint, card by card",
+                  onTap: () => _openAfterLogin((_) => BoardScreen(api: _api)),
                 ),
               if (enabled('planner'))
                 _ModuleCard(
                   icon: Icons.event_note_outlined,
                   title: 'Planner',
                   subtitle: 'Your day, item by item',
-                  onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api)),
+                  onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
                 ),
               if (enabled('reminders'))
                 _ModuleCard(

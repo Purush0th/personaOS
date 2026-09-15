@@ -13,12 +13,11 @@ namespace PersonaOS.Api.Controllers;
 public class GoalsController(IGoalService goals) : ControllerBase
 {
     public record UpdateStatusRequest(string Status);
-    public record LinkRequest(int? ParentGoalId);
 
-    /// <summary>Goal hierarchy (roots with nested children) incl. rollup progress.</summary>
+    /// <summary>All goals with their tasks and derived progress.</summary>
     [HttpGet]
     public async Task<IActionResult> GetTree([FromQuery] bool includeDropped, CancellationToken ct) =>
-        Ok(await goals.GetTreeAsync(includeDropped, ct));
+        Ok(await goals.GetAllAsync(includeDropped, ct));
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Get(int id, CancellationToken ct)
@@ -48,15 +47,7 @@ public class GoalsController(IGoalService goals) : ControllerBase
         return goal is null ? NotFound() : Ok(goal);
     }
 
-    /// <summary>Re-parents a goal; null parentGoalId makes it top-level.</summary>
-    [HttpPut("{id:int}/parent")]
-    public async Task<IActionResult> Link(int id, [FromBody] LinkRequest request, CancellationToken ct)
-    {
-        var goal = await goals.LinkAsync(id, request.ParentGoalId, ct);
-        return goal is null ? NotFound() : Ok(goal);
-    }
-
-    /// <summary>Deletes a goal and its whole subtree.</summary>
+    /// <summary>Deletes a goal; its tasks stay, without a goal.</summary>
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct) =>
         await goals.DeleteAsync(id, ct) ? NoContent() : NotFound();

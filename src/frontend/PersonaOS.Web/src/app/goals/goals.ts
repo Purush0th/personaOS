@@ -1,8 +1,17 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { GoalNode, GoalsService } from '../core/goals.service';
+import { BoardColumn, BoardService, apiError } from '../core/board.service';
+import { BrandingService } from '../core/branding.service';
+import { Goal, GoalsService } from '../core/goals.service';
 import { todayLocal } from '../core/local-date';
+
+const COLUMN_LABELS: Record<BoardColumn, string> = {
+  backlog: 'Backlog',
+  todo: 'This week',
+  in_progress: 'In progress',
+  done: 'Done',
+};
 
 @Component({
   selector: 'app-goals',
@@ -11,28 +20,39 @@ import { todayLocal } from '../core/local-date';
   styleUrl: './goals.scss',
 })
 export class Goals implements OnInit {
-  private readonly goals = inject(GoalsService);
+  private readonly goalsApi = inject(GoalsService);
+  private readonly boardApi = inject(BoardService);
+  private readonly branding = inject(BrandingService);
 
-  protected readonly tree = signal<GoalNode[]>([]);
+  protected readonly goals = signal<Goal[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly includeDropped = signal(false);
+  protected readonly adding = signal(false);
 
-  /** Parent for the goal being added, or null for a new top-level goal. */
-  protected readonly addingUnder = signal<number | null | undefined>(undefined);
+  /** Goal whose inline "add task" form is open. */
+  protected readonly addingTaskTo = signal<number | null>(null);
 
   draftTitle = '';
-  draftPeriod = 'year';
+  draftPeriod = 'month';
   draftStart = todayLocal();
+  taskTitle = '';
+  taskPoints: number | null = null;
+
+  protected readonly allowedPoints = [1, 2, 3, 5, 8, 13, 21];
 
   async ngOnInit(): Promise<void> {
     await this.reload();
   }
 
+  protected boardEnabled(): boolean {
+    return this.branding.isEnabled('board');
+  }
+
   protected async reload(): Promise<void> {
     this.loading.set(true);
     try {
-      this.tree.set(await this.goals.getTree(this.includeDropped()));
+      this.goals.set(await this.goalsApi.getAll(this.includeDropped()));
       this.error.set(null);
     } catch {
       this.error.set('Could not load your goals.');
@@ -46,76 +66,72 @@ export class Goals implements OnInit {
     await this.reload();
   }
 
-  protected startAdd(parentId: number | null): void {
-    this.addingUnder.set(parentId);
-    this.draftTitle = '';
-    // A child of a yearly goal is usually a quarter; of a quarter, a month.
-    this.draftPeriod = parentId === null ? 'year' : 'month';
-  }
-
-  protected cancelAdd(): void {
-    this.addingUnder.set(undefined);
-  }
-
   protected async add(): Promise<void> {
     const title = this.draftTitle.trim();
     if (!title) return;
 
     try {
-      await this.goals.create({
-        title,
-        periodType: this.draftPeriod,
-        periodStart: this.draftStart,
-        parentGoalId: this.addingUnder() ?? null,
-      });
-      this.addingUnder.set(undefined);
+      await this.goalsApi.create({ title, periodType: this.draftPeriod, periodStart: this.draftStart });
+      this.adding.set(false);
+      this.draftTitle = '';
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(this.messageFrom(e, 'Could not add that goal.'));
+      this.error.set(apiError(e).message ?? 'Could not add that goal.');
     }
   }
 
-  protected async setStatus(goal: GoalNode, status: string): Promise<void> {
+  protected startAddTask(goal: Goal): void {
+    this.addingTaskTo.set(goal.id);
+    this.taskTitle = '';
+    this.taskPoints = null;
+  }
+
+  /** Tasks added from a goal go to the Backlog; planning pulls them into a sprint. */
+  protected async addTask(goal: Goal): Promise<void> {
+    const title = this.taskTitle.trim();
+    if (!title) return;
     try {
-      await this.goals.updateStatus(goal.id, status);
+      await this.boardApi.create({ title, points: this.taskPoints, goalId: goal.id, destination: 'backlog' });
+      this.addingTaskTo.set(null);
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(this.messageFrom(e, 'Could not update that goal.'));
+      this.error.set(apiError(e).message ?? 'Could not add that task.');
     }
   }
 
-  protected async setProgress(goal: GoalNode, value: string): Promise<void> {
+  protected async setStatus(goal: Goal, status: string): Promise<void> {
+    try {
+      await this.goalsApi.updateStatus(goal.id, status);
+      await this.reload();
+    } catch (e: unknown) {
+      this.error.set(apiError(e).message ?? 'Could not update that goal.');
+    }
+  }
+
+  protected async setProgress(goal: Goal, value: string): Promise<void> {
     const progress = Number(value);
     if (Number.isNaN(progress)) return;
     try {
-      await this.goals.updateProgress(goal.id, progress);
+      await this.goalsApi.updateProgress(goal.id, progress);
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(this.messageFrom(e, 'Could not update progress.'));
+      this.error.set(apiError(e).message ?? 'Could not update progress.');
     }
   }
 
-  protected async remove(goal: GoalNode): Promise<void> {
-    const extra = goal.children.length > 0 ? ' and everything under it' : '';
-    if (!confirm(`Delete "${goal.title}"${extra}?`)) return;
+  protected async remove(goal: Goal): Promise<void> {
+    const extra = goal.taskCount > 0 ? ` Its ${goal.taskCount} tasks stay on the board without a goal.` : '';
+    if (!confirm(`Delete ${goal.key} “${goal.title}”?${extra}`)) return;
 
     try {
-      await this.goals.delete(goal.id);
+      await this.goalsApi.delete(goal.id);
       await this.reload();
     } catch {
       this.error.set('Could not delete that goal.');
     }
   }
 
-  /** Flattens the tree so the template can render it without recursion. */
-  protected flatten(nodes: GoalNode[], depth = 0): { goal: GoalNode; depth: number }[] {
-    return nodes.flatMap(goal => [
-      { goal, depth },
-      ...this.flatten(goal.children, depth + 1),
-    ]);
-  }
-
-  private messageFrom(error: unknown, fallback: string): string {
-    return (error as { error?: { error?: string } })?.error?.error ?? fallback;
+  protected columnLabel(column: BoardColumn): string {
+    return COLUMN_LABELS[column];
   }
 }

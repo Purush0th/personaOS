@@ -29,6 +29,10 @@ public class PlannerItem
     public int? GoalId { get; set; }
     public Goal? Goal { get; set; }
 
+    /// <summary>Optional link to the sprint-board task this item is a day's work on.</summary>
+    public int? TaskId { get; set; }
+    public BoardTask? Task { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

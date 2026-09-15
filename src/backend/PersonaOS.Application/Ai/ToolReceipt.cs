@@ -29,7 +29,7 @@ public static class ToolReceiptBuilder
 {
     /// <summary>Fields worth appending as context, in display order.</summary>
     private static readonly string[] DetailFields =
-        ["dueAtLocal", "date", "scheduledTime", "periodType", "periodStart", "status"];
+        ["key", "dueAtLocal", "date", "scheduledTime", "periodType", "periodStart", "status", "column"];
 
     public static ToolReceipt Build(string toolName, string resultJson, bool isError) =>
         new(toolName, !isError, isError ? Failure(resultJson) : Summarise(resultJson));

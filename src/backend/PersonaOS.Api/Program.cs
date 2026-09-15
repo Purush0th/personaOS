@@ -24,6 +24,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.ReminderDispatchService>();
 // Sends the morning brief / evening rollup at the user's configured local times.
 builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.ProactiveScheduleService>();
+builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.SprintScheduleService>();
 
 // Data Protection encrypts the Anthropic API key at rest. Persist keys to a
 // configured path (the mounted data volume in Docker) so the ciphertext stays

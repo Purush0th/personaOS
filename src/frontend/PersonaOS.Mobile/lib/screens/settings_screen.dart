@@ -7,6 +7,7 @@ import '../auth_vault.dart';
 /// this list matches the web app's so the two screens cannot drift apart.
 const _modules = <String, String>{
   'goals': 'Goals',
+  'board': 'Sprint board',
   'planner': 'Planner',
   'reminders': 'Reminders',
   'docs': 'Documents',

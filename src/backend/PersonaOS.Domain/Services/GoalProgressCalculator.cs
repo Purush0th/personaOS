@@ -3,42 +3,28 @@ using PersonaOS.Domain.Entities;
 namespace PersonaOS.Domain.Services;
 
 /// <summary>
-/// Pure progress-rollup rules: a goal with children derives its effective progress
-/// from them (rounded average); a leaf goal's effective progress is its own
-/// <see cref="Goal.Progress"/>. Dropped goals are excluded from a parent's average;
-/// if every child is dropped the parent falls back to its own stored progress.
+/// A goal's effective progress (0–100), derived from its tasks:
+/// <list type="bullet">
+/// <item>done points ÷ estimated points, when any of its tasks is estimated;</item>
+/// <item>otherwise done tasks ÷ tasks;</item>
+/// <item>with no tasks at all, the goal's own manually tracked <see cref="Goal.Progress"/>.</item>
+/// </list>
+/// Unestimated tasks are left out of the points ratio rather than counted as zero, so adding a
+/// task you have not sized yet does not make the goal look further behind than it is.
 /// </summary>
 public static class GoalProgressCalculator
 {
-    /// <summary>Computes the effective progress (0–100) for every goal in the set.</summary>
-    public static IReadOnlyDictionary<int, int> ComputeEffectiveProgress(IReadOnlyCollection<Goal> goals)
+    public static int Compute(int manualProgress, IReadOnlyCollection<BoardTask> tasks)
     {
-        var childrenByParent = goals
-            .Where(g => g.ParentGoalId is not null)
-            .GroupBy(g => g.ParentGoalId!.Value)
-            .ToDictionary(g => g.Key, g => (IReadOnlyList<Goal>)g.ToList());
+        if (tasks.Count == 0) return Math.Clamp(manualProgress, 0, 100);
 
-        var result = new Dictionary<int, int>(goals.Count);
+        var estimated = tasks.Where(t => t.Points is > 0).ToList();
+        double ratio = estimated.Count > 0
+            ? (double)estimated.Where(IsDone).Sum(t => t.Points!.Value) / estimated.Sum(t => t.Points!.Value)
+            : (double)tasks.Count(IsDone) / tasks.Count;
 
-        int Effective(Goal goal)
-        {
-            if (result.TryGetValue(goal.Id, out var cached)) return cached;
-            // Mark before recursing so a (never-expected) cycle cannot overflow the stack.
-            result[goal.Id] = goal.Progress;
-
-            var contributing = childrenByParent.TryGetValue(goal.Id, out var children)
-                ? children.Where(c => c.Status != GoalStatuses.Dropped).ToList()
-                : [];
-
-            var value = contributing.Count == 0
-                ? goal.Progress
-                : (int)Math.Round(contributing.Average(c => (double)Effective(c)), MidpointRounding.AwayFromZero);
-
-            result[goal.Id] = Math.Clamp(value, 0, 100);
-            return result[goal.Id];
-        }
-
-        foreach (var goal in goals) Effective(goal);
-        return result;
+        return Math.Clamp((int)Math.Round(ratio * 100, MidpointRounding.AwayFromZero), 0, 100);
     }
+
+    private static bool IsDone(BoardTask task) => task.Status == BoardTaskStatuses.Done;
 }

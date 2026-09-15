@@ -9,6 +9,9 @@
         @if (isEnabled('goals')) {
           <a routerLink="/goals" routerLinkActive="active">Goals</a>
         }
+        @if (isEnabled('board')) {
+          <a routerLink="/board" routerLinkActive="active">Board</a>
+        }
         @if (isEnabled('planner')) {
           <a routerLink="/planner" routerLinkActive="active">Planner</a>
         }

@@ -17,6 +17,96 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ---
 
+## Sprint board (requested 2026-09-15; spec: [docs/sprint-board.md](docs/sprint-board.md))
+
+The owner put bug fixing on hold for this feature. Cross-area, built solo.
+
+- [x] Backend (2026-09-15). Goals no longer nest and get `GOAL-n` keys; `BoardTask` (`TASK-n`)
+      and `Sprint` entities; migration `SprintBoard` turns sub-goals at any depth into tasks
+      under their top-level goal (checked against a copy of the live DB first) and switches the
+      `board` module on. `BoardService` owns the rules: lowest-free key numbers, Fibonacci
+      points, scope changes refused without acknowledgement (`scope_change_unacknowledged`),
+      and the weekly cycle (`RunCycleAsync`, ticked every minute by `SprintScheduleService`):
+      close Sunday 18:00 with carry-over, 19:00 push nudge, auto-start 20:00, catch-up after
+      downtime. The first week of a new board has no committed number, so filling it is not a
+      scope change. Tools: `get_board`, `get_sprint_report`, `create_task`, `update_task`,
+      `move_task`, `delete_task`, `delete_goal`; goal tools take keys (`link_goal` removed). The
+      system prompt carries the sprint and planning guidance; the morning brief lists the
+      week's open tasks. Planner items can link a task (`TaskId`). 228 tests.
+- [x] Web (2026-09-15): `/board` with native HTML5 drag and drop plus a "Move…" menu,
+      Current/Next, Start sprint, sprint report table, task dialog; goals page lists tasks with
+      keys and points; planner "From the board…" picker and goal chips. **Not looked at in a
+      browser** (signing in there means typing the password); build and API checked live.
+- [x] Mobile (2026-09-15): `BoardScreen` — swipeable columns, long-press drag onto a drop bar,
+      task sheet with point chips and Move to, sprint report; goals screen without sub-goals;
+      planner picks from the board. Widget tests for drag, scope confirmation and the sheet
+      (mutation-checked); layout checked from rendered screenshots, light and dark.
+- [ ] Open questions for later: planner items still use ids in chat tools (same position
+      risk as goals had); scope-change warning is not shown for re-estimating mid-sprint by
+      design; web drag and drop does not work on touch browsers (the menu does).
+
+## Phone testing issues (alpha.6, reported by the owner 2026-09-15)
+
+Noted as reported, not yet investigated.
+
+- [ ] **Reminder alarm rang a few minutes late.** A reminder created on the phone synced to the
+      web correctly, but the alarm did not go off at the scheduled time; it came a few minutes
+      later. Alpha.5 moved reminders to exact alarms set on the phone the moment the reminder is
+      created, which should ring on time. So either the exact alarm was never set (and the
+      server's due-time push arrived late instead), or Android deferred it.
+      Follow-up from the owner: **the same happens for reminders created on the server side**
+      (web or chat). The **first** reminder was late; after that late one rang, the following
+      reminders were all on time. That pattern points at something that only starts working
+      after the first alarm or push arrives: for example the exact-alarm schedule not being
+      set until the app wakes (the `reminder_scheduled` push delivered late while the app is
+      idle), a missing exact-alarm permission prompt, or the notification channel or timezone
+      data only being set up on first delivery.
+- [ ] **Sub-goal form should not ask for a period.** On the phone, the "New sub-goal" sheet under a
+      parent goal shows the Yearly / Quarterly / Monthly selector (it defaulted to Monthly under a
+      yearly goal). The owner wants a sub-goal to **inherit the parent goal's timeline**, with no
+      period choice at the child level: just the title and "Add goal". Check whether the web
+      goals page has the same selector for sub-goals, and whether the server should enforce the
+      inherited period (including for sub-goals the assistant creates in chat), not only the form.
+- [ ] **Confirming an update or delete fails, and hands-free voice stalls afterwards.** The owner
+      tried to delete and update goals from the phone chat; tapping Confirm did not make the change.
+      What the screenshot shows: the goals list numbered 1–5 (Create Tutorial was no. 4, Master AI
+      no. 5). The user said "delete", then "create tutorial", then "yes". The proposal card
+      resolved as failed with the **raw JSON** `✕ {"error":"Goal 5 does not exist."}`. So the
+      model most likely passed a **list position instead of the real goal id** (and not even the
+      right position).
+      **Second example confirms it (progress update):** `get_goals` listed 1. Get Masters,
+      2. Learn Rust, 3. Read Books Daily, 4. Master AI. "set progress for read books to 20%"
+      produced a card that failed with `✕ {"error":"Goal 3 does not exist."}` — 3 is exactly
+      Read Books Daily's position in the list. So the model uses the numbered position as the
+      goal id. Things to fix and check:
+      - The model needs real ids to act on. Check that `get_goals` returns ids and that the
+        prompt or tool description tells it to use them, or let update/delete tools accept a
+        title and resolve it.
+      - A proposal whose target does not exist should be rejected when it is proposed, not
+        after the user confirms it.
+      - Show a readable failure instead of raw JSON on the card (mobile, and check web).
+      - The same reply told the user to *say* "confirm" rather than tap the button. The model
+        does not know how the confirmation card works; the prompt should say so.
+      - Hands-free: the snackbar said "Hands-free paused — confirm the change first", and after
+        the failed confirm the voice conversation never resumed. Resolving a card (confirmed,
+        failed or discarded) should resume listening, or at least show how to resume.
+- [ ] **"Nothing was saved" warning fires on an honest reply, and the correction leaks into the
+      reply.** Two problems with the claim check shipped in alpha.6, both seen on the phone:
+      - **False positive.** "please add a goal to create a tutorial" got *"Sure, I'll add a new
+        goal to create a tutorial. … Here's the goal: … Would you like to proceed with these
+        details?"*. That is a request for permission, not a claim, but it was flagged with the
+        amber note. `ActionClaimDetector` counts "I'll/I will + verb" as a claim. A future-tense
+        sentence in a reply that ends by asking to proceed should not count. Decide whether "I'll"
+        belongs in the detector at all (it was included because models say "I'll create…" and
+        then never call the tool), and add this reply as a negative test.
+      - **Correction leaks.** Another reply began *"Sure, here is the corrected message:"* before
+        "Would you like to delete the 'Create Tutorial' goal?". The model is answering the hidden
+        "[Automatic check]" turn as if talking to it. Strip that preamble, or reword the request so
+        the model writes only the reply to the user. (It also means a correction round ran on a
+        reply the user never saw as wrong; confirm what the first draft said, from the API logs.)
+
+---
+
 ## ✅ Phase 0 + 0.5 — Foundation (done 2026-07-19)
 
 - [x] Solution scaffold: `PersonaOS.Api` / `Domain` / `Infrastructure` (.NET 10, .slnx)

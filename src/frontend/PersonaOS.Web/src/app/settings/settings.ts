@@ -6,7 +6,7 @@ import { SettingsService, SettingsUpdate } from '../core/settings.service';
 import { PushConfig } from './push-config';
 
 /** Module keys the server accepts; unknown keys are ignored server-side. */
-const MODULES = ['goals', 'planner', 'reminders', 'docs', 'voice', 'proactive'] as const;
+const MODULES = ['goals', 'board', 'planner', 'reminders', 'docs', 'voice', 'proactive'] as const;
 
 @Component({
   selector: 'app-settings',

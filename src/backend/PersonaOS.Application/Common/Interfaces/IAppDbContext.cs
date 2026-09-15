@@ -15,6 +15,8 @@ public interface IAppDbContext
     DbSet<ChatMessage> ChatMessages { get; }
     DbSet<UserProfile> UserProfile { get; }
     DbSet<Goal> Goals { get; }
+    DbSet<BoardTask> BoardTasks { get; }
+    DbSet<Sprint> Sprints { get; }
     DbSet<PlannerItem> PlannerItems { get; }
     DbSet<Reminder> Reminders { get; }
     DbSet<DeviceToken> DeviceTokens { get; }

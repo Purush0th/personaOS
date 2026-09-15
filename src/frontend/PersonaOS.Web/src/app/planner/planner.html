@@ -15,6 +15,14 @@
   <input name="title" [(ngModel)]="draftTitle" placeholder="What needs doing?" />
   <input name="time" type="time" [(ngModel)]="draftTime" title="Optional time" />
   <button type="submit">Add</button>
+  @if (sprintTasks().length > 0) {
+    <select class="pick" aria-label="Pick a task from this week's sprint" (change)="pickTask($any($event.target).value); $any($event.target).value = ''">
+      <option value="">From the board…</option>
+      @for (task of sprintTasks(); track task.id) {
+        <option [value]="task.id">{{ task.key }} {{ task.title }}{{ task.column === 'in_progress' ? ' (in progress)' : '' }}</option>
+      }
+    </select>
+  }
 </form>
 
 @if (loading()) {
@@ -45,9 +53,14 @@
           }
           {{ item.title }}
         </span>
-        @if (item.goalTitle) {
-          <span class="muted small">toward {{ item.goalTitle }}</span>
-        }
+        <span class="links">
+          @if (item.taskKey) {
+            <span class="task-key">{{ item.taskKey }}</span>
+          }
+          @if (item.goalTitle) {
+            <span class="goal-chip" [style.--hue]="hue(item.goalKey)" [title]="(item.goalKey ?? '') + ' ' + item.goalTitle">{{ item.goalTitle }}</span>
+          }
+        </span>
       </div>
 
       <button class="subtle" (click)="moveToTomorrow(item)" title="Move to the next day">→ Tomorrow</button>

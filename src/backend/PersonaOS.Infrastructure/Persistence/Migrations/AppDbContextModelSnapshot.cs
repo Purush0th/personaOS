@@ -48,6 +48,68 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.ToTable("AdminUsers");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.BoardTask", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AddedMidSprint")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CarryOverCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("GoalId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Points")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("SprintId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GoalId");
+
+                    b.HasIndex("Number")
+                        .IsUnique();
+
+                    b.HasIndex("SprintId", "Status", "SortOrder");
+
+                    b.ToTable("BoardTasks");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.ChatMessage", b =>
                 {
                     b.Property<long>("Id")
@@ -208,7 +270,7 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("ParentGoalId")
+                    b.Property<int>("Number")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateOnly>("PeriodStart")
@@ -237,7 +299,8 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ParentGoalId");
+                    b.HasIndex("Number")
+                        .IsUnique();
 
                     b.HasIndex("Status", "PeriodStart");
 
@@ -406,6 +469,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("TaskId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -417,6 +483,8 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("GoalId");
+
+                    b.HasIndex("TaskId");
 
                     b.HasIndex("Date", "SortOrder");
 
@@ -508,6 +576,63 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.ToTable("Reminders");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.Sprint", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AddedPoints")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CarriedOverPoints")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CommittedPoints")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CompletedPoints")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("EndsAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("PlanningNudgedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RemovedPoints")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartsAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Number")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Sprints");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.UserProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -526,6 +651,23 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.ToTable("UserProfile");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.BoardTask", b =>
+                {
+                    b.HasOne("PersonaOS.Domain.Entities.Goal", "Goal")
+                        .WithMany("Tasks")
+                        .HasForeignKey("GoalId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("PersonaOS.Domain.Entities.Sprint", "Sprint")
+                        .WithMany()
+                        .HasForeignKey("SprintId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Goal");
+
+                    b.Navigation("Sprint");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.ChatMessage", b =>
                 {
                     b.HasOne("PersonaOS.Domain.Entities.Conversation", "Conversation")
@@ -535,16 +677,6 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Conversation");
-                });
-
-            modelBuilder.Entity("PersonaOS.Domain.Entities.Goal", b =>
-                {
-                    b.HasOne("PersonaOS.Domain.Entities.Goal", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentGoalId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Parent");
                 });
 
             modelBuilder.Entity("PersonaOS.Domain.Entities.PendingAction", b =>
@@ -573,7 +705,14 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .HasForeignKey("GoalId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("PersonaOS.Domain.Entities.BoardTask", "Task")
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Goal");
+
+                    b.Navigation("Task");
                 });
 
             modelBuilder.Entity("PersonaOS.Domain.Entities.Reminder", b =>
@@ -600,7 +739,7 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PersonaOS.Domain.Entities.Goal", b =>
                 {
-                    b.Navigation("Children");
+                    b.Navigation("Tasks");
                 });
 #pragma warning restore 612, 618
         }

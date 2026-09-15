@@ -100,3 +100,28 @@
     }
   }
 }
+
+.add-form {
+  flex-wrap: wrap;
+
+  .pick {
+    font: inherit;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    max-width: 18rem;
+  }
+}
+
+.item .links {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+
+  .task-key {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+}

@@ -4,6 +4,7 @@ using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
 using PersonaOS.Domain;
 using PersonaOS.Domain.Entities;
+using PersonaOS.Domain.Services;
 
 namespace PersonaOS.Application.Ai;
 
@@ -55,6 +56,7 @@ public class SystemPromptBuilder(
         var names = new (string Key, string Label)[]
         {
             (InstanceConfig.Modules.Goals, "goals (yearly/quarterly/monthly)"),
+            (InstanceConfig.Modules.Board, "a weekly sprint board (tasks with story points, planned on Sunday evenings)"),
             (InstanceConfig.Modules.Planner, "a daily planner"),
             (InstanceConfig.Modules.Reminders, "reminders"),
             (InstanceConfig.Modules.Docs, "stored documents you can read"),
@@ -79,6 +81,59 @@ public class SystemPromptBuilder(
         {
             sb.Append(" Switched off, so do not offer it: ").Append(string.Join(", ", disabled))
               .Append('.');
+        }
+    }
+
+    /// <summary>
+    /// The sprint board in brief, plus how to run planning. Read straight from the database so
+    /// building a prompt never advances the sprint cycle as a side effect.
+    /// </summary>
+    private async Task AppendBoardAsync(StringBuilder sb, InstanceConfig config, CancellationToken ct)
+    {
+        sb.Append("\n\nThe sprint board works like Scrum for one person. Goals are the epics; tasks ")
+          .Append("(keys like TASK-7) sit under a goal or stand alone, and are sized in Fibonacci story ")
+          .Append("points: 1, 2, 3, 5, 8, 13, 21. Columns: Backlog, This week (todo), In progress, Done. ")
+          .Append("A sprint runs from Sunday 20:00 to the next Sunday 18:00; unfinished tasks move to ")
+          .Append("the next sprint automatically, and planning happens on Sunday between 19:00 and 20:00. ")
+          .Append("Adding to or removing from a sprint that has started is a scope change: allowed, but ")
+          .Append("say so. Always refer to tasks and goals by key, never by list position.");
+        sb.Append("\nWhen the user wants to plan or review a sprint:")
+          .Append("\n1. Review: call get_sprint_report and get_board. Say what was committed and completed, ")
+          .Append("and what carried over, briefly and without judgement.")
+          .Append("\n2. Estimate: for unestimated tasks, ask about complexity, effort and uncertainty, and ")
+          .Append("suggest points by comparing with tasks already sized. Suggest splitting anything at 13 or more.")
+          .Append("\n3. Capacity: ask whether the coming week is normal (travel, illness, busy work) and ")
+          .Append("suggest committing about the recent velocity, adjusted for that. Say so if the plan is well above it.")
+          .Append("\n4. Order: carried-over work and tasks under active goals first, then by value.")
+          .Append("\nMake the changes with update_task and move_task; each becomes a card the user confirms.");
+
+        var sprint = await db.Sprints.AsNoTracking()
+            .Where(s => s.Status != SprintStatuses.Closed)
+            .OrderBy(s => s.Status == SprintStatuses.Active ? 0 : 1).ThenBy(s => s.Number)
+            .FirstOrDefaultAsync(ct);
+        if (sprint is null) return;
+
+        var tasks = await db.BoardTasks.AsNoTracking()
+            .Where(t => t.SprintId == sprint.Id)
+            .OrderBy(t => t.SortOrder)
+            .Select(t => new { t.Number, t.Title, t.Status, t.Points })
+            .ToListAsync(ct);
+
+        var ends = Common.UserClock.ToLocal(sprint.EndsAtUtc, config.TimeZone);
+        var starts = Common.UserClock.ToLocal(sprint.StartsAtUtc, config.TimeZone);
+        sb.Append("\n\nSprint ").Append(sprint.Number).Append(' ')
+          .Append(sprint.Status == SprintStatuses.Active
+              ? $"is running until {ends:ddd d MMM HH:mm}"
+              : $"is being planned and starts {starts:ddd d MMM HH:mm}")
+          .Append(": ").Append(tasks.Where(t => t.Status == BoardTaskStatuses.Done).Sum(t => t.Points ?? 0))
+          .Append(" of ").Append(tasks.Sum(t => t.Points ?? 0)).Append(" points done.");
+
+        var open = tasks.Where(t => t.Status != BoardTaskStatuses.Done).Take(12).ToList();
+        foreach (var t in open)
+        {
+            sb.Append("\n- ").Append(ItemKeys.Task(t.Number)).Append(' ').Append(t.Title)
+              .Append(" [").Append(t.Status).Append(", ")
+              .Append(t.Points is int p ? $"{p} pts" : "unestimated").Append(']');
         }
     }
 
@@ -125,20 +180,27 @@ public class SystemPromptBuilder(
 
         if (config.Features.TryGetValue(InstanceConfig.Modules.Goals, out var goalsOn) && goalsOn)
         {
-            var activeRoots = await db.Goals.AsNoTracking()
-                .Where(g => g.ParentGoalId == null && g.Status == GoalStatuses.Active)
-                .OrderBy(g => g.PeriodStart).ThenBy(g => g.Id)
-                .Select(g => new { g.Title, g.PeriodType, g.Progress })
+            var activeGoals = await db.Goals.AsNoTracking()
+                .Where(g => g.Status == GoalStatuses.Active)
+                .OrderBy(g => g.PeriodStart).ThenBy(g => g.Number)
+                .Select(g => new { g.Number, g.Title, g.PeriodType })
                 .ToListAsync(ct);
-            if (activeRoots.Count > 0)
+            if (activeGoals.Count > 0)
             {
-                sb.Append("\n\nThe user's active top-level goals (use the goal tools for details or changes):");
-                foreach (var g in activeRoots)
+                // Keys, not positions: a model that saw a numbered list passed "3" as a goal id.
+                sb.Append("\n\nThe user's active goals. Always refer to a goal by its key, never by its ")
+                  .Append("position in a list:");
+                foreach (var g in activeGoals)
                 {
-                    sb.Append("\n- ").Append(g.Title)
-                      .Append(" (").Append(g.PeriodType).Append(", ~").Append(g.Progress).Append("% by own tracking)");
+                    sb.Append("\n- ").Append(ItemKeys.Goal(g.Number)).Append(' ').Append(g.Title)
+                      .Append(" (").Append(g.PeriodType).Append(')');
                 }
             }
+        }
+
+        if (config.Features.TryGetValue(InstanceConfig.Modules.Board, out var boardOn) && boardOn)
+        {
+            await AppendBoardAsync(sb, config, ct);
         }
 
         if (config.Features.TryGetValue(InstanceConfig.Modules.Planner, out var plannerOn) && plannerOn)
