@@ -134,4 +134,27 @@ void main() {
       expect(error.actions, isNull);
     });
   });
+
+  group('unverified claim', () {
+    // The server sets this when a reply says "I've set a reminder" but no tool ran. Dropping it
+    // in parsing would leave the false sentence looking like a done deal.
+    test('reads the flag from a done event', () {
+      expect(ChatEvent.fromJson({'type': 'done', 'unverifiedClaim': true}).unverifiedClaim, isTrue);
+    });
+
+    test('defaults to false when the server leaves it out', () {
+      expect(ChatEvent.fromJson({'type': 'done'}).unverifiedClaim, isFalse);
+    });
+
+    test('survives into replayed history', () {
+      final message = ChatMessageDto.fromJson({
+        'role': 'assistant',
+        'content': "I've set a reminder for 7pm.",
+        'unverifiedClaim': true,
+      });
+
+      expect(message.unverifiedClaim, isTrue);
+      expect(ChatMessageDto.fromJson({'role': 'user', 'content': 'hi'}).unverifiedClaim, isFalse);
+    });
+  });
 }

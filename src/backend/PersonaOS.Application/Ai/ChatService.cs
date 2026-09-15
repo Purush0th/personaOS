@@ -91,92 +91,163 @@ public class ChatService(
         long? outputTokens = null;
         string? streamError = null;
 
-        for (var iteration = 0; iteration < MaxToolIterations; iteration++)
+        // The reply as first written, kept aside if a corrective round replaces it.
+        string? firstDraft = null;
+        // True when the stored reply still claims a change that no tool made.
+        var unverifiedClaim = false;
+
+        // At most two rounds: the reply, then — only if it claimed a change that nothing made —
+        // one corrective round. See the claim check after the loop.
+        for (var round = 0; round < 2; round++)
         {
-            var iterationText = new StringBuilder();
-            var toolCalls = new List<AiToolCall>();
-            string? stopReason = null;
+            var correcting = round == 1;
+            var roundReply = correcting ? new StringBuilder() : reply;
 
-            var stream = streamer
-                .StreamAsync(apiKey ?? string.Empty, config.AiModel, config.AiBaseUrl, systemPrompt, turns, tools, ct)
-                .GetAsyncEnumerator(ct);
-            try
+            for (var iteration = 0; iteration < MaxToolIterations; iteration++)
             {
-                while (true)
+                var iterationText = new StringBuilder();
+                var toolCalls = new List<AiToolCall>();
+                string? stopReason = null;
+
+                var stream = streamer
+                    .StreamAsync(apiKey ?? string.Empty, config.AiModel, config.AiBaseUrl, systemPrompt, turns, tools, ct)
+                    .GetAsyncEnumerator(ct);
+                try
                 {
-                    bool moved;
-                    AiStreamChunk? chunk = null;
-                    try
+                    while (true)
                     {
-                        moved = await stream.MoveNextAsync();
-                        if (moved) chunk = stream.Current;
-                    }
-                    catch (AiStreamException ex)
-                    {
-                        logger.LogWarning(ex, "AI stream failed");
-                        streamError = ex.Message;
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "AI stream failed unexpectedly");
-                        streamError = "Could not reach the AI service.";
-                        break;
-                    }
+                        bool moved;
+                        AiStreamChunk? chunk = null;
+                        try
+                        {
+                            moved = await stream.MoveNextAsync();
+                            if (moved) chunk = stream.Current;
+                        }
+                        catch (AiStreamException ex)
+                        {
+                            logger.LogWarning(ex, "AI stream failed");
+                            streamError = ex.Message;
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "AI stream failed unexpectedly");
+                            streamError = "Could not reach the AI service.";
+                            break;
+                        }
 
-                    if (!moved) break;
+                        if (!moved) break;
 
-                    if (chunk!.InputTokens is not null) inputTokens = (inputTokens ?? 0) + chunk.InputTokens;
-                    if (chunk.OutputTokens is not null) outputTokens = (outputTokens ?? 0) + chunk.OutputTokens;
-                    if (chunk.ToolCall is not null) toolCalls.Add(chunk.ToolCall);
-                    if (chunk.StopReason is not null) stopReason = chunk.StopReason;
-                    if (chunk.TextDelta is { Length: > 0 } delta)
-                    {
-                        reply.Append(delta);
-                        iterationText.Append(delta);
-                        yield return new ChatStreamEvent("delta", Text: delta);
+                        if (chunk!.InputTokens is not null) inputTokens = (inputTokens ?? 0) + chunk.InputTokens;
+                        if (chunk.OutputTokens is not null) outputTokens = (outputTokens ?? 0) + chunk.OutputTokens;
+                        if (chunk.ToolCall is not null) toolCalls.Add(chunk.ToolCall);
+                        if (chunk.StopReason is not null) stopReason = chunk.StopReason;
+                        if (chunk.TextDelta is { Length: > 0 } delta)
+                        {
+                            roundReply.Append(delta);
+                            iterationText.Append(delta);
+                            // A corrective round is buffered, not streamed: its text replaces the
+                            // first draft wholesale on "done", rather than being appended after a
+                            // claim the user has already read.
+                            if (!correcting) yield return new ChatStreamEvent("delta", Text: delta);
+                        }
                     }
                 }
-            }
-            finally
-            {
-                await stream.DisposeAsync();
-            }
-
-            if (streamError is not null || stopReason != AiStopReasons.ToolUse || toolCalls.Count == 0)
-            {
-                break;
-            }
-
-            // The model asked for tools: run them and hand the results back.
-            turns.Add(new AiChatTurn(ChatRoles.Assistant, iterationText.ToString(), ToolCalls: toolCalls));
-            var results = new List<AiToolResult>(toolCalls.Count);
-            foreach (var call in toolCalls)
-            {
-                // Anything that writes is proposed, not run. Models have created goals and
-                // reminders nobody asked for — including straight after "let's discuss before
-                // we add anything" — and prompt rules did not stop it. The user decides.
-                if (mutatingTools.Contains(call.Name))
+                finally
                 {
-                    proposals.Add(new ProposedAction(call.Name, call.InputJson));
-                    // The model is told plainly, so it stops claiming the thing is done.
-                    results.Add(new AiToolResult(
-                        call.Id,
-                        $"NOT EXECUTED. '{call.Name}' changes the user's data, so it is waiting for "
-                        + "their confirmation. Tell them what you are proposing and that they need "
-                        + "to confirm it. Do not say it is done, and do not call the tool again.",
-                        IsError: false));
-                    continue;
+                    await stream.DisposeAsync();
                 }
 
-                yield return new ChatStreamEvent("tool", ToolName: call.Name, ConversationId: conversation.Id);
-                var result = await toolRegistry.ExecuteAsync(call, ct);
-                results.Add(result);
-                // Record what actually happened, from the tool's own result — the only
-                // account of the turn that does not depend on the model telling the truth.
-                receipts.Add(ToolReceiptBuilder.Build(call.Name, result.Content, result.IsError));
+                if (streamError is not null || stopReason != AiStopReasons.ToolUse || toolCalls.Count == 0)
+                {
+                    break;
+                }
+
+                // The model asked for tools: run them and hand the results back.
+                turns.Add(new AiChatTurn(ChatRoles.Assistant, iterationText.ToString(), ToolCalls: toolCalls));
+                var results = new List<AiToolResult>(toolCalls.Count);
+                foreach (var call in toolCalls)
+                {
+                    // Anything that writes is proposed, not run. Models have created goals and
+                    // reminders nobody asked for — including straight after "let's discuss before
+                    // we add anything" — and prompt rules did not stop it. The user decides.
+                    if (mutatingTools.Contains(call.Name))
+                    {
+                        proposals.Add(new ProposedAction(call.Name, call.InputJson));
+                        // The model is told plainly, so it stops claiming the thing is done.
+                        results.Add(new AiToolResult(
+                            call.Id,
+                            $"NOT EXECUTED. '{call.Name}' changes the user's data, so it is waiting for "
+                            + "their confirmation. Tell them what you are proposing and that they need "
+                            + "to confirm it. Do not say it is done, and do not call the tool again.",
+                            IsError: false));
+                        continue;
+                    }
+
+                    yield return new ChatStreamEvent("tool", ToolName: call.Name, ConversationId: conversation.Id);
+                    var result = await toolRegistry.ExecuteAsync(call, ct);
+                    results.Add(result);
+                    // Record what actually happened, from the tool's own result — the only
+                    // account of the turn that does not depend on the model telling the truth.
+                    receipts.Add(ToolReceiptBuilder.Build(call.Name, result.Content, result.IsError));
+                }
+                turns.Add(new AiChatTurn(ChatRoles.User, string.Empty, ToolResults: results));
             }
-            turns.Add(new AiChatTurn(ChatRoles.User, string.Empty, ToolResults: results));
+
+            if (!correcting)
+            {
+                if (streamError is not null) break;
+
+                // The reply claims a change, yet nothing was proposed this turn. Models do this —
+                // "I've set a reminder" with no tool call and an empty reminders table — and a
+                // missing card under a confident sentence is too easy to miss. Give the model one
+                // chance to either make the change properly or take the claim back. Skipped when
+                // anything was proposed: "I've proposed a reminder" is then an honest description.
+                var draft = LeakedToolCallScrubber.Scrub(reply.ToString(), tools.Select(t => t.Name).ToArray());
+                var claim = proposals.Count == 0 ? ActionClaimDetector.FindClaim(draft) : null;
+                if (claim is null) break;
+
+                logger.LogWarning(
+                    "Model {Model} claimed a change without calling a tool (\"{Claim}\"); asking it to correct.",
+                    config.AiModel, claim);
+
+                firstDraft = draft;
+                turns.Add(new AiChatTurn(ChatRoles.Assistant, draft));
+                turns.Add(new AiChatTurn(ChatRoles.User,
+                    "[Automatic check, not from the user] Your last reply says a change was made — \""
+                    + claim + "\" — but you did not call any tool, so nothing was saved or changed. "
+                    + "If the user asked for that change, call the right tool now. If they did not, "
+                    + "rewrite your reply so it does not say anything was done. Reply with the "
+                    + "corrected message only."));
+                continue;
+            }
+
+            // The corrective round finished (or failed). Decide what to keep.
+            var corrected = LeakedToolCallScrubber.Scrub(roundReply.ToString(), tools.Select(t => t.Name).ToArray());
+            if (streamError is not null)
+            {
+                // The first reply was complete; only the correction failed. Keep the original, say
+                // nothing about the error, and flag the claim instead of hiding it.
+                streamError = null;
+                unverifiedClaim = proposals.Count == 0;
+            }
+            else
+            {
+                if (corrected.Length == 0 && proposals.Count > 0)
+                {
+                    corrected = "Here is the change I would make — confirm it below if it looks right.";
+                }
+
+                if (corrected.Length > 0)
+                {
+                    reply.Clear().Append(corrected);
+                    unverifiedClaim = proposals.Count == 0 && ActionClaimDetector.FindClaim(corrected) is not null;
+                }
+                else
+                {
+                    unverifiedClaim = true;
+                }
+            }
         }
 
         if (streamError is not null && reply.Length == 0)
@@ -204,6 +275,10 @@ public class ChatService(
             }
         }
 
+        // What the user watched stream in is no longer the reply when it was cleaned, or when a
+        // corrective round replaced it — the client must swap its bubble for the stored text.
+        var replaceStreamedText = scrubbed || (firstDraft is not null && finalText != firstDraft);
+
         // Persist the exchange (also when the stream broke mid-reply — keep the partial).
         var now = DateTime.UtcNow;
         db.ChatMessages.Add(new ChatMessage
@@ -221,6 +296,7 @@ public class ChatService(
             InputTokens = inputTokens is null ? null : (int)inputTokens,
             OutputTokens = outputTokens is null ? null : (int)outputTokens,
             ToolActionsJson = receipts.Count == 0 ? null : JsonSerializer.Serialize(receipts),
+            UnverifiedClaim = unverifiedClaim,
             CreatedAtUtc = now.AddMilliseconds(1),
         });
         conversation.UpdatedAtUtc = now;
@@ -260,12 +336,13 @@ public class ChatService(
         // the client should replace the bubble it built up. Absent when nothing changed.
         yield return new ChatStreamEvent(
             "done",
-            Text: scrubbed ? finalText : null,
+            Text: replaceStreamedText ? finalText : null,
             ConversationId: conversation.Id,
             InputTokens: inputTokens,
             OutputTokens: outputTokens,
             Actions: receipts.Count == 0 ? null : receipts,
-            Pending: pending.Count == 0 ? null : pending);
+            Pending: pending.Count == 0 ? null : pending,
+            UnverifiedClaim: unverifiedClaim ? true : null);
     }
 
     public async Task<IReadOnlyList<ConversationSummary>> ListConversationsAsync(CancellationToken ct = default) =>
@@ -293,7 +370,7 @@ public class ChatService(
                     .Select(m => new
                     {
                         m.Id, m.Role, m.Content, m.InputTokens, m.OutputTokens, m.CreatedAtUtc,
-                        m.ToolActionsJson,
+                        m.ToolActionsJson, m.UnverifiedClaim,
                     })
                     .ToList(),
             })
@@ -314,7 +391,8 @@ public class ChatService(
                 ReadReceipts(m.ToolActionsJson),
                 actions.Where(a => a.ChatMessageId == m.Id).Select(ToDto).ToList() is { Count: > 0 } p
                     ? p
-                    : null))
+                    : null,
+                m.UnverifiedClaim))
             .ToList();
 
         return new ConversationDetail(
