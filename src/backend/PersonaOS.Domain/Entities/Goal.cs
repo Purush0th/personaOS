@@ -1,22 +1,21 @@
 namespace PersonaOS.Domain.Entities;
 
 /// <summary>
-/// A yearly / quarterly / monthly goal. Goals form a hierarchy via
-/// <see cref="ParentGoalId"/> (e.g. a monthly goal contributing to a quarterly one).
-/// <see cref="Progress"/> is the manually-tracked value for leaf goals; parents
-/// derive their effective progress from children (see GoalProgressCalculator).
+/// A yearly / quarterly / monthly goal — the epic of the sprint board. Goals do not nest: work
+/// under a goal is broken into <see cref="BoardTask"/>s, and the goal's effective progress is
+/// derived from them (see GoalProgressCalculator). <see cref="Progress"/> is the manually
+/// tracked value, used only while the goal has no tasks.
 /// </summary>
 public class Goal
 {
     public int Id { get; set; }
 
+    /// <summary>The n in the user-facing key <c>GOAL-n</c>. The lowest free number is reused.</summary>
+    public int Number { get; set; }
+
     public string Title { get; set; } = string.Empty;
 
     public string? Description { get; set; }
-
-    public int? ParentGoalId { get; set; }
-    public Goal? Parent { get; set; }
-    public ICollection<Goal> Children { get; set; } = new List<Goal>();
 
     /// <summary>One of <see cref="GoalPeriods"/>.</summary>
     public string PeriodType { get; set; } = GoalPeriods.Year;
@@ -27,8 +26,10 @@ public class Goal
     /// <summary>One of <see cref="GoalStatuses"/>.</summary>
     public string Status { get; set; } = GoalStatuses.Active;
 
-    /// <summary>0–100. Manually tracked; authoritative for leaf goals only.</summary>
+    /// <summary>0–100. Manually tracked; used only while the goal has no tasks.</summary>
     public int Progress { get; set; }
+
+    public ICollection<BoardTask> Tasks { get; set; } = new List<BoardTask>();
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;

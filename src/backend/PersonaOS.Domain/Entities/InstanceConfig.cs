@@ -100,6 +100,7 @@ public class InstanceConfig
         public const string Docs = "docs";
         public const string Voice = "voice";
         public const string Proactive = "proactive";
+        public const string Board = "board";
     }
 
     /// <summary>Sensible defaults applied when a fresh instance is created.</summary>
@@ -110,6 +111,7 @@ public class InstanceConfig
         [Modules.Reminders] = true,
         [Modules.Docs] = true,
         [Modules.Voice] = true,
+        [Modules.Board] = true,
         [Modules.Proactive] = false,
     };
 }

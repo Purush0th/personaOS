@@ -116,3 +116,65 @@
     }
   }
 }
+
+.intro {
+  margin: 0.4rem 0 0;
+}
+
+.goal {
+  .key {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .tasks {
+    list-style: none;
+    margin: 0.6rem 0 0;
+    padding: 0.5rem 0 0;
+    border-top: 1px solid #ececf2;
+
+    li {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      padding: 0.15rem 0;
+      font-size: 0.9rem;
+
+      &.done .task-title {
+        text-decoration: line-through;
+        color: var(--muted);
+      }
+    }
+
+    .task-title {
+      flex: 1;
+      min-width: 0;
+    }
+
+  }
+
+  .task-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+
+    input,
+    select {
+      font: inherit;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+
+    input {
+      flex: 1;
+      min-width: 12rem;
+    }
+
+    button {
+      padding: 0.3rem 0.8rem;
+    }
+  }
+}

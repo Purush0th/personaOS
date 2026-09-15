@@ -84,3 +84,32 @@ label {
     margin-bottom: 0.4rem;
   }
 }
+
+/* Sprint-board pills, shared by the board, goals and planner pages. */
+.goal-chip {
+  font-size: 0.72rem;
+  border-radius: 999px;
+  padding: 0.08rem 0.45rem;
+  background: hsl(var(--hue, 240) 70% 92%);
+  color: hsl(var(--hue, 240) 45% 28%);
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.points-pill {
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-width: 1.4rem;
+  text-align: center;
+  border-radius: 999px;
+  background: #e8e8f2;
+  padding: 0.05rem 0.4rem;
+
+  &.none {
+    color: var(--muted);
+    background: none;
+    border: 1px dashed var(--line);
+  }
+}

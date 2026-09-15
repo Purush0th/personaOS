@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
+using PersonaOS.Domain.Services;
 
 namespace PersonaOS.Application.Proactive;
 
@@ -83,16 +84,42 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
             }
         }
 
+        if (Enabled(config, InstanceConfig.Modules.Board))
+        {
+            // The morning nudge to plan the day: what the week's sprint still holds, so the day's
+            // plan can be picked from it.
+            var sprintTasks = await db.BoardTasks.AsNoTracking()
+                .Where(t => t.Sprint != null && t.Sprint.Status == SprintStatuses.Active
+                            && t.Status != BoardTaskStatuses.Done)
+                .OrderBy(t => t.Status == BoardTaskStatuses.InProgress ? 0 : 1).ThenBy(t => t.SortOrder)
+                .Select(t => new { t.Number, t.Title, t.Status })
+                .ToListAsync(ct);
+
+            if (sprintTasks.Count > 0)
+            {
+                hasContent = true;
+                sb.Append("\n\nTime to plan your day. From this week's sprint:");
+                foreach (var task in sprintTasks.Take(5))
+                {
+                    sb.Append("\n• ").Append(ItemKeys.Task(task.Number)).Append(' ').Append(task.Title);
+                    if (task.Status == BoardTaskStatuses.InProgress) sb.Append(" (in progress)");
+                }
+                if (sprintTasks.Count > 5) sb.Append("\n• …and ").Append(sprintTasks.Count - 5).Append(" more");
+            }
+        }
+
         if (Enabled(config, InstanceConfig.Modules.Goals))
         {
-            var stalled = await db.Goals.AsNoTracking()
-                .Where(g => g.Status == GoalStatuses.Active
-                            && g.ParentGoalId == null
-                            && g.Progress < 100)
+            var active = await db.Goals.AsNoTracking()
+                .Include(g => g.Tasks)
+                .Where(g => g.Status == GoalStatuses.Active)
+                .ToListAsync(ct);
+            var stalled = active
+                .Select(g => new { g.Title, Progress = GoalProgressCalculator.Compute(g.Progress, g.Tasks.ToList()) })
+                .Where(g => g.Progress < 100)
                 .OrderBy(g => g.Progress)
                 .Take(2)
-                .Select(g => new { g.Title, g.Progress })
-                .ToListAsync(ct);
+                .ToList();
 
             if (stalled.Count > 0)
             {

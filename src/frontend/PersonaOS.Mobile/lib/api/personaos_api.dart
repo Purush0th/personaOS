@@ -4,6 +4,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../date_utils.dart';
+import 'board_models.dart';
+
+export 'board_models.dart';
 
 /// One event from the chat SSE stream.
 class ChatEvent {
@@ -107,64 +110,14 @@ class ToolReceipt {
 /// A failed API call carrying a user-presentable message. The server returns
 /// `{ "error": "..." }` on validation failures; we surface that where present.
 class ApiException implements Exception {
-  ApiException(this.message);
+  ApiException(this.message, {this.code});
   final String message;
+
+  /// The server's machine-readable error code, e.g. [scopeChangeCode].
+  final String? code;
 
   @override
   String toString() => message;
-}
-
-/// A goal with its computed rollup progress and nested children.
-class GoalNode {
-  GoalNode({
-    required this.id,
-    required this.title,
-    required this.parentGoalId,
-    required this.periodType,
-    required this.status,
-    required this.progress,
-    required this.effectiveProgress,
-    required this.children,
-  });
-
-  factory GoalNode.fromJson(Map<String, dynamic> json) => GoalNode(
-        id: json['id'] as int,
-        title: json['title'] as String,
-        parentGoalId: json['parentGoalId'] as int?,
-        periodType: json['periodType'] as String,
-        status: json['status'] as String,
-        progress: json['progress'] as int,
-        effectiveProgress: json['effectiveProgress'] as int,
-        children: (json['children'] as List<dynamic>)
-            .map((e) => GoalNode.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
-
-  final int id;
-  final String title;
-  final int? parentGoalId;
-  final String periodType; // year | quarter | month
-  final String status; // active | completed | dropped
-  final int progress;
-  final int effectiveProgress;
-  final List<GoalNode> children;
-}
-
-/// A goal with the tree depth it sits at, for an indented flat list.
-class GoalRow {
-  GoalRow(this.goal, this.depth);
-  final GoalNode goal;
-  final int depth;
-}
-
-/// Flattens a goal forest into depth-tagged rows, parents before children.
-List<GoalRow> flattenGoals(List<GoalNode> roots, [int depth = 0]) {
-  final rows = <GoalRow>[];
-  for (final goal in roots) {
-    rows.add(GoalRow(goal, depth));
-    rows.addAll(flattenGoals(goal.children, depth + 1));
-  }
-  return rows;
 }
 
 /// A single daily-planner task.
@@ -176,6 +129,8 @@ class PlannerItem {
     required this.scheduledTime,
     required this.status,
     required this.goalTitle,
+    this.goalKey,
+    this.taskKey,
   });
 
   factory PlannerItem.fromJson(Map<String, dynamic> json) => PlannerItem(
@@ -185,6 +140,8 @@ class PlannerItem {
         scheduledTime: json['scheduledTime'] as String?,
         status: json['status'] as String,
         goalTitle: json['goalTitle'] as String?,
+        goalKey: json['goalKey'] as String?,
+        taskKey: json['taskKey'] as String?,
       );
 
   final int id;
@@ -193,6 +150,12 @@ class PlannerItem {
   final String? scheduledTime; // "HH:mm:ss" or null
   final String status; // planned | done | skipped
   final String? goalTitle;
+
+  /// The goal's key, for the chip colour.
+  final String? goalKey;
+
+  /// The sprint-board task this item is a day's work on, if picked from the board.
+  final String? taskKey;
 }
 
 /// A reminder with its due time resolved to the install's zone for display.
@@ -430,22 +393,20 @@ class PersonaOsApi {
 
   // --- Goals ---------------------------------------------------------------
 
-  Future<List<GoalNode>> getGoals({bool includeDropped = false}) async {
+  Future<List<Goal>> getGoals({bool includeDropped = false}) async {
     final data = await _get('/api/goals?includeDropped=$includeDropped') as List<dynamic>;
-    return data.map((e) => GoalNode.fromJson(e as Map<String, dynamic>)).toList();
+    return data.map((e) => Goal.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<void> createGoal({
     required String title,
     required String periodType,
     required String periodStart, // yyyy-MM-dd
-    int? parentGoalId,
   }) async {
     await _post('/api/goals', {
       'title': title,
       'periodType': periodType,
       'periodStart': periodStart,
-      'parentGoalId': ?parentGoalId,
     });
   }
 
@@ -466,15 +427,19 @@ class PersonaOsApi {
         .toList();
   }
 
+  /// Adds an item to a day. With [taskId], the item is a day's work on that board task and
+  /// takes its title and goal when [title] is empty.
   Future<void> addPlannerItem({
     required String title,
     required String date, // yyyy-MM-dd
     String? scheduledTime, // "HH:mm" or null
+    int? taskId,
   }) async {
     await _post('/api/planner/items', {
       'title': title,
       'date': date,
       'scheduledTime': ?scheduledTime,
+      'taskId': ?taskId,
     });
   }
 
@@ -485,6 +450,58 @@ class PersonaOsApi {
       _put('/api/planner/items/$id/date', {'date': date});
 
   Future<void> deletePlannerItem(int id) => _delete('/api/planner/items/$id');
+
+  // --- Sprint board --------------------------------------------------------
+
+  Future<BoardView> getBoard({String sprint = 'current'}) async =>
+      BoardView.fromJson(await _get('/api/board?sprint=$sprint') as Map<String, dynamic>);
+
+  Future<SprintReport> getSprintReport() async =>
+      SprintReport.fromJson(await _get('/api/board/sprints') as Map<String, dynamic>);
+
+  Future<void> startSprint() => _post('/api/board/sprints/start', const <String, Object?>{});
+
+  /// [destination] is backlog, current or next.
+  Future<void> createTask({
+    required String title,
+    int? points,
+    int? goalId,
+    String destination = 'backlog',
+    bool acknowledgeScopeChange = false,
+  }) =>
+      _post('/api/board/tasks', {
+        'title': title,
+        'points': ?points,
+        'goalId': ?goalId,
+        'destination': destination,
+        'acknowledgeScopeChange': acknowledgeScopeChange,
+      });
+
+  Future<void> updateTask(int id, {String? title, int? points, int? goalId}) =>
+      _put('/api/board/tasks/$id', {
+        'title': ?title,
+        'points': ?points,
+        'clearPoints': points == null,
+        'goalId': ?goalId,
+        'clearGoal': goalId == null,
+      });
+
+  /// Moves a task to [column]; [sprint] is current or next, ignored for the backlog.
+  Future<void> moveTask(
+    int id, {
+    required String column,
+    String? sprint,
+    int? index,
+    bool acknowledgeScopeChange = false,
+  }) =>
+      _put('/api/board/tasks/$id/move', {
+        'column': column,
+        'sprint': ?sprint,
+        'index': ?index,
+        'acknowledgeScopeChange': acknowledgeScopeChange,
+      });
+
+  Future<void> deleteTask(int id) => _delete('/api/board/tasks/$id');
 
   // --- Reminders -----------------------------------------------------------
 
@@ -585,7 +602,7 @@ class PersonaOsApi {
       throw ApiException('Session expired. Log in again.');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(_errorFrom(response));
+      throw ApiException(_errorFrom(response), code: _codeFrom(response));
     }
     return DocumentDto.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -689,6 +706,15 @@ class PersonaOsApi {
     }
     if (response.body.isEmpty) return null;
     return jsonDecode(response.body);
+  }
+
+  String? _codeFrom(http.Response response) {
+    try {
+      final code = (jsonDecode(response.body) as Map<String, dynamic>)['code'];
+      return code is String ? code : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   String _errorFrom(http.Response response) {
