@@ -24,6 +24,13 @@ public class ChatMessage
     public int? OutputTokens { get; set; }
 
     /// <summary>
+    /// True when this assistant reply says a change was made but no tool made one — even after
+    /// the model was asked to correct itself. The client warns that nothing was saved, so a
+    /// confident "I've set a reminder" is not taken at its word when the reminders table is empty.
+    /// </summary>
+    public bool UnverifiedClaim { get; set; }
+
+    /// <summary>
     /// What the tools actually did during this turn, as a JSON array of receipts
     /// (assistant messages only; null when no tool ran). This is the app's own record —
     /// derived from real executions, never from what the model said it did — so a reply

@@ -19,6 +19,9 @@ class _Bubble {
 
   /// Changes awaiting the user's confirmation. Nothing has been written yet.
   List<PendingAction>? pending;
+
+  /// The reply says a change was made, but no tool made one — nothing was saved.
+  bool unverifiedClaim = false;
 }
 
 /// Streaming chat with the assistant. Deltas append to the live bubble.
@@ -209,6 +212,7 @@ class _ChatScreenState extends State<ChatScreen> {
             if (event.text != null) assistantBubble.text = event.text!;
             assistantBubble.actions = event.actions;
             assistantBubble.pending = event.pending;
+            assistantBubble.unverifiedClaim = event.unverifiedClaim;
             _afterReply(assistantBubble);
         }
       });
@@ -237,7 +241,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (speakIt && !bubble.isError) {
       setState(() => _speaking = true);
-      await _voice.speak(bubble.text);
+      // Hands-free users may never look at the screen, so the warning is spoken too.
+      await _voice.speak(bubble.unverifiedClaim
+          ? '${bubble.text}\n\n${UnverifiedClaimNote.message}'
+          : bubble.text);
       if (!mounted) return;
       setState(() => _speaking = false);
     }
@@ -291,7 +298,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 text: m.content,
               )
                 ..actions = m.toolActions
-                ..pending = m.pendingActions));
+                ..pending = m.pendingActions
+                ..unverifiedClaim = m.unverifiedClaim));
         _loadingHistory = false;
       });
       _scrollToBottom();
@@ -624,12 +632,53 @@ class _BubbleView extends StatelessWidget {
               SelectableText(bubble.text, style: TextStyle(color: foreground))
             else
               _MarkdownReply(text: bubble.text, foreground: foreground),
+            if (bubble.unverifiedClaim && !bubble.isUser) const UnverifiedClaimNote(),
             if (bubble.pending?.isNotEmpty ?? false)
               _ProposalList(actions: bubble.pending!, onResolve: onResolve),
             if (bubble.actions?.isNotEmpty ?? false)
               _ReceiptList(actions: bubble.actions!, foreground: foreground),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shown under a reply that says a change was made when no tool made one, even after the
+/// server asked the model to correct itself. The sentence above it is not a receipt.
+class UnverifiedClaimNote extends StatelessWidget {
+  const UnverifiedClaimNote({super.key});
+
+  static const message =
+      'This reply says a change was made, but nothing was saved. Ask again if you want it done.';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        border: const Border(left: BorderSide(color: Color(0xFFB26A00), width: 3)),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(right: 6, top: 1),
+            child: Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFF7A4A00)),
+          ),
+          Flexible(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF7A4A00)),
+            ),
+          ),
+        ],
       ),
     );
   }

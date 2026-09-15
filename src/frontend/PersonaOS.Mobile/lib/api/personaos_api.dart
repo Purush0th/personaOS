@@ -14,6 +14,7 @@ class ChatEvent {
     this.error,
     this.actions,
     this.pending,
+    this.unverifiedClaim = false,
   });
 
   factory ChatEvent.fromJson(Map<String, dynamic> json) => ChatEvent(
@@ -27,6 +28,7 @@ class ChatEvent {
         pending: (json['pending'] as List<dynamic>?)
             ?.map((a) => PendingAction.fromJson(a as Map<String, dynamic>))
             .toList(),
+        unverifiedClaim: json['unverifiedClaim'] as bool? ?? false,
       );
 
   final String type; // start | delta | tool | done | error
@@ -39,6 +41,9 @@ class ChatEvent {
 
   /// On `done`: changes the assistant wants to make, awaiting confirmation. Null when none.
   final List<PendingAction>? pending;
+
+  /// On `done`: the reply says a change was made, but no tool made one — nothing was saved.
+  final bool unverifiedClaim;
 }
 
 /// A data-changing action the assistant proposed.
@@ -253,6 +258,7 @@ class ChatMessageDto {
     required this.content,
     this.toolActions,
     this.pendingActions,
+    this.unverifiedClaim = false,
   });
 
   factory ChatMessageDto.fromJson(Map<String, dynamic> json) => ChatMessageDto(
@@ -264,12 +270,16 @@ class ChatMessageDto {
         pendingActions: (json['pendingActions'] as List<dynamic>?)
             ?.map((a) => PendingAction.fromJson(a as Map<String, dynamic>))
             .toList(),
+        unverifiedClaim: json['unverifiedClaim'] as bool? ?? false,
       );
 
   final String role; // user | assistant
   final String content;
   final List<ToolReceipt>? toolActions;
   final List<PendingAction>? pendingActions;
+
+  /// The reply says a change was made, but no tool made one — nothing was saved.
+  final bool unverifiedClaim;
 }
 
 /// A conversation with its full message history.

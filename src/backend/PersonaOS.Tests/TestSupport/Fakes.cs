@@ -79,6 +79,9 @@ public class FakeAiMessageStreamer : IAiMessageStreamer
 
     public Exception? ThrowOnFirstCall { get; set; }
 
+    /// <summary>Fails the given call (1-based) — e.g. a corrective round after a good first reply.</summary>
+    public (int Call, Exception Error)? ThrowOnCall { get; set; }
+
     public int CallCount { get; private set; }
 
     public FakeAiMessageStreamer EnqueueText(string text, long inputTokens = 10, long outputTokens = 5) =>
@@ -120,6 +123,11 @@ public class FakeAiMessageStreamer : IAiMessageStreamer
         if (ThrowOnFirstCall is not null && CallCount == 1)
         {
             throw ThrowOnFirstCall;
+        }
+
+        if (ThrowOnCall is { } failure && failure.Call == CallCount)
+        {
+            throw failure.Error;
         }
 
         var chunks = _rounds.Count > 0

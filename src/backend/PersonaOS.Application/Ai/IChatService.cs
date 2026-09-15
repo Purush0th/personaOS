@@ -17,7 +17,8 @@ public record ChatStreamEvent(
     string? Error = null,
     string? ToolName = null,
     IReadOnlyList<ToolReceipt>? Actions = null,
-    IReadOnlyList<PendingActionDto>? Pending = null);
+    IReadOnlyList<PendingActionDto>? Pending = null,
+    bool? UnverifiedClaim = null);
 
 /// <summary>
 /// A data-changing tool the assistant proposed. Nothing has happened yet: the user confirms
@@ -37,7 +38,8 @@ public record ConversationSummary(
 public record ChatMessageDto(
     long Id, string Role, string Content, int? InputTokens, int? OutputTokens, DateTime CreatedAtUtc,
     IReadOnlyList<ToolReceipt>? ToolActions = null,
-    IReadOnlyList<PendingActionDto>? PendingActions = null);
+    IReadOnlyList<PendingActionDto>? PendingActions = null,
+    bool UnverifiedClaim = false);
 
 public record ConversationDetail(
     int Id, string PublicId, string Title, DateTime CreatedAtUtc, IReadOnlyList<ChatMessageDto> Messages);

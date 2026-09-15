@@ -78,6 +78,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<string>("ToolActionsJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("UnverifiedClaim")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId", "CreatedAtUtc");
