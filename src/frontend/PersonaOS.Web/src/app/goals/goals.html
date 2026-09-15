@@ -4,15 +4,20 @@
     <button class="subtle" (click)="toggleDropped()">
       {{ includeDropped() ? 'Hide dropped' : 'Show dropped' }}
     </button>
-    <button (click)="startAdd(null)">＋ New goal</button>
+    <button (click)="adding.set(true)">＋ New goal</button>
   </div>
 </header>
+
+<p class="muted small intro">
+  Goals are your epics. Break one down into tasks with story points
+  @if (boardEnabled()) { and plan them into a sprint on the board}.
+</p>
 
 @if (error(); as message) {
   <p class="error">{{ message }}</p>
 }
 
-@if (addingUnder() !== undefined) {
+@if (adding()) {
   <form class="add-form" (ngSubmit)="add()">
     <input name="title" [(ngModel)]="draftTitle" placeholder="What do you want to achieve?" autofocus />
     <select name="period" [(ngModel)]="draftPeriod">
@@ -22,60 +27,92 @@
     </select>
     <input name="start" type="date" [(ngModel)]="draftStart" />
     <button type="submit">Add</button>
-    <button type="button" class="subtle" (click)="cancelAdd()">Cancel</button>
+    <button type="button" class="subtle" (click)="adding.set(false)">Cancel</button>
   </form>
 }
 
 @if (loading()) {
   <p class="muted">Loading…</p>
 } @else {
-  @for (row of flatten(tree()); track row.goal.id) {
-    <article class="goal" [style.margin-left.rem]="row.depth * 1.5" [class.dropped]="row.goal.status === 'dropped'">
+  @for (goal of goals(); track goal.id) {
+    <article class="goal" [class.dropped]="goal.status === 'dropped'">
       <div class="head">
-        <span class="title">{{ row.goal.title }}</span>
-        <span class="badge">{{ row.goal.periodType }}</span>
-        @if (row.goal.status !== 'active') {
-          <span class="badge status">{{ row.goal.status }}</span>
+        <span class="key">{{ goal.key }}</span>
+        <span class="title">{{ goal.title }}</span>
+        <span class="badge">{{ goal.periodType }}</span>
+        @if (goal.status !== 'active') {
+          <span class="badge status">{{ goal.status }}</span>
         }
       </div>
 
-      <div class="bar" [title]="row.goal.effectiveProgress + '%'">
-        <div class="fill" [style.width.%]="row.goal.effectiveProgress"></div>
+      <div class="bar" [title]="goal.effectiveProgress + '%'">
+        <div class="fill" [style.width.%]="goal.effectiveProgress"></div>
       </div>
 
       <div class="row">
-        <span class="muted small">{{ row.goal.effectiveProgress }}%</span>
+        <span class="muted small">{{ goal.effectiveProgress }}%</span>
 
-        @if (row.goal.children.length === 0) {
+        @if (goal.taskCount === 0) {
           <input
             class="progress"
             type="number"
             min="0"
             max="100"
-            [value]="row.goal.progress"
-            (change)="setProgress(row.goal, $any($event.target).value)"
+            [value]="goal.progress"
+            (change)="setProgress(goal, $any($event.target).value)"
             title="Set progress"
           />
         } @else {
           <span class="muted small">
-            rolled up from {{ row.goal.children.length }}
-            {{ row.goal.children.length === 1 ? 'sub-goal' : 'sub-goals' }}
+            {{ goal.donePoints }} of {{ goal.totalPoints }} points ·
+            {{ goal.doneTaskCount }} of {{ goal.taskCount }} tasks done
           </span>
         }
 
         <span class="spacer"></span>
 
-        @if (row.goal.status !== 'completed') {
-          <button class="subtle" (click)="setStatus(row.goal, 'completed')">Complete</button>
+        @if (goal.status !== 'completed') {
+          <button class="subtle" (click)="setStatus(goal, 'completed')">Complete</button>
         }
-        @if (row.goal.status === 'active') {
-          <button class="subtle" (click)="setStatus(row.goal, 'dropped')">Drop</button>
+        @if (goal.status === 'active') {
+          <button class="subtle" (click)="setStatus(goal, 'dropped')">Drop</button>
         } @else {
-          <button class="subtle" (click)="setStatus(row.goal, 'active')">Reactivate</button>
+          <button class="subtle" (click)="setStatus(goal, 'active')">Reactivate</button>
         }
-        <button class="subtle" (click)="startAdd(row.goal.id)">＋ Sub-goal</button>
-        <button class="subtle danger" (click)="remove(row.goal)">Delete</button>
+        @if (boardEnabled()) {
+          <button class="subtle" (click)="startAddTask(goal)">＋ Task</button>
+        }
+        <button class="subtle danger" (click)="remove(goal)">Delete</button>
       </div>
+
+      @if (goal.tasks.length > 0) {
+        <ul class="tasks">
+          @for (task of goal.tasks; track task.id) {
+            <li [class.done]="task.column === 'done'">
+              <span class="key">{{ task.key }}</span>
+              <span class="task-title">{{ task.title }}</span>
+              <span class="muted small">
+                {{ columnLabel(task.column) }}@if (task.sprintNumber) { · sprint {{ task.sprintNumber }}}
+              </span>
+              <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (addingTaskTo() === goal.id) {
+        <form class="task-form" (ngSubmit)="addTask(goal)">
+          <input name="taskTitle" [(ngModel)]="taskTitle" placeholder="Task under {{ goal.key }}" autofocus />
+          <select name="taskPoints" [(ngModel)]="taskPoints" aria-label="Story points">
+            <option [ngValue]="null">? pts</option>
+            @for (p of allowedPoints; track p) {
+              <option [ngValue]="p">{{ p }} pts</option>
+            }
+          </select>
+          <button type="submit">Add to backlog</button>
+          <button type="button" class="subtle" (click)="addingTaskTo.set(null)">Cancel</button>
+        </form>
+      }
     </article>
   } @empty {
     <p class="muted">

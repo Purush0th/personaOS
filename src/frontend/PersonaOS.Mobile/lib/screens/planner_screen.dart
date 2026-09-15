@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
+import 'board_screen.dart';
 
-/// Daily planner day-view: navigate days, add tasks, cycle status, move a task
-/// to the next day, delete.
+/// Daily planner day-view: navigate days, add tasks (typed, or picked from this week's sprint),
+/// cycle status, move a task to the next day, delete.
 class PlannerScreen extends StatefulWidget {
-  const PlannerScreen({super.key, required this.api});
+  const PlannerScreen({super.key, required this.api, this.boardEnabled = false});
 
   final PersonaOsApi api;
+
+  /// Whether the day's work can be picked from the sprint board.
+  final bool boardEnabled;
 
   @override
   State<PlannerScreen> createState() => _PlannerScreenState();
@@ -67,6 +71,59 @@ class _PlannerScreenState extends State<PlannerScreen> {
       await widget.api
           .addPlannerItem(title: title, date: localYmd(_day), scheduledTime: scheduled);
       _title.clear();
+      setState(() => _time = null);
+    });
+  }
+
+  /// Plans a board task for this day: the item takes the task's title and goal.
+  Future<void> _pickFromBoard() async {
+    final List<BoardTask> tasks;
+    try {
+      final board = await widget.api.getBoard();
+      tasks = [...board.columns[BoardColumns.inProgress]!, ...board.columns[BoardColumns.todo]!];
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
+    if (!mounted) return;
+
+    final picked = await showModalBottomSheet<BoardTask>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => tasks.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(32),
+              child: Text("Nothing left in this week's sprint.", textAlign: TextAlign.center),
+            )
+          : ListView(
+              shrinkWrap: true,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text("From this week's sprint", style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                for (final task in tasks)
+                  ListTile(
+                    title: Text(task.title),
+                    subtitle: Text([
+                      task.key,
+                      if (task.column == BoardColumns.inProgress) 'in progress',
+                      ?task.goalTitle,
+                    ].join(' · ')),
+                    trailing: PointsPill(points: task.points),
+                    onTap: () => Navigator.pop(context, task),
+                  ),
+              ],
+            ),
+    );
+    if (picked == null) return;
+
+    final time = _time;
+    final scheduled = time == null
+        ? null
+        : '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    await _run(() async {
+      await widget.api.addPlannerItem(title: '', date: localYmd(_day), taskId: picked.id, scheduledTime: scheduled);
       setState(() => _time = null);
     });
   }
@@ -176,6 +233,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
               if (picked != null) setState(() => _time = picked);
             },
           ),
+          if (widget.boardEnabled)
+            IconButton(
+              tooltip: 'From the board',
+              icon: const Icon(Icons.view_kanban_outlined),
+              onPressed: _pickFromBoard,
+            ),
           IconButton.filled(onPressed: _add, icon: const Icon(Icons.add)),
         ],
       ),
@@ -236,11 +299,20 @@ class _PlannerTile extends StatelessWidget {
             color: done ? Colors.grey : null,
           ),
         ),
-        subtitle: (time != null || item.goalTitle != null)
-            ? Text([
-                ?time,
-                if (item.goalTitle != null) 'toward ${item.goalTitle}',
-              ].join(' · '))
+        subtitle: (time != null || item.taskKey != null || item.goalTitle != null)
+            ? Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (time != null) Text(time),
+                    if (item.taskKey != null) Text(item.taskKey!),
+                    if (item.goalTitle != null) GoalChip(goalKey: item.goalKey ?? '', title: item.goalTitle!),
+                  ],
+                ),
+              )
             : null,
         trailing: PopupMenuButton<String>(
           onSelected: (choice) => choice == 'move' ? onMove() : onDelete(),

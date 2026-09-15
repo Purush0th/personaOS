@@ -40,8 +40,11 @@ public class PlannerService(IAppDbContext db) : IPlannerService
 
     public async Task<PlannerItemDto> CreateAsync(CreatePlannerItemRequest request, CancellationToken ct = default)
     {
-        var title = RequireTitle(request.Title);
-        await RequireGoalExistsAsync(request.GoalId, ct);
+        var task = await FindTaskAsync(request.TaskId, ct);
+        // Picking a board task is enough: its title and goal carry over unless given explicitly.
+        var title = RequireTitle(string.IsNullOrWhiteSpace(request.Title) && task is not null ? task.Title : request.Title);
+        var goalId = request.GoalId ?? task?.GoalId;
+        await RequireGoalExistsAsync(goalId, ct);
 
         var item = new PlannerItem
         {
@@ -51,7 +54,8 @@ public class PlannerService(IAppDbContext db) : IPlannerService
             ScheduledTime = request.ScheduledTime,
             SortOrder = request.SortOrder ?? await NextSortOrderAsync(request.Date, ct),
             Status = PlannerItemStatuses.Planned,
-            GoalId = request.GoalId,
+            GoalId = goalId,
+            TaskId = task?.Id,
         };
 
         db.PlannerItems.Add(item);
@@ -80,6 +84,15 @@ public class PlannerService(IAppDbContext db) : IPlannerService
         {
             await RequireGoalExistsAsync(goalId, ct);
             item.GoalId = goalId;
+        }
+
+        if (request.ClearTask)
+        {
+            item.TaskId = null;
+        }
+        else if (request.TaskId is int taskId)
+        {
+            item.TaskId = (await FindTaskAsync(taskId, ct))!.Id;
         }
 
         item.UpdatedAtUtc = DateTime.UtcNow;
@@ -129,6 +142,7 @@ public class PlannerService(IAppDbContext db) : IPlannerService
     private IQueryable<PlannerItem> OrderedQuery() =>
         db.PlannerItems.AsNoTracking()
             .Include(i => i.Goal)
+            .Include(i => i.Task).ThenInclude(t => t!.Goal)
             .OrderBy(i => i.ScheduledTime == null)
             .ThenBy(i => i.ScheduledTime)
             .ThenBy(i => i.SortOrder)
@@ -141,6 +155,13 @@ public class PlannerService(IAppDbContext db) : IPlannerService
             .Select(i => (int?)i.SortOrder)
             .MaxAsync(ct);
         return (max ?? 0) + 1;
+    }
+
+    private async Task<BoardTask?> FindTaskAsync(int? taskId, CancellationToken ct)
+    {
+        if (taskId is not int id) return null;
+        return await db.BoardTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct)
+            ?? throw new PlannerValidationException($"Task {id} does not exist.");
     }
 
     private async Task RequireGoalExistsAsync(int? goalId, CancellationToken ct)
@@ -158,7 +179,15 @@ public class PlannerService(IAppDbContext db) : IPlannerService
         return trimmed.Length > 300 ? trimmed[..300] : trimmed;
     }
 
-    private static PlannerItemDto Map(PlannerItem i) => new(
-        i.Id, i.Title, i.Notes, i.Date, i.ScheduledTime, i.SortOrder, i.Status,
-        i.GoalId, i.Goal?.Title, i.CreatedAtUtc, i.UpdatedAtUtc);
+    private static PlannerItemDto Map(PlannerItem i)
+    {
+        // A linked task's goal wins: the chip should match the card on the board.
+        var goal = i.Task?.Goal ?? i.Goal;
+        return new(
+            i.Id, i.Title, i.Notes, i.Date, i.ScheduledTime, i.SortOrder, i.Status,
+            goal?.Id, goal?.Title, i.CreatedAtUtc, i.UpdatedAtUtc,
+            goal is null ? null : PersonaOS.Domain.Services.ItemKeys.Goal(goal.Number),
+            i.TaskId,
+            i.Task is null ? null : PersonaOS.Domain.Services.ItemKeys.Task(i.Task.Number));
+    }
 }

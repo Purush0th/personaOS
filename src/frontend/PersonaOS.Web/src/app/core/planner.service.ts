@@ -12,6 +12,10 @@ export interface PlannerItemDto {
   status: 'planned' | 'done' | 'skipped';
   goalId: number | null;
   goalTitle: string | null;
+  goalKey: string | null;
+  /** The sprint-board task this is a day's work on, if picked from the board. */
+  taskId: number | null;
+  taskKey: string | null;
   createdAtUtc: string;
   updatedAtUtc: string;
 }
@@ -34,6 +38,7 @@ export class PlannerService {
     date: string;
     scheduledTime?: string | null;
     goalId?: number | null;
+    taskId?: number | null;
   }): Promise<PlannerItemDto> {
     return firstValueFrom(this.http.post<PlannerItemDto>('/api/planner/items', item));
   }

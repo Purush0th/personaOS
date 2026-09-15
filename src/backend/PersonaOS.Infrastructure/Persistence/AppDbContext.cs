@@ -18,6 +18,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<UserProfile> UserProfile => Set<UserProfile>();
     public DbSet<Goal> Goals => Set<Goal>();
+    public DbSet<BoardTask> BoardTasks => Set<BoardTask>();
+    public DbSet<Sprint> Sprints => Set<Sprint>();
     public DbSet<PlannerItem> PlannerItems => Set<PlannerItem>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
@@ -83,6 +85,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.HasOne(x => x.Goal)
                 .WithMany()
                 .HasForeignKey(x => x.GoalId)
+                .OnDelete(DeleteBehavior.SetNull);
+            // Deleting a board task keeps the day's item; it just loses the link.
+            cfg.HasOne(x => x.Task)
+                .WithMany()
+                .HasForeignKey(x => x.TaskId)
                 .OnDelete(DeleteBehavior.SetNull);
             cfg.HasIndex(x => new { x.Date, x.SortOrder });
         });
@@ -171,14 +178,35 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.Description).HasMaxLength(4000);
             cfg.Property(x => x.PeriodType).HasMaxLength(20).IsRequired();
             cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
-            // Self-referencing FK is deliberately Restrict, so a delete cannot silently wipe a
-            // whole subtree; GoalService.DeleteAsync collects and removes it explicitly.
-            cfg.HasOne(x => x.Parent)
-                .WithMany(x => x.Children)
-                .HasForeignKey(x => x.ParentGoalId)
-                .OnDelete(DeleteBehavior.Restrict);
-            cfg.HasIndex(x => x.ParentGoalId);
+            cfg.HasIndex(x => x.Number).IsUnique();
             cfg.HasIndex(x => new { x.Status, x.PeriodStart });
+        });
+
+        modelBuilder.Entity<BoardTask>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            cfg.Property(x => x.Description).HasMaxLength(4000);
+            cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            cfg.HasIndex(x => x.Number).IsUnique();
+            // Deleting a goal keeps its tasks; they become standalone.
+            cfg.HasOne(x => x.Goal)
+                .WithMany(x => x.Tasks)
+                .HasForeignKey(x => x.GoalId)
+                .OnDelete(DeleteBehavior.SetNull);
+            cfg.HasOne(x => x.Sprint)
+                .WithMany()
+                .HasForeignKey(x => x.SprintId)
+                .OnDelete(DeleteBehavior.SetNull);
+            cfg.HasIndex(x => new { x.SprintId, x.Status, x.SortOrder });
+        });
+
+        modelBuilder.Entity<Sprint>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            cfg.HasIndex(x => x.Number).IsUnique();
+            cfg.HasIndex(x => x.Status);
         });
 
         modelBuilder.Entity<UserProfile>(cfg =>

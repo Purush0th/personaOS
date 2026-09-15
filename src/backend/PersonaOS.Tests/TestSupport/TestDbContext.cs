@@ -17,6 +17,8 @@ public class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<UserProfile> UserProfile => Set<UserProfile>();
     public DbSet<Goal> Goals => Set<Goal>();
+    public DbSet<BoardTask> BoardTasks => Set<BoardTask>();
+    public DbSet<Sprint> Sprints => Set<Sprint>();
     public DbSet<PlannerItem> PlannerItems => Set<PlannerItem>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();

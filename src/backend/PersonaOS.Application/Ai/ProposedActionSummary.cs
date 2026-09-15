@@ -19,6 +19,8 @@ public static class ProposedActionSummary
     /// <summary>Extra fields worth showing, with the label to print them under.</summary>
     private static readonly (string Field, string Label)[] Details =
     [
+        ("taskKey", ""),
+        ("goalKey", ""),
         ("dueAtLocal", ""),
         ("date", ""),
         ("scheduledTime", ""),
@@ -26,6 +28,10 @@ public static class ProposedActionSummary
         ("periodStart", ""),
         ("status", ""),
         ("progress", "progress "),
+        ("column", "to "),
+        ("sprint", "sprint "),
+        ("destination", "into "),
+        ("points", "points "),
     ];
 
     public static string Describe(string toolName, string? inputJson)
@@ -57,12 +63,18 @@ public static class ProposedActionSummary
             if (!string.IsNullOrWhiteSpace(value)) parts.Add(prefix + value);
         }
 
-        // Parentage is the detail a model has actually got wrong, so state it either way
-        // rather than only when present.
-        if (toolName is "create_goal")
+        // Which goal a task lands under is the detail a model has actually got wrong, so state it
+        // either way rather than only when present.
+        if (toolName is "create_task" && ToolPayloadText.FirstValue(input, ["goalKey"]) is null)
         {
-            var parent = ToolPayloadText.FirstValue(input, ["parentGoalId"]);
-            parts.Add(parent is null ? "top-level" : $"under goal {parent}");
+            parts.Add("no goal");
+        }
+
+        // A confirmed card is the acknowledgement of a scope change, so the card must say so.
+        if (toolName is "create_task" or "move_task"
+            && (ToolPayloadText.FirstValue(input, ["destination"]) ?? ToolPayloadText.FirstValue(input, ["sprint"])) == "current")
+        {
+            parts.Add("a scope change if this week's sprint has started");
         }
 
         if (parts.Count > 0) sb.Append(" — ").Append(string.Join(" · ", parts));

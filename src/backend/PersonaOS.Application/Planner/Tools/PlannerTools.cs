@@ -100,12 +100,16 @@ public class GetPlannerTool(IPlannerService planner) : PlannerToolBase
     }
 }
 
-public class AddPlannerItemTool(IPlannerService planner) : PlannerToolBase
+public class AddPlannerItemTool(
+    IPlannerService planner,
+    PersonaOS.Application.Goals.IGoalService goals,
+    PersonaOS.Application.Board.IBoardService board) : PlannerToolBase
 {
     public override string Name => "add_planner_item";
     public override string Description =>
-        "Adds a task to the user's planner for a given day. Optionally schedule a time and link " +
-        "the task to a goal it contributes to (use get_goals to find the goal id).";
+        "Adds an item to the user's planner for a given day. Optionally schedule a time. To plan a day's " +
+        "work on a sprint-board task, pass its taskKey (like \"TASK-7\" from get_board); the title can then " +
+        "be left out. Otherwise goalKey (like \"GOAL-3\") links the item to a goal.";
     public override string InputSchemaJson => """
         {
           "type": "object",
@@ -114,19 +118,37 @@ public class AddPlannerItemTool(IPlannerService planner) : PlannerToolBase
             "date": { "type": "string", "description": "Day to plan it for, ISO date (e.g. 2026-07-21)." },
             "notes": { "type": "string", "description": "Optional detail." },
             "scheduledTime": { "type": "string", "description": "Optional 24-hour time, e.g. 09:30." },
-            "goalId": { "type": "integer", "description": "Optional goal this task contributes to." }
+            "taskKey": { "type": "string", "description": "Optional sprint-board task this is a day's work on." },
+            "goalKey": { "type": "string", "description": "Optional goal this item contributes to." }
           },
-          "required": ["title", "date"]
+          "required": ["date"]
         }
         """;
 
-    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default) =>
-        Ok(await planner.CreateAsync(new CreatePlannerItemRequest(
-            Title: RequireString(input, "title"),
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        int? taskId = null;
+        if (GetString(input, "taskKey") is { } taskKey)
+        {
+            taskId = await board.ResolveTaskKeyAsync(taskKey, ct)
+                ?? throw new PlannerValidationException($"There is no task {taskKey}. Use a key from get_board.");
+        }
+
+        int? goalId = null;
+        if (GetString(input, "goalKey") is { } goalKey)
+        {
+            goalId = await goals.ResolveKeyAsync(goalKey, ct)
+                ?? throw new PlannerValidationException($"There is no goal {goalKey}. Use a key from get_goals.");
+        }
+
+        return Ok(await planner.CreateAsync(new CreatePlannerItemRequest(
+            Title: GetString(input, "title") ?? string.Empty,
             Date: RequireDate(input, "date"),
             Notes: GetString(input, "notes"),
             ScheduledTime: GetTime(input, "scheduledTime"),
-            GoalId: GetInt(input, "goalId")), ct));
+            GoalId: goalId,
+            TaskId: taskId), ct));
+    }
 }
 
 public class UpdatePlannerItemStatusTool(IPlannerService planner) : PlannerToolBase

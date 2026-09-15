@@ -14,7 +14,10 @@ public record PlannerItemDto(
     int? GoalId,
     string? GoalTitle,
     DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    string? GoalKey = null,
+    int? TaskId = null,
+    string? TaskKey = null);
 
 /// <summary>One day's plan.</summary>
 public record PlannerDay(DateOnly Date, IReadOnlyList<PlannerItemDto> Items);
@@ -25,7 +28,8 @@ public record CreatePlannerItemRequest(
     string? Notes = null,
     TimeOnly? ScheduledTime = null,
     int? SortOrder = null,
-    int? GoalId = null);
+    int? GoalId = null,
+    int? TaskId = null);
 
 /// <summary>Partial update; null fields are left unchanged.</summary>
 public record UpdatePlannerItemRequest(
@@ -36,7 +40,9 @@ public record UpdatePlannerItemRequest(
     int? SortOrder = null,
     int? GoalId = null,
     bool ClearGoal = false,
-    bool ClearScheduledTime = false);
+    bool ClearScheduledTime = false,
+    int? TaskId = null,
+    bool ClearTask = false);
 
 /// <summary>Invalid input to a planner operation; message is user/model-presentable.</summary>
 public class PlannerValidationException(string message)

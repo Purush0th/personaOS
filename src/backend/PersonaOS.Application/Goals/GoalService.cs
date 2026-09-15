@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PersonaOS.Application.Board;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Domain.Services;
@@ -7,40 +8,40 @@ namespace PersonaOS.Application.Goals;
 
 public class GoalService(IAppDbContext db) : IGoalService
 {
-    public async Task<IReadOnlyList<GoalNode>> GetTreeAsync(bool includeDropped = false, CancellationToken ct = default)
+    public async Task<IReadOnlyList<GoalDto>> GetAllAsync(bool includeDropped = false, CancellationToken ct = default)
     {
-        var all = await db.Goals.AsNoTracking().ToListAsync(ct);
-        var effective = GoalProgressCalculator.ComputeEffectiveProgress(all);
-        var visible = includeDropped ? all : all.Where(g => g.Status != GoalStatuses.Dropped).ToList();
-        return BuildTree(visible, effective, parentId: null);
+        var goals = await Query()
+            .Where(g => includeDropped || g.Status != GoalStatuses.Dropped)
+            .OrderBy(g => g.PeriodStart).ThenBy(g => g.Number)
+            .ToListAsync(ct);
+        return goals.Select(ToDto).ToList();
     }
 
-    public async Task<GoalNode?> GetAsync(int id, CancellationToken ct = default)
+    public async Task<GoalDto?> GetAsync(int id, CancellationToken ct = default)
     {
-        var all = await db.Goals.AsNoTracking().ToListAsync(ct);
-        var root = all.FirstOrDefault(g => g.Id == id);
-        if (root is null) return null;
-        var effective = GoalProgressCalculator.ComputeEffectiveProgress(all);
-        return ToNode(root, all, effective);
+        var goal = await Query().FirstOrDefaultAsync(g => g.Id == id, ct);
+        return goal is null ? null : ToDto(goal);
     }
 
-    public async Task<GoalNode> CreateAsync(CreateGoalRequest request, CancellationToken ct = default)
+    public async Task<int?> ResolveKeyAsync(string? key, CancellationToken ct = default)
+    {
+        var number = ItemKeys.Parse(key, ItemKeys.GoalPrefix);
+        if (number is null) return null;
+        return await db.Goals.Where(g => g.Number == number).Select(g => (int?)g.Id).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<GoalDto> CreateAsync(CreateGoalRequest request, CancellationToken ct = default)
     {
         var title = (request.Title ?? string.Empty).Trim();
         if (title.Length == 0) throw new GoalValidationException("Title must not be empty.");
         ValidatePeriodType(request.PeriodType);
         ValidateProgress(request.Progress);
-        if (request.ParentGoalId is int parentId
-            && !await db.Goals.AnyAsync(g => g.Id == parentId, ct))
-        {
-            throw new GoalValidationException($"Parent goal {parentId} does not exist.");
-        }
 
         var goal = new Goal
         {
+            Number = KeyNumberAllocator.LowestFree(await db.Goals.Select(g => g.Number).ToListAsync(ct)),
             Title = title,
             Description = NormalizeDescription(request.Description),
-            ParentGoalId = request.ParentGoalId,
             PeriodType = request.PeriodType,
             // Snap to the first day of the period: the tool contract promises it, and a model
             // asked for a "monthly" goal has been seen passing the 10th of the month.
@@ -52,7 +53,7 @@ public class GoalService(IAppDbContext db) : IGoalService
         return (await GetAsync(goal.Id, ct))!;
     }
 
-    public async Task<GoalNode?> UpdateAsync(int id, UpdateGoalRequest request, CancellationToken ct = default)
+    public async Task<GoalDto?> UpdateAsync(int id, UpdateGoalRequest request, CancellationToken ct = default)
     {
         var goal = await db.Goals.FirstOrDefaultAsync(g => g.Id == id, ct);
         if (goal is null) return null;
@@ -84,7 +85,7 @@ public class GoalService(IAppDbContext db) : IGoalService
         return await GetAsync(id, ct);
     }
 
-    public async Task<GoalNode?> UpdateStatusAsync(int id, string status, CancellationToken ct = default)
+    public async Task<GoalDto?> UpdateStatusAsync(int id, string status, CancellationToken ct = default)
     {
         if (!GoalStatuses.All.Contains(status))
             throw new GoalValidationException($"Status must be one of: {string.Join(", ", GoalStatuses.All)}.");
@@ -99,52 +100,45 @@ public class GoalService(IAppDbContext db) : IGoalService
         return await GetAsync(id, ct);
     }
 
-    public async Task<GoalNode?> LinkAsync(int id, int? parentGoalId, CancellationToken ct = default)
-    {
-        var all = await db.Goals.ToListAsync(ct);
-        var goal = all.FirstOrDefault(g => g.Id == id);
-        if (goal is null) return null;
-
-        if (parentGoalId is int parentId)
-        {
-            if (parentId == id) throw new GoalValidationException("A goal cannot be its own parent.");
-            var parent = all.FirstOrDefault(g => g.Id == parentId)
-                ?? throw new GoalValidationException($"Parent goal {parentId} does not exist.");
-
-            // Reject cycles: the new parent must not sit anywhere below this goal.
-            for (var cursor = parent; cursor is not null;
-                 cursor = cursor.ParentGoalId is int up ? all.FirstOrDefault(g => g.Id == up) : null)
-            {
-                if (cursor.Id == id)
-                    throw new GoalValidationException("Linking would create a cycle in the goal hierarchy.");
-            }
-        }
-
-        goal.ParentGoalId = parentGoalId;
-        goal.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-        return await GetAsync(id, ct);
-    }
-
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {
-        var all = await db.Goals.ToListAsync(ct);
-        var root = all.FirstOrDefault(g => g.Id == id);
-        if (root is null) return false;
+        var goal = await db.Goals.Include(g => g.Tasks).FirstOrDefaultAsync(g => g.Id == id, ct);
+        if (goal is null) return false;
 
-        // Collect the whole subtree explicitly (the self-referencing FK is Restrict, not cascade).
-        var childrenByParent = all.Where(g => g.ParentGoalId is not null).ToLookup(g => g.ParentGoalId!.Value);
-        var doomed = new List<Goal>();
-        var queue = new Queue<Goal>([root]);
-        while (queue.TryDequeue(out var current))
-        {
-            doomed.Add(current);
-            foreach (var child in childrenByParent[current.Id]) queue.Enqueue(child);
-        }
+        // Unlink explicitly: the in-memory test store does not apply the database's SET NULL.
+        foreach (var task in goal.Tasks) task.GoalId = null;
+        foreach (var item in await db.PlannerItems.Where(p => p.GoalId == id).ToListAsync(ct)) item.GoalId = null;
 
-        foreach (var goal in doomed) db.Goals.Remove(goal);
+        db.Goals.Remove(goal);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    private IQueryable<Goal> Query() =>
+        db.Goals.AsNoTracking().Include(g => g.Tasks).ThenInclude(t => t.Sprint);
+
+    private static GoalDto ToDto(Goal goal)
+    {
+        var tasks = goal.Tasks.OrderBy(t => t.Number).ToList();
+        var done = tasks.Where(t => t.Status == BoardTaskStatuses.Done).ToList();
+        return new GoalDto(
+            goal.Id,
+            ItemKeys.Goal(goal.Number),
+            goal.Title,
+            goal.Description,
+            goal.PeriodType,
+            goal.PeriodStart,
+            goal.Status,
+            goal.Progress,
+            GoalProgressCalculator.Compute(goal.Progress, tasks),
+            tasks.Count,
+            done.Count,
+            tasks.Sum(t => t.Points ?? 0),
+            done.Sum(t => t.Points ?? 0),
+            goal.CreatedAtUtc,
+            goal.UpdatedAtUtc,
+            tasks.Select(t => new GoalTaskSummary(
+                t.Id, ItemKeys.Task(t.Number), t.Title, t.Points, BoardColumns.Of(t), t.Sprint?.Number)).ToList());
     }
 
     private static void ValidatePeriodType(string periodType)
@@ -164,38 +158,4 @@ public class GoalService(IAppDbContext db) : IGoalService
         var trimmed = description?.Trim();
         return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
-
-    private static IReadOnlyList<GoalNode> BuildTree(
-        IReadOnlyCollection<Goal> visible,
-        IReadOnlyDictionary<int, int> effective,
-        int? parentId)
-    {
-        var visibleIds = visible.Select(g => g.Id).ToHashSet();
-        return visible
-            // A goal whose parent is filtered out (or missing) surfaces as a root.
-            .Where(g => parentId is null
-                ? g.ParentGoalId is null || !visibleIds.Contains(g.ParentGoalId.Value)
-                : g.ParentGoalId == parentId)
-            .OrderBy(g => g.PeriodStart).ThenBy(g => g.Id)
-            .Select(g => ToNode(g, visible, effective))
-            .ToList();
-    }
-
-    private static GoalNode ToNode(Goal goal, IReadOnlyCollection<Goal> all, IReadOnlyDictionary<int, int> effective) =>
-        new(
-            goal.Id,
-            goal.Title,
-            goal.Description,
-            goal.ParentGoalId,
-            goal.PeriodType,
-            goal.PeriodStart,
-            goal.Status,
-            goal.Progress,
-            effective.GetValueOrDefault(goal.Id, goal.Progress),
-            goal.CreatedAtUtc,
-            goal.UpdatedAtUtc,
-            all.Where(g => g.ParentGoalId == goal.Id)
-                .OrderBy(g => g.PeriodStart).ThenBy(g => g.Id)
-                .Select(g => ToNode(g, all, effective))
-                .ToList());
 }
