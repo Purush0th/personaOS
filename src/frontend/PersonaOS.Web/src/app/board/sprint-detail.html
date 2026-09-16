@@ -1,0 +1,106 @@
+@if (error(); as message) {
+  <p class="error" role="alert">{{ message }}</p>
+}
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else if (detail(); as detail) {
+  <nav class="crumbs muted small">
+    <a routerLink="/board">Board</a> · <a routerLink="/backlog">Backlog</a>
+  </nav>
+
+  <header class="item-head">
+    <span class="key">{{ detail.sprint.key }}</span>
+    <h1>{{ detail.sprint.name || 'Sprint ' + detail.sprint.number }}</h1>
+    <span class="state" [class.active]="detail.sprint.status === 'active'">
+      {{ detail.sprint.status === 'active' ? 'running' : detail.sprint.status }}
+    </span>
+    <span class="spacer"></span>
+    @if (detail.sprint.status === 'planned') {
+      <button (click)="start_()">Start sprint</button>
+    }
+    @if (detail.sprint.status === 'active') {
+      <button (click)="complete()">Complete sprint</button>
+    }
+    @if (detail.sprint.status !== 'closed') {
+      <button class="subtle" (click)="startEdit()">Edit</button>
+    }
+  </header>
+
+  <p class="muted small">{{ when(detail.sprint.startsAtUtc) }} – {{ when(detail.sprint.endsAtUtc) }}</p>
+
+  @if (editing()) {
+    <form class="sprint-form" (ngSubmit)="save()">
+      <div class="fields">
+        <label>Name <input name="name" [(ngModel)]="name" placeholder="Optional" /></label>
+        <label>Starts <input name="start" type="datetime-local" [(ngModel)]="start" /></label>
+        <label>Ends <input name="end" type="datetime-local" [(ngModel)]="end" /></label>
+      </div>
+      <div class="row">
+        <button type="submit">Save</button>
+        <button type="button" class="subtle" (click)="editing.set(false)">Cancel</button>
+      </div>
+    </form>
+  }
+
+  <section class="stats">
+    <div class="stat"><b>{{ detail.sprint.committedPoints ?? detail.sprint.totalPoints }}</b><span>committed</span></div>
+    <div class="stat"><b>{{ detail.sprint.completedPoints }}</b><span>completed</span></div>
+    <div class="stat"><b>{{ detail.sprint.addedPoints }}</b><span>added</span></div>
+    <div class="stat"><b>{{ detail.sprint.removedPoints }}</b><span>removed</span></div>
+    @if (detail.sprint.carriedOverPoints !== null) {
+      <div class="stat"><b>{{ detail.sprint.carriedOverPoints }}</b><span>carried over</span></div>
+    }
+    <div class="stat"><b>{{ detail.sprint.doneTaskCount }}/{{ detail.sprint.taskCount }}</b><span>tasks done</span></div>
+    @if (detail.velocity !== null) {
+      <div class="stat"><b>{{ detail.velocity }}</b><span>velocity</span></div>
+    }
+  </section>
+
+  @if (plots().length > 1) {
+    <section class="chart">
+      <h2>Points remaining</h2>
+      <svg [attr.viewBox]="'0 0 ' + chartSize().width + ' ' + chartSize().height" role="img"
+           aria-label="Points remaining, day by day">
+        <line class="axis" [attr.x1]="chartSize().pad" [attr.y1]="chartSize().height - chartSize().pad"
+              [attr.x2]="chartSize().width - chartSize().pad" [attr.y2]="chartSize().height - chartSize().pad" />
+        <line class="axis" [attr.x1]="chartSize().pad" [attr.y1]="chartSize().pad"
+              [attr.x2]="chartSize().pad" [attr.y2]="chartSize().height - chartSize().pad" />
+        <path class="burn" [attr.d]="line()" />
+        @for (p of plots(); track p.x) {
+          <circle class="dot" [attr.cx]="p.x" [attr.cy]="p.y" r="3">
+            <title>{{ p.label }}: {{ p.remaining }} points left</title>
+          </circle>
+        }
+        <text class="tick" [attr.x]="chartSize().pad" [attr.y]="chartSize().height - 8">{{ plots()[0].label }}</text>
+        <text class="tick end" [attr.x]="chartSize().width - chartSize().pad"
+              [attr.y]="chartSize().height - 8">{{ plots()[plots().length - 1].label }}</text>
+      </svg>
+    </section>
+  }
+
+  <section class="lists">
+    @for (column of columnOrder; track column) {
+      <div class="list">
+        <h2>
+          {{ columnLabels[column] }}
+          <span class="muted small">{{ tasksIn(column).length }} · {{ points(tasksIn(column)) }} pts</span>
+        </h2>
+        <ul>
+          @for (task of tasksIn(column); track task.key) {
+            <li>
+              <a class="key" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
+              <a class="title" [routerLink]="['/board/tasks', task.key]">{{ task.title }}</a>
+              @if (task.goalKey) {
+                <span class="goal-chip" [style.--hue]="hue(task.goalKey)">{{ task.goalTitle }}</span>
+              }
+              <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
+            </li>
+          } @empty {
+            <li class="muted small">Nothing here.</li>
+          }
+        </ul>
+      </div>
+    }
+  </section>
+}

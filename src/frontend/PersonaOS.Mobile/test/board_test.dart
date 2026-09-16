@@ -11,57 +11,70 @@ Map<String, dynamic> _task(int n, String column, {int? points, String? goalKey, 
       'title': 'Task $n',
       'points': points,
       'column': column,
+      // Everything but the backlog sits in the running sprint.
+      'sprintKey': column == 'backlog' ? null : 'SPRINT-2',
       'goalKey': goalKey,
       'goalTitle': goalTitle,
       'carryOverCount': 0,
       'addedMidSprint': false,
     };
 
-Map<String, dynamic> _boardJson({bool active = true, bool scopeLocked = true}) => {
-      'view': 'current',
-      'sprint': {
-        'id': 2,
-        'number': 2,
-        'status': active ? 'active' : 'planned',
-        'startsAtUtc': '2026-09-13T14:30:00',
-        'endsAtUtc': '2026-09-20T12:30:00',
-        'committedPoints': active ? 8 : null,
-        'addedPoints': 0,
-        'removedPoints': 0,
-        'completedPoints': 3,
-        'totalPoints': 8,
-        'unestimatedCount': 1,
-        'scopeLocked': scopeLocked,
-      },
-      'inPlanningWindow': false,
-      'canStartSprint': !active,
+Map<String, dynamic> _sprintJson({bool active = true}) => {
+      'id': 2,
+      'key': 'SPRINT-2',
+      'number': 2,
+      'name': 'Week two',
+      'status': active ? 'active' : 'planned',
+      'startsAtUtc': '2026-09-13T14:30:00',
+      'endsAtUtc': '2026-09-20T12:30:00',
+      'committedPoints': active ? 8 : null,
+      'addedPoints': 0,
+      'removedPoints': 0,
+      'completedPoints': 3,
+      'totalPoints': 8,
+      'unestimatedCount': 1,
+      'scopeLocked': active,
+    };
+
+Map<String, dynamic> _boardJson({bool running = true}) => {
+      'sprint': running ? _sprintJson() : null,
       'velocity': 7.5,
       'wipLimit': 3,
-      'backlog': [_task(1, 'backlog')],
-      'todo': [_task(2, 'todo', points: 5, goalKey: 'GOAL-1', goalTitle: 'Learn Rust')],
-      'inProgress': [_task(3, 'in_progress', points: 3)],
+      'todo': running ? [_task(2, 'todo', points: 5, goalKey: 'GOAL-1', goalTitle: 'Learn Rust')] : [],
+      'inProgress': running ? [_task(3, 'in_progress', points: 3)] : [],
       'done': <Map<String, dynamic>>[],
+    };
+
+Map<String, dynamic> _planJson() => {
+      'sprints': [
+        {'sprint': _sprintJson(), 'tasks': <Map<String, dynamic>>[]},
+      ],
+      'backlog': [_task(1, 'backlog')],
     };
 
 /// A board API that records moves and can insist a move is a scope change.
 class FakeBoardApi extends PersonaOsApi {
-  FakeBoardApi({this.scopeChange = false}) : super(serverUrl: 'http://fake');
+  FakeBoardApi({this.scopeChange = false, this.running = true}) : super(serverUrl: 'http://fake');
 
   final bool scopeChange;
-  final moves = <(int, String, bool)>[];
+  final bool running;
+  final moves = <(String, String, bool)>[];
 
   @override
-  Future<BoardView> getBoard({String sprint = 'current'}) async => BoardView.fromJson(_boardJson());
+  Future<BoardView> getBoard() async => BoardView.fromJson(_boardJson(running: running));
+
+  @override
+  Future<PlanView> getPlan() async => PlanView.fromJson(_planJson());
 
   @override
   Future<List<Goal>> getGoals({bool includeDropped = false}) async => [];
 
   @override
-  Future<void> moveTask(int id,
-      {required String column, String? sprint, int? index, bool acknowledgeScopeChange = false}) async {
-    moves.add((id, column, acknowledgeScopeChange));
+  Future<void> moveTask(String key,
+      {required String column, String? sprintKey, int? index, bool acknowledgeScopeChange = false}) async {
+    moves.add((key, column, acknowledgeScopeChange));
     if (scopeChange && !acknowledgeScopeChange) {
-      throw ApiException('Sprint 2 has already started, so adding it is a scope change.', code: scopeChangeCode);
+      throw ApiException('SPRINT-2 is running, so adding it is a scope change.', code: scopeChangeCode);
     }
   }
 }
@@ -88,22 +101,29 @@ Future<void> _dragCardToColumn(WidgetTester tester, String cardKey, String colum
 
 void main() {
   group('board models', () {
-    test('parse the board with columns, keys, points and goals', () {
+    test('parse the running sprint with its columns, keys, points and goals', () {
       final board = BoardView.fromJson(_boardJson());
 
-      expect(board.sprint.number, 2);
-      expect(board.sprint.isActive, isTrue);
-      expect(board.sprint.endsAtUtc, DateTime.utc(2026, 9, 20, 12, 30));
+      expect(board.sprint!.key, 'SPRINT-2');
+      expect(board.sprint!.name, 'Week two');
+      expect(board.sprint!.isActive, isTrue);
+      expect(board.sprint!.endsAtUtc, DateTime.utc(2026, 9, 20, 12, 30));
       expect(board.velocity, 7.5);
       expect(board.columns[BoardColumns.todo]!.single.key, 'TASK-2');
       expect(board.columns[BoardColumns.todo]!.single.goalTitle, 'Learn Rust');
-      expect(board.columns[BoardColumns.backlog]!.single.points, isNull);
+      // The backlog is not a board column any more; it lives on the plan.
+      expect(board.visibleColumns, [BoardColumns.todo, BoardColumns.inProgress, BoardColumns.done]);
     });
 
-    test('a sprint being planned shows only Backlog and This week', () {
-      final json = _boardJson(active: false)..['inProgress'] = <Map<String, dynamic>>[];
+    test('with no sprint running the board has no sprint at all', () {
+      expect(BoardView.fromJson(_boardJson(running: false)).sprint, isNull);
+    });
 
-      expect(BoardView.fromJson(json).visibleColumns, [BoardColumns.backlog, BoardColumns.todo]);
+    test('the plan carries the sprints and the backlog', () {
+      final plan = PlanView.fromJson(_planJson());
+
+      expect(plan.sprints.single.sprint.key, 'SPRINT-2');
+      expect(plan.backlog.single.key, 'TASK-1');
     });
 
     test('goals carry their key and tasks', () {
@@ -131,56 +151,65 @@ void main() {
   });
 
   group('board screen', () {
-    testWidgets('shows the sprint and the cards of the first column', (tester) async {
+    testWidgets('shows the running sprint and the cards of the first column', (tester) async {
       await _pumpBoard(tester, FakeBoardApi());
 
-      expect(find.text('Sprint 2'), findsOneWidget);
+      expect(find.text('SPRINT-2 · Week two'), findsOneWidget);
       expect(find.text('8 committed'), findsOneWidget);
-      expect(find.byKey(const Key('card-TASK-1')), findsOneWidget); // Backlog page
+      expect(find.byKey(const Key('card-TASK-2')), findsOneWidget); // This week, the first page
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('with nothing running it says where to plan one', (tester) async {
+      await _pumpBoard(tester, FakeBoardApi(running: false));
+
+      expect(find.text('No sprint is running.'), findsOneWidget);
+      expect(find.textContaining('Backlog page'), findsOneWidget);
     });
 
     testWidgets('dragging a card onto a column moves it there', (tester) async {
       final api = FakeBoardApi();
       await _pumpBoard(tester, api);
 
-      await _dragCardToColumn(tester, 'TASK-1', BoardColumns.inProgress);
+      await _dragCardToColumn(tester, 'TASK-2', BoardColumns.done);
 
-      expect(api.moves, [(1, BoardColumns.inProgress, false)]);
+      expect(api.moves, [('TASK-2', BoardColumns.done, false)]);
     });
 
     testWidgets('a scope change asks first and retries with the acknowledgement', (tester) async {
       final api = FakeBoardApi(scopeChange: true);
       await _pumpBoard(tester, api);
 
-      await _dragCardToColumn(tester, 'TASK-1', BoardColumns.todo);
+      await _dragCardToColumn(tester, 'TASK-2', BoardColumns.done);
       expect(find.text('Scope change'), findsOneWidget);
       await tester.tap(find.text('Change scope'));
       await tester.pumpAndSettle();
 
-      expect(api.moves, [(1, BoardColumns.todo, false), (1, BoardColumns.todo, true)]);
+      expect(api.moves, [('TASK-2', BoardColumns.done, false), ('TASK-2', BoardColumns.done, true)]);
     });
 
     testWidgets('declining a scope change does not retry', (tester) async {
       final api = FakeBoardApi(scopeChange: true);
       await _pumpBoard(tester, api);
 
-      await _dragCardToColumn(tester, 'TASK-1', BoardColumns.todo);
+      await _dragCardToColumn(tester, 'TASK-2', BoardColumns.done);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
       expect(api.moves, hasLength(1));
     });
 
-    testWidgets('the task sheet lays out its point chips and actions', (tester) async {
+    testWidgets('the task sheet lays out its points, sprint picker and actions', (tester) async {
       await _pumpBoard(tester, FakeBoardApi());
 
-      await tester.tap(find.byKey(const Key('card-TASK-1')));
+      await tester.tap(find.byKey(const Key('card-TASK-2')));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('TASK-1'), findsWidgets);
+      expect(find.text('TASK-2'), findsWidgets);
       expect(find.widgetWithText(ChoiceChip, '13'), findsOneWidget);
+      // The sprint can be changed from the task itself; the picker shows where it sits now.
+      expect(find.widgetWithText(DropdownButtonFormField<String?>, 'SPRINT-2 · Week two'), findsOneWidget);
       expect(find.widgetWithText(OutlinedButton, 'In progress'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
     });

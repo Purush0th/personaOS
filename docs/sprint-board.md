@@ -3,9 +3,13 @@
 Status: agreed with the owner on 2026-09-15, being built. Progress lives in `TODO.md`.
 
 PersonaOS brings a light version of Scrum to one person's life: work is broken down under
-goals, estimated in story points, pulled into a one-week sprint on Sunday evening, and moved
+goals, estimated in value points, pulled into a one-week sprint on Sunday evening, and moved
 across a board during the week. At the end of each sprint the user sees what they committed to
-and what they finished. No burndown charts, no team features.
+and what they finished. No team features.
+
+Revised 2026-09-16: sprints are now created, started and completed by hand (Jira's flow, not a
+timer), the backlog has its own page, tasks / goals / sprints each have a page of their own with
+comments and attachments, and "story points" are called **value points**.
 
 ## 1. Concepts
 
@@ -38,7 +42,10 @@ and what they finished. No burndown charts, no team features.
   `GOAL-n` / `TASK-n`. This also fixes phone testing issue #3, where the model passed a list
   position ("Goal 3 does not exist").
 
-## 3. Story points
+- Sprints have keys too, `SPRINT-2`, plus an optional name ("Paperwork week") and start and end
+  dates the user sets. Sprint numbers are reused the same way when a *planned* sprint is deleted.
+
+## 3. Value points
 
 - Fibonacci only: **1, 2, 3, 5, 8, 13, 21**, or unestimated (`?`).
 - Points express size: effort, complexity and uncertainty together — not hours.
@@ -47,55 +54,66 @@ and what they finished. No burndown charts, no team features.
 - A task can be committed to a sprint while still unestimated, but the sprint header shows how
   many unestimated tasks it holds, because they make "committed points" understate the plan.
 
-## 4. The board
+## 4. Two pages: Board and Backlog
 
-Columns: **Backlog | This week | In progress | Done**.
+**Board** is the sprint that is running, and nothing else: **This week | In progress | Done**.
 
-- **Backlog** — tasks not in any sprint.
-- **This week** — tasks in the viewed sprint that have not started.
-- **In progress** — started. More than 3 tasks here shows a soft warning (a WIP limit is the
-  single most useful Kanban habit for one person; it is a hint, never a block).
-- **Done** — finished in the viewed sprint.
-- Cards show the key, title, points, and the goal as a coloured chip (`GOAL-2 Learn Rust`).
-- **Drag and drop** between columns and to reorder within a column, on web and phone. Every
-  drag has a non-drag alternative (a "Move to" menu) for keyboard and screen-reader use, and
-  because long-press drag on a phone is easy to miss.
-- A sprint switcher shows **Current** and **Next**:
-  - **Current** — the active sprint.
-  - **Next** — pre-planning. Tasks can be added to next week's sprint at any time without a
-    warning. Only the Backlog and This week columns are meaningful there.
-- Tasks are created from the board (any column), from a goal, or by the assistant.
+- **In progress** — more than 3 tasks here shows a soft warning (a WIP limit is the single most
+  useful Kanban habit for one person; it is a hint, never a block).
+- Cards show the key, title, points, the goal as a coloured chip (`GOAL-2 Learn Rust`), and small
+  badges for carried-over, added mid-sprint, comments and attachments.
+- With nothing running, the board says so and points at the Backlog page.
 
-## 5. Sprint cycle (fully automatic, owner's local time zone)
+**Backlog** is the plan, and reads like a Jira backlog: the running sprint at the top, every
+sprint planned after it, then the backlog itself at the bottom.
 
-A sprint runs **Sunday 20:00 → next Sunday 18:00**.
+- Each sprint section shows its key, name, dates, issue count and points, and carries its own
+  **Start sprint** / **Complete sprint** / Edit / Delete buttons.
+- Rows show status, priority and points inline, so planning is one page of edits.
+- **Drag and drop** moves work between sprints and the backlog, and reorders within a group.
+  Every drag has a "Move…" menu alternative, for keyboard use and because long-press drag on a
+  phone is easy to miss.
+- Tasks are created in any group, from a goal, or by the assistant.
 
-| When | What happens |
+## 5. Sprint cycle (manual, the way Jira works)
+
+Sprints are created, started and completed by the user. Nothing starts or closes on a timer: a
+week that went sideways should not be closed out by a clock.
+
+| Action | What happens |
 |---|---|
-| **Sunday 18:00** | The active sprint **closes**. Its completed points (sum of Done) are stored. Every unfinished task (This week or In progress) **moves into the next sprint**, keeps its column, and is marked *carried over* (a counter, so a task carried three times is visible). |
-| **Sunday 18:00 – 20:00** | Planning window. The next sprint is being planned; adding to it gives no warning. |
-| **Sunday 19:00** | A push nudge: "Sprint *n* review: *x* of *y* points done. Time to plan sprint *n+1*." Opening it goes to the board. The assistant can run the review and planning in chat. |
-| **Any time in the window** | The user can press **Start sprint** once planning is done. |
-| **Sunday 20:00** | If not started yet, the next sprint **starts automatically** with whatever it holds. |
-| **On start** | Committed points (sum of the sprint's task points) are frozen on the sprint. A new empty *next* sprint is created so pre-planning is always possible. |
+| **Create sprint** | Gets the next key (`SPRINT-n`), an optional name, and dates. The dates default to the next free Sunday 20:00 → Sunday 18:00 week; the first sprint starts now and runs to the coming Sunday. |
+| **Start sprint** | Freezes committed points (the sum of what it holds). Only one sprint runs at a time. |
+| **Complete sprint** | Freezes completed, added and carried-over points. Unfinished work moves to the next planned sprint — or the backlog when there is none — and its carried-over counter goes up. |
+| **Delete sprint** | Only before it starts; its tasks go back to the backlog. |
+| **Sunday 19:00** | A push nudge: how the running sprint stands, or that nothing is running. It never changes anything by itself. A nudge more than 3 hours late is skipped. |
 
-- The first sprint starts immediately when the board is first used and ends at the coming
-  Sunday 18:00 (a short first week).
-- If the server was off across a boundary, the scheduler catches up on the next tick: close,
-  carry over, start. A nudge more than 3 hours late is skipped rather than sent late.
-- Carried-over tasks count toward the new sprint's committed points. The old sprint does not
-  get credit for them. This matches common Scrum practice: velocity counts only work that is
-  Done. (Scrum also suggests re-estimating remaining work; the assistant offers this during
-  planning rather than forcing it.)
+- Carried-over tasks count toward the new sprint's committed points once it starts. The old
+  sprint does not get credit for them: velocity counts only work that is Done. (Scrum also
+  suggests re-estimating remaining work; the assistant offers this during planning.)
+
+## 5a. Item pages
+
+Every goal, task and sprint has its own page, addressable by key:
+
+- `/board/tasks/TASK-7` — title, description, status, sprint, points, priority, goal, comments
+  and attachments.
+- `/board/goals/GOAL-3` — the same, plus its tasks and derived progress.
+- `/board/sprints/SPRINT-2` — dates and name, the frozen or live totals, a points-remaining
+  chart drawn from when each task was finished, and the work split by column.
+
+**Comments** are plain text, kept in order, and marked as written by the user or the assistant
+(the assistant writes them with `add_comment`). **Attachments** — PDFs, images, documents — are
+stored beside documents under a server-generated name, at most 25 MB each.
 
 ## 6. Scope changes during a sprint
 
-- Adding a task to the **active** sprint (creating it there, or dragging it in from Backlog)
-  asks for confirmation: "Sprint *n* has started. Adding this is a scope change." If confirmed,
+- Adding a task to a **running** sprint (creating it there, or dragging it in from the backlog)
+  asks for confirmation: "SPRINT-2 is running, so adding this is a scope change." If confirmed,
   the task is marked *added mid-sprint* and its points are reported as **added**, separate from
   committed.
-- Moving an unfinished task **out** of the active sprint back to Backlog asks the same way and
-  is reported as **removed**.
+- Moving an unfinished task **out** of a running sprint — to the backlog or to another sprint —
+  asks the same way and is reported as **removed**.
 - Re-estimating a task during the sprint is allowed and does not change the frozen committed
   number.
 - The API enforces this, not only the UI: a scope change without acknowledgement is refused,
@@ -108,7 +126,8 @@ A simple list, newest first, one row per sprint:
 `Sprint 12 · 13–20 Sep · committed 21 · added 3 · removed 2 · completed 18 · carried over 5`
 
 Plus the average completed points of the last three closed sprints ("velocity"), which the
-assistant uses as the default capacity when planning. No charts in this version.
+assistant uses as the default capacity when planning. A sprint's own page adds a
+points-remaining chart; there is nothing more elaborate than that.
 
 ## 8. Daily planner integration
 
@@ -126,15 +145,17 @@ assistant uses as the default capacity when planning. No charts in this version.
 
 Tools (all changes go through the existing confirmation card):
 
-- `get_board` — current or next sprint with columns, keys, points, goals, carried-over and
+- `get_board` — the running sprint with its three columns, keys, points, goals, carried-over and
   added flags; plus velocity.
+- `get_plan` — the running sprint, the sprints planned after it, and the backlog.
 - `get_sprint_report` — recent sprints' committed / added / removed / completed.
-- `create_task` — title, optional goal key, optional points, destination backlog / current /
-  next sprint.
-- `update_task` — title, description, points, goal.
-- `move_task` — to a column and/or sprint. A scope change is described on the proposal card,
-  and confirming the card is the acknowledgement.
-- `delete_task`.
+- `create_sprint`, `start_sprint`, `complete_sprint` — the same manual cycle the user drives.
+- `create_task` — title, optional goal key, points, priority, and an optional sprint key.
+- `update_task` — title, description, points, priority, goal.
+- `move_task` — to a column and/or another sprint by key. A scope change is described on the
+  proposal card, and confirming the card is the acknowledgement.
+- `delete_task`, `delete_goal`.
+- `add_comment` — a note on a task or goal, recorded as written by the assistant.
 - Goal tools switch to `GOAL-n` keys and lose the parent / link parameters.
 
 Planning conversation guidance in the system prompt:

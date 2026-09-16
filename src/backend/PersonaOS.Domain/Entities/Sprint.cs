@@ -10,8 +10,11 @@ public class Sprint
 {
     public int Id { get; set; }
 
-    /// <summary>Sequential display number ("Sprint 12"). Never reused.</summary>
+    /// <summary>Sequential number behind the key SPRINT-n. Never reused.</summary>
     public int Number { get; set; }
+
+    /// <summary>Optional name the user gave this sprint, e.g. "Paperwork week".</summary>
+    public string? Name { get; set; }
 
     /// <summary>One of <see cref="SprintStatuses"/>.</summary>
     public string Status { get; set; } = SprintStatuses.Planned;

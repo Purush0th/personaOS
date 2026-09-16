@@ -64,6 +64,27 @@ class _GoalsScreenState extends State<GoalsScreen> {
     if (created == true) _reload();
   }
 
+  /// Reopens a task (back to the Backlog) or deletes it, from the goal it sits under.
+  Future<void> _taskAction(GoalTaskSummary task, String action) async {
+    if (action == 'reopen') {
+      await _run(() => widget.api.moveTask(task.key, column: BoardColumns.backlog, acknowledgeScopeChange: true));
+      return;
+    }
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete ${task.key}?'),
+        content: Text('“${task.title}” will be deleted, and its number reused for the next task.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (ok == true) await _run(() => widget.api.deleteTask(task.key));
+  }
+
   Future<void> _editProgress(Goal goal) async {
     final controller = TextEditingController(text: goal.progress.toString());
     final value = await showDialog<int>(
@@ -133,6 +154,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 goal: goals[i],
                 boardEnabled: widget.boardEnabled,
                 onAddTask: () => _addTask(goals[i]),
+                onTaskAction: (task, action) => _taskAction(task, action),
                 onProgress: () => _editProgress(goals[i]),
                 onStatus: (status) => _run(() => widget.api.setGoalStatus(goals[i].id, status)),
                 onDelete: () => _run(() => widget.api.deleteGoal(goals[i].id)),
@@ -150,6 +172,7 @@ class _GoalTile extends StatelessWidget {
     required this.goal,
     required this.boardEnabled,
     required this.onAddTask,
+    required this.onTaskAction,
     required this.onProgress,
     required this.onStatus,
     required this.onDelete,
@@ -158,6 +181,9 @@ class _GoalTile extends StatelessWidget {
   final Goal goal;
   final bool boardEnabled;
   final VoidCallback onAddTask;
+
+  /// Reopen or delete one of the goal's tasks.
+  final void Function(GoalTaskSummary task, String action) onTaskAction;
   final VoidCallback onProgress;
   final ValueChanged<String> onStatus;
   final VoidCallback onDelete;
@@ -209,7 +235,7 @@ class _GoalTile extends StatelessWidget {
               ),
               for (final task in goal.tasks)
                 Padding(
-                  padding: const EdgeInsets.only(top: 6, right: 8),
+                  padding: const EdgeInsets.only(top: 6),
                   child: Row(
                     children: [
                       Text(task.key, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
@@ -225,6 +251,19 @@ class _GoalTile extends StatelessWidget {
                       Text(BoardColumns.label(task.column), style: theme.textTheme.labelSmall),
                       const SizedBox(width: 6),
                       PointsPill(points: task.points),
+                      // Work finished outside a sprint never reaches the board, so reopening and
+                      // deleting a task has to be possible from here too.
+                      PopupMenuButton<String>(
+                        key: Key('task-menu-${task.key}'),
+                        icon: const Icon(Icons.more_vert, size: 18),
+                        padding: EdgeInsets.zero,
+                        onSelected: (choice) => onTaskAction(task, choice),
+                        itemBuilder: (context) => [
+                          if (task.column == BoardColumns.done)
+                            const PopupMenuItem(value: 'reopen', child: Text('Reopen')),
+                          const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                        ],
+                      ),
                     ],
                   ),
                 ),

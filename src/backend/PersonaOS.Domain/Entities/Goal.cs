@@ -29,6 +29,9 @@ public class Goal
     /// <summary>0–100. Manually tracked; used only while the goal has no tasks.</summary>
     public int Progress { get; set; }
 
+    /// <summary>One of <see cref="WorkItemPriorities"/>.</summary>
+    public string Priority { get; set; } = WorkItemPriorities.Medium;
+
     public ICollection<BoardTask> Tasks { get; set; } = new List<BoardTask>();
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

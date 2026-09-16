@@ -35,7 +35,7 @@ export class Planner implements OnInit {
   private async loadSprintTasks(): Promise<void> {
     if (!this.branding.isEnabled('board')) return;
     try {
-      const board = await this.boardApi.get('current');
+      const board = await this.boardApi.board();
       this.sprintTasks.set([...board.inProgress, ...board.todo]);
     } catch {
       this.sprintTasks.set([]);

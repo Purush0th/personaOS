@@ -19,6 +19,8 @@ public class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<BoardTask> BoardTasks => Set<BoardTask>();
     public DbSet<Sprint> Sprints => Set<Sprint>();
+    public DbSet<WorkItemComment> WorkItemComments => Set<WorkItemComment>();
+    public DbSet<WorkItemAttachment> WorkItemAttachments => Set<WorkItemAttachment>();
     public DbSet<PlannerItem> PlannerItems => Set<PlannerItem>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();

@@ -453,32 +453,35 @@ class PersonaOsApi {
 
   // --- Sprint board --------------------------------------------------------
 
-  Future<BoardView> getBoard({String sprint = 'current'}) async =>
-      BoardView.fromJson(await _get('/api/board?sprint=$sprint') as Map<String, dynamic>);
+  /// The running sprint's board. Its sprint is null when nothing is running.
+  Future<BoardView> getBoard() async =>
+      BoardView.fromJson(await _get('/api/board') as Map<String, dynamic>);
+
+  /// The plan: sprints to come and the backlog, for picking where a task goes.
+  Future<PlanView> getPlan() async =>
+      PlanView.fromJson(await _get('/api/board/plan') as Map<String, dynamic>);
 
   Future<SprintReport> getSprintReport() async =>
       SprintReport.fromJson(await _get('/api/board/sprints') as Map<String, dynamic>);
 
-  Future<void> startSprint() => _post('/api/board/sprints/start', const <String, Object?>{});
-
-  /// [destination] is backlog, current or next.
+  /// [sprintKey] like "SPRINT-2"; omit it to put the task in the backlog.
   Future<void> createTask({
     required String title,
     int? points,
     int? goalId,
-    String destination = 'backlog',
+    String? sprintKey,
     bool acknowledgeScopeChange = false,
   }) =>
       _post('/api/board/tasks', {
         'title': title,
         'points': ?points,
         'goalId': ?goalId,
-        'destination': destination,
+        'sprintKey': ?sprintKey,
         'acknowledgeScopeChange': acknowledgeScopeChange,
       });
 
-  Future<void> updateTask(int id, {String? title, int? points, int? goalId}) =>
-      _put('/api/board/tasks/$id', {
+  Future<void> updateTask(String key, {String? title, int? points, int? goalId}) =>
+      _put('/api/board/tasks/$key', {
         'title': ?title,
         'points': ?points,
         'clearPoints': points == null,
@@ -486,22 +489,22 @@ class PersonaOsApi {
         'clearGoal': goalId == null,
       });
 
-  /// Moves a task to [column]; [sprint] is current or next, ignored for the backlog.
+  /// Moves a task to [column]; [sprintKey] names the sprint, and is ignored for the backlog.
   Future<void> moveTask(
-    int id, {
+    String key, {
     required String column,
-    String? sprint,
+    String? sprintKey,
     int? index,
     bool acknowledgeScopeChange = false,
   }) =>
-      _put('/api/board/tasks/$id/move', {
+      _put('/api/board/tasks/$key/move', {
         'column': column,
-        'sprint': ?sprint,
+        'sprintKey': ?sprintKey,
         'index': ?index,
         'acknowledgeScopeChange': acknowledgeScopeChange,
       });
 
-  Future<void> deleteTask(int id) => _delete('/api/board/tasks/$id');
+  Future<void> deleteTask(String key) => _delete('/api/board/tasks/$key');
 
   // --- Reminders -----------------------------------------------------------
 
