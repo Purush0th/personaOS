@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 
 import { BoardColumn, BoardService, apiError } from '../core/board.service';
 import { BrandingService } from '../core/branding.service';
-import { Goal, GoalsService } from '../core/goals.service';
+import { Goal, GoalTaskSummary, GoalsService } from '../core/goals.service';
 import { todayLocal } from '../core/local-date';
 
 const COLUMN_LABELS: Record<BoardColumn, string> = {
@@ -91,7 +91,7 @@ export class Goals implements OnInit {
     const title = this.taskTitle.trim();
     if (!title) return;
     try {
-      await this.boardApi.create({ title, points: this.taskPoints, goalId: goal.id, destination: 'backlog' });
+      await this.boardApi.create({ title, points: this.taskPoints, goalId: goal.id });
       this.addingTaskTo.set(null);
       await this.reload();
     } catch (e: unknown) {
@@ -133,5 +133,29 @@ export class Goals implements OnInit {
 
   protected columnLabel(column: BoardColumn): string {
     return COLUMN_LABELS[column];
+  }
+
+  /**
+   * Tasks are also managed here, not only on the board: work finished outside a sprint — a
+   * completed sub-goal converted to a task — never appears on the board, so this was the only
+   * place it could be seen and the only place it can be reopened or deleted.
+   */
+  protected async reopenTask(task: GoalTaskSummary): Promise<void> {
+    try {
+      await this.boardApi.move(task.key, 'backlog', null, null, true);
+      await this.reload();
+    } catch (e: unknown) {
+      this.error.set(apiError(e).message ?? 'Could not reopen that task.');
+    }
+  }
+
+  protected async removeTask(task: GoalTaskSummary): Promise<void> {
+    if (!confirm(`Delete ${task.key} “${task.title}”? Its number will be reused.`)) return;
+    try {
+      await this.boardApi.delete(task.key);
+      await this.reload();
+    } catch (e: unknown) {
+      this.error.set(apiError(e).message ?? 'Could not delete that task.');
+    }
   }
 }

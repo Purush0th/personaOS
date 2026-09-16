@@ -1,0 +1,119 @@
+@if (error(); as message) {
+  <p class="error" role="alert">{{ message }}</p>
+}
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else if (goal(); as goal) {
+  <nav class="crumbs muted small"><a routerLink="/goals">Goals</a> · <a routerLink="/backlog">Backlog</a></nav>
+
+  <header class="item-head">
+    <span class="key" [style.--hue]="hue()">{{ goal.key }}</span>
+    @if (editingTitle()) {
+      <form class="title-form" (ngSubmit)="saveTitle()">
+        <input name="title" [(ngModel)]="titleDraft" autofocus />
+        <button type="submit">Save</button>
+        <button type="button" class="subtle" (click)="editingTitle.set(false)">Cancel</button>
+      </form>
+    } @else {
+      <h1 (click)="startTitle()" title="Click to edit">{{ goal.title }}</h1>
+      <button class="subtle" (click)="remove()">Delete</button>
+    }
+  </header>
+
+  <div class="layout">
+    <div class="main">
+      <div class="bar" [title]="goal.effectiveProgress + '%'">
+        <div class="fill" [style.width.%]="goal.effectiveProgress"></div>
+      </div>
+      <p class="muted small">
+        {{ goal.effectiveProgress }}%
+        @if (goal.taskCount > 0) {
+          · {{ goal.donePoints }} of {{ goal.totalPoints }} points · {{ goal.doneTaskCount }} of {{ goal.taskCount }} tasks
+        }
+      </p>
+
+      <h2>Description</h2>
+      @if (editingDescription()) {
+        <form (ngSubmit)="saveDescription()">
+          <textarea name="description" rows="6" [(ngModel)]="descriptionDraft" autofocus></textarea>
+          <div class="row">
+            <button type="submit">Save</button>
+            <button type="button" class="subtle" (click)="editingDescription.set(false)">Cancel</button>
+          </div>
+        </form>
+      } @else if (goal.description) {
+        <p class="description" (click)="startDescription()" title="Click to edit">{{ goal.description }}</p>
+      } @else {
+        <button class="subtle" (click)="startDescription()">Add a description</button>
+      }
+
+      <h2>Tasks <span class="muted small">{{ goal.taskCount }}</span></h2>
+      <ul class="tasks">
+        @for (task of goal.tasks; track task.id) {
+          <li [class.done]="task.column === 'done'">
+            <a class="key" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
+            <a class="title" [routerLink]="['/board/tasks', task.key]">{{ task.title }}</a>
+            <span class="muted small">
+              {{ columnLabels[task.column] }}@if (task.sprintNumber) { · SPRINT-{{ task.sprintNumber }}}
+            </span>
+            <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
+          </li>
+        } @empty {
+          <li class="muted small">No tasks yet.</li>
+        }
+      </ul>
+
+      @if (addingTask()) {
+        <form class="add" (ngSubmit)="addTask()">
+          <input name="taskTitle" [(ngModel)]="taskTitle" placeholder="Task under {{ goal.key }}" autofocus />
+          <select name="taskPoints" [(ngModel)]="taskPoints" aria-label="Value points">
+            <option [ngValue]="null">? pts</option>
+            @for (p of allowedPoints; track p) {
+              <option [ngValue]="p">{{ p }} pts</option>
+            }
+          </select>
+          <button type="submit">Add to backlog</button>
+          <button type="button" class="subtle" (click)="addingTask.set(false)">Cancel</button>
+        </form>
+      } @else {
+        <button class="subtle" (click)="addingTask.set(true)">＋ Add task</button>
+      }
+
+      <app-discussion itemType="goal" [itemKey]="key()" [assistantName]="assistantName()" />
+    </div>
+
+    <aside class="side">
+      <h2>Details</h2>
+      <label>
+        Status
+        <select [value]="goal.status" (change)="setStatus($any($event.target).value)">
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+          <option value="dropped">Dropped</option>
+        </select>
+      </label>
+      <label>
+        Priority
+        <select [value]="goal.priority" (change)="setPriority($any($event.target).value)">
+          @for (p of priorities; track p) {
+            <option [value]="p">{{ priorityLabels[p] }}</option>
+          }
+        </select>
+      </label>
+      @if (goal.taskCount === 0) {
+        <label>
+          Progress
+          <input type="number" min="0" max="100" [value]="goal.progress"
+                 (change)="setProgress($any($event.target).value)" />
+        </label>
+      }
+      <dl class="facts">
+        <dt>Period</dt>
+        <dd>{{ goal.periodType }} from {{ goal.periodStart }}</dd>
+        <dt>Created</dt>
+        <dd>{{ when(goal.createdAtUtc) }}</dd>
+      </dl>
+    </aside>
+  </div>
+}

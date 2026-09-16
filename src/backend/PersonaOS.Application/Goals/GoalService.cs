@@ -14,14 +14,32 @@ public class GoalService(IAppDbContext db) : IGoalService
             .Where(g => includeDropped || g.Status != GoalStatuses.Dropped)
             .OrderBy(g => g.PeriodStart).ThenBy(g => g.Number)
             .ToListAsync(ct);
-        return goals.Select(ToDto).ToList();
+        var ids = goals.Select(g => g.Id).ToList();
+        var comments = await db.WorkItemComments.AsNoTracking()
+            .Where(c => c.ItemType == WorkItemTypes.Goal && ids.Contains(c.ItemId))
+            .GroupBy(c => c.ItemId).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
+        var attachments = await db.WorkItemAttachments.AsNoTracking()
+            .Where(a => a.ItemType == WorkItemTypes.Goal && ids.Contains(a.ItemId))
+            .GroupBy(a => a.ItemId).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
+
+        return goals.Select(g => ToDto(
+            g,
+            comments.FirstOrDefault(c => c.Key == g.Id)?.Count ?? 0,
+            attachments.FirstOrDefault(a => a.Key == g.Id)?.Count ?? 0)).ToList();
     }
 
     public async Task<GoalDto?> GetAsync(int id, CancellationToken ct = default)
     {
         var goal = await Query().FirstOrDefaultAsync(g => g.Id == id, ct);
-        return goal is null ? null : ToDto(goal);
+        if (goal is null) return null;
+        return ToDto(goal, await CommentCountAsync(id, ct), await AttachmentCountAsync(id, ct));
     }
+
+    private Task<int> CommentCountAsync(int goalId, CancellationToken ct) =>
+        db.WorkItemComments.CountAsync(c => c.ItemType == WorkItemTypes.Goal && c.ItemId == goalId, ct);
+
+    private Task<int> AttachmentCountAsync(int goalId, CancellationToken ct) =>
+        db.WorkItemAttachments.CountAsync(a => a.ItemType == WorkItemTypes.Goal && a.ItemId == goalId, ct);
 
     public async Task<int?> ResolveKeyAsync(string? key, CancellationToken ct = default)
     {
@@ -47,6 +65,7 @@ public class GoalService(IAppDbContext db) : IGoalService
             // asked for a "monthly" goal has been seen passing the 10th of the month.
             PeriodStart = GoalPeriodCalculator.NormalizeStart(request.PeriodType, request.PeriodStart),
             Progress = request.Progress,
+            Priority = ValidatePriority(request.Priority) ?? WorkItemPriorities.Medium,
         };
         db.Goals.Add(goal);
         await db.SaveChangesAsync(ct);
@@ -64,7 +83,9 @@ public class GoalService(IAppDbContext db) : IGoalService
             if (title.Length == 0) throw new GoalValidationException("Title must not be empty.");
             goal.Title = title;
         }
-        if (request.Description is not null) goal.Description = NormalizeDescription(request.Description);
+        if (request.ClearDescription) goal.Description = null;
+        else if (request.Description is not null) goal.Description = NormalizeDescription(request.Description);
+        if (ValidatePriority(request.Priority) is string priority) goal.Priority = priority;
         if (request.PeriodType is not null)
         {
             ValidatePeriodType(request.PeriodType);
@@ -109,6 +130,11 @@ public class GoalService(IAppDbContext db) : IGoalService
         foreach (var task in goal.Tasks) task.GoalId = null;
         foreach (var item in await db.PlannerItems.Where(p => p.GoalId == id).ToListAsync(ct)) item.GoalId = null;
 
+        db.WorkItemComments.RemoveRange(
+            await db.WorkItemComments.Where(c => c.ItemType == WorkItemTypes.Goal && c.ItemId == id).ToListAsync(ct));
+        db.WorkItemAttachments.RemoveRange(
+            await db.WorkItemAttachments.Where(a => a.ItemType == WorkItemTypes.Goal && a.ItemId == id).ToListAsync(ct));
+
         db.Goals.Remove(goal);
         await db.SaveChangesAsync(ct);
         return true;
@@ -117,7 +143,7 @@ public class GoalService(IAppDbContext db) : IGoalService
     private IQueryable<Goal> Query() =>
         db.Goals.AsNoTracking().Include(g => g.Tasks).ThenInclude(t => t.Sprint);
 
-    private static GoalDto ToDto(Goal goal)
+    private static GoalDto ToDto(Goal goal, int comments = 0, int attachments = 0)
     {
         var tasks = goal.Tasks.OrderBy(t => t.Number).ToList();
         var done = tasks.Where(t => t.Status == BoardTaskStatuses.Done).ToList();
@@ -129,12 +155,15 @@ public class GoalService(IAppDbContext db) : IGoalService
             goal.PeriodType,
             goal.PeriodStart,
             goal.Status,
+            goal.Priority,
             goal.Progress,
             GoalProgressCalculator.Compute(goal.Progress, tasks),
             tasks.Count,
             done.Count,
             tasks.Sum(t => t.Points ?? 0),
             done.Sum(t => t.Points ?? 0),
+            comments,
+            attachments,
             goal.CreatedAtUtc,
             goal.UpdatedAtUtc,
             tasks.Select(t => new GoalTaskSummary(
@@ -145,6 +174,16 @@ public class GoalService(IAppDbContext db) : IGoalService
     {
         if (!GoalPeriods.All.Contains(periodType))
             throw new GoalValidationException($"Period type must be one of: {string.Join(", ", GoalPeriods.All)}.");
+    }
+
+    private static string? ValidatePriority(string? priority)
+    {
+        if (priority is null) return null;
+        var normalized = priority.Trim().ToLowerInvariant();
+        return WorkItemPriorities.All.Contains(normalized)
+            ? normalized
+            : throw new GoalValidationException(
+                $"Priority must be one of: {string.Join(", ", WorkItemPriorities.All)}.");
     }
 
     private static void ValidateProgress(int progress)

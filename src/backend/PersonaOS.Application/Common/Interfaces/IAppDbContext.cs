@@ -17,6 +17,8 @@ public interface IAppDbContext
     DbSet<Goal> Goals { get; }
     DbSet<BoardTask> BoardTasks { get; }
     DbSet<Sprint> Sprints { get; }
+    DbSet<WorkItemComment> WorkItemComments { get; }
+    DbSet<WorkItemAttachment> WorkItemAttachments { get; }
     DbSet<PlannerItem> PlannerItems { get; }
     DbSet<Reminder> Reminders { get; }
     DbSet<DeviceToken> DeviceTokens { get; }

@@ -60,12 +60,13 @@ public class BoardToolsTests
         await goals.CreateAsync(new CreateGoalRequest("Learn Rust", null, GoalPeriods.Month, new DateOnly(2026, 9, 1)));
 
         var result = await new CreateTaskTool(board, goals).ExecuteAsync(
-            Json("""{"title":"Borrow checker","goalKey":"GOAL-1","points":5,"destination":"current"}"""));
+            Json("""{"title":"Borrow checker","goalKey":"GOAL-1","points":5,"priority":"high"}"""));
 
-        var task = (await board.GetBoardAsync()).Todo.Single();
+        var task = (await board.GetPlanAsync()).Backlog.Single();
         Assert.Equal("TASK-1", task.Key);
         Assert.Equal("GOAL-1", task.GoalKey);
         Assert.Equal(5, task.Points);
+        Assert.Equal("high", task.Priority);
         Assert.Contains("TASK-1", result);
     }
 
@@ -73,14 +74,17 @@ public class BoardToolsTests
     public async Task Move_and_update_tools_take_task_keys()
     {
         var (_, board, goals) = Setup();
-        var task = await board.CreateTaskAsync(new CreateTaskRequest("Write intro", Destination: "current"));
+        var sprint = await board.CreateSprintAsync(new CreateSprintRequest("Week one"));
+        var task = await board.CreateTaskAsync(new CreateTaskRequest("Write intro", SprintKey: sprint.Key));
+        await board.StartSprintAsync(sprint.Id);
 
         await new UpdateTaskTool(board, goals).ExecuteAsync(Json("""{"taskKey":"TASK-1","points":3}"""));
         await new MoveTaskTool(board, goals).ExecuteAsync(Json("""{"taskKey":"task-1","column":"in_progress"}"""));
 
-        var moved = (await board.GetTaskAsync(task.Id))!;
+        var moved = (await board.GetTaskAsync(task.Id))!.Task;
         Assert.Equal(3, moved.Points);
         Assert.Equal(BoardColumns.InProgress, moved.Column);
+        Assert.Equal("SPRINT-1", moved.SprintKey);
     }
 
     [Fact]
@@ -88,7 +92,7 @@ public class BoardToolsTests
     {
         var (db, board, goals) = Setup();
         await goals.CreateAsync(new CreateGoalRequest("Learn Rust", null, GoalPeriods.Month, new DateOnly(2026, 9, 1)));
-        await board.CreateTaskAsync(new CreateTaskRequest("Borrow checker", GoalId: 1, Destination: "current"));
+        await board.CreateTaskAsync(new CreateTaskRequest("Borrow checker", GoalId: 1));
         var planner = new PlannerService(db);
 
         await new AddPlannerItemTool(planner, goals, board).ExecuteAsync(
@@ -104,13 +108,17 @@ public class BoardToolsTests
     [Fact]
     public void Proposal_cards_name_the_task_and_warn_about_scope()
     {
-        var summary = ProposedActionSummary.Describe("create_task", """{"title":"Pay bill","points":2,"destination":"current"}""");
+        var summary = ProposedActionSummary.Describe(
+            "create_task", """{"title":"Pay bill","points":2,"priority":"high","sprintKey":"SPRINT-2"}""");
 
         Assert.Contains("“Pay bill”", summary);
         Assert.Contains("points 2", summary);
+        Assert.Contains("priority high", summary);
+        Assert.Contains("to SPRINT-2", summary);
         Assert.Contains("no goal", summary);
         Assert.Contains("scope change", summary);
 
+        // Nothing joins or leaves a sprint here, so no warning belongs on the card.
         var move = ProposedActionSummary.Describe("move_task", """{"taskKey":"TASK-4","column":"done"}""");
         Assert.Contains("TASK-4", move);
         Assert.DoesNotContain("scope change", move);

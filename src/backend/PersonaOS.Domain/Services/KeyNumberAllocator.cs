@@ -21,9 +21,11 @@ public static class ItemKeys
 {
     public const string GoalPrefix = "GOAL";
     public const string TaskPrefix = "TASK";
+    public const string SprintPrefix = "SPRINT";
 
     public static string Goal(int number) => $"{GoalPrefix}-{number}";
     public static string Task(int number) => $"{TaskPrefix}-{number}";
+    public static string Sprint(int number) => $"{SprintPrefix}-{number}";
 
     /// <summary>
     /// Reads "TASK-12", "task 12", "#12" or "12" as 12 for the given prefix. A key with the other

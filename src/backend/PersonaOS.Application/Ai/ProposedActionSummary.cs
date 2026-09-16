@@ -21,6 +21,8 @@ public static class ProposedActionSummary
     [
         ("taskKey", ""),
         ("goalKey", ""),
+        ("sprintKey", "to "),
+        ("name", ""),
         ("dueAtLocal", ""),
         ("date", ""),
         ("scheduledTime", ""),
@@ -32,6 +34,7 @@ public static class ProposedActionSummary
         ("sprint", "sprint "),
         ("destination", "into "),
         ("points", "points "),
+        ("priority", "priority "),
     ];
 
     public static string Describe(string toolName, string? inputJson)
@@ -71,10 +74,9 @@ public static class ProposedActionSummary
         }
 
         // A confirmed card is the acknowledgement of a scope change, so the card must say so.
-        if (toolName is "create_task" or "move_task"
-            && (ToolPayloadText.FirstValue(input, ["destination"]) ?? ToolPayloadText.FirstValue(input, ["sprint"])) == "current")
+        if (toolName is "create_task" or "move_task" && ToolPayloadText.FirstValue(input, ["sprintKey"]) is not null)
         {
-            parts.Add("a scope change if this week's sprint has started");
+            parts.Add("a scope change if that sprint has started");
         }
 
         if (parts.Count > 0) sb.Append(" — ").Append(string.Join(" · ", parts));

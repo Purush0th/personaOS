@@ -1,16 +1,11 @@
 <header class="page-head">
   <h1>Board</h1>
-  <div class="views" role="tablist" aria-label="Sprint">
-    <button role="tab" class="subtle" [class.on]="view() === 'current'" [attr.aria-selected]="view() === 'current'"
-      (click)="switchView('current')">Current</button>
-    <button role="tab" class="subtle" [class.on]="view() === 'next'" [attr.aria-selected]="view() === 'next'"
-      (click)="switchView('next')">Next</button>
-  </div>
   <div class="actions">
-    @if (board()?.canStartSprint) {
-      <button (click)="startSprint()">Start sprint</button>
+    <a class="button subtle" routerLink="/backlog">Backlog</a>
+    @if (board()?.sprint) {
+      <a class="button subtle" [routerLink]="['/board/sprints', board()!.sprint!.key]">Sprint view</a>
+      <button (click)="completeSprint()">Complete sprint</button>
     }
-    <button class="subtle" (click)="toggleReport()">{{ showReport() ? 'Hide report' : 'Sprint report' }}</button>
   </div>
 </header>
 
@@ -18,214 +13,129 @@
   <p class="error" role="alert">{{ message }}</p>
 }
 
-@if (board(); as b) {
-  <section class="sprint">
-    <div class="sprint-title">
-      <strong>Sprint {{ b.sprint.number }}</strong>
-      <span class="state" [class]="b.sprint.status">
-        {{ b.sprint.status === 'active' ? 'running' : 'planning' }}
-      </span>
-      <span class="muted small">{{ when(b.sprint.startsAtUtc) }} → {{ when(b.sprint.endsAtUtc) }}</span>
-    </div>
-    <div class="stats">
-      @if (b.sprint.committedPoints !== null) {
-        <span><b>{{ b.sprint.committedPoints }}</b> committed</span>
-      } @else {
-        <span><b>{{ b.sprint.totalPoints }}</b> planned</span>
-      }
-      @if (b.sprint.status === 'active') {
-        <span><b>{{ b.sprint.completedPoints }}</b> done</span>
-      }
-      @if (b.sprint.addedPoints > 0) {
-        <span class="warn"><b>+{{ b.sprint.addedPoints }}</b> added</span>
-      }
-      @if (b.sprint.removedPoints > 0) {
-        <span class="warn"><b>−{{ b.sprint.removedPoints }}</b> removed</span>
-      }
-      @if (b.sprint.unestimatedCount > 0) {
-        <span class="muted">{{ b.sprint.unestimatedCount }} unestimated</span>
-      }
-      @if (b.velocity !== null) {
-        <span class="muted">velocity {{ b.velocity }}</span>
-      }
-    </div>
-  </section>
-
-  @if (b.inPlanningWindow && view() === 'current') {
-    <p class="banner">
-      Planning time. Sprint {{ b.sprint.number }} starts at 20:00 by itself — review last week, pick this
-      week's work, then press <b>Start sprint</b> or just let it start.
-    </p>
-  } @else if (view() === 'next') {
-    <p class="banner quiet">Planning ahead for next week. Adding here is not a scope change.</p>
-  }
-
-  @if (showReport() && report(); as r) {
-    <section class="report">
-      <h2>Sprint report @if (r.velocity !== null) { <span class="muted small">· velocity {{ r.velocity }}</span> }</h2>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Sprint</th><th>Dates</th><th>Committed</th><th>Added</th><th>Removed</th>
-              <th>Completed</th><th>Carried over</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (s of r.sprints; track s.id) {
-              <tr>
-                <td>{{ s.number }} @if (s.status === 'active') { <span class="muted small">(running)</span> }</td>
-                <td>{{ day(s.startsAtUtc) }} – {{ day(s.endsAtUtc) }}</td>
-                <td>{{ s.committedPoints ?? '—' }}</td>
-                <td>{{ s.addedPoints }}</td>
-                <td>{{ s.removedPoints }}</td>
-                <td><b>{{ s.completedPoints }}</b></td>
-                <td>{{ s.carriedOverPoints ?? '—' }}</td>
-              </tr>
-            } @empty {
-              <tr><td colspan="7" class="muted">No sprints yet.</td></tr>
-            }
-          </tbody>
-        </table>
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else if (board(); as b) {
+  @if (b.sprint; as sprint) {
+    <section class="sprint">
+      <div class="sprint-title">
+        <a class="key" [routerLink]="['/board/sprints', sprint.key]">{{ sprint.key }}</a>
+        @if (sprint.name) { <strong>{{ sprint.name }}</strong> }
+        <span class="state active">running</span>
+        <span class="muted small">{{ when(sprint.startsAtUtc) }} – {{ when(sprint.endsAtUtc) }}</span>
+      </div>
+      <div class="stats">
+        <span><b>{{ sprint.committedPoints ?? sprint.totalPoints }}</b> committed</span>
+        <span><b>{{ sprint.completedPoints }}</b> done</span>
+        @if (sprint.addedPoints > 0) {
+          <span class="warn"><b>+{{ sprint.addedPoints }}</b> added</span>
+        }
+        @if (sprint.removedPoints > 0) {
+          <span class="warn"><b>−{{ sprint.removedPoints }}</b> removed</span>
+        }
+        @if (sprint.unestimatedCount > 0) {
+          <span class="muted">{{ sprint.unestimatedCount }} unestimated</span>
+        }
+        @if (b.velocity !== null) {
+          <span class="muted">velocity {{ b.velocity }}</span>
+        }
       </div>
     </section>
-  }
 
-  <div class="columns">
-    @for (column of columns(); track column.id) {
-      <section
-        class="column"
-        [class.drop]="dropColumn() === column.id"
-        (dragover)="onDragOver($event, column.id)"
-        (dragleave)="dropColumn.set(null)"
-        (drop)="onDrop($event, column, null)"
-        [attr.aria-label]="column.title"
-      >
-        <header>
-          <span class="name">{{ column.title }}</span>
-          <span class="count">{{ column.tasks.length }} · {{ columnPoints(column) }} pts</span>
-        </header>
-        @if (overWip(column)) {
-          <p class="wip">More than {{ b.wipLimit }} in progress. Finishing beats starting.</p>
-        }
-
-        @for (task of column.tasks; track task.id) {
-          <article
-            class="task"
-            draggable="true"
-            [class.dragging]="draggingId() === task.id"
-            (dragstart)="onDragStart($event, task)"
-            (dragend)="onDragEnd()"
-            (drop)="onDrop($event, column, task)"
-            (dragover)="onDragOver($event, column.id)"
-          >
-            <button class="open" (click)="openEdit(task)" [attr.aria-label]="'Edit ' + task.key">
-              <span class="top">
-                <span class="key">{{ task.key }}</span>
-                <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
-              </span>
-              <span class="title">{{ task.title }}</span>
-            </button>
-            <span class="meta">
-              @if (task.goalKey) {
-                <span class="goal-chip" [style.--hue]="hue(task.goalKey)" [title]="task.goalKey + ' ' + task.goalTitle">
-                  {{ task.goalTitle }}
-                </span>
-              }
-              @if (task.carryOverCount > 0) {
-                <span class="flag" title="Carried over from an earlier sprint">↻ {{ task.carryOverCount }}</span>
-              }
-              @if (task.addedMidSprint) {
-                <span class="flag warn" title="Added after the sprint started">added</span>
-              }
-              <select
-                class="move"
-                [attr.aria-label]="'Move ' + task.key"
-                (change)="moveTo(task, $any($event.target).value); $any($event.target).value = ''"
-              >
-                <option value="">Move…</option>
-                @for (target of moveTargets(task); track target.id) {
-                  <option [value]="target.id">{{ target.title }}</option>
-                }
-              </select>
-            </span>
-          </article>
-        } @empty {
-          <p class="empty muted small">Nothing here.</p>
-        }
-
-        @if (column.id === 'backlog' || column.id === 'todo') {
-          @if (addingTo() === column.id) {
-            <form class="add" (ngSubmit)="add()">
-              <input name="title" [(ngModel)]="draftTitle" placeholder="Task title" autofocus />
-              <div class="add-row">
-                <select name="points" [(ngModel)]="draftPoints" aria-label="Story points">
-                  <option [ngValue]="null">? pts</option>
-                  @for (p of b.allowedPoints; track p) {
-                    <option [ngValue]="p">{{ p }} pts</option>
-                  }
-                </select>
-                <select name="goal" [(ngModel)]="draftGoalId" aria-label="Goal">
-                  <option [ngValue]="null">No goal</option>
-                  @for (g of goals(); track g.id) {
-                    <option [ngValue]="g.id">{{ g.key }} {{ g.title }}</option>
-                  }
-                </select>
-              </div>
-              @if (draftPoints !== null && draftPoints >= 13) {
-                <p class="hint">That's big — consider splitting it into smaller tasks.</p>
-              }
-              <div class="add-row">
-                <button type="submit">Add</button>
-                <button type="button" class="subtle" (click)="addingTo.set(null)">Cancel</button>
-              </div>
-            </form>
-          } @else {
-            <button class="subtle add-button" (click)="startAdd(column.id)">＋ Add task</button>
+    <div class="columns">
+      @for (column of columns(); track column.id) {
+        <section
+          class="column"
+          [class.drop]="dropColumn() === column.id"
+          (dragover)="onDragOver($event, column.id)"
+          (dragleave)="dropColumn.set(null)"
+          (drop)="onDrop($event, column, null)"
+          [attr.aria-label]="column.title"
+        >
+          <header>
+            <span class="name">{{ column.title }}</span>
+            <span class="count">{{ column.tasks.length }} · {{ columnPoints(column) }} pts</span>
+          </header>
+          @if (overWip(column)) {
+            <p class="wip">More than {{ b.wipLimit }} in progress. Finishing beats starting.</p>
           }
-        }
-      </section>
-    }
-  </div>
-} @else if (loading()) {
-  <p class="muted">Loading…</p>
-}
 
-@if (editing(); as task) {
-  <div class="backdrop" (click)="closeEdit()"></div>
-  <form class="dialog" role="dialog" aria-modal="true" [attr.aria-label]="'Edit ' + task.key" (ngSubmit)="saveEdit()">
-    <h2>{{ task.key }}</h2>
-    <label>Title <input name="title" [(ngModel)]="editTitle" /></label>
-    <label>Description <textarea name="description" rows="3" [(ngModel)]="editDescription"></textarea></label>
-    <label>
-      Story points
-      <select name="points" [(ngModel)]="editPoints">
-        <option [ngValue]="null">Not estimated</option>
-        @for (p of board()?.allowedPoints ?? []; track p) {
-          <option [ngValue]="p">{{ p }}</option>
-        }
-      </select>
-    </label>
-    @if (editPoints !== null && editPoints >= 13) {
-      <p class="hint">That's big — consider splitting it into smaller tasks.</p>
-    }
-    <label>
-      Goal
-      <select name="goal" [(ngModel)]="editGoalId">
-        <option [ngValue]="null">No goal</option>
-        @for (g of goals(); track g.id) {
-          <option [ngValue]="g.id">{{ g.key }} {{ g.title }}</option>
-        }
-      </select>
-    </label>
-    @if (task.carryOverCount > 0) {
-      <p class="muted small">Carried over {{ task.carryOverCount }} {{ task.carryOverCount === 1 ? 'time' : 'times' }}.</p>
-    }
-    <div class="dialog-actions">
-      <button type="button" class="subtle danger" (click)="deleteEditing()">Delete</button>
-      <span class="spacer"></span>
-      <button type="button" class="subtle" (click)="closeEdit()">Cancel</button>
-      <button type="submit">Save</button>
+          @for (task of column.tasks; track task.key) {
+            <article
+              class="task"
+              draggable="true"
+              [class.dragging]="draggingKey() === task.key"
+              (dragstart)="onDragStart($event, task)"
+              (dragend)="onDragEnd()"
+              (drop)="onDrop($event, column, task)"
+              (dragover)="onDragOver($event, column.id)"
+            >
+              <a class="open" [routerLink]="['/board/tasks', task.key]">
+                <span class="top">
+                  <span class="key">{{ task.key }}</span>
+                  <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
+                </span>
+                <span class="title">{{ task.title }}</span>
+              </a>
+              <span class="meta">
+                @if (task.goalKey) {
+                  <span class="goal-chip" [style.--hue]="hue(task.goalKey)" [title]="task.goalKey + ' ' + task.goalTitle">
+                    {{ task.goalTitle }}
+                  </span>
+                }
+                @if (task.carryOverCount > 0) {
+                  <span class="flag" title="Carried over from an earlier sprint">↻ {{ task.carryOverCount }}</span>
+                }
+                @if (task.addedMidSprint) {
+                  <span class="flag warn" title="Added after the sprint started">added</span>
+                }
+                @if (task.commentCount > 0) {
+                  <span class="flag" [title]="task.commentCount + ' comments'">💬 {{ task.commentCount }}</span>
+                }
+                @if (task.attachmentCount > 0) {
+                  <span class="flag" [title]="task.attachmentCount + ' attachments'">📎 {{ task.attachmentCount }}</span>
+                }
+                <select
+                  class="move"
+                  [attr.aria-label]="'Move ' + task.key"
+                  (change)="moveTo(task, $any($event.target).value); $any($event.target).value = ''"
+                >
+                  <option value="">Move…</option>
+                  @for (target of moveTargets(task); track target.id) {
+                    <option [value]="target.id">{{ target.title }}</option>
+                  }
+                </select>
+              </span>
+            </article>
+          } @empty {
+            <p class="empty muted small">Nothing here.</p>
+          }
+
+          @if (column.id === 'todo') {
+            @if (addingTo() === column.id) {
+              <form class="add" (ngSubmit)="add()">
+                <input name="title" [(ngModel)]="draftTitle" placeholder="Task title" autofocus />
+                <div class="add-row">
+                  <select name="points" [(ngModel)]="draftPoints" aria-label="Value points">
+                    <option [ngValue]="null">? pts</option>
+                    @for (p of b.allowedPoints; track p) {
+                      <option [ngValue]="p">{{ p }} pts</option>
+                    }
+                  </select>
+                  <button type="submit">Add</button>
+                  <button type="button" class="subtle" (click)="addingTo.set(null)">Cancel</button>
+                </div>
+              </form>
+            } @else {
+              <button class="subtle add-button" (click)="startAdd(column.id)">＋ Add task</button>
+            }
+          }
+        </section>
+      }
     </div>
-  </form>
+  } @else {
+    <p class="banner">
+      No sprint is running. Open the <a routerLink="/backlog">Backlog</a> to plan one and start it.
+    </p>
+  }
 }

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using PersonaOS.Application.Goals;
 using PersonaOS.Application.Goals.Tools;
+using PersonaOS.Application.WorkItems;
 using PersonaOS.Domain.Entities;
 
 namespace PersonaOS.Application.Board.Tools;
@@ -30,21 +31,28 @@ public class GetBoardTool(IBoardService board, IGoalService goals) : BoardToolBa
     public override string Name => "get_board";
     public override bool Mutates => false;
     public override string Description =>
-        "Shows the sprint board: the sprint (number, dates, committed / completed / added points, " +
-        "whether scope is locked), recent velocity, and the tasks in Backlog, This week (todo), " +
-        "In progress and Done. Tasks have keys like TASK-7, story points (null = unestimated), " +
-        "and their goal. Use sprint \"next\" to see next week's sprint being planned.";
-    public override string InputSchemaJson => """
-        {
-          "type": "object",
-          "properties": {
-            "sprint": { "type": "string", "enum": ["current", "next"], "description": "Default current." }
-          }
-        }
-        """;
+        "Shows the sprint board: the running sprint (key like SPRINT-2, name, dates, committed / " +
+        "completed / added points, whether scope is locked), recent velocity, and its This week " +
+        "(todo), In progress and Done columns. Tasks have keys like TASK-7, value points " +
+        "(null = unestimated) and a priority. Use get_plan for the backlog and the sprints to come.";
+    public override string InputSchemaJson => """{ "type": "object", "properties": {} }""";
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default) =>
-        Ok(new { board = await Board.GetBoardAsync(GetString(input, "sprint") ?? SprintViews.Current, ct) });
+        Ok(new { board = await Board.GetBoardAsync(ct) });
+}
+
+public class GetPlanTool(IBoardService board, IGoalService goals) : BoardToolBase(board, goals)
+{
+    public override string Name => "get_plan";
+    public override bool Mutates => false;
+    public override string Description =>
+        "Shows the plan: the running sprint, every sprint planned after it, and the backlog " +
+        "underneath — the same view as the Backlog page. Use it when planning a sprint or deciding " +
+        "what to pull in next.";
+    public override string InputSchemaJson => """{ "type": "object", "properties": {} }""";
+
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default) =>
+        Ok(new { plan = await Board.GetPlanAsync(ct) });
 }
 
 public class GetSprintReportTool(IBoardService board, IGoalService goals) : BoardToolBase(board, goals)
@@ -53,7 +61,7 @@ public class GetSprintReportTool(IBoardService board, IGoalService goals) : Boar
     public override bool Mutates => false;
     public override string Description =>
         "Lists past sprints, newest first, with committed, added, removed, completed and carried-over " +
-        "story points, and the velocity (average completed points of the last three sprints). Use it " +
+        "value points, and the velocity (average completed points of the last three sprints). Use it " +
         "for a sprint review and to suggest how much to commit to.";
     public override string InputSchemaJson => """
         {
@@ -72,10 +80,10 @@ public class CreateTaskTool(IBoardService board, IGoalService goals) : BoardTool
 {
     public override string Name => "create_task";
     public override string Description =>
-        "Creates a task on the sprint board, optionally under a goal. Points are Fibonacci story points " +
+        "Creates a task on the sprint board, optionally under a goal. Points are Fibonacci value points " +
         "(1, 2, 3, 5, 8, 13, 21) for size and complexity; leave them out if not estimated yet. " +
-        "destination: \"backlog\" (default), \"current\" (this week's sprint; a scope change once it has " +
-        "started), or \"next\" (next week's sprint, for planning ahead).";
+        "sprintKey puts it straight into a sprint (a scope change if that sprint is running); omit it " +
+        "to put the task in the backlog.";
     public override string InputSchemaJson => """
         {
           "type": "object",
@@ -84,7 +92,8 @@ public class CreateTaskTool(IBoardService board, IGoalService goals) : BoardTool
             "description": { "type": "string" },
             "goalKey": { "type": "string", "description": "Goal key like \"GOAL-3\". Omit for a task with no goal." },
             "points": { "type": "integer", "enum": [1, 2, 3, 5, 8, 13, 21] },
-            "destination": { "type": "string", "enum": ["backlog", "current", "next"] }
+            "priority": { "type": "string", "enum": ["highest", "high", "medium", "low", "lowest"] },
+            "sprintKey": { "type": "string", "description": "Sprint key like \"SPRINT-2\". Omit for the backlog." }
           },
           "required": ["title"]
         }
@@ -97,8 +106,9 @@ public class CreateTaskTool(IBoardService board, IGoalService goals) : BoardTool
                 GetString(input, "title") ?? string.Empty,
                 GetString(input, "description"),
                 GetInt(input, "points"),
+                GetString(input, "priority"),
                 await OptionalGoalAsync(GetKey(input, "goalKey"), ct),
-                GetString(input, "destination") ?? BoardColumns.Backlog,
+                GetString(input, "sprintKey"),
                 // Only reached after the user confirmed the proposal card, which names the change.
                 AcknowledgeScopeChange: true),
             ct);
@@ -110,8 +120,8 @@ public class UpdateTaskTool(IBoardService board, IGoalService goals) : BoardTool
 {
     public override string Name => "update_task";
     public override string Description =>
-        "Changes a task's title, description, story points, or goal. Use this to record estimates " +
-        "during planning. To move a task between columns or sprints use move_task.";
+        "Changes a task's title, description, value points, priority or goal. Use this to record " +
+        "estimates during planning. To move a task between columns or sprints use move_task.";
     public override string InputSchemaJson => """
         {
           "type": "object",
@@ -121,6 +131,7 @@ public class UpdateTaskTool(IBoardService board, IGoalService goals) : BoardTool
             "description": { "type": "string" },
             "points": { "type": "integer", "enum": [1, 2, 3, 5, 8, 13, 21] },
             "clearPoints": { "type": "boolean", "description": "Mark the task unestimated again." },
+            "priority": { "type": "string", "enum": ["highest", "high", "medium", "low", "lowest"] },
             "goalKey": { "type": "string", "description": "Move the task under this goal." },
             "clearGoal": { "type": "boolean", "description": "Detach the task from its goal." }
           },
@@ -135,8 +146,10 @@ public class UpdateTaskTool(IBoardService board, IGoalService goals) : BoardTool
             new UpdateTaskRequest(
                 GetString(input, "title"),
                 GetString(input, "description"),
+                ClearDescription: false,
                 GetInt(input, "points"),
                 GetBool(input, "clearPoints"),
+                GetString(input, "priority"),
                 await OptionalGoalAsync(GetKey(input, "goalKey"), ct),
                 GetBool(input, "clearGoal")),
             ct);
@@ -149,15 +162,16 @@ public class MoveTaskTool(IBoardService board, IGoalService goals) : BoardToolBa
     public override string Name => "move_task";
     public override string Description =>
         "Moves a task to a board column: \"backlog\", \"todo\" (This week), \"in_progress\" or \"done\". " +
-        "sprint: \"current\" or \"next\"; omit to keep the task in its sprint. Moving work into or out of " +
-        "a sprint that has started is a scope change and shows in the sprint report.";
+        "sprintKey moves it into another sprint, e.g. from SPRINT-1 to SPRINT-2; omit it to keep the " +
+        "task where it is. Moving work into or out of a sprint that has started is a scope change and " +
+        "shows in the sprint report.";
     public override string InputSchemaJson => """
         {
           "type": "object",
           "properties": {
             "taskKey": { "type": "string", "description": "Task key like \"TASK-7\"." },
             "column": { "type": "string", "enum": ["backlog", "todo", "in_progress", "done"] },
-            "sprint": { "type": "string", "enum": ["current", "next"] }
+            "sprintKey": { "type": "string", "description": "Target sprint key like \"SPRINT-2\"." }
           },
           "required": ["taskKey", "column"]
         }
@@ -169,7 +183,7 @@ public class MoveTaskTool(IBoardService board, IGoalService goals) : BoardToolBa
         var task = await Board.MoveTaskAsync(id,
             new MoveTaskRequest(
                 GetString(input, "column") ?? string.Empty,
-                GetString(input, "sprint"),
+                GetString(input, "sprintKey"),
                 AcknowledgeScopeChange: true),
             ct);
         return Ok(new { moved = task });
@@ -180,7 +194,8 @@ public class DeleteTaskTool(IBoardService board, IGoalService goals) : BoardTool
 {
     public override string Name => "delete_task";
     public override string Description =>
-        "Permanently deletes a task. Its number becomes free for the next new task.";
+        "Permanently deletes a task, with its comments and attachments. Its number becomes free for " +
+        "the next new task.";
     public override string InputSchemaJson => """
         {
           "type": "object",
@@ -196,6 +211,137 @@ public class DeleteTaskTool(IBoardService board, IGoalService goals) : BoardTool
         var id = await RequireTaskAsync(GetKey(input, "taskKey"), ct);
         var task = await Board.GetTaskAsync(id, ct);
         await Board.DeleteTaskAsync(id, ct);
-        return Ok(new { deleted = new { key = task?.Key, title = task?.Title } });
+        return Ok(new { deleted = new { key = task?.Task.Key, title = task?.Task.Title } });
+    }
+}
+
+public class CreateSprintTool(IBoardService board, IGoalService goals) : BoardToolBase(board, goals)
+{
+    public override string Name => "create_sprint";
+    public override string Description =>
+        "Creates the next sprint, planned but not started. Dates are the user's local time and default " +
+        "to the next free Sunday 20:00 → Sunday 18:00 week. Give it a short name when the user has one " +
+        "in mind. Sprints never start by themselves — use start_sprint.";
+    public override string InputSchemaJson => """
+        {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "description": "Optional short name, e.g. \"Paperwork week\"." },
+            "startsAtLocal": { "type": "string", "description": "Local start, e.g. 2026-09-20T20:00." },
+            "endsAtLocal": { "type": "string", "description": "Local end, e.g. 2026-09-27T18:00." }
+          }
+        }
+        """;
+
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var sprint = await Board.CreateSprintAsync(
+            new CreateSprintRequest(
+                GetString(input, "name"),
+                ParseLocal(input, "startsAtLocal"),
+                ParseLocal(input, "endsAtLocal")),
+            ct);
+        return Ok(new { created = sprint });
+    }
+
+    private static DateTime? ParseLocal(JsonElement input, string name)
+    {
+        var raw = GetString(input, name);
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        return DateTime.TryParse(raw, out var value)
+            ? value
+            : throw new BoardValidationException($"'{name}' must look like 2026-09-20T20:00.");
+    }
+}
+
+public class StartSprintTool(IBoardService board, IGoalService goals) : BoardToolBase(board, goals)
+{
+    public override string Name => "start_sprint";
+    public override string Description =>
+        "Starts a planned sprint, freezing what it holds as the commitment. Only one sprint runs at a time.";
+    public override string InputSchemaJson => """
+        {
+          "type": "object",
+          "properties": {
+            "sprintKey": { "type": "string", "description": "Sprint key like \"SPRINT-2\"." }
+          },
+          "required": ["sprintKey"]
+        }
+        """;
+
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var id = await RequireSprintAsync(Board, GetString(input, "sprintKey"), ct);
+        return Ok(new { started = await Board.StartSprintAsync(id, ct) });
+    }
+
+    internal static async Task<int> RequireSprintAsync(IBoardService board, string? key, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new BoardValidationException("'sprintKey' is required, e.g. \"SPRINT-2\".");
+        return await board.ResolveSprintKeyAsync(key, ct)
+            ?? throw new BoardValidationException($"There is no sprint {key}.");
+    }
+}
+
+public class CompleteSprintTool(IBoardService board, IGoalService goals) : BoardToolBase(board, goals)
+{
+    public override string Name => "complete_sprint";
+    public override string Description =>
+        "Completes the running sprint: freezes what was done and moves unfinished work to the next " +
+        "planned sprint, to the sprint named in moveUnfinishedToSprintKey, or to the backlog.";
+    public override string InputSchemaJson => """
+        {
+          "type": "object",
+          "properties": {
+            "sprintKey": { "type": "string", "description": "Sprint key like \"SPRINT-2\"." },
+            "moveUnfinishedToSprintKey": { "type": "string", "description": "Where unfinished work goes." },
+            "toBacklog": { "type": "boolean", "description": "Send unfinished work to the backlog instead." }
+          },
+          "required": ["sprintKey"]
+        }
+        """;
+
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var id = await StartSprintTool.RequireSprintAsync(Board, GetString(input, "sprintKey"), ct);
+        var sprint = await Board.CompleteSprintAsync(id,
+            new CompleteSprintRequest(GetString(input, "moveUnfinishedToSprintKey"), GetBool(input, "toBacklog")), ct);
+        return Ok(new { completed = sprint });
+    }
+}
+
+public class AddCommentTool(IBoardService board, IGoalService goals, IWorkItemService items)
+    : BoardToolBase(board, goals)
+{
+    public override string Name => "add_comment";
+    public override string Description =>
+        "Adds a comment to a task or goal — a note of what was decided, what is blocked, or what you " +
+        "found. Comments from you are shown as written by the assistant.";
+    public override string InputSchemaJson => """
+        {
+          "type": "object",
+          "properties": {
+            "itemKey": { "type": "string", "description": "A task or goal key, e.g. \"TASK-7\" or \"GOAL-3\"." },
+            "body": { "type": "string", "description": "The comment." }
+          },
+          "required": ["itemKey", "body"]
+        }
+        """;
+
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var key = GetString(input, "itemKey")
+            ?? throw new BoardValidationException("'itemKey' is required, e.g. \"TASK-7\".");
+        var type = key.TrimStart('#').StartsWith("GOAL", StringComparison.OrdinalIgnoreCase)
+            ? WorkItemTypes.Goal
+            : WorkItemTypes.Task;
+
+        var item = await items.ResolveAsync(type, key, ct)
+            ?? throw new BoardValidationException($"There is no {type} {key}.");
+        var comment = await items.AddCommentAsync(
+            item, new AddCommentRequest(GetString(input, "body") ?? string.Empty, CommentAuthors.Assistant), ct);
+
+        return Ok(new { commented = new { key = item.Key, title = item.Title, comment.Body } });
     }
 }

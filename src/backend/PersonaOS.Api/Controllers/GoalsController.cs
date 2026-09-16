@@ -26,6 +26,16 @@ public class GoalsController(IGoalService goals) : ControllerBase
         return goal is null ? NotFound() : Ok(goal);
     }
 
+    /// <summary>One goal by its key, e.g. GOAL-3 — what the web app puts in its URLs.</summary>
+    [HttpGet("{key}")]
+    public async Task<IActionResult> GetByKey(string key, CancellationToken ct)
+    {
+        var id = await goals.ResolveKeyAsync(key, ct);
+        if (id is null) return NotFound();
+        var goal = await goals.GetAsync(id.Value, ct);
+        return goal is null ? NotFound() : Ok(goal);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateGoalRequest request, CancellationToken ct)
     {

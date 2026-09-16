@@ -152,6 +152,16 @@
       min-width: 0;
     }
 
+    .tiny {
+      padding: 0.1rem 0.45rem;
+      font-size: 0.75rem;
+
+      &.danger {
+        color: var(--danger);
+        border-color: #f0c8c8;
+      }
+    }
+
   }
 
   .task-form {

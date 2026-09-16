@@ -20,6 +20,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<BoardTask> BoardTasks => Set<BoardTask>();
     public DbSet<Sprint> Sprints => Set<Sprint>();
+    public DbSet<WorkItemComment> WorkItemComments => Set<WorkItemComment>();
+    public DbSet<WorkItemAttachment> WorkItemAttachments => Set<WorkItemAttachment>();
     public DbSet<PlannerItem> PlannerItems => Set<PlannerItem>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
@@ -178,6 +180,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.Description).HasMaxLength(4000);
             cfg.Property(x => x.PeriodType).HasMaxLength(20).IsRequired();
             cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.Priority).HasMaxLength(20).IsRequired();
             cfg.HasIndex(x => x.Number).IsUnique();
             cfg.HasIndex(x => new { x.Status, x.PeriodStart });
         });
@@ -188,6 +191,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.Title).HasMaxLength(300).IsRequired();
             cfg.Property(x => x.Description).HasMaxLength(4000);
             cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.Priority).HasMaxLength(20).IsRequired();
             cfg.HasIndex(x => x.Number).IsUnique();
             // Deleting a goal keeps its tasks; they become standalone.
             cfg.HasOne(x => x.Goal)
@@ -205,8 +209,28 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             cfg.HasKey(x => x.Id);
             cfg.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.Name).HasMaxLength(100);
             cfg.HasIndex(x => x.Number).IsUnique();
             cfg.HasIndex(x => x.Status);
+        });
+
+        modelBuilder.Entity<WorkItemComment>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.ItemType).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.Author).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.Body).HasMaxLength(8000).IsRequired();
+            cfg.HasIndex(x => new { x.ItemType, x.ItemId });
+        });
+
+        modelBuilder.Entity<WorkItemAttachment>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.ItemType).HasMaxLength(20).IsRequired();
+            cfg.Property(x => x.FileName).HasMaxLength(255).IsRequired();
+            cfg.Property(x => x.StorageName).HasMaxLength(255).IsRequired();
+            cfg.Property(x => x.ContentType).HasMaxLength(200).IsRequired();
+            cfg.HasIndex(x => new { x.ItemType, x.ItemId });
         });
 
         modelBuilder.Entity<UserProfile>(cfg =>

@@ -1,0 +1,131 @@
+@if (error(); as message) {
+  <p class="error" role="alert">{{ message }}</p>
+}
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else if (task(); as task) {
+  <nav class="crumbs muted small">
+    <a routerLink="/board">Board</a> ·
+    <a routerLink="/backlog">Backlog</a>
+    @if (task.sprintKey) {
+      · <a [routerLink]="['/board/sprints', task.sprintKey]">{{ task.sprintKey }}</a>
+    }
+  </nav>
+
+  <header class="item-head">
+    <span class="key">{{ task.key }}</span>
+    @if (editingTitle()) {
+      <form class="title-form" (ngSubmit)="saveTitle()">
+        <input name="title" [(ngModel)]="titleDraft" autofocus />
+        <button type="submit">Save</button>
+        <button type="button" class="subtle" (click)="editingTitle.set(false)">Cancel</button>
+      </form>
+    } @else {
+      <h1 (click)="startTitle()" title="Click to edit">{{ task.title }}</h1>
+      <button class="subtle" (click)="remove()">Delete</button>
+    }
+  </header>
+
+  <div class="layout">
+    <div class="main">
+      <h2>Description</h2>
+      @if (editingDescription()) {
+        <form (ngSubmit)="saveDescription()">
+          <textarea name="description" rows="6" [(ngModel)]="descriptionDraft" autofocus></textarea>
+          <div class="row">
+            <button type="submit">Save</button>
+            <button type="button" class="subtle" (click)="editingDescription.set(false)">Cancel</button>
+          </div>
+        </form>
+      } @else if (task.description) {
+        <p class="description" (click)="startDescription()" title="Click to edit">{{ task.description }}</p>
+      } @else {
+        <button class="subtle" (click)="startDescription()">Add a description</button>
+      }
+
+      <app-discussion itemType="task" [itemKey]="key()" [assistantName]="assistantName()" />
+    </div>
+
+    <aside class="side">
+      <h2>Details</h2>
+      <label>
+        Status
+        <select [value]="task.column" (change)="setColumn($any($event.target).value)">
+          @for (c of columnOptions(); track c) {
+            <option [value]="c">{{ columnLabels[c] }}</option>
+          }
+          @if (task.sprintKey) {
+            <option value="backlog">Backlog</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Sprint
+        <select [value]="task.sprintKey ?? 'backlog'" (change)="setSprint($any($event.target).value)">
+          <option value="backlog">Backlog (no sprint)</option>
+          @for (s of sprintOptions(); track s.key) {
+            <option [value]="s.key">{{ s.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Value points
+        <select [value]="task.points ?? ''" (change)="setPoints($any($event.target).value)">
+          <option value="">Not estimated</option>
+          @for (p of plan()?.allowedPoints ?? []; track p) {
+            <option [value]="p">{{ p }}</option>
+          }
+        </select>
+      </label>
+      @if ((task.points ?? 0) >= 13) {
+        <p class="hint">That's big — consider splitting it into smaller tasks.</p>
+      }
+
+      <label>
+        Priority
+        <select [value]="task.priority" (change)="setPriority($any($event.target).value)">
+          @for (p of plan()?.priorities ?? []; track p) {
+            <option [value]="p">{{ priorityLabels[p] }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Goal
+        <select [value]="task.goalId ?? ''" (change)="setGoal($any($event.target).value)">
+          <option value="">No goal</option>
+          @for (g of goals(); track g.id) {
+            <option [value]="g.id">{{ g.key }} {{ g.title }}</option>
+          }
+        </select>
+      </label>
+      @if (task.goalKey) {
+        <a class="goal-chip" [style.--hue]="hue(task.goalKey)" [routerLink]="['/board/goals', task.goalKey]">
+          {{ task.goalKey }} {{ task.goalTitle }}
+        </a>
+      }
+
+      <dl class="facts">
+        @if (task.carryOverCount > 0) {
+          <dt>Carried over</dt>
+          <dd>{{ task.carryOverCount }} {{ task.carryOverCount === 1 ? 'sprint' : 'sprints' }}</dd>
+        }
+        @if (task.addedMidSprint) {
+          <dt>Scope</dt>
+          <dd>Added after the sprint started</dd>
+        }
+        @if (task.completedAtUtc) {
+          <dt>Completed</dt>
+          <dd>{{ when(task.completedAtUtc) }}</dd>
+        }
+        <dt>Created</dt>
+        <dd>{{ when(task.createdAtUtc) }}</dd>
+        <dt>Updated</dt>
+        <dd>{{ when(task.updatedAtUtc) }}</dd>
+      </dl>
+    </aside>
+  </div>
+}

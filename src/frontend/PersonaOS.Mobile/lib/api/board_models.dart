@@ -9,6 +9,9 @@ class BoardColumns {
 
   static const all = [backlog, todo, inProgress, done];
 
+  /// What the board itself shows.
+  static const board = [todo, inProgress, done];
+
   static String label(String column) => switch (column) {
         backlog => 'Backlog',
         todo => 'This week',
@@ -21,8 +24,8 @@ class BoardColumns {
 /// The server refuses an unacknowledged change to a running sprint with this code.
 const scopeChangeCode = 'scope_change_unacknowledged';
 
-/// The Fibonacci story-point scale.
-const storyPoints = [1, 2, 3, 5, 8, 13, 21];
+/// The Fibonacci value-point scale.
+const valuePoints = [1, 2, 3, 5, 8, 13, 21];
 
 /// A task under a goal, as listed with the goal.
 class GoalTaskSummary {
@@ -116,8 +119,12 @@ class BoardTask {
     this.goalId,
     this.goalKey,
     this.goalTitle,
+    this.priority = 'medium',
+    this.sprintKey,
     this.addedMidSprint = false,
     this.carryOverCount = 0,
+    this.commentCount = 0,
+    this.attachmentCount = 0,
   });
 
   factory BoardTask.fromJson(Map<String, dynamic> json) => BoardTask(
@@ -131,8 +138,12 @@ class BoardTask {
         goalId: json['goalId'] as int?,
         goalKey: json['goalKey'] as String?,
         goalTitle: json['goalTitle'] as String?,
+        priority: json['priority'] as String? ?? 'medium',
+        sprintKey: json['sprintKey'] as String?,
         addedMidSprint: json['addedMidSprint'] as bool? ?? false,
         carryOverCount: json['carryOverCount'] as int? ?? 0,
+        commentCount: json['commentCount'] as int? ?? 0,
+        attachmentCount: json['attachmentCount'] as int? ?? 0,
       );
 
   final int id;
@@ -145,14 +156,20 @@ class BoardTask {
   final int? goalId;
   final String? goalKey;
   final String? goalTitle;
+  final String priority;
+  final String? sprintKey;
   final bool addedMidSprint;
   final int carryOverCount;
+  final int commentCount;
+  final int attachmentCount;
 }
 
 class SprintInfo {
   SprintInfo({
     required this.id,
+    required this.key,
     required this.number,
+    this.name,
     required this.status,
     required this.startsAtUtc,
     required this.endsAtUtc,
@@ -168,7 +185,9 @@ class SprintInfo {
 
   factory SprintInfo.fromJson(Map<String, dynamic> json) => SprintInfo(
         id: json['id'] as int,
+        key: json['key'] as String? ?? 'SPRINT-${json['number']}',
         number: json['number'] as int,
+        name: json['name'] as String?,
         status: json['status'] as String,
         startsAtUtc: parseServerUtc(json['startsAtUtc'] as String),
         endsAtUtc: parseServerUtc(json['endsAtUtc'] as String),
@@ -183,7 +202,13 @@ class SprintInfo {
       );
 
   final int id;
+
+  /// The user-facing key, e.g. SPRINT-2.
+  final String key;
   final int number;
+
+  /// Optional name the user gave the sprint.
+  final String? name;
   final String status; // planned | active | closed
   final DateTime startsAtUtc;
   final DateTime endsAtUtc;
@@ -201,10 +226,7 @@ class SprintInfo {
 
 class BoardView {
   BoardView({
-    required this.view,
     required this.sprint,
-    required this.inPlanningWindow,
-    required this.canStartSprint,
     required this.velocity,
     required this.wipLimit,
     required this.columns,
@@ -215,14 +237,12 @@ class BoardView {
         .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
         .toList();
     return BoardView(
-      view: json['view'] as String,
-      sprint: SprintInfo.fromJson(json['sprint'] as Map<String, dynamic>),
-      inPlanningWindow: json['inPlanningWindow'] as bool? ?? false,
-      canStartSprint: json['canStartSprint'] as bool? ?? false,
+      sprint: json['sprint'] == null
+          ? null
+          : SprintInfo.fromJson(json['sprint'] as Map<String, dynamic>),
       velocity: (json['velocity'] as num?)?.toDouble(),
       wipLimit: json['wipLimit'] as int? ?? 3,
       columns: {
-        BoardColumns.backlog: tasks('backlog'),
         BoardColumns.todo: tasks('todo'),
         BoardColumns.inProgress: tasks('inProgress'),
         BoardColumns.done: tasks('done'),
@@ -230,24 +250,16 @@ class BoardView {
     );
   }
 
-  final String view; // current | next
-  final SprintInfo sprint;
-  final bool inPlanningWindow;
-  final bool canStartSprint;
+  /// Null when no sprint is running: the board is empty until one is started.
+  final SprintInfo? sprint;
   final double? velocity;
   final int wipLimit;
 
   /// Tasks by column id, in board order.
   final Map<String, List<BoardTask>> columns;
 
-  /// The columns worth showing: a sprint that has not started only holds this week's work,
-  /// plus anything carried over while still in progress.
-  List<String> get visibleColumns => sprint.isActive
-      ? BoardColumns.all
-      : BoardColumns.all
-          .where((c) =>
-              c == BoardColumns.backlog || c == BoardColumns.todo || columns[c]!.isNotEmpty)
-          .toList();
+  /// The board is the running sprint only; the backlog lives on its own page in the web app.
+  List<String> get visibleColumns => BoardColumns.board;
 }
 
 class SprintReport {
@@ -262,4 +274,36 @@ class SprintReport {
 
   final double? velocity;
   final List<SprintInfo> sprints;
+}
+
+/// One sprint on the plan, with the work sitting in it.
+class SprintPlan {
+  SprintPlan({required this.sprint, required this.tasks});
+
+  factory SprintPlan.fromJson(Map<String, dynamic> json) => SprintPlan(
+        sprint: SprintInfo.fromJson(json['sprint'] as Map<String, dynamic>),
+        tasks: (json['tasks'] as List<dynamic>? ?? const [])
+            .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+
+  final SprintInfo sprint;
+  final List<BoardTask> tasks;
+}
+
+/// The plan: the running sprint, the sprints planned after it, and the backlog.
+class PlanView {
+  PlanView({required this.sprints, required this.backlog});
+
+  factory PlanView.fromJson(Map<String, dynamic> json) => PlanView(
+        sprints: (json['sprints'] as List<dynamic>? ?? const [])
+            .map((e) => SprintPlan.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        backlog: (json['backlog'] as List<dynamic>? ?? const [])
+            .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+
+  final List<SprintPlan> sprints;
+  final List<BoardTask> backlog;
 }

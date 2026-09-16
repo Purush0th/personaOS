@@ -1,0 +1,173 @@
+.crumbs {
+  margin-bottom: 0.4rem;
+
+  a {
+    color: var(--muted);
+  }
+}
+
+.item-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+
+  .key {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    margin: 0;
+  }
+
+  .spacer {
+    flex: 1;
+  }
+
+  .state {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.05rem 0.5rem;
+    color: var(--muted);
+
+    &.active {
+      background: #e6f2e8;
+      border-color: #9cc5a4;
+      color: #2f5d37;
+    }
+  }
+}
+
+.sprint-form {
+  margin: 0.6rem 0;
+  padding: 0.8rem;
+  background: #f4f4f8;
+  border-radius: 10px;
+
+  .fields {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+
+    label {
+      margin: 0;
+      flex: 1;
+      min-width: 12rem;
+    }
+  }
+
+  .row {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+  }
+}
+
+.stats {
+  display: flex;
+  gap: 1.4rem;
+  flex-wrap: wrap;
+  margin: 0.8rem 0;
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+
+    b {
+      font-size: 1.3rem;
+    }
+
+    span {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+  }
+}
+
+.chart {
+  h2 {
+    font-size: 1.05rem;
+    margin-bottom: 0.2rem;
+  }
+
+  svg {
+    width: 100%;
+    max-width: 34rem;
+    height: auto;
+
+    .axis {
+      stroke: var(--line);
+      stroke-width: 1;
+    }
+
+    .burn {
+      fill: none;
+      stroke: var(--ink);
+      stroke-width: 2;
+    }
+
+    .dot {
+      fill: var(--ink);
+    }
+
+    .tick {
+      font-size: 11px;
+      fill: var(--muted);
+
+      &.end {
+        text-anchor: end;
+      }
+    }
+  }
+}
+
+.lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+
+  h2 {
+    font-size: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #ececf2;
+    font-size: 0.9rem;
+
+    .key {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .title {
+      flex: 1;
+      color: var(--ink);
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}

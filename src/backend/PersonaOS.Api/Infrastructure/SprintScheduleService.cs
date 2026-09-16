@@ -5,15 +5,15 @@ using PersonaOS.Domain.Entities;
 namespace PersonaOS.Api.Infrastructure;
 
 /// <summary>
-/// Keeps the weekly sprint cycle moving without the app being open: closes the sprint on Sunday
-/// at 18:00, sends the 19:00 planning nudge, and starts the next sprint at 20:00. The cycle is
-/// idempotent, so the interval only affects punctuality.
+/// Sends the Sunday planning nudge without the app being open. Sprints themselves start and stop
+/// only when the user says so; this just reminds them on Sunday evening. The nudge is idempotent
+/// per day, so the interval only affects punctuality.
 /// </summary>
 public class SprintScheduleService(
     IServiceProvider services,
     ILogger<SprintScheduleService> logger) : BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(5);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -30,9 +30,9 @@ public class SprintScheduleService(
                 if (config.IsConfigured
                     && config.Features.TryGetValue(InstanceConfig.Modules.Board, out var enabled) && enabled)
                 {
-                    var result = await scope.ServiceProvider.GetRequiredService<IBoardService>()
-                        .RunCycleAsync(stoppingToken);
-                    foreach (var evt in result.Events) logger.LogInformation("Sprint cycle: {Event}.", evt);
+                    var events = await scope.ServiceProvider.GetRequiredService<IBoardService>()
+                        .RunRemindersAsync(stoppingToken);
+                    foreach (var evt in events) logger.LogInformation("Sprint reminder: {Event}.", evt);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

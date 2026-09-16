@@ -95,6 +95,10 @@
                 {{ columnLabel(task.column) }}@if (task.sprintNumber) { · sprint {{ task.sprintNumber }}}
               </span>
               <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
+              @if (task.column === 'done') {
+                <button class="subtle tiny" (click)="reopenTask(task)" title="Move back to the backlog">Reopen</button>
+              }
+              <button class="subtle tiny danger" (click)="removeTask(task)" [title]="'Delete ' + task.key">✕</button>
             </li>
           }
         </ul>

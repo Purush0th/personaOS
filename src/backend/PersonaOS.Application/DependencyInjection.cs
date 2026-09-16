@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<IGoalService, GoalService>();
         services.AddScoped<IBoardService, BoardService>();
+        services.AddScoped<PersonaOS.Application.WorkItems.IWorkItemService, PersonaOS.Application.WorkItems.WorkItemService>();
         services.AddScoped<IPlannerService, PlannerService>();
         services.AddScoped<IReminderService, ReminderService>();
         services.AddScoped<IReminderAlarmPublisher, ReminderAlarmPublisher>();
@@ -44,6 +45,11 @@ public static class DependencyInjection
         services.AddScoped<IPersonaTool, UpdateGoalStatusTool>();
         services.AddScoped<IPersonaTool, DeleteGoalTool>();
         services.AddScoped<IPersonaTool, GetBoardTool>();
+        services.AddScoped<IPersonaTool, GetPlanTool>();
+        services.AddScoped<IPersonaTool, CreateSprintTool>();
+        services.AddScoped<IPersonaTool, StartSprintTool>();
+        services.AddScoped<IPersonaTool, CompleteSprintTool>();
+        services.AddScoped<IPersonaTool, AddCommentTool>();
         services.AddScoped<IPersonaTool, GetSprintReportTool>();
         services.AddScoped<IPersonaTool, CreateTaskTool>();
         services.AddScoped<IPersonaTool, UpdateTaskTool>();

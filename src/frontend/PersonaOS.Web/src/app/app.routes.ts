@@ -30,6 +30,26 @@ export const routes: Routes = [
     loadComponent: () => import('./board/board').then(m => m.Board),
   },
   {
+    path: 'backlog',
+    canActivate: [authGuard],
+    loadComponent: () => import('./backlog/backlog').then(m => m.Backlog),
+  },
+  {
+    path: 'board/tasks/:key',
+    canActivate: [authGuard],
+    loadComponent: () => import('./board/task-detail').then(m => m.TaskDetail),
+  },
+  {
+    path: 'board/sprints/:key',
+    canActivate: [authGuard],
+    loadComponent: () => import('./board/sprint-detail').then(m => m.SprintDetail),
+  },
+  {
+    path: 'board/goals/:key',
+    canActivate: [authGuard],
+    loadComponent: () => import('./board/goal-detail').then(m => m.GoalDetail),
+  },
+  {
     path: 'planner',
     canActivate: [authGuard],
     loadComponent: () => import('./planner/planner').then(m => m.Planner),

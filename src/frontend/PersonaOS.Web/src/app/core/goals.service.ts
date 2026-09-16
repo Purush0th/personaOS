@@ -22,6 +22,9 @@ export interface Goal {
   periodType: 'year' | 'quarter' | 'month';
   periodStart: string;
   status: 'active' | 'completed' | 'dropped';
+  priority: 'highest' | 'high' | 'medium' | 'low' | 'lowest';
+  commentCount: number;
+  attachmentCount: number;
   /** Manually tracked; used only while the goal has no tasks. */
   progress: number;
   /** From the goal's tasks: done points over estimated points. */
@@ -30,12 +33,28 @@ export interface Goal {
   doneTaskCount: number;
   totalPoints: number;
   donePoints: number;
+  createdAtUtc: string;
+  updatedAtUtc: string;
   tasks: GoalTaskSummary[];
 }
 
 @Injectable({ providedIn: 'root' })
 export class GoalsService {
   private readonly http = inject(HttpClient);
+
+  /** By its key, e.g. GOAL-3 — what the goal's own page loads from the URL. */
+  getByKey(key: string): Promise<Goal> {
+    return firstValueFrom(this.http.get<Goal>(`/api/goals/${key}`));
+  }
+
+  update(id: number, changes: {
+    title?: string;
+    description?: string;
+    clearDescription?: boolean;
+    priority?: string;
+  }): Promise<Goal> {
+    return firstValueFrom(this.http.put<Goal>(`/api/goals/${id}`, changes));
+  }
 
   getAll(includeDropped = false): Promise<Goal[]> {
     return firstValueFrom(this.http.get<Goal[]>(`/api/goals?includeDropped=${includeDropped}`));

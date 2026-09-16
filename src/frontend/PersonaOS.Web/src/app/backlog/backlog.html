@@ -1,0 +1,176 @@
+<header class="page-head">
+  <h1>Backlog</h1>
+  <div class="actions">
+    <a class="button subtle" routerLink="/board">Board</a>
+    <button (click)="newSprint()">＋ Create sprint</button>
+  </div>
+</header>
+
+@if (error(); as message) {
+  <p class="error" role="alert">{{ message }}</p>
+}
+
+@if (editingSprint(); as editing) {
+  <form class="sprint-form" (ngSubmit)="saveSprint()">
+    <h2>{{ editing === 'new' ? 'New sprint' : 'Edit ' + editing.key }}</h2>
+    <div class="fields">
+      <label>
+        Name
+        <input name="name" [(ngModel)]="sprintName" placeholder="Optional, e.g. Paperwork week" autofocus />
+      </label>
+      <label>Starts <input name="start" type="datetime-local" [(ngModel)]="sprintStart" /></label>
+      <label>Ends <input name="end" type="datetime-local" [(ngModel)]="sprintEnd" /></label>
+    </div>
+    <p class="muted small">Leave the dates empty for the next free Sunday-to-Sunday week.</p>
+    <div class="form-actions">
+      <button type="submit">Save</button>
+      <button type="button" class="subtle" (click)="editingSprint.set(null)">Cancel</button>
+    </div>
+  </form>
+}
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else if (plan(); as plan) {
+  @for (group of groups(); track groupId(group)) {
+    <section
+      class="group"
+      [class.drop]="dropGroup() === groupId(group)"
+      [class.backlog]="!group.sprint"
+      (dragover)="onDragOver($event, groupId(group))"
+      (dragleave)="dropGroup.set(null)"
+      (drop)="onDrop($event, group, null)"
+    >
+      <header>
+        <button class="twisty subtle" (click)="toggle(group)" [attr.aria-expanded]="!isCollapsed(group)">
+          {{ isCollapsed(group) ? '▸' : '▾' }}
+        </button>
+        @if (group.sprint) {
+          <a class="name" [routerLink]="['/board/sprints', group.sprint.key]">{{ title(group) }}</a>
+          <span class="state" [class.active]="group.sprint.status === 'active'">
+            {{ group.sprint.status === 'active' ? 'running' : 'planned' }}
+          </span>
+          <span class="muted small dates">
+            {{ when(group.sprint.startsAtUtc) }} – {{ when(group.sprint.endsAtUtc) }}
+          </span>
+        } @else {
+          <span class="name">Backlog</span>
+        }
+        <span class="muted small count">
+          {{ group.tasks.length }} {{ group.tasks.length === 1 ? 'issue' : 'issues' }} · {{ points(group.tasks) }} pts
+        </span>
+
+        @if (group.sprint; as sprint) {
+          <span class="group-actions">
+            @if (canStart(sprint)) {
+              <button (click)="startSprint(sprint)">Start sprint</button>
+            }
+            @if (sprint.status === 'active') {
+              <button (click)="completeSprint(sprint)">Complete sprint</button>
+            }
+            <button class="subtle" (click)="editSprint(sprint)">Edit</button>
+            @if (sprint.status === 'planned') {
+              <button class="subtle danger" (click)="deleteSprint(sprint)">Delete</button>
+            }
+          </span>
+        }
+      </header>
+
+      @if (!isCollapsed(group)) {
+        <ul class="rows">
+          @for (task of group.tasks; track task.key) {
+            <li
+              class="row"
+              draggable="true"
+              [class.dragging]="draggingKey() === task.key"
+              (dragstart)="onDragStart($event, task)"
+              (dragend)="onDragEnd()"
+              (dragover)="onDragOver($event, groupId(group))"
+              (drop)="onDrop($event, group, task)"
+            >
+              <a class="key" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
+              <a class="title" [routerLink]="['/board/tasks', task.key]">{{ task.title }}</a>
+
+              @if (task.goalKey) {
+                <span class="goal-chip" [style.--hue]="hue(task.goalKey)" [title]="task.goalKey">
+                  {{ task.goalTitle }}
+                </span>
+              }
+              @if (task.carryOverCount > 0) {
+                <span class="flag" title="Carried over from an earlier sprint">↻ {{ task.carryOverCount }}</span>
+              }
+              @if (task.commentCount > 0) {
+                <span class="flag">💬 {{ task.commentCount }}</span>
+              }
+              @if (task.attachmentCount > 0) {
+                <span class="flag">📎 {{ task.attachmentCount }}</span>
+              }
+
+              <span class="status">{{ columnLabels[task.column] }}</span>
+
+              <select
+                class="priority"
+                [attr.aria-label]="'Priority of ' + task.key"
+                [value]="task.priority"
+                (change)="setPriority(task, $any($event.target).value)"
+              >
+                @for (p of plan.priorities; track p) {
+                  <option [value]="p">{{ priorityLabels[p] }}</option>
+                }
+              </select>
+
+              <select
+                class="points"
+                [attr.aria-label]="'Value points of ' + task.key"
+                [value]="task.points ?? ''"
+                (change)="setPoints(task, $any($event.target).value)"
+              >
+                <option value="">?</option>
+                @for (p of plan.allowedPoints; track p) {
+                  <option [value]="p">{{ p }}</option>
+                }
+              </select>
+
+              <select
+                class="move"
+                [attr.aria-label]="'Move ' + task.key"
+                (change)="moveToGroup(task, $any($event.target).value); $any($event.target).value = ''"
+              >
+                <option value="">Move…</option>
+                @for (target of moveTargets(task); track target.id) {
+                  <option [value]="target.id">{{ target.title }}</option>
+                }
+              </select>
+            </li>
+          } @empty {
+            <li class="empty muted small">
+              {{ group.sprint ? 'Drag work in from the backlog, or add it here.' : 'Nothing in the backlog.' }}
+            </li>
+          }
+        </ul>
+
+        @if (addingTo() === groupId(group)) {
+          <form class="add" (ngSubmit)="add(group)">
+            <input name="title" [(ngModel)]="draftTitle" placeholder="What needs doing?" autofocus />
+            <select name="points" [(ngModel)]="draftPoints" aria-label="Value points">
+              <option [ngValue]="null">? pts</option>
+              @for (p of plan.allowedPoints; track p) {
+                <option [ngValue]="p">{{ p }} pts</option>
+              }
+            </select>
+            <select name="goal" [(ngModel)]="draftGoalId" aria-label="Goal">
+              <option [ngValue]="null">No goal</option>
+              @for (g of goals(); track g.id) {
+                <option [ngValue]="g.id">{{ g.key }} {{ g.title }}</option>
+              }
+            </select>
+            <button type="submit">Add</button>
+            <button type="button" class="subtle" (click)="addingTo.set(null)">Cancel</button>
+          </form>
+        } @else {
+          <button class="subtle add-button" (click)="startAdd(group)">＋ Create issue</button>
+        }
+      }
+    </section>
+  }
+}

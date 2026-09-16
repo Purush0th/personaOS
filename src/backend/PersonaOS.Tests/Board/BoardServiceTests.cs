@@ -9,23 +9,24 @@ namespace PersonaOS.Tests.Board;
 
 /// <summary>
 /// The sprint board's rules, driven by a fixed clock in UTC (so local time = UTC).
-/// 2026-09-15 is a Tuesday; 2026-09-20 and 2026-09-27 are Sundays.
+/// Sprints are created, started and completed by hand — nothing happens on a timer except the
+/// Sunday nudge. 2026-09-15 is a Tuesday; 2026-09-20 and 2026-09-27 are Sundays.
 /// </summary>
 public class BoardServiceTests
 {
     private static readonly DateTimeOffset Tuesday = new(2026, 9, 15, 9, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset SundayClose = new(2026, 9, 20, 18, 0, 0, TimeSpan.Zero);
 
-    private sealed record Rig(TestDbContext Db, BoardService Board, GoalService Goals, FixedTimeProvider Clock, FakePushSender Push)
+    private sealed record Rig(
+        TestDbContext Db, BoardService Board, GoalService Goals, FixedTimeProvider Clock, FakePushSender Push)
     {
-        public void At(DateTimeOffset when) => Clock.Now = when;
-        public void At(int day, int hour, int minute = 0) => Clock.Now = new DateTimeOffset(2026, 9, day, hour, minute, 0, TimeSpan.Zero);
+        public void At(int day, int hour, int minute = 0) =>
+            Clock.Now = new DateTimeOffset(2026, 9, day, hour, minute, 0, TimeSpan.Zero);
     }
 
-    private static Rig Setup(DateTimeOffset now)
+    private static Rig Setup(DateTimeOffset? now = null)
     {
         var db = TestDbContext.Create();
-        var clock = new FixedTimeProvider(now);
+        var clock = new FixedTimeProvider(now ?? Tuesday);
         var push = new FakePushSender();
         db.DeviceTokens.Add(new DeviceToken { Token = "phone", Platform = "android" });
         db.SaveChanges();
@@ -33,280 +34,354 @@ public class BoardServiceTests
         return new Rig(db, board, new GoalService(db), clock, push);
     }
 
-    [Fact]
-    public async Task A_new_board_starts_an_open_first_week_that_ends_on_Sunday()
+    /// <summary>A rig with SPRINT-1 running and one committed 3-point task in it.</summary>
+    private static async Task<(Rig Rig, SprintDto Sprint, BoardTaskDto Task)> RunningSprintAsync()
     {
-        var rig = Setup(Tuesday);
-
-        var view = await rig.Board.GetBoardAsync();
-
-        Assert.Equal(1, view.Sprint.Number);
-        Assert.Equal(SprintStatuses.Active, view.Sprint.Status);
-        Assert.Equal(SundayClose.UtcDateTime, view.Sprint.EndsAtUtc);
-        // Nobody planned the first week, so filling it is not a scope change.
-        Assert.False(view.Sprint.ScopeLocked);
-        var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Write intro", Points: 3, Destination: "current"));
-        Assert.False(task.AddedMidSprint);
-        Assert.Equal(BoardColumns.Todo, task.Column);
+        var rig = Setup();
+        var sprint = await rig.Board.CreateSprintAsync(new CreateSprintRequest("Week one"));
+        var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Committed", Points: 3, SprintKey: sprint.Key));
+        var started = await rig.Board.StartSprintAsync(sprint.Id);
+        return (rig, started!, task);
     }
 
     [Fact]
-    public async Task A_board_first_opened_during_Sunday_planning_waits_for_20_00()
+    public async Task A_new_board_has_no_sprint_and_only_a_backlog()
     {
-        var rig = Setup(new DateTimeOffset(2026, 9, 20, 18, 30, 0, TimeSpan.Zero));
+        var rig = Setup();
+        await rig.Board.CreateTaskAsync(new CreateTaskRequest("Someday"));
 
-        var view = await rig.Board.GetBoardAsync();
+        var board = await rig.Board.GetBoardAsync();
+        var plan = await rig.Board.GetPlanAsync();
 
-        Assert.Equal(SprintStatuses.Planned, view.Sprint.Status);
-        Assert.True(view.InPlanningWindow);
-        Assert.True(view.CanStartSprint);
-        Assert.Equal(new DateTime(2026, 9, 20, 20, 0, 0), view.Sprint.StartsAtUtc);
+        Assert.Null(board.Sprint);
+        Assert.Empty(board.Todo);
+        Assert.Empty(plan.Sprints);
+        Assert.Equal(["TASK-1"], plan.Backlog.Select(t => t.Key));
     }
 
     [Fact]
-    public async Task Sunday_closes_the_sprint_carries_unfinished_work_and_starts_the_next_at_20()
+    public async Task A_created_sprint_gets_a_key_a_name_and_the_next_free_week()
     {
-        var rig = Setup(Tuesday);
-        var unfinished = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Unfinished", Points: 3, Destination: "current"));
-        var finished = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Finished", Points: 5, Destination: "current"));
-        await rig.Board.MoveTaskAsync(finished.Id, new MoveTaskRequest("done"));
-        await rig.Board.CreateTaskAsync(new CreateTaskRequest("Planned ahead", Points: 2, Destination: "next"));
+        var rig = Setup();
 
-        rig.At(SundayClose);
-        await rig.Board.RunCycleAsync();
+        var first = await rig.Board.CreateSprintAsync(new CreateSprintRequest("Paperwork week"));
+        var second = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null));
 
-        var report = await rig.Board.GetReportAsync();
-        var closed = Assert.Single(report.Sprints);
-        Assert.Equal(SprintStatuses.Closed, closed.Status);
-        Assert.Equal(8, closed.CommittedPoints); // the open first week commits what it held
-        Assert.Equal(5, closed.CompletedPoints);
-        Assert.Equal(3, closed.CarriedOverPoints);
-        Assert.Equal(5.0, report.Velocity);
-
-        var carried = (await rig.Board.GetTaskAsync(unfinished.Id))!;
-        Assert.Equal(2, carried.SprintNumber);
-        Assert.Equal(1, carried.CarryOverCount);
-        Assert.Equal(BoardColumns.Todo, carried.Column);
-        Assert.Equal(1, (await rig.Board.GetTaskAsync(finished.Id))!.SprintNumber); // done work stays behind
-
-        // The planning window: sprint 2 is planned, carried work first.
-        var planning = await rig.Board.GetBoardAsync();
-        Assert.Equal(SprintStatuses.Planned, planning.Sprint.Status);
-        Assert.Equal(["Unfinished", "Planned ahead"], planning.Todo.Select(t => t.Title));
-
-        rig.At(20, 20);
-        var running = await rig.Board.GetBoardAsync();
-        Assert.Equal(2, running.Sprint.Number);
-        Assert.Equal(SprintStatuses.Active, running.Sprint.Status);
-        Assert.Equal(5, running.Sprint.CommittedPoints);
-        Assert.True(running.Sprint.ScopeLocked);
-        Assert.Equal(new DateTime(2026, 9, 27, 18, 0, 0), running.Sprint.EndsAtUtc);
-        Assert.True(await rig.Db.Sprints.AnyAsync(s => s.Number == 3 && s.Status == SprintStatuses.Planned));
+        Assert.Equal("SPRINT-1", first.Key);
+        Assert.Equal("Paperwork week", first.Name);
+        Assert.Equal(SprintStatuses.Planned, first.Status);
+        // Defaults follow the Sunday 20:00 → Sunday 18:00 rhythm, and never overlap.
+        // The first one starts now and runs to the coming Sunday; the next takes the week after.
+        Assert.Equal(new DateTime(2026, 9, 15, 9, 0, 0), first.StartsAtUtc);
+        Assert.Equal(new DateTime(2026, 9, 20, 18, 0, 0), first.EndsAtUtc);
+        Assert.Equal("SPRINT-2", second.Key);
+        Assert.Equal(new DateTime(2026, 9, 20, 20, 0, 0), second.StartsAtUtc);
+        Assert.Equal(new DateTime(2026, 9, 27, 18, 0, 0), second.EndsAtUtc);
     }
 
     [Fact]
-    public async Task Adding_to_a_started_sprint_needs_acknowledgement_and_is_reported_as_added()
+    public async Task Dates_can_be_set_and_must_make_sense()
     {
-        var rig = await RunningPlannedSprintAsync();
+        var rig = Setup();
+        var sprint = await rig.Board.CreateSprintAsync(new CreateSprintRequest(
+            "Holiday", new DateTime(2026, 10, 1, 9, 0, 0), new DateTime(2026, 10, 10, 17, 0, 0)));
+
+        Assert.Equal(new DateTime(2026, 10, 1, 9, 0, 0), sprint.StartsAtUtc);
+        Assert.Equal(new DateTime(2026, 10, 10, 17, 0, 0), sprint.EndsAtUtc);
+
+        var renamed = await rig.Board.UpdateSprintAsync(sprint.Id, new UpdateSprintRequest(Name: "Trip"));
+        Assert.Equal("Trip", renamed!.Name);
+
+        await Assert.ThrowsAsync<BoardValidationException>(() => rig.Board.UpdateSprintAsync(
+            sprint.Id, new UpdateSprintRequest(EndsAtLocal: new DateTime(2026, 9, 30, 9, 0, 0))));
+    }
+
+    [Fact]
+    public async Task Nothing_starts_by_itself_and_only_one_sprint_runs()
+    {
+        var rig = Setup();
+        var first = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null));
+        var second = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null));
+        await rig.Board.CreateTaskAsync(new CreateTaskRequest("Planned", Points: 5, SprintKey: first.Key));
+
+        // The start date passes; the sprint is still only planned.
+        rig.At(21, 10);
+        Assert.Null((await rig.Board.GetBoardAsync()).Sprint);
+
+        var started = await rig.Board.StartSprintAsync(first.Id);
+        Assert.Equal(SprintStatuses.Active, started!.Status);
+        Assert.Equal(5, started.CommittedPoints);
+        Assert.True(started.ScopeLocked);
+
+        var ex = await Assert.ThrowsAsync<BoardValidationException>(() => rig.Board.StartSprintAsync(second.Id));
+        Assert.Contains("SPRINT-1 is still running", ex.Message);
+    }
+
+    [Fact]
+    public async Task The_board_shows_the_running_sprint_without_a_backlog_column()
+    {
+        var (rig, sprint, task) = await RunningSprintAsync();
+        await rig.Board.CreateTaskAsync(new CreateTaskRequest("Not this week"));
+        await rig.Board.MoveTaskAsync(task.Id, new MoveTaskRequest(BoardColumns.InProgress));
+
+        var board = await rig.Board.GetBoardAsync();
+
+        Assert.Equal(sprint.Key, board.Sprint!.Key);
+        Assert.Equal(["TASK-1"], board.InProgress.Select(t => t.Key));
+        Assert.Empty(board.Todo);
+        // The backlog lives on the plan page now.
+        Assert.Equal(["TASK-2"], (await rig.Board.GetPlanAsync()).Backlog.Select(t => t.Key));
+    }
+
+    [Fact]
+    public async Task Adding_to_a_running_sprint_needs_acknowledgement_and_is_reported_as_added()
+    {
+        var (rig, sprint, _) = await RunningSprintAsync();
 
         var ex = await Assert.ThrowsAsync<ScopeChangeException>(() =>
-            rig.Board.CreateTaskAsync(new CreateTaskRequest("Urgent bill", Points: 2, Destination: "current")));
-        Assert.Contains("scope change", ex.Message);
+            rig.Board.CreateTaskAsync(new CreateTaskRequest("Urgent bill", Points: 2, SprintKey: sprint.Key)));
         Assert.Equal("scope_change_unacknowledged", ex.Code);
+        Assert.Contains("SPRINT-1 is running", ex.Message);
 
         var added = await rig.Board.CreateTaskAsync(
-            new CreateTaskRequest("Urgent bill", Points: 2, Destination: "current", AcknowledgeScopeChange: true));
+            new CreateTaskRequest("Urgent bill", Points: 2, SprintKey: sprint.Key, AcknowledgeScopeChange: true));
+
         Assert.True(added.AddedMidSprint);
-
-        var view = await rig.Board.GetBoardAsync();
-        Assert.Equal(3, view.Sprint.CommittedPoints); // unchanged by the addition
-        Assert.Equal(2, view.Sprint.AddedPoints);
+        var board = await rig.Board.GetBoardAsync();
+        Assert.Equal(3, board.Sprint!.CommittedPoints); // unchanged by the addition
+        Assert.Equal(2, board.Sprint.AddedPoints);
     }
 
     [Fact]
-    public async Task Planning_next_week_never_warns()
+    public async Task A_task_moves_from_one_sprint_to_another_by_key()
     {
-        var rig = await RunningPlannedSprintAsync();
-
-        var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Next week", Points: 8, Destination: "next"));
-        var backlog = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Someday"));
-        var moved = await rig.Board.MoveTaskAsync(backlog.Id, new MoveTaskRequest("todo", Sprint: "next"));
-
-        Assert.False(task.AddedMidSprint);
-        Assert.False(moved!.AddedMidSprint);
-        var next = await rig.Board.GetBoardAsync("next");
-        Assert.Equal(2, next.Todo.Count);
-        Assert.False(next.Sprint.ScopeLocked);
-    }
-
-    [Fact]
-    public async Task A_sprint_that_has_not_started_only_holds_this_weeks_work()
-    {
-        var rig = await RunningPlannedSprintAsync();
-        var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Next week", Destination: "next"));
-
-        await Assert.ThrowsAsync<BoardValidationException>(() =>
-            rig.Board.MoveTaskAsync(task.Id, new MoveTaskRequest("in_progress", Sprint: "next")));
-    }
-
-    [Fact]
-    public async Task Taking_committed_work_out_counts_as_removed_but_taking_back_an_addition_does_not()
-    {
-        var rig = await RunningPlannedSprintAsync();
-        var committed = (await rig.Board.GetBoardAsync()).Todo.Single();
+        var (rig, running, task) = await RunningSprintAsync();
+        var next = await rig.Board.CreateSprintAsync(new CreateSprintRequest("Week two"));
 
         await Assert.ThrowsAsync<ScopeChangeException>(() =>
-            rig.Board.MoveTaskAsync(committed.Id, new MoveTaskRequest("backlog")));
-        await rig.Board.MoveTaskAsync(committed.Id, new MoveTaskRequest("backlog", AcknowledgeScopeChange: true));
+            rig.Board.MoveTaskAsync(task.Id, new MoveTaskRequest(BoardColumns.Todo, next.Key)));
+        var moved = await rig.Board.MoveTaskAsync(
+            task.Id, new MoveTaskRequest(BoardColumns.Todo, next.Key, AcknowledgeScopeChange: true));
 
-        var extra = await rig.Board.CreateTaskAsync(
-            new CreateTaskRequest("Extra", Points: 5, Destination: "current", AcknowledgeScopeChange: true));
-        await rig.Board.MoveTaskAsync(extra.Id, new MoveTaskRequest("backlog", AcknowledgeScopeChange: true));
-
-        var view = await rig.Board.GetBoardAsync();
-        Assert.Equal(3, view.Sprint.RemovedPoints);
-        Assert.Equal(0, view.Sprint.AddedPoints);
-        Assert.False((await rig.Board.GetTaskAsync(extra.Id))!.AddedMidSprint);
+        Assert.Equal(next.Key, moved!.SprintKey);
+        Assert.Equal("Week two", moved.SprintName);
+        // Leaving a running sprint is reported as removed scope.
+        var board = await rig.Board.GetBoardAsync();
+        Assert.Equal(running.Key, board.Sprint!.Key);
+        Assert.Equal(3, board.Sprint.RemovedPoints);
+        Assert.Empty(board.Todo);
     }
 
     [Fact]
-    public async Task Moving_within_a_running_sprint_is_not_a_scope_change()
+    public async Task Work_cannot_be_in_progress_in_a_sprint_that_has_not_started()
     {
-        var rig = await RunningPlannedSprintAsync();
-        var task = (await rig.Board.GetBoardAsync()).Todo.Single();
+        var rig = Setup();
+        var planned = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null));
+        var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Later", SprintKey: planned.Key));
 
-        var started = await rig.Board.MoveTaskAsync(task.Id, new MoveTaskRequest("in_progress"));
-        var done = await rig.Board.MoveTaskAsync(task.Id, new MoveTaskRequest("done"));
+        var ex = await Assert.ThrowsAsync<BoardValidationException>(() =>
+            rig.Board.MoveTaskAsync(task.Id, new MoveTaskRequest(BoardColumns.InProgress, planned.Key)));
 
-        Assert.Equal(BoardColumns.InProgress, started!.Column);
-        Assert.NotNull(done!.CompletedAtUtc);
-        Assert.Equal(3, (await rig.Board.GetBoardAsync()).Sprint.CompletedPoints);
+        Assert.Contains("has not started", ex.Message);
     }
 
     [Fact]
-    public async Task Moving_to_an_index_reorders_the_column()
+    public async Task Completing_a_sprint_freezes_it_and_carries_unfinished_work_to_the_next_one()
     {
-        var rig = Setup(Tuesday);
-        var a = await rig.Board.CreateTaskAsync(new CreateTaskRequest("A"));
-        var b = await rig.Board.CreateTaskAsync(new CreateTaskRequest("B"));
-        var c = await rig.Board.CreateTaskAsync(new CreateTaskRequest("C"));
+        var (rig, sprint, unfinished) = await RunningSprintAsync();
+        var done = await rig.Board.CreateTaskAsync(
+            new CreateTaskRequest("Finished", Points: 5, SprintKey: sprint.Key, AcknowledgeScopeChange: true));
+        await rig.Board.MoveTaskAsync(done.Id, new MoveTaskRequest(BoardColumns.Done));
+        var next = await rig.Board.CreateSprintAsync(new CreateSprintRequest("Week two"));
 
-        await rig.Board.MoveTaskAsync(c.Id, new MoveTaskRequest("backlog", Index: 0));
+        var closed = await rig.Board.CompleteSprintAsync(sprint.Id, new CompleteSprintRequest());
 
-        Assert.Equal(["C", "A", "B"], (await rig.Board.GetBoardAsync()).Backlog.Select(t => t.Title));
-        _ = (a, b);
+        Assert.Equal(SprintStatuses.Closed, closed!.Status);
+        Assert.Equal(3, closed.CommittedPoints);
+        Assert.Equal(5, closed.CompletedPoints);
+        Assert.Equal(5, closed.AddedPoints);
+        Assert.Equal(3, closed.CarriedOverPoints);
+
+        var carried = (await rig.Board.GetTaskAsync(unfinished.Id))!.Task;
+        Assert.Equal(next.Key, carried.SprintKey);
+        Assert.Equal(1, carried.CarryOverCount);
+        // Finished work stays behind in the sprint that finished it.
+        Assert.Equal(sprint.Key, (await rig.Board.GetTaskAsync(done.Id))!.Task.SprintKey);
+
+        Assert.Null((await rig.Board.GetBoardAsync()).Sprint); // nothing runs until the user starts one
+        Assert.Equal(5.0, (await rig.Board.GetReportAsync()).Velocity);
     }
 
     [Fact]
-    public async Task A_deleted_tasks_number_goes_to_the_next_new_task()
+    public async Task Unfinished_work_can_go_back_to_the_backlog_instead()
     {
-        var rig = Setup(Tuesday);
+        var (rig, sprint, task) = await RunningSprintAsync();
+
+        await rig.Board.CompleteSprintAsync(sprint.Id, new CompleteSprintRequest(ToBacklog: true));
+
+        var plan = await rig.Board.GetPlanAsync();
+        Assert.Equal([task.Key], plan.Backlog.Select(t => t.Key));
+        Assert.Empty(plan.Sprints);
+    }
+
+    [Fact]
+    public async Task A_planned_sprint_can_be_deleted_and_its_work_returns_to_the_backlog()
+    {
+        var rig = Setup();
+        var planned = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null));
+        await rig.Board.CreateTaskAsync(new CreateTaskRequest("Later", SprintKey: planned.Key));
+
+        Assert.True(await rig.Board.DeleteSprintAsync(planned.Id));
+        Assert.Equal(["TASK-1"], (await rig.Board.GetPlanAsync()).Backlog.Select(t => t.Key));
+
+        var (running, sprint, _) = await RunningSprintAsync();
+        var ex = await Assert.ThrowsAsync<BoardValidationException>(() => running.Board.DeleteSprintAsync(sprint.Id));
+        Assert.Contains("complete it instead", ex.Message);
+    }
+
+    [Fact]
+    public async Task A_deleted_key_number_goes_to_the_next_new_item()
+    {
+        var rig = Setup();
+        var first = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null));
+        var second = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null));
+        Assert.Equal("SPRINT-2", second.Key);
+
+        // Deleting a planned sprint frees its number, the same way task numbers work.
+        await rig.Board.DeleteSprintAsync(first.Id);
+        Assert.Equal("SPRINT-1", (await rig.Board.CreateSprintAsync(new CreateSprintRequest(null))).Key);
+
         await rig.Board.CreateTaskAsync(new CreateTaskRequest("One"));
         var two = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Two"));
-        await rig.Board.CreateTaskAsync(new CreateTaskRequest("Three"));
-
-        Assert.Equal("TASK-2", two.Key);
         await rig.Board.DeleteTaskAsync(two.Id);
-        var next = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Four"));
-
-        Assert.Equal("TASK-2", next.Key);
-        Assert.Equal(next.Id, await rig.Board.ResolveTaskKeyAsync("task 2"));
+        Assert.Equal("TASK-2", (await rig.Board.CreateTaskAsync(new CreateTaskRequest("Three"))).Key);
     }
 
     [Fact]
-    public async Task Points_must_be_Fibonacci()
+    public async Task Points_are_Fibonacci_and_priority_is_one_of_five()
     {
-        var rig = Setup(Tuesday);
+        var rig = Setup();
 
         await Assert.ThrowsAsync<BoardValidationException>(() =>
             rig.Board.CreateTaskAsync(new CreateTaskRequest("Odd size", Points: 4)));
+        await Assert.ThrowsAsync<BoardValidationException>(() =>
+            rig.Board.CreateTaskAsync(new CreateTaskRequest("Odd urgency", Priority: "urgent")));
+
+        var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Fine", Points: 8, Priority: "HIGH"));
+        Assert.Equal(WorkItemPriorities.High, task.Priority);
+        Assert.Equal(WorkItemPriorities.Medium, (await rig.Board.CreateTaskAsync(new CreateTaskRequest("Plain"))).Priority);
     }
 
     [Fact]
-    public async Task The_planning_nudge_goes_out_once_at_19_with_the_review()
+    public async Task The_sprint_view_shows_the_points_coming_down_day_by_day()
     {
-        var rig = Setup(Tuesday);
-        var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Done", Points: 5, Destination: "current"));
-        await rig.Board.MoveTaskAsync(task.Id, new MoveTaskRequest("done"));
+        var (rig, sprint, first) = await RunningSprintAsync();
+        var second = await rig.Board.CreateTaskAsync(
+            new CreateTaskRequest("Second", Points: 5, SprintKey: sprint.Key, AcknowledgeScopeChange: true));
+
+        await rig.Board.MoveTaskAsync(first.Id, new MoveTaskRequest(BoardColumns.Done));
+        rig.At(17, 12);
+        await rig.Board.MoveTaskAsync(second.Id, new MoveTaskRequest(BoardColumns.Done));
+
+        var detail = await rig.Board.GetSprintAsync(sprint.Id);
+
+        Assert.Equal(3, detail!.Burndown.Count); // 15th, 16th, 17th
+        Assert.Equal(new DateOnly(2026, 9, 15), detail.Burndown[0].Date);
+        Assert.Equal(5, detail.Burndown[0].RemainingPoints); // 3 of 8 done on day one
+        Assert.Equal(5, detail.Burndown[1].RemainingPoints); // nothing finished on day two
+        Assert.Equal(0, detail.Burndown[2].RemainingPoints);
+        Assert.Equal(8, detail.Burndown[2].CompletedPoints);
+    }
+
+    [Fact]
+    public async Task A_closed_sprint_chart_still_shows_the_work_that_was_carried_out_of_it()
+    {
+        // The carried tasks are in the next sprint by then, so the chart has to come from the
+        // sprint's own frozen totals — otherwise it looks like the week only ever held what it
+        // finished, and the line always lands on zero.
+        var (rig, sprint, unfinished) = await RunningSprintAsync();
+        var done = await rig.Board.CreateTaskAsync(
+            new CreateTaskRequest("Finished", Points: 5, SprintKey: sprint.Key, AcknowledgeScopeChange: true));
+        await rig.Board.MoveTaskAsync(done.Id, new MoveTaskRequest(BoardColumns.Done));
+        await rig.Board.CompleteSprintAsync(sprint.Id, new CompleteSprintRequest(ToBacklog: true));
+
+        var detail = await rig.Board.GetSprintAsync(sprint.Id);
+
+        Assert.Equal(8, detail!.Burndown[0].RemainingPoints + detail.Burndown[0].CompletedPoints);
+        Assert.Equal(3, detail.Burndown[^1].RemainingPoints); // the carried task never got done
+        Assert.Equal(5, detail.Burndown[^1].CompletedPoints);
+        _ = unfinished;
+    }
+
+    [Fact]
+    public async Task The_Sunday_nudge_goes_out_once_and_says_where_the_sprint_stands()
+    {
+        var (rig, sprint, task) = await RunningSprintAsync();
+        await rig.Board.MoveTaskAsync(task.Id, new MoveTaskRequest(BoardColumns.Done));
 
         rig.At(20, 18, 30);
-        await rig.Board.RunCycleAsync();
-        Assert.Equal(0, rig.Push.SendCount); // not before 19:00
+        Assert.Empty(await rig.Board.RunRemindersAsync()); // not before 19:00
 
         rig.At(20, 19, 5);
-        await rig.Board.RunCycleAsync();
-        await rig.Board.RunCycleAsync();
+        await rig.Board.RunRemindersAsync();
+        await rig.Board.RunRemindersAsync();
 
         Assert.Equal(1, rig.Push.SendCount);
-        Assert.Contains("Sprint 1 review: 5 of 5 points done", rig.Push.SentBodies.Single());
-        Assert.Contains("plan sprint 2", rig.Push.SentBodies.Single());
+        // The sprint ran out on Sunday at 18:00, so the nudge says so and asks for the next one.
+        var body = rig.Push.SentBodies.Single();
+        Assert.Contains("SPRINT-1 “Week one” has reached its end date: 3 of 3 points done", body);
+        Assert.Contains("plan the next one", body);
     }
 
     [Fact]
-    public async Task Starting_early_during_planning_freezes_the_commitment_and_keeps_the_end()
+    public async Task With_nothing_running_the_nudge_asks_for_a_plan()
     {
-        var rig = Setup(Tuesday);
-        rig.At(SundayClose);
-        await rig.Board.RunCycleAsync();
-        await rig.Board.CreateTaskAsync(new CreateTaskRequest("Plan", Points: 8, Destination: "current"));
+        var rig = Setup();
+        rig.At(20, 19, 5);
 
-        rig.At(20, 19, 30);
-        var started = await rig.Board.StartSprintAsync();
+        await rig.Board.RunRemindersAsync();
 
-        Assert.Equal(SprintStatuses.Active, started.Status);
-        Assert.Equal(8, started.CommittedPoints);
-        Assert.Equal(new DateTime(2026, 9, 20, 19, 30, 0), started.StartsAtUtc);
-        Assert.Equal(new DateTime(2026, 9, 27, 18, 0, 0), started.EndsAtUtc);
-        await Assert.ThrowsAsync<BoardValidationException>(() => rig.Board.StartSprintAsync());
+        Assert.Contains("No sprint is running", rig.Push.SentBodies.Single());
     }
 
     [Fact]
-    public async Task After_weeks_offline_the_cycle_catches_up()
+    public async Task Work_finished_outside_a_sprint_reads_as_done_not_as_backlog()
     {
-        var rig = Setup(Tuesday);
-        var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Lingering", Points: 3, Destination: "current"));
+        // How a completed sub-goal arrives after the migration: done, but in no sprint. Calling it
+        // "Backlog" made finished work look unstarted, and it is not on the board to correct there.
+        var rig = Setup();
+        var goal = await rig.Goals.CreateAsync(new CreateGoalRequest("Read books", null, GoalPeriods.Month, new DateOnly(2026, 9, 1)));
+        var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Buy a book", GoalId: goal.Id));
+        rig.Db.BoardTasks.Single(t => t.Id == task.Id).Status = BoardTaskStatuses.Done;
+        await rig.Db.SaveChangesAsync();
 
-        rig.At(new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero)); // Wednesday, three closes later
-        var view = await rig.Board.GetBoardAsync();
+        Assert.Equal(BoardColumns.Done, (await rig.Board.GetTaskAsync(task.Id))!.Task.Column);
+        Assert.Equal(BoardColumns.Done, (await rig.Goals.GetAsync(goal.Id))!.Tasks.Single().Column);
+        // It stays off the plan's backlog — that is work still to do — so the goal is where it is managed.
+        Assert.Empty((await rig.Board.GetPlanAsync()).Backlog);
 
-        Assert.Equal(4, view.Sprint.Number);
-        Assert.Equal(SprintStatuses.Active, view.Sprint.Status);
-        var lingering = (await rig.Board.GetTaskAsync(task.Id))!;
-        Assert.Equal(4, lingering.SprintNumber);
-        Assert.Equal(3, lingering.CarryOverCount);
-        Assert.Equal(0, rig.Push.SendCount); // stale nudges are not sent late
+        Assert.True(await rig.Board.DeleteTaskAsync(task.Id));
+        Assert.Empty((await rig.Goals.GetAsync(goal.Id))!.Tasks);
     }
 
     [Fact]
     public async Task Goal_progress_follows_its_tasks_and_deleting_the_goal_keeps_them()
     {
-        var rig = Setup(Tuesday);
+        var rig = Setup();
         var goal = await rig.Goals.CreateAsync(new CreateGoalRequest("Learn Rust", null, GoalPeriods.Month, new DateOnly(2026, 9, 1)));
-        var done = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Ownership", Points: 3, GoalId: goal.Id, Destination: "current"));
+        var done = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Ownership", Points: 3, GoalId: goal.Id));
         await rig.Board.CreateTaskAsync(new CreateTaskRequest("Lifetimes", Points: 5, GoalId: goal.Id));
-        await rig.Board.MoveTaskAsync(done.Id, new MoveTaskRequest("done"));
+        rig.Db.BoardTasks.Single(t => t.Id == done.Id).Status = BoardTaskStatuses.Done;
+        await rig.Db.SaveChangesAsync();
 
         var dto = (await rig.Goals.GetAsync(goal.Id))!;
         Assert.Equal("GOAL-1", dto.Key);
         Assert.Equal(38, dto.EffectiveProgress); // 3 of 8 points
         Assert.Equal(["TASK-1", "TASK-2"], dto.Tasks.Select(t => t.Key));
-        Assert.Equal("GOAL-1", (await rig.Board.GetTaskAsync(done.Id))!.GoalKey);
 
         await rig.Goals.DeleteAsync(goal.Id);
 
         Assert.Equal(2, await rig.Db.BoardTasks.CountAsync());
-        Assert.Null((await rig.Board.GetTaskAsync(done.Id))!.GoalId);
-    }
-
-    /// <summary>Sprint 2 running since Sunday 20:00 with one committed 3-point task.</summary>
-    private static async Task<Rig> RunningPlannedSprintAsync()
-    {
-        var rig = Setup(Tuesday);
-        rig.At(SundayClose);
-        await rig.Board.RunCycleAsync();
-        await rig.Board.CreateTaskAsync(new CreateTaskRequest("Committed", Points: 3, Destination: "current"));
-        rig.At(20, 20, 5);
-        await rig.Board.RunCycleAsync();
-        return rig;
+        Assert.Null((await rig.Board.GetTaskAsync(done.Id))!.Task.GoalId);
     }
 }

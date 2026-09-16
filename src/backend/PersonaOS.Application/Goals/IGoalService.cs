@@ -18,12 +18,15 @@ public record GoalDto(
     string PeriodType,
     DateOnly PeriodStart,
     string Status,
+    string Priority,
     int Progress,
     int EffectiveProgress,
     int TaskCount,
     int DoneTaskCount,
     int TotalPoints,
     int DonePoints,
+    int CommentCount,
+    int AttachmentCount,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     IReadOnlyList<GoalTaskSummary> Tasks);
@@ -33,15 +36,18 @@ public record CreateGoalRequest(
     string? Description,
     string PeriodType,
     DateOnly PeriodStart,
-    int Progress = 0);
+    int Progress = 0,
+    string? Priority = null);
 
 /// <summary>Partial update; null fields are left unchanged.</summary>
 public record UpdateGoalRequest(
     string? Title = null,
     string? Description = null,
+    bool ClearDescription = false,
     string? PeriodType = null,
     DateOnly? PeriodStart = null,
-    int? Progress = null);
+    int? Progress = null,
+    string? Priority = null);
 
 /// <summary>Invalid input to a goal operation; message is user/model-presentable.</summary>
 public class GoalValidationException(string message)

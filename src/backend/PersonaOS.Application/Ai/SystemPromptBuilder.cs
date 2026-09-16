@@ -91,14 +91,16 @@ public class SystemPromptBuilder(
     private async Task AppendBoardAsync(StringBuilder sb, InstanceConfig config, CancellationToken ct)
     {
         sb.Append("\n\nThe sprint board works like Scrum for one person. Goals are the epics; tasks ")
-          .Append("(keys like TASK-7) sit under a goal or stand alone, and are sized in Fibonacci story ")
-          .Append("points: 1, 2, 3, 5, 8, 13, 21. Columns: Backlog, This week (todo), In progress, Done. ")
-          .Append("A sprint runs from Sunday 20:00 to the next Sunday 18:00; unfinished tasks move to ")
-          .Append("the next sprint automatically, and planning happens on Sunday between 19:00 and 20:00. ")
-          .Append("Adding to or removing from a sprint that has started is a scope change: allowed, but ")
-          .Append("say so. Always refer to tasks and goals by key, never by list position.");
+          .Append("(keys like TASK-7) sit under a goal or stand alone, and are sized in Fibonacci value ")
+          .Append("points: 1, 2, 3, 5, 8, 13, 21. Work waits in the backlog, is pulled into a sprint ")
+          .Append("(keys like SPRINT-2, with a name and start and end dates), and moves through This week ")
+          .Append("(todo), In progress and Done. Sprints are created, started and completed by the user — ")
+          .Append("nothing starts or closes on a timer — and only one runs at a time. Completing a sprint ")
+          .Append("moves unfinished work to the next one. Adding to or removing from a sprint that has ")
+          .Append("started is a scope change: allowed, but say so. Always refer to tasks, goals and ")
+          .Append("sprints by key, never by list position.");
         sb.Append("\nWhen the user wants to plan or review a sprint:")
-          .Append("\n1. Review: call get_sprint_report and get_board. Say what was committed and completed, ")
+          .Append("\n1. Review: call get_sprint_report and get_plan. Say what was committed and completed, ")
           .Append("and what carried over, briefly and without judgement.")
           .Append("\n2. Estimate: for unestimated tasks, ask about complexity, effort and uncertainty, and ")
           .Append("suggest points by comparing with tasks already sized. Suggest splitting anything at 13 or more.")
@@ -121,10 +123,11 @@ public class SystemPromptBuilder(
 
         var ends = Common.UserClock.ToLocal(sprint.EndsAtUtc, config.TimeZone);
         var starts = Common.UserClock.ToLocal(sprint.StartsAtUtc, config.TimeZone);
-        sb.Append("\n\nSprint ").Append(sprint.Number).Append(' ')
+        sb.Append("\n\n").Append(ItemKeys.Sprint(sprint.Number))
+          .Append(sprint.Name is null ? string.Empty : $" “{sprint.Name}”").Append(' ')
           .Append(sprint.Status == SprintStatuses.Active
               ? $"is running until {ends:ddd d MMM HH:mm}"
-              : $"is being planned and starts {starts:ddd d MMM HH:mm}")
+              : $"is planned, not started, from {starts:ddd d MMM HH:mm}")
           .Append(": ").Append(tasks.Where(t => t.Status == BoardTaskStatuses.Done).Sum(t => t.Points ?? 0))
           .Append(" of ").Append(tasks.Sum(t => t.Points ?? 0)).Append(" points done.");
 
