@@ -20,8 +20,11 @@ public class BoardTask
     public int? GoalId { get; set; }
     public Goal? Goal { get; set; }
 
-    /// <summary>Story points, one of <see cref="StoryPoints.Allowed"/>; null while unestimated.</summary>
+    /// <summary>Value points, one of <see cref="ValuePoints.Allowed"/>; null while unestimated.</summary>
     public int? Points { get; set; }
+
+    /// <summary>One of <see cref="WorkItemPriorities"/>.</summary>
+    public string Priority { get; set; } = WorkItemPriorities.Medium;
 
     /// <summary>The sprint holding this task; null while it is in the Backlog.</summary>
     public int? SprintId { get; set; }
@@ -58,8 +61,8 @@ public static class BoardTaskStatuses
     public static readonly IReadOnlyList<string> All = [Todo, InProgress, Done];
 }
 
-/// <summary>The Fibonacci story-point scale.</summary>
-public static class StoryPoints
+/// <summary>The Fibonacci value-point scale: how big a piece of work is.</summary>
+public static class ValuePoints
 {
     public static readonly IReadOnlyList<int> Allowed = [1, 2, 3, 5, 8, 13, 21];
 

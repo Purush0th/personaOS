@@ -41,6 +41,30 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       task sheet with point chips and Move to, sprint report; goals screen without sub-goals;
       planner picks from the board. Widget tests for drag, scope confirmation and the sheet
       (mutation-checked); layout checked from rendered screenshots, light and dark.
+- [x] Follow-up (2026-09-16, owner: "I deleted task 1 from the board but not deleted"). A task
+      that is done but in no sprint — how a completed sub-goal arrives from the migration —
+      was labelled "Backlog" under its goal while never appearing on the board, so it could
+      not be deleted anywhere. `BoardColumns.Of` now reads such a task as Done, and the goals
+      page (web and mobile) can reopen or delete a task. Regression test
+      `Work_finished_outside_a_sprint_reads_as_done_not_as_backlog` (mutation-checked).
+      **Uncommitted, but deployed to the owner's server**; the phone needs a new build.
+- [x] **Board changes round 2** (2026-09-16, owner's 13-point list). Sprints are now manual like
+      Jira — create / start / complete / delete, with keys `SPRINT-n`, an optional name and
+      editable start and end dates; nothing runs on a timer any more, only the Sunday 19:00 nudge
+      (`RunRemindersAsync`, recorded as the `sprint_planning` proactive job). The board shows the
+      running sprint's three columns only; the backlog moved to its own Jira-style page
+      (`GET /api/board/plan`) with sprint sections, inline status / priority / points, drag and
+      drop between sprints and a "Move…" menu. Tasks and goals gained **priority**, description,
+      comments and attachments (`WorkItemComment` / `WorkItemAttachment`, stored beside documents,
+      25 MB cap, `/api/items/{type}/{key}/…`). "Story points" are now **value points**. Every item
+      has a URL: `/board/tasks/TASK-1`, `/board/sprints/SPRINT-1` (with a points-remaining chart
+      and the work by column), `/board/goals/GOAL-1`. Tools: `get_plan`, `create_sprint`,
+      `start_sprint`, `complete_sprint`, `add_comment`; `move_task` and `create_task` take sprint
+      keys. Migrations `BoardPlanning` + `NormalizePriority` (the first shipped an empty priority
+      default, caught on the live server and repaired). 238 backend tests, 61 mobile tests.
+      The phone keeps the board working (sprint picker on a task); its own detail views, comments
+      and attachments are the next round. **Not committed; deployed to the owner's server.**
+      **The web pages have not been looked at in a browser.**
 - [ ] Open questions for later: planner items still use ids in chat tools (same position
       risk as goals had); scope-change warning is not shown for re-estimating mid-sprint by
       design; web drag and drop does not work on touch browsers (the menu does).

@@ -293,3 +293,34 @@ public class FakePushProviderConfigurator : IPushProviderConfigurator
         Applied.Add(serviceAccountJson);
     }
 }
+
+/// <summary>In-memory blob store: keeps uploaded bytes in a dictionary keyed by storage name.</summary>
+public class FakeDocumentStorage : IDocumentStorage
+{
+    private readonly Dictionary<string, byte[]> _files = new();
+
+    public IReadOnlyDictionary<string, byte[]> Files => _files;
+
+    public Task<string> SaveAsync(Stream content, string extension, CancellationToken ct = default)
+    {
+        using var buffer = new MemoryStream();
+        content.CopyTo(buffer);
+        var name = $"{Guid.NewGuid():N}{extension}";
+        _files[name] = buffer.ToArray();
+        return Task.FromResult(name);
+    }
+
+    public Task<Stream?> OpenReadAsync(string storageName, CancellationToken ct = default) =>
+        Task.FromResult<Stream?>(_files.TryGetValue(storageName, out var bytes) ? new MemoryStream(bytes) : null);
+
+    public Task<string?> ReadTextAsync(string storageName, int maxCharacters, CancellationToken ct = default) =>
+        Task.FromResult<string?>(_files.TryGetValue(storageName, out var bytes)
+            ? System.Text.Encoding.UTF8.GetString(bytes)
+            : null);
+
+    public Task DeleteAsync(string storageName, CancellationToken ct = default)
+    {
+        _files.Remove(storageName);
+        return Task.CompletedTask;
+    }
+}

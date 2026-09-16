@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 
-/// The sprint board: Backlog, This week, In progress and Done for the current or next sprint.
+/// The sprint board: This week, In progress and Done for the sprint that is running.
 ///
-/// A phone cannot show four columns side by side, so columns are pages to swipe between, and
-/// dragging a card (long press) raises a row of drop targets — one per column — at the top, so
-/// a card can reach any column without scrolling while held. Every drag has a menu
-/// alternative in the task sheet.
+/// The backlog and the sprints to come live on the web app's Backlog page; the phone is for
+/// working the current week. A phone cannot show three columns side by side, so columns are pages
+/// to swipe between, and dragging a card (long press) raises a row of drop targets at the top, so
+/// a card can reach any column while held. Every drag has a menu alternative in the task sheet.
 class BoardScreen extends StatefulWidget {
   const BoardScreen({super.key, required this.api});
 
@@ -19,8 +19,8 @@ class BoardScreen extends StatefulWidget {
 
 class _BoardScreenState extends State<BoardScreen> {
   final _pages = PageController(viewportFraction: 0.9);
-  String _view = 'current';
   BoardView? _board;
+  PlanView? _plan;
   List<Goal> _goals = const [];
   String? _error;
   bool _loading = true;
@@ -31,7 +31,7 @@ class _BoardScreenState extends State<BoardScreen> {
   void initState() {
     super.initState();
     _reload();
-    _loadGoals();
+    _loadContext();
   }
 
   @override
@@ -42,13 +42,14 @@ class _BoardScreenState extends State<BoardScreen> {
 
   Future<void> _reload() async {
     try {
-      final board = await widget.api.getBoard(sprint: _view);
+      final board = await widget.api.getBoard();
+      final plan = await widget.api.getPlan();
       if (!mounted) return;
       setState(() {
         _board = board;
+        _plan = plan;
         _error = null;
         _loading = false;
-        _page = _page.clamp(0, board.visibleColumns.length - 1);
       });
     } on ApiException catch (e) {
       if (mounted) {
@@ -67,7 +68,7 @@ class _BoardScreenState extends State<BoardScreen> {
     }
   }
 
-  Future<void> _loadGoals() async {
+  Future<void> _loadContext() async {
     try {
       final goals = await widget.api.getGoals();
       if (mounted) setState(() => _goals = goals.where((g) => g.status == 'active').toList());
@@ -90,42 +91,15 @@ class _BoardScreenState extends State<BoardScreen> {
 
   Future<void> _move(BoardTask task, String column, {int? index}) => _change(
         (ack) => widget.api.moveTask(
-          task.id,
+          task.key,
           column: column,
-          sprint: column == BoardColumns.backlog ? null : _view,
+          sprintKey: column == BoardColumns.backlog ? null : _board?.sprint?.key,
           index: index,
           acknowledgeScopeChange: ack,
         ),
       );
 
-  Future<void> _switchView(String view) async {
-    if (view == _view) return;
-    setState(() {
-      _view = view;
-      _page = 0;
-    });
-    if (_pages.hasClients) _pages.jumpToPage(0);
-    await _reload();
-  }
-
-  Future<void> _startSprint() async {
-    final board = _board;
-    if (board == null) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Start sprint ${board.sprint.number}?'),
-        content: Text('It starts now with ${board.sprint.totalPoints} points and ends on Sunday at 18:00.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not yet')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Start')),
-        ],
-      ),
-    );
-    if (ok == true) await _change((_) => widget.api.startSprint());
-  }
-
-  Future<void> _openTask({BoardTask? task, String? column}) async {
+  Future<void> _openTask({BoardTask? task}) async {
     final changed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -134,26 +108,18 @@ class _BoardScreenState extends State<BoardScreen> {
         api: widget.api,
         goals: _goals,
         task: task,
-        destination: column == BoardColumns.backlog || column == null ? 'backlog' : _view,
-        moveTargets: task == null ? const [] : _moveTargets(task),
-        sprintView: _view,
+        sprints: _plan?.sprints.map((s) => s.sprint).toList() ?? const [],
+        defaultSprintKey: _board?.sprint?.key,
       ),
     );
     if (changed == true) await _reload();
   }
 
-  List<String> _moveTargets(BoardTask task) {
-    final board = _board;
-    if (board == null) return const [];
-    return board.visibleColumns
-        .where((c) => c != task.column)
-        .where((c) => board.sprint.isActive || c == BoardColumns.backlog || c == BoardColumns.todo)
-        .toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     final board = _board;
+    final sprint = board?.sprint;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Board'),
@@ -167,13 +133,10 @@ class _BoardScreenState extends State<BoardScreen> {
           ),
         ],
       ),
-      floatingActionButton: board == null
+      floatingActionButton: sprint == null
           ? null
           : FloatingActionButton.extended(
-              onPressed: () {
-                final column = board.visibleColumns[_page];
-                _openTask(column: column == BoardColumns.backlog ? column : BoardColumns.todo);
-              },
+              onPressed: () => _openTask(),
               icon: const Icon(Icons.add),
               label: const Text('Task'),
             ),
@@ -181,67 +144,59 @@ class _BoardScreenState extends State<BoardScreen> {
           ? const Center(child: CircularProgressIndicator())
           : board == null
               ? _Message(text: _error ?? 'Could not load the board.', onRetry: _reload)
-              : RefreshIndicator(
-                  onRefresh: _reload,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                        child: SegmentedButton<String>(
-                          segments: const [
-                            ButtonSegment(value: 'current', label: Text('Current')),
-                            ButtonSegment(value: 'next', label: Text('Next')),
-                          ],
-                          selected: {_view},
-                          onSelectionChanged: (s) => _switchView(s.first),
-                        ),
+              : sprint == null
+                  ? _NoSprint(plan: _plan, onReload: _reload)
+                  : RefreshIndicator(
+                      onRefresh: _reload,
+                      child: Column(
+                        children: [
+                          _SprintHeader(sprint: sprint, velocity: board.velocity),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 150),
+                            child: _dragging
+                                ? _DropBar(
+                                    key: const ValueKey('drop-bar'),
+                                    columns: board.visibleColumns,
+                                    onDrop: (task, column) => _move(task, column),
+                                  )
+                                : _ColumnTabs(
+                                    key: const ValueKey('tabs'),
+                                    board: board,
+                                    selected: _page,
+                                    onSelect: (i) => _pages.animateToPage(i,
+                                        duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
+                                  ),
+                          ),
+                          Expanded(
+                            child: PageView(
+                              controller: _pages,
+                              onPageChanged: (i) => setState(() => _page = i),
+                              children: [
+                                for (final column in board.visibleColumns)
+                                  _ColumnPage(
+                                    key: Key('column-$column'),
+                                    column: column,
+                                    tasks: board.columns[column]!,
+                                    overWip: column == BoardColumns.inProgress &&
+                                        board.columns[column]!.length > board.wipLimit,
+                                    wipLimit: board.wipLimit,
+                                    onOpen: (task) => _openTask(task: task),
+                                    onDragChanged: (dragging) => setState(() => _dragging = dragging),
+                                    onDropBefore: (task, before) {
+                                      final others =
+                                          board.columns[column]!.where((t) => t.key != task.key).toList();
+                                      final index = before == null
+                                          ? others.length
+                                          : others.indexWhere((t) => t.key == before.key);
+                                      _move(task, column, index: index);
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      _SprintHeader(board: board, onStart: _startSprint),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 150),
-                        child: _dragging
-                            ? _DropBar(
-                                key: const ValueKey('drop-bar'),
-                                columns: board.visibleColumns,
-                                onDrop: (task, column) => _move(task, column),
-                              )
-                            : _ColumnTabs(
-                                key: const ValueKey('tabs'),
-                                board: board,
-                                selected: _page,
-                                onSelect: (i) => _pages.animateToPage(i,
-                                    duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
-                              ),
-                      ),
-                      Expanded(
-                        child: PageView(
-                          controller: _pages,
-                          onPageChanged: (i) => setState(() => _page = i),
-                          children: [
-                            for (final column in board.visibleColumns)
-                              _ColumnPage(
-                                key: Key('column-$column'),
-                                column: column,
-                                tasks: board.columns[column]!,
-                                overWip: column == BoardColumns.inProgress &&
-                                    board.columns[column]!.length > board.wipLimit,
-                                wipLimit: board.wipLimit,
-                                onOpen: (task) => _openTask(task: task),
-                                onDragChanged: (dragging) => setState(() => _dragging = dragging),
-                                onDropBefore: (task, before) {
-                                  final others = board.columns[column]!.where((t) => t.id != task.id).toList();
-                                  final index = before == null
-                                      ? others.length
-                                      : others.indexWhere((t) => t.id == before.id);
-                                  _move(task, column, index: index);
-                                },
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
     );
   }
 }
@@ -283,16 +238,53 @@ String _when(DateTime utc) {
   return '${weekdays[t.weekday - 1]} ${t.day} ${months[t.month - 1]} $hh:$mm';
 }
 
-class _SprintHeader extends StatelessWidget {
-  const _SprintHeader({required this.board, required this.onStart});
+String sprintLabel(SprintInfo sprint) =>
+    sprint.name == null ? sprint.key : '${sprint.key} · ${sprint.name}';
 
-  final BoardView board;
-  final VoidCallback onStart;
+/// Shown when nothing is running: the phone does not plan sprints, it works them.
+class _NoSprint extends StatelessWidget {
+  const _NoSprint({required this.plan, required this.onReload});
+
+  final PlanView? plan;
+  final VoidCallback onReload;
+
+  @override
+  Widget build(BuildContext context) {
+    final planned = plan?.sprints.where((s) => s.sprint.status == 'planned').toList() ?? const [];
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('No sprint is running.', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(
+              planned.isEmpty
+                  ? 'Plan one on the Backlog page in the web app, then start it there.'
+                  : '${sprintLabel(planned.first.sprint)} is planned and waiting. '
+                      'Start it from the Backlog page in the web app.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(onPressed: onReload, child: const Text('Refresh')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SprintHeader extends StatelessWidget {
+  const _SprintHeader({required this.sprint, required this.velocity});
+
+  final SprintInfo sprint;
+  final double? velocity;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sprint = board.sprint;
     final stat = theme.textTheme.bodySmall;
     const warn = Color(0xFFB26A00);
 
@@ -303,13 +295,8 @@ class _SprintHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Sprint ${sprint.number}', style: theme.textTheme.titleMedium),
-              const SizedBox(width: 8),
-              Text(sprint.isActive ? 'running' : 'planning',
-                  style: stat?.copyWith(color: sprint.isActive ? const Color(0xFF3D8B4F) : warn)),
-              const Spacer(),
-              if (board.canStartSprint)
-                FilledButton.tonal(onPressed: onStart, child: const Text('Start sprint')),
+              Expanded(child: Text(sprintLabel(sprint), style: theme.textTheme.titleMedium)),
+              Text('running', style: stat?.copyWith(color: const Color(0xFF3D8B4F))),
             ],
           ),
           Text('${_when(sprint.startsAtUtc)} – ${_when(sprint.endsAtUtc)}', style: stat),
@@ -317,51 +304,18 @@ class _SprintHeader extends StatelessWidget {
           Wrap(
             spacing: 12,
             children: [
-              Text(
-                sprint.committedPoints == null
-                    ? '${sprint.totalPoints} planned'
-                    : '${sprint.committedPoints} committed',
-                style: stat,
-              ),
-              if (sprint.isActive) Text('${sprint.completedPoints} done', style: stat),
-              if (sprint.addedPoints > 0) Text('+${sprint.addedPoints} added', style: stat?.copyWith(color: warn)),
+              Text('${sprint.committedPoints ?? sprint.totalPoints} committed', style: stat),
+              Text('${sprint.completedPoints} done', style: stat),
+              if (sprint.addedPoints > 0)
+                Text('+${sprint.addedPoints} added', style: stat?.copyWith(color: warn)),
               if (sprint.removedPoints > 0)
                 Text('−${sprint.removedPoints} removed', style: stat?.copyWith(color: warn)),
               if (sprint.unestimatedCount > 0) Text('${sprint.unestimatedCount} unestimated', style: stat),
-              if (board.velocity != null) Text('velocity ${board.velocity}', style: stat),
+              if (velocity != null) Text('velocity $velocity', style: stat),
             ],
           ),
-          if (board.inPlanningWindow && board.view == 'current')
-            _Banner(
-              text: 'Planning time. Sprint ${sprint.number} starts at 20:00 by itself — '
-                  "pick this week's work, then start it or let it start.",
-            )
-          else if (board.view == 'next')
-            const _Banner(text: 'Planning ahead for next week. Adding here is not a scope change.', quiet: true),
         ],
       ),
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner({required this.text, this.quiet = false});
-
-  final String text;
-  final bool quiet;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: quiet ? scheme.surfaceContainerHighest : const Color(0x1FB26A00),
-        border: Border(left: BorderSide(color: quiet ? scheme.outline : const Color(0xFFB26A00), width: 3)),
-      ),
-      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
     );
   }
 }
@@ -513,11 +467,11 @@ class _ColumnPage extends StatelessWidget {
                           // Accepts its own card too, so dropping a card back where it was is a no-op
                           // here rather than falling through to the column and moving it to the end.
                           onAcceptWithDetails: (details) {
-                            if (details.data.id != task.id) onDropBefore(details.data, task);
+                            if (details.data.key != task.key) onDropBefore(details.data, task);
                           },
                           builder: (context, candidates, _) => Column(
                             children: [
-                              if (candidates.any((c) => c?.id != task.id))
+                              if (candidates.any((c) => c?.key != task.key))
                                 Container(height: 3, color: scheme.primary, margin: const EdgeInsets.only(bottom: 4)),
                               LongPressDraggable<BoardTask>(
                                 data: task,
@@ -576,7 +530,11 @@ class TaskCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(task.title, style: theme.textTheme.bodyMedium),
-              if (task.goalKey != null || task.carryOverCount > 0 || task.addedMidSprint) ...[
+              if (task.goalKey != null ||
+                  task.carryOverCount > 0 ||
+                  task.addedMidSprint ||
+                  task.commentCount > 0 ||
+                  task.attachmentCount > 0) ...[
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
@@ -588,6 +546,10 @@ class TaskCard extends StatelessWidget {
                       Text('↻ ${task.carryOverCount}', style: theme.textTheme.labelSmall),
                     if (task.addedMidSprint)
                       Text('added', style: theme.textTheme.labelSmall?.copyWith(color: const Color(0xFFB26A00))),
+                    if (task.commentCount > 0)
+                      Text('💬 ${task.commentCount}', style: theme.textTheme.labelSmall),
+                    if (task.attachmentCount > 0)
+                      Text('📎 ${task.attachmentCount}', style: theme.textTheme.labelSmall),
                   ],
                 ),
               ],
@@ -599,7 +561,7 @@ class TaskCard extends StatelessWidget {
   }
 }
 
-/// Story points, or "?" while unestimated.
+/// Value points, or "?" while unestimated.
 class PointsPill extends StatelessWidget {
   const PointsPill({super.key, required this.points});
 
@@ -669,9 +631,8 @@ class TaskSheet extends StatefulWidget {
     required this.api,
     required this.goals,
     this.task,
-    this.destination = 'backlog',
-    this.moveTargets = const [],
-    this.sprintView = 'current',
+    this.sprints = const [],
+    this.defaultSprintKey,
     this.fixedGoalId,
   });
 
@@ -679,10 +640,11 @@ class TaskSheet extends StatefulWidget {
   final List<Goal> goals;
   final BoardTask? task;
 
-  /// Where a new task goes: backlog, current or next.
-  final String destination;
-  final List<String> moveTargets;
-  final String sprintView;
+  /// Sprints a task can be moved into: the running one and those planned after it.
+  final List<SprintInfo> sprints;
+
+  /// Where a new task goes by default; null puts it in the backlog.
+  final String? defaultSprintKey;
 
   /// For a task added from a goal: the goal is set and not offered as a choice.
   final int? fixedGoalId;
@@ -695,7 +657,7 @@ class _TaskSheetState extends State<TaskSheet> {
   late final _title = TextEditingController(text: widget.task?.title ?? '');
   late int? _points = widget.task?.points;
   late int? _goalId = widget.fixedGoalId ?? widget.task?.goalId;
-  late String _destination = widget.destination;
+  late String? _sprintKey = widget.task?.sprintKey ?? widget.defaultSprintKey;
   bool _busy = false;
   String? _error;
 
@@ -739,7 +701,20 @@ class _TaskSheetState extends State<TaskSheet> {
     }
     await _guard(() async {
       if (_editing) {
-        await widget.api.updateTask(widget.task!.id, title: title, points: _points, goalId: _goalId);
+        await widget.api.updateTask(widget.task!.key, title: title, points: _points, goalId: _goalId);
+        // Moving between sprints is its own call, and may be a scope change.
+        if (_sprintKey != widget.task!.sprintKey) {
+          if (!mounted) return true;
+          return runWithScopeConfirmation(
+            context,
+            (ack) => widget.api.moveTask(
+              widget.task!.key,
+              column: _sprintKey == null ? BoardColumns.backlog : BoardColumns.todo,
+              sprintKey: _sprintKey,
+              acknowledgeScopeChange: ack,
+            ),
+          );
+        }
         return true;
       }
       return runWithScopeConfirmation(
@@ -748,7 +723,7 @@ class _TaskSheetState extends State<TaskSheet> {
           title: title,
           points: _points,
           goalId: _goalId,
-          destination: _destination,
+          sprintKey: _sprintKey,
           acknowledgeScopeChange: ack,
         ),
       );
@@ -758,9 +733,9 @@ class _TaskSheetState extends State<TaskSheet> {
   Future<void> _moveTo(String column) => _guard(() => runWithScopeConfirmation(
         context,
         (ack) => widget.api.moveTask(
-          widget.task!.id,
+          widget.task!.key,
           column: column,
-          sprint: column == BoardColumns.backlog ? null : widget.sprintView,
+          sprintKey: column == BoardColumns.backlog ? null : widget.task!.sprintKey,
           acknowledgeScopeChange: ack,
         ),
       ));
@@ -780,10 +755,16 @@ class _TaskSheetState extends State<TaskSheet> {
     );
     if (ok == true) {
       await _guard(() async {
-        await widget.api.deleteTask(task.id);
+        await widget.api.deleteTask(task.key);
         return true;
       });
     }
+  }
+
+  List<String> get _moveTargets {
+    final task = widget.task;
+    if (task == null || task.sprintKey == null) return const [];
+    return BoardColumns.board.where((c) => c != task.column).toList();
   }
 
   @override
@@ -809,14 +790,14 @@ class _TaskSheetState extends State<TaskSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            Text('Story points', style: theme.textTheme.labelLarge),
+            Text('Value points', style: theme.textTheme.labelLarge),
             const SizedBox(height: 6),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
                 ChoiceChip(label: const Text('?'), selected: _points == null, onSelected: (_) => setState(() => _points = null)),
-                for (final p in storyPoints)
+                for (final p in valuePoints)
                   ChoiceChip(label: Text('$p'), selected: _points == p, onSelected: (_) => setState(() => _points = p)),
               ],
             ),
@@ -843,21 +824,21 @@ class _TaskSheetState extends State<TaskSheet> {
                 onChanged: (v) => setState(() => _goalId = v),
               ),
             ],
-            if (!_editing && widget.fixedGoalId == null) ...[
+            if (widget.fixedGoalId == null) ...[
               const SizedBox(height: 12),
-              SegmentedButton<String>(
-                segments: [
-                  const ButtonSegment(value: 'backlog', label: Text('Backlog')),
-                  ButtonSegment(
-                    value: widget.sprintView,
-                    label: Text(widget.sprintView == 'next' ? 'Next week' : 'This week'),
-                  ),
+              DropdownButtonFormField<String?>(
+                initialValue: _sprintKey,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Sprint', border: OutlineInputBorder()),
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('Backlog (no sprint)')),
+                  for (final s in widget.sprints)
+                    DropdownMenuItem<String?>(value: s.key, child: Text(sprintLabel(s), overflow: TextOverflow.ellipsis)),
                 ],
-                selected: {_destination},
-                onSelectionChanged: (s) => setState(() => _destination = s.first),
+                onChanged: (v) => setState(() => _sprintKey = v),
               ),
             ],
-            if (_editing && widget.moveTargets.isNotEmpty) ...[
+            if (_editing && _moveTargets.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text('Move to', style: theme.textTheme.labelLarge),
               const SizedBox(height: 6),
@@ -865,7 +846,7 @@ class _TaskSheetState extends State<TaskSheet> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final column in widget.moveTargets)
+                  for (final column in _moveTargets)
                     OutlinedButton(
                       onPressed: _busy ? null : () => _moveTo(column),
                       child: Text(BoardColumns.label(column)),
@@ -935,7 +916,7 @@ class SprintReportScreen extends StatelessWidget {
               for (final s in report.sprints)
                 Card(
                   child: ListTile(
-                    title: Text('Sprint ${s.number}${s.isActive ? ' (running)' : ''}'),
+                    title: Text('${sprintLabel(s)}${s.isActive ? ' (running)' : ''}'),
                     subtitle: Text(
                       [
                         '${_when(s.startsAtUtc)} – ${_when(s.endsAtUtc)}',
