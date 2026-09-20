@@ -1,7 +1,10 @@
 <header class="page-head">
-  <h1>Backlog</h1>
+  <h1>Board</h1>
+  <nav class="view-tabs" aria-label="Board views">
+    <a routerLink="/board">Sprint</a>
+    <a class="on" routerLink="/board/backlog">Backlog</a>
+  </nav>
   <div class="actions">
-    <a class="button subtle" routerLink="/board">Board</a>
     <button (click)="newSprint()">＋ Create sprint</button>
   </div>
 </header>
@@ -111,23 +114,25 @@
               <select
                 class="priority"
                 [attr.aria-label]="'Priority of ' + task.key"
-                [value]="task.priority"
-                (change)="setPriority(task, $any($event.target).value)"
+                [ngModel]="task.priority"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="setPriority(task, $event)"
               >
                 @for (p of plan.priorities; track p) {
-                  <option [value]="p">{{ priorityLabels[p] }}</option>
+                  <option [ngValue]="p">{{ priorityLabels[p] }}</option>
                 }
               </select>
 
               <select
                 class="points"
                 [attr.aria-label]="'Value points of ' + task.key"
-                [value]="task.points ?? ''"
-                (change)="setPoints(task, $any($event.target).value)"
+                [ngModel]="task.points"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="setPoints(task, $event)"
               >
-                <option value="">?</option>
+                <option [ngValue]="null">?</option>
                 @for (p of plan.allowedPoints; track p) {
-                  <option [value]="p">{{ p }}</option>
+                  <option [ngValue]="p">{{ p }}</option>
                 }
               </select>
 

@@ -7,7 +7,7 @@
 } @else if (task(); as task) {
   <nav class="crumbs muted small">
     <a routerLink="/board">Board</a> ·
-    <a routerLink="/backlog">Backlog</a>
+    <a routerLink="/board/backlog">Backlog</a>
     @if (task.sprintKey) {
       · <a [routerLink]="['/board/sprints', task.sprintKey]">{{ task.sprintKey }}</a>
     }
@@ -51,32 +51,32 @@
       <h2>Details</h2>
       <label>
         Status
-        <select [value]="task.column" (change)="setColumn($any($event.target).value)">
+        <select [ngModel]="task.column" (ngModelChange)="setColumn($event)">
           @for (c of columnOptions(); track c) {
-            <option [value]="c">{{ columnLabels[c] }}</option>
+            <option [ngValue]="c">{{ columnLabels[c] }}</option>
           }
           @if (task.sprintKey) {
-            <option value="backlog">Backlog</option>
+            <option ngValue="backlog">Backlog</option>
           }
         </select>
       </label>
 
       <label>
         Sprint
-        <select [value]="task.sprintKey ?? 'backlog'" (change)="setSprint($any($event.target).value)">
-          <option value="backlog">Backlog (no sprint)</option>
+        <select [ngModel]="task.sprintKey" (ngModelChange)="setSprint($event)">
+          <option [ngValue]="null">Backlog (no sprint)</option>
           @for (s of sprintOptions(); track s.key) {
-            <option [value]="s.key">{{ s.label }}</option>
+            <option [ngValue]="s.key">{{ s.label }}</option>
           }
         </select>
       </label>
 
       <label>
         Value points
-        <select [value]="task.points ?? ''" (change)="setPoints($any($event.target).value)">
-          <option value="">Not estimated</option>
+        <select [ngModel]="task.points" (ngModelChange)="setPoints($event)">
+          <option [ngValue]="null">Not estimated</option>
           @for (p of plan()?.allowedPoints ?? []; track p) {
-            <option [value]="p">{{ p }}</option>
+            <option [ngValue]="p">{{ p }}</option>
           }
         </select>
       </label>
@@ -86,19 +86,19 @@
 
       <label>
         Priority
-        <select [value]="task.priority" (change)="setPriority($any($event.target).value)">
+        <select [ngModel]="task.priority" (ngModelChange)="setPriority($event)">
           @for (p of plan()?.priorities ?? []; track p) {
-            <option [value]="p">{{ priorityLabels[p] }}</option>
+            <option [ngValue]="p">{{ priorityLabels[p] }}</option>
           }
         </select>
       </label>
 
       <label>
         Goal
-        <select [value]="task.goalId ?? ''" (change)="setGoal($any($event.target).value)">
-          <option value="">No goal</option>
+        <select [ngModel]="task.goalId" (ngModelChange)="setGoal($event)">
+          <option [ngValue]="null">No goal</option>
           @for (g of goals(); track g.id) {
-            <option [value]="g.id">{{ g.key }} {{ g.title }}</option>
+            <option [ngValue]="g.id">{{ g.key }} {{ g.title }}</option>
           }
         </select>
       </label>

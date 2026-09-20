@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -28,8 +28,6 @@ export class GoalDetail implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly branding = inject(BrandingService);
-
-  @ViewChild(Discussion) private discussion?: Discussion;
 
   protected readonly goal = signal<Goal | null>(null);
   protected readonly loading = signal(true);
@@ -62,7 +60,6 @@ export class GoalDetail implements OnInit {
     try {
       this.goal.set(await this.goalsApi.getByKey(this.key()));
       this.error.set(null);
-      await this.discussion?.load();
     } catch (e: unknown) {
       this.error.set(apiError(e).message ?? 'Could not load that goal.');
     } finally {
@@ -95,8 +92,8 @@ export class GoalDetail implements OnInit {
     this.editingDescription.set(false);
   }
 
-  protected async setPriority(value: string): Promise<void> {
-    await this.change(() => this.goalsApi.update(this.goal()!.id, { priority: value as Priority }));
+  protected async setPriority(priority: Priority): Promise<void> {
+    await this.change(() => this.goalsApi.update(this.goal()!.id, { priority }));
   }
 
   protected async setStatus(value: string): Promise<void> {

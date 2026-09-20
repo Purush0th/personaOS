@@ -54,15 +54,18 @@ comments and attachments, and "story points" are called **value points**.
 - A task can be committed to a sprint while still unestimated, but the sprint header shows how
   many unestimated tasks it holds, because they make "committed points" understate the plan.
 
-## 4. Two pages: Board and Backlog
+## 4. Two views of the board: Sprint and Backlog
 
-**Board** is the sprint that is running, and nothing else: **This week | In progress | Done**.
+The top navigation has one **Board** entry. Inside it a **Sprint | Backlog** switch moves between
+the two views, at `/board` and `/board/backlog`.
+
+**Sprint** is the sprint that is running, and nothing else: **This week | In progress | Done**.
 
 - **In progress** — more than 3 tasks here shows a soft warning (a WIP limit is the single most
   useful Kanban habit for one person; it is a hint, never a block).
 - Cards show the key, title, points, the goal as a coloured chip (`GOAL-2 Learn Rust`), and small
   badges for carried-over, added mid-sprint, comments and attachments.
-- With nothing running, the board says so and points at the Backlog page.
+- With nothing running, the board says so and points at the Backlog view.
 
 **Backlog** is the plan, and reads like a Jira backlog: the running sprint at the top, every
 sprint planned after it, then the backlog itself at the bottom.

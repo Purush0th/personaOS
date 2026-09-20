@@ -1,7 +1,10 @@
 <header class="page-head">
   <h1>Board</h1>
+  <nav class="view-tabs" aria-label="Board views">
+    <a class="on" routerLink="/board">Sprint</a>
+    <a routerLink="/board/backlog">Backlog</a>
+  </nav>
   <div class="actions">
-    <a class="button subtle" routerLink="/backlog">Backlog</a>
     @if (board()?.sprint) {
       <a class="button subtle" [routerLink]="['/board/sprints', board()!.sprint!.key]">Sprint view</a>
       <button (click)="completeSprint()">Complete sprint</button>
@@ -135,7 +138,7 @@
     </div>
   } @else {
     <p class="banner">
-      No sprint is running. Open the <a routerLink="/backlog">Backlog</a> to plan one and start it.
+      No sprint is running. Open the <a routerLink="/board/backlog">Backlog</a> to plan one and start it.
     </p>
   }
 }

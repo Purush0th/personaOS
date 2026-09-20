@@ -74,8 +74,12 @@ public class WorkItemServiceTests
             rig.Items.AddCommentAsync(task, new AddCommentRequest("   ")));
 
         var comment = await rig.Items.AddCommentAsync(task, new AddCommentRequest("First thought"));
+        // A fresh comment is not an edited one, so the UI has nothing to flag.
+        Assert.Equal(comment.CreatedAtUtc, comment.UpdatedAtUtc);
+
         var edited = await rig.Items.UpdateCommentAsync(comment.Id, "Second thought");
         Assert.Equal("Second thought", edited!.Body);
+        Assert.True(edited.UpdatedAtUtc > edited.CreatedAtUtc);
 
         Assert.True(await rig.Items.DeleteCommentAsync(comment.Id));
         Assert.Empty(await rig.Items.ListCommentsAsync(task));

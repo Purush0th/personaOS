@@ -30,10 +30,12 @@ export const routes: Routes = [
     loadComponent: () => import('./board/board').then(m => m.Board),
   },
   {
-    path: 'backlog',
+    // The backlog is the board's other view, not a section of its own.
+    path: 'board/backlog',
     canActivate: [authGuard],
     loadComponent: () => import('./backlog/backlog').then(m => m.Backlog),
   },
+  { path: 'backlog', pathMatch: 'full', redirectTo: 'board/backlog' },
   {
     path: 'board/tasks/:key',
     canActivate: [authGuard],

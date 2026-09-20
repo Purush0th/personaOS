@@ -35,7 +35,15 @@ public class WorkItemComment
     public string Body { get; set; } = string.Empty;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    /// <summary>When the body last changed.</summary>
+    public DateTime UpdatedAtUtc { get; set; }
+
+    /// <summary>
+    /// Starts unedited: both stamps are the same instant. Two separate <c>UtcNow</c> defaults
+    /// differed by a few ticks, which made every new comment show as edited.
+    /// </summary>
+    public WorkItemComment() => UpdatedAtUtc = CreatedAtUtc;
 }
 
 /// <summary>

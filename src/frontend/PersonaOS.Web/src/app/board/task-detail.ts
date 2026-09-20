@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -33,8 +33,6 @@ export class TaskDetail implements OnInit {
   private readonly router = inject(Router);
   private readonly branding = inject(BrandingService);
 
-  @ViewChild(Discussion) private discussion?: Discussion;
-
   protected readonly task = signal<BoardTask | null>(null);
   protected readonly plan = signal<PlanView | null>(null);
   protected readonly goals = signal<Goal[]>([]);
@@ -64,7 +62,6 @@ export class TaskDetail implements OnInit {
       const detail = await this.api.task(this.key());
       this.task.set(detail.task);
       this.error.set(null);
-      await this.discussion?.load();
     } catch (e: unknown) {
       this.error.set(apiError(e).message ?? 'Could not load that task.');
     } finally {
@@ -110,38 +107,34 @@ export class TaskDetail implements OnInit {
     this.editingDescription.set(false);
   }
 
-  protected async setPoints(value: string): Promise<void> {
-    const points = value === '' ? null : Number(value);
+  protected async setPoints(points: number | null): Promise<void> {
     await this.change(() => this.api.update(this.key(), { points, clearPoints: points === null }));
   }
 
-  protected async setPriority(value: string): Promise<void> {
-    await this.change(() => this.api.update(this.key(), { priority: value as Priority }));
+  protected async setPriority(priority: Priority): Promise<void> {
+    await this.change(() => this.api.update(this.key(), { priority }));
   }
 
-  protected async setGoal(value: string): Promise<void> {
-    const goalId = value === '' ? null : Number(value);
+  protected async setGoal(goalId: number | null): Promise<void> {
     await this.change(() => this.api.update(this.key(), { goalId, clearGoal: goalId === null }));
   }
 
   /** Moving between sprints, or out to the backlog, from the task itself. */
-  protected async setSprint(value: string): Promise<void> {
+  protected async setSprint(sprintKey: string | null): Promise<void> {
     const task = this.task();
     if (!task) return;
-    const column: BoardColumn = value === 'backlog' ? 'backlog' : task.column === 'backlog' ? 'todo' : task.column;
+    const column: BoardColumn = sprintKey === null ? 'backlog' : task.column === 'backlog' ? 'todo' : task.column;
     await this.change(() =>
-      withScopeConfirmation(ack =>
-        this.api.move(this.key(), column, value === 'backlog' ? null : value, null, ack)
-      )
+      withScopeConfirmation(ack => this.api.move(this.key(), column, sprintKey, null, ack))
     );
   }
 
-  protected async setColumn(value: string): Promise<void> {
+  protected async setColumn(column: BoardColumn): Promise<void> {
     const task = this.task();
     if (!task) return;
     await this.change(() =>
       withScopeConfirmation(ack =>
-        this.api.move(this.key(), value as BoardColumn, value === 'backlog' ? null : task.sprintKey, null, ack)
+        this.api.move(this.key(), column, column === 'backlog' ? null : task.sprintKey, null, ack)
       )
     );
   }
@@ -151,7 +144,7 @@ export class TaskDetail implements OnInit {
     if (!task || !confirm(`Delete ${task.key} “${task.title}”? Its number will be reused.`)) return;
     try {
       await this.api.delete(task.key);
-      await this.router.navigate(['/backlog']);
+      await this.router.navigate(['/board/backlog']);
     } catch (e: unknown) {
       this.error.set(apiError(e).message ?? 'Could not delete that task.');
     }
