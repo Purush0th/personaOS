@@ -18,6 +18,9 @@ public abstract class ReminderToolBase : IPersonaTool
 
     public abstract Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default);
 
+    /// <summary>Tools that act on an existing item override this to check it early.</summary>
+    public virtual Task ValidateAsync(JsonElement input, CancellationToken ct = default) => Task.CompletedTask;
+
     protected static string? GetString(JsonElement input, string name) =>
         input.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
@@ -115,6 +118,13 @@ public class CancelReminderTool(IReminderService reminders) : ReminderToolBase
           "required": ["reminderId"]
         }
         """;
+
+    public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var id = RequireInt(input, "reminderId");
+        if (await reminders.GetAsync(id, ct) is null)
+            throw new ReminderValidationException($"Reminder {id} does not exist. Use an id from get_reminders.");
+    }
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {

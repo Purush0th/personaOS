@@ -107,6 +107,17 @@ public class ToolReceiptBuilderTests
     }
 
     [Fact]
+    public void Unwraps_the_error_json_the_registry_returns()
+    {
+        // The card showed the user ✕ {"error":"Goal 5 does not exist."} — punctuation and all.
+        var receipt = ToolReceiptBuilder.Build(
+            "delete_goal", """{"error":"Goal 5 does not exist."}""", isError: true);
+
+        Assert.False(receipt.Ok);
+        Assert.Equal("Goal 5 does not exist.", receipt.Summary);
+    }
+
+    [Fact]
     public void Falls_back_to_no_summary_when_the_result_has_nothing_to_show()
     {
         var receipt = ToolReceiptBuilder.Build("some_tool", """{"ok":true}""", isError: false);

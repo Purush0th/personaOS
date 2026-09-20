@@ -19,6 +19,19 @@ public abstract class PlannerToolBase : IPersonaTool
 
     public abstract Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default);
 
+    /// <summary>Tools that act on an existing item override this to check it early.</summary>
+    public virtual Task ValidateAsync(JsonElement input, CancellationToken ct = default) => Task.CompletedTask;
+
+    /// <summary>Checks that the 'itemId' in the input names a planner item that exists.</summary>
+    protected static async Task RequirePlannerItemAsync(
+        IPlannerService planner, JsonElement input, CancellationToken ct)
+    {
+        var id = RequireInt(input, "itemId");
+        if (await planner.GetAsync(id, ct) is null)
+            throw new PlannerValidationException(
+                $"Planner item {id} does not exist. Use an id from get_planner.");
+    }
+
     protected static string? GetString(JsonElement input, string name) =>
         input.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
@@ -125,7 +138,11 @@ public class AddPlannerItemTool(
         }
         """;
 
-    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
+        ResolveLinksAsync(input, ct);
+
+    /// <summary>Turns the optional task and goal keys into ids, refusing keys that name nothing.</summary>
+    private async Task<(int? TaskId, int? GoalId)> ResolveLinksAsync(JsonElement input, CancellationToken ct)
     {
         int? taskId = null;
         if (GetString(input, "taskKey") is { } taskKey)
@@ -140,6 +157,13 @@ public class AddPlannerItemTool(
             goalId = await goals.ResolveKeyAsync(goalKey, ct)
                 ?? throw new PlannerValidationException($"There is no goal {goalKey}. Use a key from get_goals.");
         }
+
+        return (taskId, goalId);
+    }
+
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var (taskId, goalId) = await ResolveLinksAsync(input, ct);
 
         return Ok(await planner.CreateAsync(new CreatePlannerItemRequest(
             Title: GetString(input, "title") ?? string.Empty,
@@ -167,6 +191,9 @@ public class UpdatePlannerItemStatusTool(IPlannerService planner) : PlannerToolB
         }
         """;
 
+    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
+        RequirePlannerItemAsync(planner, input, ct);
+
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var id = RequireInt(input, "itemId");
@@ -192,6 +219,9 @@ public class MovePlannerItemTool(IPlannerService planner) : PlannerToolBase
           "required": ["itemId", "date"]
         }
         """;
+
+    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
+        RequirePlannerItemAsync(planner, input, ct);
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {

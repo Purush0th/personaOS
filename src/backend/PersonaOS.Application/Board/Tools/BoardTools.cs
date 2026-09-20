@@ -99,6 +99,13 @@ public class CreateTaskTool(IBoardService board, IGoalService goals) : BoardTool
         }
         """;
 
+    public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
+    {
+        await OptionalGoalAsync(GetKey(input, "goalKey"), ct);
+        if (GetString(input, "sprintKey") is { Length: > 0 } sprintKey)
+            await StartSprintTool.RequireSprintAsync(Board, sprintKey, ct);
+    }
+
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var task = await Board.CreateTaskAsync(
@@ -139,6 +146,12 @@ public class UpdateTaskTool(IBoardService board, IGoalService goals) : BoardTool
         }
         """;
 
+    public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
+    {
+        await RequireTaskAsync(GetKey(input, "taskKey"), ct);
+        await OptionalGoalAsync(GetKey(input, "goalKey"), ct);
+    }
+
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var id = await RequireTaskAsync(GetKey(input, "taskKey"), ct);
@@ -177,6 +190,13 @@ public class MoveTaskTool(IBoardService board, IGoalService goals) : BoardToolBa
         }
         """;
 
+    public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
+    {
+        await RequireTaskAsync(GetKey(input, "taskKey"), ct);
+        if (GetString(input, "sprintKey") is { Length: > 0 } sprintKey)
+            await StartSprintTool.RequireSprintAsync(Board, sprintKey, ct);
+    }
+
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var id = await RequireTaskAsync(GetKey(input, "taskKey"), ct);
@@ -205,6 +225,9 @@ public class DeleteTaskTool(IBoardService board, IGoalService goals) : BoardTool
           "required": ["taskKey"]
         }
         """;
+
+    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
+        RequireTaskAsync(GetKey(input, "taskKey"), ct);
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
@@ -269,6 +292,9 @@ public class StartSprintTool(IBoardService board, IGoalService goals) : BoardToo
         }
         """;
 
+    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
+        RequireSprintAsync(Board, GetString(input, "sprintKey"), ct);
+
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var id = await RequireSprintAsync(Board, GetString(input, "sprintKey"), ct);
@@ -302,6 +328,13 @@ public class CompleteSprintTool(IBoardService board, IGoalService goals) : Board
         }
         """;
 
+    public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
+    {
+        await StartSprintTool.RequireSprintAsync(Board, GetString(input, "sprintKey"), ct);
+        if (GetString(input, "moveUnfinishedToSprintKey") is { Length: > 0 } target)
+            await StartSprintTool.RequireSprintAsync(Board, target, ct);
+    }
+
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var id = await StartSprintTool.RequireSprintAsync(Board, GetString(input, "sprintKey"), ct);
@@ -329,7 +362,11 @@ public class AddCommentTool(IBoardService board, IGoalService goals, IWorkItemSe
         }
         """;
 
-    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
+        await RequireItemAsync(input, ct);
+
+    /// <summary>Resolves 'itemKey' to the task or goal it names, refusing a key that names nothing.</summary>
+    private async Task<WorkItemRef> RequireItemAsync(JsonElement input, CancellationToken ct)
     {
         var key = GetString(input, "itemKey")
             ?? throw new BoardValidationException("'itemKey' is required, e.g. \"TASK-7\".");
@@ -337,8 +374,13 @@ public class AddCommentTool(IBoardService board, IGoalService goals, IWorkItemSe
             ? WorkItemTypes.Goal
             : WorkItemTypes.Task;
 
-        var item = await items.ResolveAsync(type, key, ct)
+        return await items.ResolveAsync(type, key, ct)
             ?? throw new BoardValidationException($"There is no {type} {key}.");
+    }
+
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var item = await RequireItemAsync(input, ct);
         var comment = await items.AddCommentAsync(
             item, new AddCommentRequest(GetString(input, "body") ?? string.Empty, CommentAuthors.Assistant), ct);
 

@@ -333,6 +333,40 @@ public class ChatServiceToolLoopTests
     }
 
     [Fact]
+    public async Task A_proposal_whose_target_does_not_exist_is_refused_before_the_user_sees_it()
+    {
+        // Reported from the phone: the model passed a list position, the card looked fine, and
+        // only after tapping Confirm did it fail with "Goal 5 does not exist." Check first.
+        var tool = new FakeTool("delete_goal", mutates: true) { ValidationError = "There is no goal GOAL-5." };
+        var (db, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "delete_goal", """{"goalKey":"GOAL-5"}""");
+        streamer.EnqueueText("That goal does not exist — which one did you mean?");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Delete goal 5"));
+
+        Assert.Empty(tool.Invocations);
+        Assert.Null(Assert.Single(events, e => e.Type == "done").Pending);
+        Assert.Empty(await db.PendingActions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task A_refused_proposal_hands_the_model_the_reason()
+    {
+        // So it can correct the call in the same turn instead of repeating it.
+        var tool = new FakeTool("delete_goal", mutates: true) { ValidationError = "There is no goal GOAL-5." };
+        var (_, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "delete_goal", """{"goalKey":"GOAL-5"}""");
+        streamer.EnqueueText("ok");
+
+        await CollectAsync(chat.StreamChatAsync(null, "Delete goal 5"));
+
+        var toolTurn = streamer.ReceivedTurns[^1].Last(t => t.ToolResults is { Count: > 0 });
+        var result = Assert.Single(toolTurn.ToolResults!);
+        Assert.True(result.IsError);
+        Assert.Contains("There is no goal GOAL-5.", result.Content);
+    }
+
+    [Fact]
     public async Task The_model_is_told_the_action_did_not_run()
     {
         // Otherwise it reports success for something still waiting on the user.

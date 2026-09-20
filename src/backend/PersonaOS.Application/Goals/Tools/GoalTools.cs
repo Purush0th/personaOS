@@ -18,6 +18,9 @@ public abstract class GoalToolBase : IPersonaTool
 
     public abstract Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default);
 
+    /// <summary>Tools that act on an existing goal override this to resolve its key early.</summary>
+    public virtual Task ValidateAsync(JsonElement input, CancellationToken ct = default) => Task.CompletedTask;
+
     protected static string? GetString(JsonElement input, string name) =>
         input.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
@@ -131,6 +134,9 @@ public class UpdateGoalStatusTool(IGoalService goals) : GoalToolBase
         }
         """;
 
+    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
+        RequireGoalAsync(goals, GetKey(input, "goalKey") ?? GetKey(input, "goalId"), ct);
+
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var id = await RequireGoalAsync(goals, GetKey(input, "goalKey") ?? GetKey(input, "goalId"), ct);
@@ -164,6 +170,9 @@ public class DeleteGoalTool(IGoalService goals) : GoalToolBase
           "required": ["goalKey"]
         }
         """;
+
+    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
+        RequireGoalAsync(goals, GetKey(input, "goalKey"), ct);
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {

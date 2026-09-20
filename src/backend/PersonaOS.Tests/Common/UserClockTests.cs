@@ -78,7 +78,8 @@ public class UserClockTests
         var kiritimati = UserClock.Today("Pacific/Kiritimati"); // UTC+14
         var midway = UserClock.Today("Pacific/Midway");         // UTC-11
 
-        // They are never more than one day apart, and never inverted.
-        Assert.InRange(kiritimati.DayNumber - midway.DayNumber, 0, 1);
+        // 25 hours apart, so Kiritimati is always at least a day ahead, and two days ahead
+        // whenever the gap straddles two midnights (UTC 10:00-11:00). Never inverted, never more.
+        Assert.InRange(kiritimati.DayNumber - midway.DayNumber, 1, 2);
     }
 }

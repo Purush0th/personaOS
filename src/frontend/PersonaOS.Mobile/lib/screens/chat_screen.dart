@@ -31,6 +31,7 @@ class ChatScreen extends StatefulWidget {
     required this.api,
     required this.assistantNickname,
     this.voiceEnabled = false,
+    this.voice,
   });
 
   final PersonaOsApi api;
@@ -38,6 +39,9 @@ class ChatScreen extends StatefulWidget {
 
   /// Whether the instance has the voice module enabled (mic + read-back).
   final bool voiceEnabled;
+
+  /// Speech in and out. The real one talks to platform plugins, so tests pass their own.
+  final VoiceService? voice;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -54,7 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
   int? _conversationId;
   bool _streaming = false;
 
-  final _voice = VoiceService();
+  late final VoiceService _voice = widget.voice ?? VoiceService();
   bool _listening = false;
   bool _readBack = false;
 
@@ -70,6 +74,11 @@ class _ChatScreenState extends State<ChatScreen> {
   /// True while the hands-free loop is speaking, so the mic button reflects it.
   bool _speaking = false;
 
+  /// Set when a confirm card stopped hands-free. Resolving the last card starts it
+  /// again: the user put the phone down, and a decision they have now made should
+  /// not end the conversation.
+  bool _handsFreeAwaitsCard = false;
+
   /// True while an old conversation's messages are being fetched.
   bool _loadingHistory = false;
 
@@ -84,6 +93,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// Turns hands-free mode on or off. On, it starts the listen/answer/speak loop.
   Future<void> _toggleHandsFree() async {
+    // Either way this is the user's own decision, so no card is holding the loop.
+    _handsFreeAwaitsCard = false;
     if (_handsFree) {
       setState(() => _handsFree = false);
       await _voice.stopListening();
@@ -251,9 +262,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (!_handsFree || bubble.isError || proposals) {
       if (proposals && _handsFree && mounted) {
-        setState(() => _handsFree = false);
+        setState(() {
+          _handsFree = false;
+          _handsFreeAwaitsCard = true;
+        });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Hands-free paused — confirm the change first.'),
+          content: Text('Hands-free paused — confirm or discard the change to carry on.'),
         ));
       }
       return;
@@ -282,6 +296,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() {
       _bubbles.clear();
       _loadingHistory = true;
+      _handsFreeAwaitsCard = false;
     });
 
     try {
@@ -315,6 +330,8 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() {
       _bubbles.clear();
       _conversationId = null;
+      // The cards that paused hands-free are gone with the thread.
+      _handsFreeAwaitsCard = false;
     });
   }
 
@@ -339,6 +356,7 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         }
       });
+      await _resumeHandsFreeIfWaiting();
     } catch (_) {
       // Leave the card pending so it can be retried rather than lost.
       if (mounted) {
@@ -349,6 +367,27 @@ class _ChatScreenState extends State<ChatScreen> {
     } finally {
       if (mounted) setState(() => _resolving.remove(action.id));
     }
+  }
+
+  /// Starts hands-free again once the cards that paused it are all resolved.
+  ///
+  /// Without this the loop ended for good at the first proposal: the user confirmed
+  /// the change and then talked to a phone that had stopped listening.
+  Future<void> _resumeHandsFreeIfWaiting() async {
+    if (!_handsFreeAwaitsCard || _handsFree || !mounted) return;
+    final stillWaiting = _bubbles.any(
+      (b) => b.pending?.any((p) => p.isPending) ?? false,
+    );
+    if (stillWaiting) return;
+
+    setState(() {
+      _handsFreeAwaitsCard = false;
+      _handsFree = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Hands-free resumed — listening.'),
+    ));
+    await _listenOnce();
   }
 
   @override
@@ -728,14 +767,16 @@ class _ProposalList extends StatelessWidget {
                     ),
                   ),
                   if (action.isPending)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    // Wrap, not Row: on a narrow phone the two buttons overflow the
+                    // card by a few pixels and Confirm gets clipped.
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 4,
                       children: [
                         TextButton(
                           onPressed: () => onResolve(action, false),
                           child: const Text('Discard'),
                         ),
-                        const SizedBox(width: 4),
                         FilledButton(
                           onPressed: () => onResolve(action, true),
                           child: const Text('Confirm'),
