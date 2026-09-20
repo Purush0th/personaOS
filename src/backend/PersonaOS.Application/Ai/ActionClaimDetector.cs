@@ -25,12 +25,26 @@ public static partial class ActionClaimDetector
     private static partial Regex DomainObject();
 
     /// <summary>
-    /// "I've set", "I have created", "I just added", "I went ahead and scheduled", "I set",
-    /// "I've now updated", and the future form "I'll create" / "I will add" / "I'm adding".
-    /// Up to three words may sit between the subject and the verb ("I have now gone ahead and").
+    /// Done, or claimed as done: "I've set", "I have created", "I just added",
+    /// "I went ahead and scheduled", "I set", "I've now updated". Up to three words may sit
+    /// between the subject and the verb ("I have now gone ahead and").
     /// </summary>
-    [GeneratedRegex(@"\bi(?:'ve|’ve| have| had|'ll|’ll| will|'m|’m| am)?(?:\s+\w+){0,3}?\s+(set|created?|creating|add(?:ed|ing)?|schedul(?:ed|e|ing)|sav(?:ed|e|ing)|updat(?:ed|e|ing)|chang(?:ed|e|ing)|mark(?:ed|ing)?|delet(?:ed|e|ing)|remov(?:ed|e|ing)|cancel(?:l?ed|l?ing)?|mov(?:ed|e|ing)|reschedul(?:ed|e|ing)|logg?(?:ed|ing)?|record(?:ed|ing)?|book(?:ed|ing)?|put)\b", RegexOptions.IgnoreCase)]
-    private static partial Regex FirstPersonChange();
+    [GeneratedRegex(@"\bi(?:'ve|’ve| have| had)?(?:\s+\w+){0,3}?\s+(set|created?|add(?:ed)?|schedul(?:ed|e)|sav(?:ed|e)|updat(?:ed|e)|chang(?:ed|e)|mark(?:ed)?|delet(?:ed|e)|remov(?:ed|e)|cancel(?:l?ed)?|mov(?:ed|e)|reschedul(?:ed|e)|logg?(?:ed)?|record(?:ed)?|book(?:ed)?|put)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex FirstPersonDone();
+
+    /// <summary>
+    /// Still to come: "I'll create", "I will add", "I'm adding". Kept because models say
+    /// "I'll create it" and then never call the tool — but see <see cref="AsksPermission"/>.
+    /// </summary>
+    [GeneratedRegex(@"\bi(?:'ll|’ll| will|'m|’m| am)(?:\s+\w+){0,3}?\s+(set|creat(?:e|ing)|add(?:ing)?|schedul(?:e|ing)|sav(?:e|ing)|updat(?:e|ing)|chang(?:e|ing)|mark(?:ing)?|delet(?:e|ing)|remov(?:e|ing)|cancel(?:l?ing)?|mov(?:e|ing)|reschedul(?:e|ing)|logg?(?:ing)?|record(?:ing)?|book(?:ing)?|put)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex FirstPersonIntent();
+
+    /// <summary>
+    /// The reply asks the user whether to go ahead: "Would you like to proceed with these
+    /// details?", "Shall I go ahead?", "Let me know if that looks right."
+    /// </summary>
+    [GeneratedRegex(@"\b(shall|should|can|may)\s+i\b|\b(would|do)\s+you\s+(like|want)\b|\bwant\s+me\s+to\b|\bproceed\b|\bgo\s+ahead\b|\blet\s+me\s+know\b|\bconfirm\b|\bsound\s+(good|right)\b|\blook\s+(good|right)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex AsksPermission();
 
     /// <summary>"Your reminder has been set", "the goal is now created", "it's all set".</summary>
     [GeneratedRegex(@"\b(?:has|have)\s+been\s+(set|created|added|scheduled|saved|updated|marked|deleted|removed|cancell?ed|moved|rescheduled|logged|recorded|booked)\b|\b(?:is|are)\s+(?:now\s+|all\s+)(set|created|added|scheduled|saved|updated)\b|\bit'?s\s+all\s+set\b", RegexOptions.IgnoreCase)]
@@ -53,14 +67,25 @@ public static partial class ActionClaimDetector
     {
         if (string.IsNullOrWhiteSpace(reply)) return null;
 
-        foreach (var raw in SentenceBreak().Split(reply))
+        var sentences = SentenceBreak().Split(reply);
+
+        // "Sure, I'll add a new goal … Would you like to proceed with these details?" is a
+        // proposal, not a report, and the amber warning on it was wrong. So a sentence that only
+        // says what the assistant is *about to* do counts as a claim when the reply asks for
+        // nothing. Anything claimed as already done still counts, question or no question.
+        var awaitsTheUser = sentences.Any(s => AsksPermission().IsMatch(s));
+
+        foreach (var raw in sentences)
         {
             var sentence = raw.Trim();
             if (sentence.Length == 0 || sentence.EndsWith('?')) continue;
             if (NotAClaim().IsMatch(sentence)) continue;
             if (!DomainObject().IsMatch(sentence)) continue;
 
-            if (FirstPersonChange().IsMatch(sentence) || CompletedPassive().IsMatch(sentence))
+            if (FirstPersonDone().IsMatch(sentence) || CompletedPassive().IsMatch(sentence))
+                return sentence;
+
+            if (!awaitsTheUser && FirstPersonIntent().IsMatch(sentence))
                 return sentence;
         }
 

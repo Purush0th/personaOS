@@ -34,8 +34,31 @@ public static class ToolReceiptBuilder
     public static ToolReceipt Build(string toolName, string resultJson, bool isError) =>
         new(toolName, !isError, isError ? Failure(resultJson) : Summarise(resultJson));
 
-    /// <summary>Error results are plain text from the registry; keep them short.</summary>
-    private static string? Failure(string resultJson) => ToolPayloadText.Truncate(resultJson.Trim(), 160);
+    /// <summary>
+    /// Error results are <c>{"error":"…"}</c> from the registry. The user saw the raw JSON on the
+    /// failed card ("✕ {"error":"Goal 5 does not exist."}"), so unwrap it to the sentence inside.
+    /// </summary>
+    private static string? Failure(string resultJson)
+    {
+        var text = resultJson.Trim();
+        try
+        {
+            using var doc = JsonDocument.Parse(text);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("error", out var error)
+                && error.ValueKind == JsonValueKind.String
+                && error.GetString() is { Length: > 0 } message)
+            {
+                text = message.Trim();
+            }
+        }
+        catch (JsonException)
+        {
+            // Not JSON: it is already plain text.
+        }
+
+        return ToolPayloadText.Truncate(text, 160);
+    }
 
     private static string? Summarise(string resultJson)
     {

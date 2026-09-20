@@ -73,6 +73,16 @@ public class SystemPromptBuilderTests
     }
 
     [Fact]
+    public async Task Explains_how_the_confirmation_card_works()
+    {
+        // The model told the user to say "confirm", which does nothing — the card has buttons.
+        var prompt = await BuildAsync();
+
+        Assert.Contains("Confirm and Discard buttons", prompt);
+        Assert.Contains("never ask them to type or say \"confirm\"", prompt);
+    }
+
+    [Fact]
     public async Task Carries_the_configured_nickname_and_the_fixed_product_name()
     {
         var prompt = await BuildAsync(c => c.AssistantNickname = "Juno");
