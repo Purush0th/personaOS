@@ -228,16 +228,15 @@ export class Backlog implements OnInit {
     );
   }
 
-  protected async setPoints(task: BoardTask, value: string): Promise<void> {
-    const points = value === '' ? null : Number(value);
+  protected async setPoints(task: BoardTask, points: number | null): Promise<void> {
     await this.run(
       () => this.api.update(task.key, { points, clearPoints: points === null }),
       'Could not set the points.'
     );
   }
 
-  protected async setPriority(task: BoardTask, value: string): Promise<void> {
-    await this.run(() => this.api.update(task.key, { priority: value as Priority }), 'Could not set the priority.');
+  protected async setPriority(task: BoardTask, priority: Priority): Promise<void> {
+    await this.run(() => this.api.update(task.key, { priority }), 'Could not set the priority.');
   }
 
   // ------------------------------------------------------------------ drag and drop

@@ -5,7 +5,7 @@
 @if (loading()) {
   <p class="muted">Loading…</p>
 } @else if (goal(); as goal) {
-  <nav class="crumbs muted small"><a routerLink="/goals">Goals</a> · <a routerLink="/backlog">Backlog</a></nav>
+  <nav class="crumbs muted small"><a routerLink="/goals">Goals</a> · <a routerLink="/board/backlog">Backlog</a></nav>
 
   <header class="item-head">
     <span class="key" [style.--hue]="hue()">{{ goal.key }}</span>
@@ -95,9 +95,9 @@
       </label>
       <label>
         Priority
-        <select [value]="goal.priority" (change)="setPriority($any($event.target).value)">
+        <select [ngModel]="goal.priority" (ngModelChange)="setPriority($event)">
           @for (p of priorities; track p) {
-            <option [value]="p">{{ priorityLabels[p] }}</option>
+            <option [ngValue]="p">{{ priorityLabels[p] }}</option>
           }
         </select>
       </label>
