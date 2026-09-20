@@ -1,4 +1,4 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import {
@@ -19,7 +19,7 @@ import {
   templateUrl: './discussion.html',
   styleUrl: './discussion.scss',
 })
-export class Discussion {
+export class Discussion implements OnInit {
   private readonly api = inject(BoardService);
 
   readonly itemType = input.required<'task' | 'goal'>();
@@ -35,7 +35,14 @@ export class Discussion {
   draft = '';
   editDraft = '';
 
-  /** Called by the parent once it knows the key, and after it reloads the item. */
+  /**
+   * Loads itself: the parent renders this only once it has the item, and comments do not change
+   * when the item does, so waiting for the parent only left the first paint empty.
+   */
+  async ngOnInit(): Promise<void> {
+    await this.load();
+  }
+
   async load(): Promise<void> {
     try {
       const [comments, attachments] = await Promise.all([

@@ -23,7 +23,7 @@ interface ColumnDef {
 
 /**
  * The board is the running sprint and nothing else: This week, In progress, Done. The backlog and
- * the sprints to come live on the Backlog page, so the board stays what you look at during the week.
+ * the sprints to come live in the board's other view, so this one stays what you look at daily.
  */
 @Component({
   selector: 'app-board',

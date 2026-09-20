@@ -9,29 +9,6 @@
     margin: 0;
   }
 
-  .views {
-    display: flex;
-
-    button {
-      border-radius: 0;
-      padding: 0.35rem 0.9rem;
-
-      &:first-child {
-        border-radius: 8px 0 0 8px;
-      }
-
-      &:last-child {
-        border-radius: 0 8px 8px 0;
-        border-left: none;
-      }
-
-      &.on {
-        background: var(--ink);
-        color: #fff;
-      }
-    }
-  }
-
   .actions {
     margin-left: auto;
     display: flex;
