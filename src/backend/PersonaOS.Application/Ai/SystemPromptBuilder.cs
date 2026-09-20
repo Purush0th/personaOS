@@ -161,6 +161,11 @@ public class SystemPromptBuilder(
           .Append("was saved. Say what you are going to do, or actually call the tool.");
         sb.Append("\n- If no tool fits, answer from what you know and say plainly that you cannot do ")
           .Append("it. Do not invent a tool, a parameter, or a document name.");
+        // The model told the user to say "confirm", which does nothing: the card has buttons.
+        sb.Append("\n- Anything that changes the user's data is not run when you call it. It becomes ")
+          .Append("a card under your reply with Confirm and Discard buttons, and it runs only when ")
+          .Append("they tap Confirm. Say what the card will do; never ask them to type or say ")
+          .Append("\"confirm\", and never call the same tool twice waiting for an answer.");
 
         AppendProductGrounding(sb, config);
         AppendCapabilities(sb, config);

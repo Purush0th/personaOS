@@ -209,11 +209,22 @@ public class FakeTool(
 
     public List<string> Invocations { get; } = new();
 
+    /// <summary>
+    /// Set to make the pre-proposal check refuse the call, the way a tool does when the item it
+    /// names does not exist.
+    /// </summary>
+    public string? ValidationError { get; set; }
+
     public Task<string> ExecuteAsync(System.Text.Json.JsonElement input, CancellationToken ct = default)
     {
         Invocations.Add(input.ToString());
         return Task.FromResult(result);
     }
+
+    public Task ValidateAsync(System.Text.Json.JsonElement input, CancellationToken ct = default) =>
+        ValidationError is null
+            ? Task.CompletedTask
+            : throw new PersonaOS.Application.Goals.GoalValidationException(ValidationError);
 }
 
 /// <summary>Clock frozen at a fixed instant so scheduling tests never depend on wall time.</summary>

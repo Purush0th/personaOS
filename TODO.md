@@ -63,11 +63,24 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       keys. Migrations `BoardPlanning` + `NormalizePriority` (the first shipped an empty priority
       default, caught on the live server and repaired). 238 backend tests, 61 mobile tests.
       The phone keeps the board working (sprint picker on a task); its own detail views, comments
-      and attachments are the next round. **Not committed; deployed to the owner's server.**
-      **The web pages have not been looked at in a browser.**
+      and attachments are the next round. Released as alpha.8 and deployed to the owner's server.
+      The web pages were checked in a browser afterwards — see the entry below for what that found.
+- [x] **Backlog is a view of the board, not a section** (2026-09-16, owner). The top navigation
+      has one **Board** entry again; a `Sprint | Backlog` switch inside the page moves between
+      them, and the backlog lives at `/board/backlog` (`/backlog` redirects). Found and fixed
+      while finally looking at these pages in a browser: every `<select>` whose options come from
+      `@for` showed its first option instead of the task's real value, so the backlog rows and the
+      task page claimed "Highest / not estimated / no sprint" — they bind with `ngModel` now;
+      comments and attachments never loaded on first paint (the parent called `load()` while the
+      child was still hidden) — `Discussion` loads itself; every new comment was flagged *edited*
+      because `CreatedAtUtc` and `UpdatedAtUtc` each ran their own `UtcNow`; and the app had no
+      body background, so a browser in dark mode painted dark text on a dark canvas.
+      239 backend tests. **Not committed.**
 - [ ] Open questions for later: planner items still use ids in chat tools (same position
       risk as goals had); scope-change warning is not shown for re-estimating mid-sprint by
-      design; web drag and drop does not work on touch browsers (the menu does).
+      design; web drag and drop does not work on touch browsers (the menu does);
+      `POST /api/goals` accepts a missing `periodStart` and stores `0001-01-01` instead of
+      refusing it or defaulting to the current period.
 
 ## Phone testing issues (alpha.6, reported by the owner 2026-09-15)
 
@@ -85,13 +98,32 @@ Noted as reported, not yet investigated.
       set until the app wakes (the `reminder_scheduled` push delivered late while the app is
       idle), a missing exact-alarm permission prompt, or the notification channel or timezone
       data only being set up on first delivery.
-- [ ] **Sub-goal form should not ask for a period.** On the phone, the "New sub-goal" sheet under a
+- [x] **Sub-goal form should not ask for a period.** Settled by the sprint board: goals stopped
+      nesting, sub-goals became tasks, and the child period picker went with them (web and phone).
+      Original report below.
+      On the phone, the "New sub-goal" sheet under a
       parent goal shows the Yearly / Quarterly / Monthly selector (it defaulted to Monthly under a
       yearly goal). The owner wants a sub-goal to **inherit the parent goal's timeline**, with no
       period choice at the child level: just the title and "Add goal". Check whether the web
       goals page has the same selector for sub-goals, and whether the server should enforce the
       inherited period (including for sub-goals the assistant creates in chat), not only the form.
-- [ ] **Confirming an update or delete fails, and hands-free voice stalls afterwards.** The owner
+- [x] **Confirming an update or delete fails, and hands-free voice stalls afterwards.**
+      Fixed 2026-09-20, in four parts. (1) Tools now carry a `ValidateAsync` the registry runs
+      *before* a mutating call becomes a card: a call naming something that does not exist is
+      refused, the model is handed the reason as an error result while it can still correct
+      itself, and the user never sees a card that cannot work. Implemented for the goal, board,
+      sprint, work-item, planner and reminder tools. (2) `ToolReceiptBuilder` unwraps the
+      registry's `{"error":"…"}`, so a failed card reads "Goal 5 does not exist." instead of raw
+      JSON — web and phone both, since it is stored server-side. (3) The registry caught only
+      `GoalValidationException`, so a board, planner or reminder problem reached the model as
+      "The tool failed unexpectedly."; it catches `DomainValidationException` now. (4) The system
+      prompt explains the card — Confirm and Discard buttons, never ask the user to say
+      "confirm" — and the phone remembers that a card paused hands-free, resuming the loop when
+      the last card is resolved (three widget tests; `VoiceService` is injectable for them).
+      Checked live against the dev instance on qwen2.5: `Delete GOAL-99` produced no card and
+      logged "Refused to propose delete_goal", `Delete GOAL-2` still produced one.
+      Original report below.
+      The owner
       tried to delete and update goals from the phone chat; tapping Confirm did not make the change.
       What the screenshot shows: the goals list numbered 1–5 (Create Tutorial was no. 4, Master AI
       no. 5). The user said "delete", then "create tutorial", then "yes". The proposal card
@@ -114,7 +146,17 @@ Noted as reported, not yet investigated.
       - Hands-free: the snackbar said "Hands-free paused — confirm the change first", and after
         the failed confirm the voice conversation never resumed. Resolving a card (confirmed,
         failed or discarded) should resume listening, or at least show how to resume.
-- [ ] **"Nothing was saved" warning fires on an honest reply, and the correction leaks into the
+- [x] **"Nothing was saved" warning fires on an honest reply, and the correction leaks into the
+      reply.** Fixed 2026-09-20. `ActionClaimDetector` now separates "I've set" (done) from
+      "I'll set" (intended): an intention counts only when the reply asks the user for nothing.
+      "Sure, I'll add a new goal … Would you like to proceed with these details?" is a proposal
+      and passes; "I'll create a sub-goal for that." on its own is still caught, which is why
+      "I'll" is in there at all. Anything claimed as already done is flagged regardless of what
+      else the reply asks. The corrective round's instruction now says to write only what the
+      user should read and not to introduce the reply, and `CorrectionPreamble` strips a leftover
+      "Sure, here is the corrected message:" lead-in. What the first draft said was not recovered
+      from the logs — the correction round is only logged as a warning with the claim sentence.
+      Original report below.
       reply.** Two problems with the claim check shipped in alpha.6, both seen on the phone:
       - **False positive.** "please add a goal to create a tutorial" got *"Sure, I'll add a new
         goal to create a tutorial. … Here's the goal: … Would you like to proceed with these

@@ -173,6 +173,20 @@ public class ChatService(
                     // we add anything" — and prompt rules did not stop it. The user decides.
                     if (mutatingTools.Contains(call.Name))
                     {
+                        // Check the call before the user sees a card for it. A proposal that names
+                        // something that does not exist used to fail only after they tapped
+                        // Confirm; handing the model the reason now lets it fix the call this turn.
+                        if (await toolRegistry.ValidateAsync(call, ct) is { } problem)
+                        {
+                            logger.LogInformation(
+                                "Refused to propose {Tool}: {Problem}", call.Name, problem);
+                            results.Add(new AiToolResult(
+                                call.Id,
+                                JsonSerializer.Serialize(new { error = problem }),
+                                IsError: true));
+                            continue;
+                        }
+
                         proposals.Add(new ProposedAction(call.Name, call.InputJson));
                         // The model is told plainly, so it stops claiming the thing is done.
                         results.Add(new AiToolResult(
@@ -217,13 +231,17 @@ public class ChatService(
                     "[Automatic check, not from the user] Your last reply says a change was made — \""
                     + claim + "\" — but you did not call any tool, so nothing was saved or changed. "
                     + "If the user asked for that change, call the right tool now. If they did not, "
-                    + "rewrite your reply so it does not say anything was done. Reply with the "
-                    + "corrected message only."));
+                    + "rewrite your reply so it does not say anything was done. "
+                    // Without this, models answer the check conversationally and the user reads
+                    // "Sure, here is the corrected message:" above their reply.
+                    + "Write only what the user should read, as if for the first time. Do not "
+                    + "mention this check, and do not introduce your reply."));
                 continue;
             }
 
             // The corrective round finished (or failed). Decide what to keep.
-            var corrected = LeakedToolCallScrubber.Scrub(roundReply.ToString(), tools.Select(t => t.Name).ToArray());
+            var corrected = CorrectionPreamble.Strip(
+                LeakedToolCallScrubber.Scrub(roundReply.ToString(), tools.Select(t => t.Name).ToArray()));
             if (streamError is not null)
             {
                 // The first reply was complete; only the correction failed. Keep the original, say

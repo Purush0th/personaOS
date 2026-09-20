@@ -30,6 +30,19 @@ public interface IPersonaTool
 
     /// <summary>Executes the tool and returns a JSON string result for the model.</summary>
     Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default);
+
+    /// <summary>
+    /// Checks a proposed call without changing anything, and throws a
+    /// <see cref="Common.Exceptions.DomainValidationException"/> when it cannot work — typically
+    /// because the item it names does not exist.
+    ///
+    /// A mutating tool is proposed first and run only after the user confirms, so without this the
+    /// user confirmed a card and only then saw "Goal 5 does not exist". Checking at proposal time
+    /// hands the model the error while it can still correct itself, in the same turn.
+    ///
+    /// Tools that create something new have nothing to check and keep the default.
+    /// </summary>
+    Task ValidateAsync(JsonElement input, CancellationToken ct = default) => Task.CompletedTask;
 }
 
 public interface IPersonaToolRegistry
@@ -42,6 +55,12 @@ public interface IPersonaToolRegistry
     /// features, and execution failures come back as error results for the model.
     /// </summary>
     Task<AiToolResult> ExecuteAsync(AiToolCall call, CancellationToken ct = default);
+
+    /// <summary>
+    /// Checks a call the model wants to make before it is proposed to the user. Returns the
+    /// reason it cannot work, or null when it looks fine. Never throws.
+    /// </summary>
+    Task<string?> ValidateAsync(AiToolCall call, CancellationToken ct = default);
 
     /// <summary>
     /// Names of the enabled tools that change data, and so need the user's confirmation before
