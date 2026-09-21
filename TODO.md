@@ -17,6 +17,45 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ---
 
+## AI layer refactor (raised by the owner 2026-09-21)
+
+Six guardrails landed this week as incident responses — each a real bug, each the smallest fix
+that worked, none followed by a refactor. The result: the prompt is 257 lines of `StringBuilder`
+calls that need a rebuild and a redeploy to change one sentence, and `ChatService` is 545 lines
+holding streaming, the tool loop, the confirmation gate, pre-proposal validation, call dedup, the
+claim check, the corrective round and persistence. Adding a guardrail means editing that method
+again. The layer boundaries are fine; the shape inside this layer is not.
+
+Do these in order — A is the one the owner feels immediately, and B is easier once the prompt
+stops being code. Estimates assume one focused session each, tests kept green throughout.
+
+- [ ] **A. Prompt lives in files, not in C#** (~3-4 hours). Split the prompt into fragments —
+      identity, tool rules, product grounding, enabled modules, board, live data — as `.prompty`
+      files (YAML front matter plus a template body) with `{{nickname}}`, `{{today}}`,
+      `{{goals}}` filled from config and the database. Defaults ship as embedded resources; a
+      fragment of the same name under `data/prompts/` on the server overrides it, so editing the
+      prompt is editing a file and restarting the container. Write the loader (roughly 150 lines:
+      front matter, variable substitution, fragment composition) rather than taking a dependency
+      on Semantic Kernel for it. Keep `SystemPromptBuilderTests` asserting that the rendered
+      prompt still carries the load-bearing rules. Document the override directory in the README
+      and mount it in `docker-compose.yml`.
+- [ ] **B. Guardrails become a pipeline** (~5-7 hours, the riskiest of the three). Two ports:
+      `IToolCallGuard`, run before a call executes or becomes a card, and `IReplyGuard`, run on
+      the finished reply. Move the existing six into it — dedup and `ValidateAsync` and the
+      mutating-tool gate into the first; `LeakedToolCallScrubber`, `ActionClaimDetector`,
+      `CorrectionPreamble` and the empty-reply fallback into the second — each as one class with
+      one test and one log counter, so it is visible how often each fires. `ChatService` keeps
+      orchestration only and should land near half its current size. The 32 tool-loop tests are
+      the safety net; do not change their assertions while refactoring.
+- [ ] **C. Model profiles** (~3 hours). Per-model settings instead of treating a 270M model and a
+      72B model alike: whether it supports tools, its tool-iteration budget, and which prompt
+      variant it gets (a small model needs a short, blunt prompt; a large one can take the full
+      thing). Fill the profile from evidence with a `scripts/model-check.sh <model>` that points
+      the instance at a model, runs scripted turns against `/api/chat` — tools supported at all,
+      "tasks for today" answered in one call, keys used instead of list positions, a card refused
+      for a target that does not exist, no tool syntax in prose — prints pass/fail per scenario
+      and restores the previous model. Depends on A for the prompt variants.
+
 ## Sprint board (requested 2026-09-15; spec: [docs/sprint-board.md](docs/sprint-board.md))
 
 The owner put bug fixing on hold for this feature. Cross-area, built solo.
