@@ -419,7 +419,12 @@ public class ChatServiceToolLoopTests
         await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
 
         var resultTurn = Assert.Single(streamer.ReceivedTurns[1], t => t.ToolResults is { Count: > 0 });
-        Assert.Contains("NOT EXECUTED", resultTurn.ToolResults![0].Content);
+        var told = resultTurn.ToolResults![0].Content;
+        Assert.Contains("not_executed", told);
+        Assert.Contains("waiting for their confirmation", told);
+        // Phrased as a status rather than as instructions: a 0.5B model read the old wording —
+        // "Tell them what you are proposing" — as the reply and said it to the user verbatim.
+        Assert.DoesNotContain("Tell them", told);
     }
 
     [Fact]

@@ -74,6 +74,7 @@ public class ChatService(
 
         var turns = new List<AiChatTurn>(history.Count + 1);
         turns.AddRange(history.Select(m => new AiChatTurn(m.Role, m.Content)));
+
         turns.Add(new AiChatTurn(ChatRoles.User, userMessage));
 
         // Stream the reply, executing Claude tool calls between model rounds.
@@ -224,10 +225,14 @@ public class ChatService(
 
                         proposals.Add(new ProposedAction(call.Name, call.InputJson));
                         // The model is told plainly, so it stops claiming the thing is done.
+                        // Phrased as a status, not as instructions: told "tell them what you are
+                        // proposing", a small model repeated that sentence to the user word for
+                        // word instead of following it.
                         var waiting =
-                            $"NOT EXECUTED. '{call.Name}' changes the user's data, so it is waiting for "
-                            + "their confirmation. Tell them what you are proposing and that they need "
-                            + "to confirm it. Do not say it is done, and do not call the tool again.";
+                            $"{{\"status\":\"not_executed\",\"reason\":\"'{call.Name}' changes the user's "
+                            + "data and is waiting for their confirmation on a card shown under your "
+                            + "reply\",\"next\":\"describe the change in your own words; it is not done "
+                            + "yet; do not call this tool again\"}}";
                         answered[signature] = waiting;
                         results.Add(new AiToolResult(call.Id, waiting, IsError: false));
                         continue;
