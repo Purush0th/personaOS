@@ -75,7 +75,11 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       child was still hidden) — `Discussion` loads itself; every new comment was flagged *edited*
       because `CreatedAtUtc` and `UpdatedAtUtc` each ran their own `UtcNow`; and the app had no
       body background, so a browser in dark mode painted dark text on a dark canvas.
-      239 backend tests. **Not committed.**
+      239 backend tests. Committed as 1340b19 and deployed.
+- [x] **`get_planner` refused a call with no date** (2026-09-21, seen live). "What are my tasks
+      for today?" produced five `Provide 'date', or both 'from' and 'to'.` failures and then a
+      date from 2023. An empty call now reads the user's local today; half a range is still
+      refused, because "from" alone has no sensible reading.
 - [ ] Open questions for later: planner items still use ids in chat tools (same position
       risk as goals had); scope-change warning is not shown for re-estimating mid-sprint by
       design; web drag and drop does not work on touch browsers (the menu does);
