@@ -17,6 +17,14 @@ public class SystemPromptBuilder(
     private const string ReleasesUrl = PersonaOsProject.ReleasesUrl;
 
     /// <summary>
+    /// Whether the configured model is a Qwen3 that thinks by default. Matched on the name
+    /// because that is all the provider tells us; "qwen3-4b-16k", a local Modelfile build of it,
+    /// counts too. Qwen2.5 and Gemma have no thinking mode and must not get the switch.
+    /// </summary>
+    private static bool UsesQwen3Thinking(string? model) =>
+        model is not null && model.Contains("qwen3", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Facts about the product the assistant runs inside. Models otherwise invent them —
     /// qwen2.5 told a user to install the app from the App Store, which does not list it.
     /// This is deliberately provider-neutral: it lives here, in the Application layer, so
@@ -145,6 +153,12 @@ public class SystemPromptBuilder(
         var config = await configService.GetOrCreateAsync(ct);
 
         var sb = new StringBuilder();
+
+        // Qwen3 reasons before every reply — measured at 626 generated tokens for a one-sentence
+        // answer, and a tool turn pays that at each step, so an answer took about 15 seconds. The
+        // switch belongs to the model, not to the user's persona field.
+        if (UsesQwen3Thinking(config.AiModel)) sb.Append("/no_think\n\n");
+
         sb.Append("You are ").Append(config.AssistantNickname)
           .Append(", a private personal AI assistant for the user. ");
         sb.Append("You help manage their goals, daily planner, reminders, and answer questions. ");
