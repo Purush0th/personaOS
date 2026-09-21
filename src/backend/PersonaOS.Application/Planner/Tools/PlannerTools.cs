@@ -78,18 +78,19 @@ public abstract class PlannerToolBase : IPersonaTool
     protected static string Ok(object payload) => JsonSerializer.Serialize(payload, JsonOpts);
 }
 
-public class GetPlannerTool(IPlannerService planner) : PlannerToolBase
+public class GetPlannerTool(IPlannerService planner, IInstanceConfigService configService) : PlannerToolBase
 {
     public override string Name => "get_planner";
     public override bool Mutates => false;
     public override string Description =>
-        "Reads the user's daily planner. Pass 'date' for a single day, or 'from'+'to' for a range " +
-        "(e.g. a week). Each item has a status (planned/done/skipped) and may link to a goal.";
+        "Reads the user's daily planner. Call it with no arguments for today. Pass 'date' for " +
+        "another single day, or 'from'+'to' for a range (e.g. a week). Dates are the user's local " +
+        "dates. Each item has a status (planned/done/skipped) and may link to a goal.";
     public override string InputSchemaJson => """
         {
           "type": "object",
           "properties": {
-            "date": { "type": "string", "description": "Single day, ISO date (e.g. 2026-07-21)." },
+            "date": { "type": "string", "description": "Single day, ISO date (e.g. 2026-07-21). Omit for today." },
             "from": { "type": "string", "description": "Range start, ISO date. Use with 'to'." },
             "to": { "type": "string", "description": "Range end (inclusive), ISO date. Use with 'from'." }
           }
@@ -107,8 +108,10 @@ public class GetPlannerTool(IPlannerService planner) : PlannerToolBase
             return Ok(new { days = await planner.GetRangeAsync(from.Value, to.Value, ct) });
         }
 
+        // No date means today. Refusing instead sent the model round the loop guessing: five
+        // failed calls, then a date from 2023, when "what are my tasks for today?" has one answer.
         var date = GetDate(input, "date")
-            ?? throw new PlannerValidationException("Provide 'date', or both 'from' and 'to'.");
+            ?? Common.UserClock.Today((await configService.GetOrCreateAsync(ct)).TimeZone);
         return Ok(await planner.GetDayAsync(date, ct));
     }
 }
