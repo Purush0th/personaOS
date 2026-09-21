@@ -72,6 +72,30 @@ public class SystemPromptBuilderTests
         Assert.Contains("unless a tool result in this conversation confirms it", prompt);
     }
 
+    [Theory]
+    [InlineData("qwen3:4b")]
+    [InlineData("qwen3-4b-16k")]
+    [InlineData("Qwen3:30b")]
+    public async Task Turns_off_thinking_for_qwen3(string model)
+    {
+        // Measured on the owner's box: 626 generated tokens for a one-sentence answer, paid again
+        // at every step of a tool turn — about 15 seconds per reply.
+        var prompt = await BuildAsync(c => c.AiModel = model);
+
+        Assert.StartsWith("/no_think", prompt);
+    }
+
+    [Theory]
+    [InlineData("qwen2.5:3b-instruct")]
+    [InlineData("claude-opus-4")]
+    [InlineData("gemma3:270m")]
+    public async Task Leaves_models_without_a_thinking_mode_alone(string model)
+    {
+        var prompt = await BuildAsync(c => c.AiModel = model);
+
+        Assert.DoesNotContain("/no_think", prompt);
+    }
+
     [Fact]
     public async Task Explains_how_the_confirmation_card_works()
     {
