@@ -52,6 +52,11 @@ public class ActionClaimDetectorTests
     [InlineData("Sure, I'll add a new goal to create a tutorial. Here's the goal: Create Tutorial, "
         + "monthly, starting today. Would you like to proceed with these details?")]
     [InlineData("I'll set a reminder for 7pm. Shall I go ahead?")]
+    // Reading the board back, 2026-09-21: the amber note on this was a false alarm.
+    [InlineData("As of the last check, there were no tasks marked as todo. All tasks are either "
+        + "in progress or have been scheduled for future planned sprints.")]
+    [InlineData("There are no reminders due today.")]
+    [InlineData("You have 4 tasks, and both of them have been moved to SPRINT-3.")]
     [InlineData("")]
     [InlineData(null)]
     public void Leaves_honest_replies_alone(string? reply)
