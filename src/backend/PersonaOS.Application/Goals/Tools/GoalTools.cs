@@ -66,9 +66,11 @@ public class GetGoalsTool(IGoalService goals) : GoalToolBase
     public override string Name => "get_goals";
     public override bool Mutates => false;
     public override string Description =>
-        "Lists the user's goals. Each has a key like GOAL-3 (use it to change the goal), a period " +
-        "(year, quarter, month), and its tasks with keys like TASK-7 and story points. " +
-        "effectiveProgress (0-100) comes from the goal's tasks. Dropped goals are hidden unless includeDropped is true.";
+        "Lists the user's long-running goals — what they are working towards over a year, quarter " +
+        "or month. NOT today's plan: for \"what are my tasks today\" use get_planner. Each goal has " +
+        "a key like GOAL-3 (use it to change the goal), a period, and its tasks with keys like " +
+        "TASK-7 and value points. effectiveProgress (0-100) comes from the goal's tasks. Dropped " +
+        "goals are hidden unless includeDropped is true.";
     public override string InputSchemaJson => """
         {
           "type": "object",

@@ -89,12 +89,29 @@ public class CreateReminderTool(IReminderService reminders) : ReminderToolBase
         }
         """;
 
-    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    /// <summary>
+    /// The time is the whole point of a reminder, so a card is never shown without one. A model
+    /// proposed "Call mum at 7pm today" with no dueAtLocal at all: the card said when in prose
+    /// and would have failed on confirm.
+    /// </summary>
+    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default)
+    {
+        RequireDueAt(input);
+        return Task.CompletedTask;
+    }
+
+    private static DateTime RequireDueAt(JsonElement input)
     {
         var raw = RequireString(input, "dueAtLocal");
-        if (!DateTime.TryParse(raw, out var local))
-            throw new ReminderValidationException(
+        return DateTime.TryParse(raw, out var local)
+            ? local
+            : throw new ReminderValidationException(
                 "'dueAtLocal' must be an ISO date-time like 2026-07-22T09:00:00.");
+    }
+
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var local = RequireDueAt(input);
 
         return Ok(await reminders.CreateAsync(new CreateReminderRequest(
             Message: RequireString(input, "message"),

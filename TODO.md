@@ -146,6 +146,35 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       as a claim. The passive rule — always the weakest signal — now loses to reporting wording:
       "as of", "currently", "already", "there are", "you have", "all/both/each/none of the X
       are". The first-person rule is unchanged.
+- [x] **Scored the models instead of guessing** (2026-09-21). `scripts/model-check.ps1` runs eight
+      scenarios against a running instance — read today's planner, read goals, read the board,
+      refuse `GOAL-99`, propose a real deletion, propose a planner item with title and date,
+      propose a reminder at the right time, and no false claim warning on an honest read — each
+      in its own conversation, checking what the tools did rather than what the reply says. It
+      discards every card it creates and restores the model it found. Results on the owner's box:
+
+      | Model | Score | Per turn |
+      |---|---|---|
+      | `qwen2.5:0.5b` | 3/8 | under 3 s |
+      | `qwen2.5:3b-instruct` | **8/8** | 0.6-7.7 s |
+      | `qwen3:4b` | 7/8 | 8-76 s |
+
+      So `qwen2.5:3b-instruct` is the floor that works, and 0.5B is not usable: it answered "what
+      are my tasks today" from `get_goals`, replied "FOREVER" to another question, and proposed
+      nothing where a card was wanted. qwen3:4b passes but is five to ten times slower and put
+      21:00 in a reminder whose own text said 7 PM.
+
+      Three app bugs the run turned up, all fixed: `get_planner` and `get_goals` both sounded like
+      "tasks", so the descriptions now say which owns "what are my tasks today"; a reminder card
+      could be proposed with no time at all, and `create_reminder` now validates `dueAtLocal`
+      before proposing; and the gate's own message ("Tell them what you are proposing…") was
+      phrased as instructions, which a 0.5B model repeated to the user word for word — it is a
+      status object now.
+- [ ] **`/no_think` does not reach Qwen3 through Ollama's OpenAI-compatible endpoint.** Measured
+      both ways — in the system prompt and appended to the user's turn — and neither changed the
+      timings. The switch stays in the prompt because a provider that reads it costs nothing, but
+      the real fix is the native Ollama adapter in item C: `/api/chat` takes `think`, `num_ctx`
+      and `keep_alive` as parameters, which would also settle the context-length problem below.
 - [ ] **History is a flat window of 20 messages, whatever the model.** A 0.5B model answered a
       fresh thread correctly and produced nonsense in a long one — twenty turns of a confused
       conversation crowd out the prompt's rules on a small context. Budget the history by tokens
