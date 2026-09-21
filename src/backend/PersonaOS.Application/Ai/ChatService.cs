@@ -323,9 +323,11 @@ public class ChatService(
         // A weak model may print a tool call as text rather than emitting it through the
         // provider's tool-call channel. Nothing ran, so strip it: otherwise the user is shown
         // internals, and the next turn reads it back from history and copies the mistake.
-        var raw = reply.ToString();
+        // Reasoning a thinking model wrote as content goes first: it is the model's private
+        // notes, not an answer, and storing it would feed it back as history next turn.
+        var raw = ThinkingBlock.Strip(reply.ToString());
         var finalText = LeakedToolCallScrubber.Scrub(raw, tools.Select(t => t.Name).ToArray());
-        var scrubbed = !ReferenceEquals(finalText, raw);
+        var scrubbed = !ReferenceEquals(finalText, raw) || raw.Length != reply.Length;
         if (scrubbed)
         {
             logger.LogWarning(
@@ -342,12 +344,14 @@ public class ChatService(
         // Tools ran and the model never wrote a word — it spent the turn calling them. An empty
         // bubble tells the user nothing, so say what happened.
         var filledEmptyReply = false;
-        if (finalText.Length == 0 && streamError is null && receipts.Count > 0)
+        if (finalText.Length == 0 && streamError is null)
         {
             logger.LogWarning(
-                "Model {Model} ran {Count} tools and wrote no reply", config.AiModel, receipts.Count);
-            finalText = "I looked that up but did not manage to write an answer. What the tools "
-                      + "returned is listed below — ask me again and I will summarise it.";
+                "Model {Model} wrote no reply after {Count} tool results", config.AiModel, receipts.Count);
+            finalText = receipts.Count > 0
+                ? "I looked that up but did not manage to write an answer. What the tools "
+                  + "returned is listed below — ask me again and I will summarise it."
+                : "I did not manage to write an answer to that. Could you ask me again?";
             filledEmptyReply = true;
         }
 
