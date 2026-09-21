@@ -169,7 +169,20 @@ public class ChatService(
                     break;
                 }
 
-                // The model asked for tools: run them and hand the results back.
+                // The model asked for tools: run them and hand the results back. Arguments a model
+                // wrapped in an envelope are unwrapped first, so everything downstream — the
+                // registry, the card, its summary, the repeat check — sees the real fields.
+                for (var i = 0; i < toolCalls.Count; i++)
+                {
+                    var normalized = ToolCallInput.Normalize(toolCalls[i].InputJson);
+                    if (!ReferenceEquals(normalized, toolCalls[i].InputJson))
+                    {
+                        logger.LogInformation(
+                            "Unwrapped nested arguments from {Model} for {Tool}", config.AiModel, toolCalls[i].Name);
+                        toolCalls[i] = toolCalls[i] with { InputJson = normalized };
+                    }
+                }
+
                 turns.Add(new AiChatTurn(ChatRoles.Assistant, iterationText.ToString(), ToolCalls: toolCalls));
                 var results = new List<AiToolResult>(toolCalls.Count);
                 foreach (var call in toolCalls)

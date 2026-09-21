@@ -141,8 +141,13 @@ public class AddPlannerItemTool(
         }
         """;
 
-    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
-        ResolveLinksAsync(input, ct);
+    public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
+    {
+        // The day is what the card promises, so a missing or unreadable one is caught here
+        // rather than after the user has confirmed it.
+        RequireDate(input, "date");
+        await ResolveLinksAsync(input, ct);
+    }
 
     /// <summary>Turns the optional task and goal keys into ids, refusing keys that name nothing.</summary>
     private async Task<(int? TaskId, int? GoalId)> ResolveLinksAsync(JsonElement input, CancellationToken ct)

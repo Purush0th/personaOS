@@ -124,6 +124,25 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       date and left the user an empty bubble. Repeat calls are now served from the first result
       with a note saying so, the loop stops after two repeats, and a turn that ran tools but
       produced no text gets a reply saying so instead of an empty bubble.
+- [x] **Tool arguments arrived wrapped in an envelope** (2026-09-21, qwen3:4b on the owner's
+      instance). The model sent
+      `{"function":"add_planner_item","arguments":{"date":"2026-09-21","title":"Check tasks"}}`
+      where the tool expects the arguments bare, so every field read as missing: the confirm card
+      said only "Add planner item", and confirming it would have failed with "'date' is
+      required." `ToolCallInput.Normalize` unwraps `arguments` / `parameters` / `args` / `input`
+      (object or JSON string) where the rest of the object is only envelope keys, applied where
+      tool calls enter the chat loop so the registry, the card, its summary and the repeat check
+      all see the same fields. `add_planner_item` also validates its date before proposing.
+- [ ] Qwen3 emits thinking. The instance ran it with a 4096-token context, which truncates our
+      prompt (turns log 8k-16k input tokens), and the chat sat on "Using get_planner…" with no
+      content ever arriving. Worked around by hand with a `num_ctx 16384` Modelfile and
+      `/no_think` in the persona field. Three gaps behind it, none fixed: nothing times out or
+      says "still working" when a model streams nothing after a tool result; `<think>` blocks are
+      never stripped, so reasoning shown as content would reach the bubble; and nothing warns
+      when the model's context is smaller than the prompt being sent.
+- [ ] The assistant tells the user to reply "yes" or "no" to a confirm card, though the prompt
+      says the card has buttons. Small models ignore the rule. Consider rewriting that sentence
+      out of the reply the way the correction preamble is stripped.
 - [ ] Open questions for later: planner items still use ids in chat tools (same position
       risk as goals had); scope-change warning is not shown for re-estimating mid-sprint by
       design; web drag and drop does not work on touch browsers (the menu does);
