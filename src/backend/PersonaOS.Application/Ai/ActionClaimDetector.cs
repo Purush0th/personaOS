@@ -51,6 +51,15 @@ public static partial class ActionClaimDetector
     private static partial Regex CompletedPassive();
 
     /// <summary>
+    /// Reporting what already exists rather than saying the assistant did something: "All tasks
+    /// are either in progress or have been scheduled for future sprints", "as of the last check",
+    /// "there are no reminders due". Read back from a tool, these are the honest answer to a
+    /// question — and the warning on them is a false alarm the user has to learn to ignore.
+    /// </summary>
+    [GeneratedRegex(@"\bas\s+of\b|\bcurrently\b|\balready\b|\bthere\s+(is|are|was|were)\b|\b(all|both|each|none)\s+(of\s+)?(the\s+|your\s+)?\w+\s+(is|are|were|have|has)\b|\bso\s+far\b|\bat\s+the\s+moment\b|\byou\s+have\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ReportsState();
+
+    /// <summary>
     /// Wording that turns a sentence into an offer, a question or a proposal rather than a claim:
     /// "I can set a reminder", "shall I create it?", "I propose adding", "once you confirm".
     /// </summary>
@@ -82,7 +91,11 @@ public static partial class ActionClaimDetector
             if (NotAClaim().IsMatch(sentence)) continue;
             if (!DomainObject().IsMatch(sentence)) continue;
 
-            if (FirstPersonDone().IsMatch(sentence) || CompletedPassive().IsMatch(sentence))
+            if (FirstPersonDone().IsMatch(sentence)) return sentence;
+
+            // A passive sentence is the weakest signal, so it loses to any sign that the sentence
+            // is describing the user's data rather than announcing a change to it.
+            if (CompletedPassive().IsMatch(sentence) && !ReportsState().IsMatch(sentence))
                 return sentence;
 
             if (!awaitsTheUser && FirstPersonIntent().IsMatch(sentence))
