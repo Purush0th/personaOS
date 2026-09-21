@@ -140,6 +140,24 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       says "still working" when a model streams nothing after a tool result; `<think>` blocks are
       never stripped, so reasoning shown as content would reach the bubble; and nothing warns
       when the model's context is smaller than the prompt being sent.
+- [x] **False "nothing was saved" warning on a reply that read the board back** (2026-09-21).
+      "All tasks are either in progress or have been scheduled for future planned sprints" is a
+      description of existing state, but the passive rule read "have been scheduled" plus "tasks"
+      as a claim. The passive rule — always the weakest signal — now loses to reporting wording:
+      "as of", "currently", "already", "there are", "you have", "all/both/each/none of the X
+      are". The first-person rule is unchanged.
+- [ ] **History is a flat window of 20 messages, whatever the model.** A 0.5B model answered a
+      fresh thread correctly and produced nonsense in a long one — twenty turns of a confused
+      conversation crowd out the prompt's rules on a small context. Budget the history by tokens
+      instead: keep the system prompt whole, drop the oldest turns until the request fits a share
+      of the model's context, and leave out replies that were only a fallback or only reasoning,
+      which teach the next turn nothing. Roughly 1-2 hours.
+- [ ] **A reply about the user's data when no read tool ran in that turn.** Seen with a 0.5B:
+      "check again" and "anything in the todo" were answered from its own earlier message, and
+      one turn announced TASK-6 as completed with no tool call and no card. Nothing was written,
+      so the confirmation gate held, but the user was told something untrue. Consider a quiet
+      "not checked against your data" note, the way an unverified claim is marked. Judged noisy
+      and imperfect when raised; recorded rather than built.
 - [ ] The assistant tells the user to reply "yes" or "no" to a confirm card, though the prompt
       says the card has buttons. Small models ignore the rule. Consider rewriting that sentence
       out of the reply the way the correction preamble is stripped.
