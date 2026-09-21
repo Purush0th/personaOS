@@ -80,6 +80,11 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       for today?" produced five `Provide 'date', or both 'from' and 'to'.` failures and then a
       date from 2023. An empty call now reads the user's local today; half a range is still
       refused, because "from" alone has no sensible reading.
+- [x] **A model repeating one tool burned the turn and wrote nothing** (2026-09-21, seen live).
+      After the `get_planner` fix above, the same question called it eight times with the right
+      date and left the user an empty bubble. Repeat calls are now served from the first result
+      with a note saying so, the loop stops after two repeats, and a turn that ran tools but
+      produced no text gets a reply saying so instead of an empty bubble.
 - [ ] Open questions for later: planner items still use ids in chat tools (same position
       risk as goals had); scope-change warning is not shown for re-estimating mid-sprint by
       design; web drag and drop does not work on touch browsers (the menu does);

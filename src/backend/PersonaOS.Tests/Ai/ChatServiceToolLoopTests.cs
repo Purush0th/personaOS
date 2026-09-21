@@ -333,6 +333,47 @@ public class ChatServiceToolLoopTests
     }
 
     [Fact]
+    public async Task The_same_call_twice_is_answered_from_the_first_result()
+    {
+        // Seen live: "what are my tasks for today?" called get_planner eight times with the same
+        // date and never wrote a reply. Running it again would not change the answer.
+        var tool = new FakeTool("get_planner", """{"items":[]}""");
+        var (_, chat, streamer) = Setup(tool);
+        streamer.EnqueueToolCall("c1", "get_planner", """{"date":"2026-09-21"}""");
+        streamer.EnqueueToolCall("c2", "get_planner", """{"date":"2026-09-21"}""");
+        streamer.EnqueueText("Nothing planned today.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "What are my tasks for today?"));
+
+        Assert.Single(tool.Invocations);
+        var repeated = streamer.ReceivedTurns[^1]
+            .Last(t => t.ToolResults is { Count: > 0 }).ToolResults![0];
+        Assert.Contains("You already called this tool", repeated.Content);
+        Assert.Equal("Nothing planned today.", Assert.Single(events, e => e.Type == "done").Text
+            ?? string.Concat(events.Where(e => e.Type == "delta").Select(e => e.Text)));
+    }
+
+    [Fact]
+    public async Task A_model_that_only_repeats_itself_is_stopped()
+    {
+        // Three identical calls and no answer: more rounds cost the user time and change nothing.
+        var tool = new FakeTool("get_planner", """{"items":[]}""");
+        var (_, chat, streamer) = Setup(tool);
+        for (var i = 0; i < 6; i++)
+        {
+            streamer.EnqueueToolCall($"c{i}", "get_planner", """{"date":"2026-09-21"}""");
+        }
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "What are my tasks for today?"));
+
+        Assert.Single(tool.Invocations);
+        // Four rounds at most: the first call, then two repeats, then the loop gives up.
+        Assert.True(streamer.CallCount <= 4, $"asked the model {streamer.CallCount} times");
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.Contains("did not manage to write an answer", done.Text);
+    }
+
+    [Fact]
     public async Task A_proposal_whose_target_does_not_exist_is_refused_before_the_user_sees_it()
     {
         // Reported from the phone: the model passed a list position, the card looked fine, and

@@ -96,6 +96,12 @@ public class ChatService(
         // True when the stored reply still claims a change that no tool made.
         var unverifiedClaim = false;
 
+        // What each tool call already returned this turn, keyed by call and arguments. A small
+        // model asked "what are my tasks for today?" called get_planner eight times with the same
+        // date and never answered, so a repeat is served from here instead of running again.
+        var answered = new Dictionary<string, string>(StringComparer.Ordinal);
+        var repeats = 0;
+
         // At most two rounds: the reply, then — only if it claimed a change that nothing made —
         // one corrective round. See the claim check after the loop.
         for (var round = 0; round < 2; round++)
@@ -168,6 +174,22 @@ public class ChatService(
                 var results = new List<AiToolResult>(toolCalls.Count);
                 foreach (var call in toolCalls)
                 {
+                    // The same call twice in one turn asks a question already answered. Serve the
+                    // first result again and say so, rather than repeating the work and letting
+                    // the model spin until the iteration limit with nothing written.
+                    var signature = call.Name + '|' + call.InputJson.Trim();
+                    if (answered.TryGetValue(signature, out var already))
+                    {
+                        repeats++;
+                        logger.LogInformation("Model {Model} repeated {Tool}", config.AiModel, call.Name);
+                        results.Add(new AiToolResult(
+                            call.Id,
+                            already + "\n\n[You already called this tool with these arguments in this "
+                            + "turn. This is the same result. Answer the user now; do not call it again.]",
+                            IsError: false));
+                        continue;
+                    }
+
                     // Anything that writes is proposed, not run. Models have created goals and
                     // reminders nobody asked for — including straight after "let's discuss before
                     // we add anything" — and prompt rules did not stop it. The user decides.
@@ -189,23 +211,34 @@ public class ChatService(
 
                         proposals.Add(new ProposedAction(call.Name, call.InputJson));
                         // The model is told plainly, so it stops claiming the thing is done.
-                        results.Add(new AiToolResult(
-                            call.Id,
+                        var waiting =
                             $"NOT EXECUTED. '{call.Name}' changes the user's data, so it is waiting for "
                             + "their confirmation. Tell them what you are proposing and that they need "
-                            + "to confirm it. Do not say it is done, and do not call the tool again.",
-                            IsError: false));
+                            + "to confirm it. Do not say it is done, and do not call the tool again.";
+                        answered[signature] = waiting;
+                        results.Add(new AiToolResult(call.Id, waiting, IsError: false));
                         continue;
                     }
 
                     yield return new ChatStreamEvent("tool", ToolName: call.Name, ConversationId: conversation.Id);
                     var result = await toolRegistry.ExecuteAsync(call, ct);
+                    answered[signature] = result.Content;
                     results.Add(result);
                     // Record what actually happened, from the tool's own result — the only
                     // account of the turn that does not depend on the model telling the truth.
                     receipts.Add(ToolReceiptBuilder.Build(call.Name, result.Content, result.IsError));
                 }
                 turns.Add(new AiChatTurn(ChatRoles.User, string.Empty, ToolResults: results));
+
+                // Telling it once is worth a try; a model still repeating itself after that is
+                // stuck, and more rounds only cost the user time.
+                if (repeats >= 2)
+                {
+                    logger.LogWarning(
+                        "Model {Model} kept repeating tool calls; stopping the loop after {Repeats}",
+                        config.AiModel, repeats);
+                    break;
+                }
             }
 
             if (!correcting)
@@ -293,9 +326,23 @@ public class ChatService(
             }
         }
 
-        // What the user watched stream in is no longer the reply when it was cleaned, or when a
-        // corrective round replaced it — the client must swap its bubble for the stored text.
-        var replaceStreamedText = scrubbed || (firstDraft is not null && finalText != firstDraft);
+        // Tools ran and the model never wrote a word — it spent the turn calling them. An empty
+        // bubble tells the user nothing, so say what happened.
+        var filledEmptyReply = false;
+        if (finalText.Length == 0 && streamError is null && receipts.Count > 0)
+        {
+            logger.LogWarning(
+                "Model {Model} ran {Count} tools and wrote no reply", config.AiModel, receipts.Count);
+            finalText = "I looked that up but did not manage to write an answer. What the tools "
+                      + "returned is listed below — ask me again and I will summarise it.";
+            filledEmptyReply = true;
+        }
+
+        // What the user watched stream in is no longer the reply when it was cleaned, when a
+        // corrective round replaced it, or when there was nothing to watch at all — the client
+        // must swap its bubble for the stored text.
+        var replaceStreamedText =
+            scrubbed || filledEmptyReply || (firstDraft is not null && finalText != firstDraft);
 
         // Persist the exchange (also when the stream broke mid-reply — keep the partial).
         var now = DateTime.UtcNow;
