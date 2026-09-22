@@ -196,11 +196,24 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
 - [ ] The assistant tells the user to reply "yes" or "no" to a confirm card, though the prompt
       says the card has buttons. Small models ignore the rule. Consider rewriting that sentence
       out of the reply the way the correction preamble is stripped.
+- [x] **Goals have a start and an end date** (2026-09-22, owner's rules). A goal starts on any
+      day the user picks, future ones included, and its type bounds the end: a month runs at most
+      31 days, a quarter at most 90, a year always ends on 31 December of its start year — both
+      ends counted. With no end given it defaults to a month on less a day, 89 days on, or 31
+      December. This replaces snapping every start to the 1st of its period, which left "Complete
+      LLM Engineering Course by Oct 15th" filed as the whole of October with the real date in the
+      title and nothing knowing when a goal was due. `GoalPeriodCalculator` holds the rules;
+      `GoalService` enforces them on create and update for every caller, and refuses a missing
+      start (it used to store 0001-01-01). `create_goal` takes `periodEnd`, checks the dates before
+      the card is shown, and the card names the end. Migration `GoalPeriodEnd` backfills existing
+      goals from their type. Web form has labelled Starts / Ends fields that reset the end when
+      the type or start changes, lock it for a year, and explain a bad range before saving; goals
+      show their range and an overdue badge. Phone: the same, with date pickers in the new-goal
+      sheet. Both mirror the rules for instant feedback; the server stays the authority.
+      307 backend tests, 74 mobile.
 - [ ] Open questions for later: planner items still use ids in chat tools (same position
       risk as goals had); scope-change warning is not shown for re-estimating mid-sprint by
-      design; web drag and drop does not work on touch browsers (the menu does);
-      `POST /api/goals` accepts a missing `periodStart` and stores `0001-01-01` instead of
-      refusing it or defaulting to the current period.
+      design; web drag and drop does not work on touch browsers (the menu does).
 
 ## Phone testing issues (alpha.6, reported by the owner 2026-09-15)
 

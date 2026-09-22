@@ -402,11 +402,13 @@ class PersonaOsApi {
     required String title,
     required String periodType,
     required String periodStart, // yyyy-MM-dd
+    String? periodEnd, // yyyy-MM-dd; the server defaults it from the period type when null
   }) async {
     await _post('/api/goals', {
       'title': title,
       'periodType': periodType,
       'periodStart': periodStart,
+      'periodEnd': ?periodEnd,
     });
   }
 
