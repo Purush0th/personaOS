@@ -81,6 +81,47 @@ ollama pull qwen2.5          # a tool-capable local model
 In the Setup Wizard pick **OpenAI-compatible**, base URL `http://host.docker.internal:11434/v1`
 (so the container reaches Ollama on your host), model `qwen2.5`, and leave the key blank.
 
+#### Choosing a local model
+
+The model must support **tool calling** — PersonaOS reads and writes your data through tools, so
+a model without them fails every request. Ollama says which: `ollama show <model>` lists
+`tools` under capabilities. Gemma 3 and Qwen 2 do not have it; Qwen 2.5, Qwen 3 and Llama 3.1
+do.
+
+Size matters more than it looks. Scored with `scripts/model-check.ps1` on one machine
+(RTX 3060), running eight scenarios that check what the tools actually did:
+
+| Model | Score | Per turn |
+|---|---|---|
+| `qwen2.5:0.5b` | 3/8 | under 3 s |
+| `qwen2.5:3b-instruct` | 8/8 | 0.6–7.7 s |
+| `qwen3:4b` | 7/8 | 8–76 s |
+
+**`qwen2.5:3b-instruct` is a good default.** Below 3B a model starts answering "what are my
+tasks today" out of the wrong tool and inventing item keys. Qwen 3 reasons before every reply,
+which multiplies latency on a tool turn; `/no_think` does not reach it through Ollama's
+OpenAI-compatible endpoint.
+
+#### Give the model enough context
+
+Ollama sizes a model's context from its own default, which is often **4,096 tokens** — smaller
+than a PersonaOS request, which carries the system prompt, the tool definitions and your live
+goals and board, and runs 8,000 tokens and up. The prompt is then silently truncated and the
+model looks stupid rather than starved: it asks you for today's date, calls the same tool
+repeatedly, or answers from nothing.
+
+Check what it loaded with `ollama ps` — the `CONTEXT` column. To raise it for one model:
+
+```bash
+printf 'FROM qwen2.5:3b-instruct\nPARAMETER num_ctx 16384\n' > Modelfile
+ollama create qwen2.5-3b-16k -f Modelfile
+```
+
+Then use `qwen2.5-3b-16k` as the model in Settings. For every model at once, set
+`OLLAMA_CONTEXT_LENGTH=16384` in Ollama's environment instead. Watch `ollama ps` afterwards: if
+the size no longer fits your GPU it will show part on CPU, and generation slows to a crawl —
+drop to `8192` in that case.
+
 ## Reaching it from your phone
 
 By default PersonaOS binds to **loopback only** — it is not exposed to your network. The
