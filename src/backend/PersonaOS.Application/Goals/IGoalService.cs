@@ -17,6 +17,7 @@ public record GoalDto(
     string? Description,
     string PeriodType,
     DateOnly PeriodStart,
+    DateOnly PeriodEnd,
     string Status,
     string Priority,
     int Progress,
@@ -31,15 +32,23 @@ public record GoalDto(
     DateTime UpdatedAtUtc,
     IReadOnlyList<GoalTaskSummary> Tasks);
 
+/// <param name="PeriodEnd">
+/// The day the goal is due. Null takes the period type's default: a month on, 90 days on, or
+/// 31 December.
+/// </param>
 public record CreateGoalRequest(
     string Title,
     string? Description,
     string PeriodType,
     DateOnly PeriodStart,
     int Progress = 0,
-    string? Priority = null);
+    string? Priority = null,
+    DateOnly? PeriodEnd = null);
 
-/// <summary>Partial update; null fields are left unchanged.</summary>
+/// <summary>
+/// Partial update; null fields are left unchanged. Changing the type or start without an end
+/// gives the goal that type's default end again.
+/// </summary>
 public record UpdateGoalRequest(
     string? Title = null,
     string? Description = null,
@@ -47,7 +56,8 @@ public record UpdateGoalRequest(
     string? PeriodType = null,
     DateOnly? PeriodStart = null,
     int? Progress = null,
-    string? Priority = null);
+    string? Priority = null,
+    DateOnly? PeriodEnd = null);
 
 /// <summary>Invalid input to a goal operation; message is user/model-presentable.</summary>
 public class GoalValidationException(string message)

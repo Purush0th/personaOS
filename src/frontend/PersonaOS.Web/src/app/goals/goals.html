@@ -9,7 +9,7 @@
 </header>
 
 <p class="muted small intro">
-  Goals are your epics. Break one down into tasks with story points
+  Goals are your epics. Break one down into tasks with value points
   @if (boardEnabled()) { and plan them into a sprint on the board}.
 </p>
 
@@ -20,14 +20,27 @@
 @if (adding()) {
   <form class="add-form" (ngSubmit)="add()">
     <input name="title" [(ngModel)]="draftTitle" placeholder="What do you want to achieve?" autofocus />
-    <select name="period" [(ngModel)]="draftPeriod">
+    <select name="period" [(ngModel)]="draftPeriod" (ngModelChange)="draftPeriod = $event; resetEnd()"
+            aria-label="Period">
       <option value="year">Yearly</option>
       <option value="quarter">Quarterly</option>
       <option value="month">Monthly</option>
     </select>
-    <input name="start" type="date" [(ngModel)]="draftStart" />
-    <button type="submit">Add</button>
+    <label class="date">
+      Starts
+      <input name="start" type="date" [(ngModel)]="draftStart" (ngModelChange)="draftStart = $event; resetEnd()" />
+    </label>
+    <label class="date">
+      Ends
+      <!-- A yearly goal always ends on 31 December, so there is nothing to choose. -->
+      <input name="end" type="date" [(ngModel)]="draftEnd" [min]="draftStart"
+             [readonly]="draftPeriod === 'year'" />
+    </label>
+    <button type="submit" [disabled]="!draftTitle.trim() || !!draftProblem()">Add</button>
     <button type="button" class="subtle" (click)="adding.set(false)">Cancel</button>
+    @if (draftProblem(); as problem) {
+      <p class="problem" role="alert">{{ problem }}</p>
+    }
   </form>
 }
 
@@ -40,6 +53,10 @@
         <span class="key">{{ goal.key }}</span>
         <span class="title">{{ goal.title }}</span>
         <span class="badge">{{ goal.periodType }}</span>
+        <span class="range muted small">{{ range(goal) }}</span>
+        @if (overdue(goal)) {
+          <span class="badge overdue">overdue</span>
+        }
         @if (goal.status !== 'active') {
           <span class="badge status">{{ goal.status }}</span>
         }

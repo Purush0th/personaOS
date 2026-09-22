@@ -62,6 +62,8 @@ class Goal {
     required this.key,
     required this.title,
     required this.periodType,
+    this.periodStart,
+    this.periodEnd,
     required this.status,
     required this.progress,
     required this.effectiveProgress,
@@ -77,6 +79,8 @@ class Goal {
         key: json['key'] as String? ?? '',
         title: json['title'] as String,
         periodType: json['periodType'] as String,
+        periodStart: DateTime.tryParse(json['periodStart'] as String? ?? ''),
+        periodEnd: DateTime.tryParse(json['periodEnd'] as String? ?? ''),
         status: json['status'] as String,
         progress: json['progress'] as int,
         effectiveProgress: json['effectiveProgress'] as int,
@@ -93,6 +97,11 @@ class Goal {
   final String key;
   final String title;
   final String periodType; // year | quarter | month
+
+  /// First and last day of the goal. Null only from a server older than goal end dates.
+  final DateTime? periodStart;
+  final DateTime? periodEnd;
+
   final String status; // active | completed | dropped
 
   /// Manually tracked; used only while the goal has no tasks.

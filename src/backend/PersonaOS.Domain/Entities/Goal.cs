@@ -20,8 +20,14 @@ public class Goal
     /// <summary>One of <see cref="GoalPeriods"/>.</summary>
     public string PeriodType { get; set; } = GoalPeriods.Year;
 
-    /// <summary>First day of the period this goal belongs to (e.g. 2026-07-01 for July 2026).</summary>
+    /// <summary>The day the goal starts. Any day, future ones included.</summary>
     public DateOnly PeriodStart { get; set; }
+
+    /// <summary>
+    /// The day the goal is due, inclusive. Bounded by <see cref="PeriodType"/>: see
+    /// <c>GoalPeriodCalculator</c> for the rules.
+    /// </summary>
+    public DateOnly PeriodEnd { get; set; }
 
     /// <summary>One of <see cref="GoalStatuses"/>.</summary>
     public string Status { get; set; } = GoalStatuses.Active;

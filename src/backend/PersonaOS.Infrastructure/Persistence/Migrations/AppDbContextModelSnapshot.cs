@@ -278,6 +278,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<int>("Number")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateOnly>("PeriodEnd")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateOnly>("PeriodStart")
                         .HasColumnType("TEXT");
 

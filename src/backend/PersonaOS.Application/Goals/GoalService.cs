@@ -54,6 +54,7 @@ public class GoalService(IAppDbContext db) : IGoalService
         if (title.Length == 0) throw new GoalValidationException("Title must not be empty.");
         ValidatePeriodType(request.PeriodType);
         ValidateProgress(request.Progress);
+        var end = ValidPeriod(request.PeriodType, request.PeriodStart, request.PeriodEnd);
 
         var goal = new Goal
         {
@@ -61,9 +62,8 @@ public class GoalService(IAppDbContext db) : IGoalService
             Title = title,
             Description = NormalizeDescription(request.Description),
             PeriodType = request.PeriodType,
-            // Snap to the first day of the period: the tool contract promises it, and a model
-            // asked for a "monthly" goal has been seen passing the 10th of the month.
-            PeriodStart = GoalPeriodCalculator.NormalizeStart(request.PeriodType, request.PeriodStart),
+            PeriodStart = request.PeriodStart,
+            PeriodEnd = end,
             Progress = request.Progress,
             Priority = ValidatePriority(request.Priority) ?? WorkItemPriorities.Medium,
         };
@@ -86,15 +86,18 @@ public class GoalService(IAppDbContext db) : IGoalService
         if (request.ClearDescription) goal.Description = null;
         else if (request.Description is not null) goal.Description = NormalizeDescription(request.Description);
         if (ValidatePriority(request.Priority) is string priority) goal.Priority = priority;
-        if (request.PeriodType is not null)
+        if (request.PeriodType is not null) ValidatePeriodType(request.PeriodType);
+        if (request.PeriodType is not null || request.PeriodStart is not null || request.PeriodEnd is not null)
         {
-            ValidatePeriodType(request.PeriodType);
-            goal.PeriodType = request.PeriodType;
+            var type = request.PeriodType ?? goal.PeriodType;
+            var start = request.PeriodStart ?? goal.PeriodStart;
+            // A new type or start with no new end gets that type's default end: keeping the old
+            // one would usually break the new rules, and the user did not ask to keep it.
+            var end = ValidPeriod(type, start, request.PeriodEnd);
+            goal.PeriodType = type;
+            goal.PeriodStart = start;
+            goal.PeriodEnd = end;
         }
-        if (request.PeriodStart is DateOnly start) goal.PeriodStart = start;
-        // Re-snap after either field may have changed, so editing the type alone still lands
-        // on a valid first-day-of-period.
-        goal.PeriodStart = GoalPeriodCalculator.NormalizeStart(goal.PeriodType, goal.PeriodStart);
         if (request.Progress is int progress)
         {
             ValidateProgress(progress);
@@ -154,6 +157,7 @@ public class GoalService(IAppDbContext db) : IGoalService
             goal.Description,
             goal.PeriodType,
             goal.PeriodStart,
+            goal.PeriodEnd,
             goal.Status,
             goal.Priority,
             goal.Progress,
@@ -174,6 +178,20 @@ public class GoalService(IAppDbContext db) : IGoalService
     {
         if (!GoalPeriods.All.Contains(periodType))
             throw new GoalValidationException($"Period type must be one of: {string.Join(", ", GoalPeriods.All)}.");
+    }
+
+    /// <summary>
+    /// The end date to store: <paramref name="end"/> when given, the period type's default
+    /// otherwise — refused when it breaks the rules for that period type.
+    /// </summary>
+    private static DateOnly ValidPeriod(string periodType, DateOnly start, DateOnly? end)
+    {
+        if (start == default) throw new GoalValidationException("A goal needs a start date.");
+
+        var resolved = end ?? GoalPeriodCalculator.DefaultEnd(periodType, start);
+        if (GoalPeriodCalculator.Problem(periodType, start, resolved) is { } problem)
+            throw new GoalValidationException(problem);
+        return resolved;
     }
 
     private static string? ValidatePriority(string? priority)

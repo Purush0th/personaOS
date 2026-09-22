@@ -1,6 +1,7 @@
 using System.Text.Json;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Domain.Entities;
+using PersonaOS.Domain.Services;
 
 namespace PersonaOS.Application.Goals.Tools;
 
@@ -49,6 +50,15 @@ public abstract class GoalToolBase : IPersonaTool
             : throw new GoalValidationException($"'{name}' must be an ISO date like 2026-07-01.");
     }
 
+    protected static DateOnly? OptionalDate(JsonElement input, string name)
+    {
+        var raw = GetString(input, name);
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        return DateOnly.TryParse(raw, out var date)
+            ? date
+            : throw new GoalValidationException($"'{name}' must be an ISO date like 2026-07-01.");
+    }
+
     protected static async Task<int> RequireGoalAsync(IGoalService goals, string? key, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -89,20 +99,39 @@ public class CreateGoalTool(IGoalService goals) : GoalToolBase
     public override string Name => "create_goal";
     public override string Description =>
         "Creates a goal (like an epic). Goals do not nest: to break a goal into smaller pieces, create " +
-        "tasks under it with create_task. periodStart is the first day of the period.";
+        "tasks under it with create_task. A goal runs from periodStart to periodEnd, both the user's " +
+        "local dates, and may start in the future. A month goal runs at most 31 days, a quarter goal " +
+        "at most 90, and a year goal always ends on 31 December of its start year. When the user " +
+        "names a deadline (\"by Oct 15th\") put it in periodEnd, not the title; otherwise leave " +
+        "periodEnd out and it defaults to the end of the period.";
     public override string InputSchemaJson => """
         {
           "type": "object",
           "properties": {
-            "title": { "type": "string", "description": "Short goal title." },
+            "title": { "type": "string", "description": "Short goal title, without the deadline." },
             "description": { "type": "string", "description": "Optional longer description." },
             "periodType": { "type": "string", "enum": ["year", "quarter", "month"] },
-            "periodStart": { "type": "string", "description": "First day of the period, ISO date (e.g. 2026-07-01)." },
+            "periodStart": { "type": "string", "description": "Day the goal starts, ISO date (e.g. 2026-09-22). Use today unless the user says otherwise." },
+            "periodEnd": { "type": "string", "description": "Day the goal is due, ISO date. Optional." },
             "progress": { "type": "integer", "description": "Initial progress 0-100, used only until the goal has tasks. Default 0." }
           },
           "required": ["title", "periodType", "periodStart"]
         }
         """;
+
+    /// <summary>
+    /// The dates are the part a model gets wrong, so they are checked before the card is shown —
+    /// a 45-day "month" is refused while the model can still pick a quarter instead.
+    /// </summary>
+    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var type = GetString(input, "periodType") ?? string.Empty;
+        var start = RequireDate(input, "periodStart");
+        var end = OptionalDate(input, "periodEnd") ?? GoalPeriodCalculator.DefaultEnd(type, start);
+        if (GoalPeriodCalculator.Problem(type, start, end) is { } problem)
+            throw new GoalValidationException(problem);
+        return Task.CompletedTask;
+    }
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
@@ -112,7 +141,8 @@ public class CreateGoalTool(IGoalService goals) : GoalToolBase
                 GetString(input, "description"),
                 GetString(input, "periodType") ?? string.Empty,
                 RequireDate(input, "periodStart"),
-                GetInt(input, "progress") ?? 0),
+                GetInt(input, "progress") ?? 0,
+                PeriodEnd: OptionalDate(input, "periodEnd")),
             ct);
         return Ok(new { created = goal });
     }

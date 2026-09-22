@@ -36,6 +36,35 @@
     flex: 1;
     min-width: 14rem;
   }
+
+  // Labelled so the dates read as a range, not as "by when" — an unlabelled date next to the
+  // title was taken for a deadline.
+  label.date {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--muted);
+
+    input {
+      display: inline-block;
+      width: auto;
+      margin: 0;
+    }
+
+    input[readonly] {
+      background: #ececf2;
+    }
+  }
+
+  .problem {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--danger);
+    font-size: 0.85rem;
+  }
 }
 
 .goal {
@@ -71,6 +100,15 @@
       border-color: var(--ink);
       color: var(--ink);
     }
+
+    &.overdue {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+  }
+
+  .range {
+    white-space: nowrap;
   }
 
   .bar {

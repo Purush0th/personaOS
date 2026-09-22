@@ -12,6 +12,7 @@ import {
   goalHue,
 } from '../core/board.service';
 import { BrandingService } from '../core/branding.service';
+import { formatGoalRange } from '../core/goal-period';
 import { Goal, GoalsService } from '../core/goals.service';
 import { Discussion } from '../shared/discussion';
 
@@ -132,6 +133,10 @@ export class GoalDetail implements OnInit {
 
   protected hue(): number {
     return goalHue(this.key());
+  }
+
+  protected range(goal: Goal): string {
+    return formatGoalRange(goal.periodStart, goal.periodEnd);
   }
 
   protected when(value: string): string {
