@@ -287,10 +287,16 @@ public class BoardService(
     {
         var sprint = await db.Sprints.FirstOrDefaultAsync(s => s.Id == id, ct);
         if (sprint is null) return false;
-        if (sprint.Status != SprintStatuses.Planned)
+
+        // A started sprint is a record of a week's work, so it is completed rather than deleted —
+        // unless it holds nothing. An empty sprint records nothing, and refusing to remove it left
+        // sprint history growing forever with no way to prune a mistake or a test run.
+        var holdsWork = await db.BoardTasks.AnyAsync(t => t.SprintId == id, ct);
+        if (sprint.Status != SprintStatuses.Planned && holdsWork)
         {
             throw new BoardValidationException(
-                $"{ItemKeys.Sprint(sprint.Number)} has already started; complete it instead of deleting it.");
+                $"{ItemKeys.Sprint(sprint.Number)} has already started and holds tasks; complete it "
+                + "instead of deleting it.");
         }
 
         foreach (var task in await db.BoardTasks.Where(t => t.SprintId == id).ToListAsync(ct))

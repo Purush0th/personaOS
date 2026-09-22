@@ -234,9 +234,15 @@ public class BoardServiceTests
         Assert.True(await rig.Board.DeleteSprintAsync(planned.Id));
         Assert.Equal(["TASK-1"], (await rig.Board.GetPlanAsync()).Backlog.Select(t => t.Key));
 
-        var (running, sprint, _) = await RunningSprintAsync();
+        var (running, sprint, task) = await RunningSprintAsync();
         var ex = await Assert.ThrowsAsync<BoardValidationException>(() => running.Board.DeleteSprintAsync(sprint.Id));
         Assert.Contains("complete it instead", ex.Message);
+
+        // Emptied, it records nothing, and refusing to remove it left sprint history growing
+        // forever — a test run or a mistake could never be cleaned up.
+        await running.Board.DeleteTaskAsync(task.Id);
+        Assert.True(await running.Board.DeleteSprintAsync(sprint.Id));
+        Assert.Empty((await running.Board.GetPlanAsync()).Sprints);
     }
 
     [Fact]
