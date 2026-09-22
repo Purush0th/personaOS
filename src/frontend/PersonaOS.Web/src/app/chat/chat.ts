@@ -2,7 +2,14 @@ import { Component, OnInit, effect, inject, signal, viewChild, ElementRef } from
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+
 import { BrandingService } from '../core/branding.service';
+import { Confirm } from '../core/confirm';
 import {
   ChatService,
   ConversationSummary,
@@ -27,7 +34,14 @@ interface Bubble {
 
 @Component({
   selector: 'app-chat',
-  imports: [FormsModule],
+  imports: [
+    FormsModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+  ],
   templateUrl: './chat.html',
   styleUrl: './chat.scss',
 })
@@ -36,6 +50,7 @@ export class Chat implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   protected readonly branding = inject(BrandingService);
+  private readonly confirm = inject(Confirm);
 
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
 
@@ -47,8 +62,6 @@ export class Chat implements OnInit {
   protected readonly streaming = signal(false);
   /** Action ids with a confirm/discard in flight, so the buttons can't be double-tapped. */
   private readonly resolving = signal(new Set<string>());
-  /** Public id of the conversation showing its delete confirmation, if any. */
-  protected readonly confirmingDelete = signal<string | null>(null);
 
   draft = '';
 
@@ -106,25 +119,28 @@ export class Chat implements OnInit {
     void this.router.navigate(['/chat', conversationSlug(conversation.publicId, conversation.id)]);
   }
 
-  protected askDelete(conversation: ConversationSummary): void {
-    this.confirmingDelete.set(conversation.publicId);
-  }
-
-  protected cancelDelete(): void {
-    this.confirmingDelete.set(null);
-  }
-
   /**
    * Permanently removes a conversation. If it is the one on screen, the thread is cleared and
    * the URL returns to /chat — otherwise the address bar would point at something gone.
+   *
+   * The row itself opens the conversation, so the delete button stops its click from bubbling.
    */
-  protected async deleteConversation(conversation: ConversationSummary): Promise<void> {
-    this.confirmingDelete.set(null);
+  protected async deleteConversation(conversation: ConversationSummary, event: Event): Promise<void> {
+    event.stopPropagation();
+    const ok = await this.confirm.ask({
+      title: 'Delete this conversation?',
+      message: `“${conversation.title}” and everything in it. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+
     const wasOpen = conversation.publicId === this.conversationPublicId();
 
     try {
       await this.chat.deleteConversation(conversation.publicId);
     } catch {
+      this.confirm.error('Could not delete that conversation.');
       return; // Leave the list untouched; the conversation is still there.
     }
 

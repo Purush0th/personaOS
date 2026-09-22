@@ -1,5 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../core/auth.service';
@@ -7,33 +11,54 @@ import { BrandingService } from '../core/branding.service';
 
 @Component({
   selector: 'app-login',
-  imports: [FormsModule],
+  imports: [FormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],
   template: `
-    <section class="card">
-      <h1>Sign in</h1>
-      <p class="muted">
-        Use the admin account you created during setup.
-      </p>
+    <mat-card class="sign-in" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>Sign in</mat-card-title>
+        <mat-card-subtitle>Use the admin account you created during setup.</mat-card-subtitle>
+      </mat-card-header>
 
-      <form (ngSubmit)="submit()">
-        <label>
-          Username
-          <input name="username" [(ngModel)]="username" autocomplete="username" autofocus />
-        </label>
-        <label>
-          Password
-          <input name="password" type="password" [(ngModel)]="password" autocomplete="current-password" />
-        </label>
+      <mat-card-content>
+        <form (ngSubmit)="submit()">
+          <mat-form-field appearance="outline">
+            <mat-label>Username</mat-label>
+            <input matInput name="username" [(ngModel)]="username" autocomplete="username" autofocus />
+          </mat-form-field>
 
-        @if (error(); as message) {
-          <p class="error">{{ message }}</p>
-        }
+          <mat-form-field appearance="outline">
+            <mat-label>Password</mat-label>
+            <input
+              matInput
+              name="password"
+              type="password"
+              [(ngModel)]="password"
+              autocomplete="current-password"
+            />
+            @if (error(); as message) {
+              <mat-error>{{ message }}</mat-error>
+            }
+          </mat-form-field>
 
-        <button type="submit" [disabled]="busy()">
-          {{ busy() ? 'Signing in…' : 'Sign in' }}
-        </button>
-      </form>
-    </section>
+          <button mat-flat-button type="submit" [disabled]="busy()">
+            {{ busy() ? 'Signing in…' : 'Sign in' }}
+          </button>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  `,
+  styles: `
+    .sign-in {
+      max-width: 24rem;
+      margin: 3rem auto;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      padding-top: 0.5rem;
+    }
   `,
 })
 export class Login {

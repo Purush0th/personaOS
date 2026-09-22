@@ -1,11 +1,14 @@
 <header class="page-head">
   <h1>Goals</h1>
-  <div class="actions">
-    <button class="subtle" (click)="toggleDropped()">
-      {{ includeDropped() ? 'Hide dropped' : 'Show dropped' }}
-    </button>
-    <button (click)="adding.set(true)">＋ New goal</button>
-  </div>
+  <span class="spacer"></span>
+  <button mat-button (click)="toggleDropped()">
+    <mat-icon>{{ includeDropped() ? 'visibility_off' : 'visibility' }}</mat-icon>
+    {{ includeDropped() ? 'Hide dropped' : 'Show dropped' }}
+  </button>
+  <button mat-flat-button (click)="adding.set(true)">
+    <mat-icon>add</mat-icon>
+    New goal
+  </button>
 </header>
 
 <p class="muted small intro">
@@ -13,130 +16,168 @@
   @if (boardEnabled()) { and plan them into a sprint on the board}.
 </p>
 
-@if (error(); as message) {
-  <p class="error">{{ message }}</p>
-}
-
 @if (adding()) {
-  <form class="add-form" (ngSubmit)="add()">
-    <input name="title" [(ngModel)]="draftTitle" placeholder="What do you want to achieve?" autofocus />
-    <select name="period" [(ngModel)]="draftPeriod" (ngModelChange)="draftPeriod = $event; resetEnd()"
-            aria-label="Period">
-      <option value="year">Yearly</option>
-      <option value="quarter">Quarterly</option>
-      <option value="month">Monthly</option>
-    </select>
-    <label class="date">
-      Starts
-      <input name="start" type="date" [(ngModel)]="draftStart" (ngModelChange)="draftStart = $event; resetEnd()" />
-    </label>
-    <label class="date">
-      Ends
-      <!-- A yearly goal always ends on 31 December, so there is nothing to choose. -->
-      <input name="end" type="date" [(ngModel)]="draftEnd" [min]="draftStart"
-             [readonly]="draftPeriod === 'year'" />
-    </label>
-    <button type="submit" [disabled]="!draftTitle.trim() || !!draftProblem()">Add</button>
-    <button type="button" class="subtle" (click)="adding.set(false)">Cancel</button>
+  <mat-card class="add-card" appearance="outlined">
+    <form (ngSubmit)="add()">
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>What do you want to achieve?</mat-label>
+        <input matInput name="title" [(ngModel)]="draftTitle" autofocus />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Period</mat-label>
+        <mat-select name="period" [(ngModel)]="draftPeriod" (ngModelChange)="resetEnd()">
+          <mat-option value="year">Yearly</mat-option>
+          <mat-option value="quarter">Quarterly</mat-option>
+          <mat-option value="month">Monthly</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Starts</mat-label>
+        <input matInput name="start" type="date" [(ngModel)]="draftStart" (ngModelChange)="resetEnd()" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Ends</mat-label>
+        <!-- A yearly goal always ends on 31 December, so there is nothing to choose. -->
+        <input matInput name="end" type="date" [(ngModel)]="draftEnd" [min]="draftStart"
+               [readonly]="draftPeriod === 'year'" />
+        @if (draftProblem(); as problem) {
+          <mat-error>{{ problem }}</mat-error>
+        } @else {
+          <mat-hint>{{ draftDays() }} days</mat-hint>
+        }
+      </mat-form-field>
+
+      <div class="form-actions">
+        <button mat-button type="button" (click)="adding.set(false)">Cancel</button>
+        <button mat-flat-button type="submit" [disabled]="!draftTitle.trim() || !!draftProblem()">
+          Add goal
+        </button>
+      </div>
+    </form>
     @if (draftProblem(); as problem) {
-      <p class="problem" role="alert">{{ problem }}</p>
+      <p class="error small problem" role="alert">{{ problem }}</p>
     }
-  </form>
+  </mat-card>
 }
 
 @if (loading()) {
-  <p class="muted">Loading…</p>
+  <mat-progress-bar mode="indeterminate" />
 } @else {
   @for (goal of goals(); track goal.id) {
-    <article class="goal" [class.dropped]="goal.status === 'dropped'">
-      <div class="head">
-        <span class="key">{{ goal.key }}</span>
-        <span class="title">{{ goal.title }}</span>
-        <span class="badge">{{ goal.periodType }}</span>
-        <span class="range muted small">{{ range(goal) }}</span>
-        @if (overdue(goal)) {
-          <span class="badge overdue">overdue</span>
-        }
-        @if (goal.status !== 'active') {
-          <span class="badge status">{{ goal.status }}</span>
-        }
-      </div>
-
-      <div class="bar" [title]="goal.effectiveProgress + '%'">
-        <div class="fill" [style.width.%]="goal.effectiveProgress"></div>
-      </div>
-
-      <div class="row">
-        <span class="muted small">{{ goal.effectiveProgress }}%</span>
-
-        @if (goal.taskCount === 0) {
-          <input
-            class="progress"
-            type="number"
-            min="0"
-            max="100"
-            [value]="goal.progress"
-            (change)="setProgress(goal, $any($event.target).value)"
-            title="Set progress"
-          />
-        } @else {
-          <span class="muted small">
-            {{ goal.donePoints }} of {{ goal.totalPoints }} points ·
-            {{ goal.doneTaskCount }} of {{ goal.taskCount }} tasks done
-          </span>
-        }
-
-        <span class="spacer"></span>
-
-        @if (goal.status !== 'completed') {
-          <button class="subtle" (click)="setStatus(goal, 'completed')">Complete</button>
-        }
-        @if (goal.status === 'active') {
-          <button class="subtle" (click)="setStatus(goal, 'dropped')">Drop</button>
-        } @else {
-          <button class="subtle" (click)="setStatus(goal, 'active')">Reactivate</button>
-        }
-        @if (boardEnabled()) {
-          <button class="subtle" (click)="startAddTask(goal)">＋ Task</button>
-        }
-        <button class="subtle danger" (click)="remove(goal)">Delete</button>
-      </div>
-
-      @if (goal.tasks.length > 0) {
-        <ul class="tasks">
-          @for (task of goal.tasks; track task.id) {
-            <li [class.done]="task.column === 'done'">
-              <span class="key">{{ task.key }}</span>
-              <span class="task-title">{{ task.title }}</span>
-              <span class="muted small">
-                {{ columnLabel(task.column) }}@if (task.sprintNumber) { · sprint {{ task.sprintNumber }}}
-              </span>
-              <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
-              @if (task.column === 'done') {
-                <button class="subtle tiny" (click)="reopenTask(task)" title="Move back to the backlog">Reopen</button>
-              }
-              <button class="subtle tiny danger" (click)="removeTask(task)" [title]="'Delete ' + task.key">✕</button>
-            </li>
-          }
-        </ul>
-      }
-
-      @if (addingTaskTo() === goal.id) {
-        <form class="task-form" (ngSubmit)="addTask(goal)">
-          <input name="taskTitle" [(ngModel)]="taskTitle" placeholder="Task under {{ goal.key }}" autofocus />
-          <select name="taskPoints" [(ngModel)]="taskPoints" aria-label="Story points">
-            <option [ngValue]="null">? pts</option>
-            @for (p of allowedPoints; track p) {
-              <option [ngValue]="p">{{ p }} pts</option>
+    <mat-card class="goal" appearance="outlined" [class.dropped]="goal.status === 'dropped'">
+      <mat-card-content>
+        <div class="head">
+          <a class="key" [routerLink]="['/board/goals', goal.key]">{{ goal.key }}</a>
+          <a class="title" [routerLink]="['/board/goals', goal.key]">{{ goal.title }}</a>
+          <mat-chip-set>
+            <mat-chip disableRipple>{{ goal.periodType }}</mat-chip>
+            @if (overdue(goal)) {
+              <mat-chip disableRipple highlighted class="overdue">overdue</mat-chip>
             }
-          </select>
-          <button type="submit">Add to backlog</button>
-          <button type="button" class="subtle" (click)="addingTaskTo.set(null)">Cancel</button>
-        </form>
-      }
-    </article>
+            @if (goal.status !== 'active') {
+              <mat-chip disableRipple>{{ goal.status }}</mat-chip>
+            }
+          </mat-chip-set>
+          <span class="muted small range">{{ range(goal) }}</span>
+        </div>
+
+        <mat-progress-bar mode="determinate" [value]="goal.effectiveProgress" />
+
+        <div class="row">
+          <span class="muted small">{{ goal.effectiveProgress }}%</span>
+
+          @if (goal.taskCount === 0) {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="progress">
+              <mat-label>Progress</mat-label>
+              <input
+                matInput
+                type="number"
+                min="0"
+                max="100"
+                [value]="goal.progress"
+                (change)="setProgress(goal, $any($event.target).value)"
+              />
+              <span matTextSuffix>%</span>
+            </mat-form-field>
+          } @else {
+            <span class="muted small">
+              {{ goal.donePoints }} of {{ goal.totalPoints }} points ·
+              {{ goal.doneTaskCount }} of {{ goal.taskCount }} tasks done
+            </span>
+          }
+
+          <span class="spacer"></span>
+
+          @if (goal.status !== 'completed') {
+            <button mat-button (click)="setStatus(goal, 'completed')">Complete</button>
+          }
+          @if (goal.status === 'active') {
+            <button mat-button (click)="setStatus(goal, 'dropped')">Drop</button>
+          } @else {
+            <button mat-button (click)="setStatus(goal, 'active')">Reactivate</button>
+          }
+          @if (boardEnabled()) {
+            <button mat-button (click)="startAddTask(goal)">
+              <mat-icon>add_task</mat-icon>
+              Task
+            </button>
+          }
+          <button mat-icon-button [attr.aria-label]="'Delete ' + goal.key" (click)="remove(goal)">
+            <mat-icon class="danger">delete</mat-icon>
+          </button>
+        </div>
+
+        @if (goal.tasks.length > 0) {
+          <mat-list class="tasks">
+            @for (task of goal.tasks; track task.id) {
+              <mat-list-item [class.done]="task.column === 'done'">
+                <a class="key" matListItemLine [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
+                <span matListItemTitle class="task-title">{{ task.title }}</span>
+                <span matListItemMeta class="task-meta">
+                  <span class="muted small">
+                    {{ columnLabel(task.column) }}@if (task.sprintNumber) { · sprint {{ task.sprintNumber }}}
+                  </span>
+                  <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
+                  @if (task.column === 'done') {
+                    <button mat-icon-button aria-label="Move back to the backlog" (click)="reopenTask(task)">
+                      <mat-icon>undo</mat-icon>
+                    </button>
+                  }
+                  <button mat-icon-button [attr.aria-label]="'Delete ' + task.key" (click)="removeTask(task)">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </span>
+              </mat-list-item>
+            }
+          </mat-list>
+        }
+
+        @if (addingTaskTo() === goal.id) {
+          <form class="task-form" (ngSubmit)="addTask(goal)">
+            <mat-form-field appearance="outline" class="grow" subscriptSizing="dynamic">
+              <mat-label>Task under {{ goal.key }}</mat-label>
+              <input matInput name="taskTitle" [(ngModel)]="taskTitle" autofocus />
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="points">
+              <mat-label>Value points</mat-label>
+              <mat-select name="taskPoints" [(ngModel)]="taskPoints">
+                <mat-option [value]="null">?</mat-option>
+                @for (p of allowedPoints; track p) {
+                  <mat-option [value]="p">{{ p }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <button mat-flat-button type="submit">Add to backlog</button>
+            <button mat-button type="button" (click)="addingTaskTo.set(null)">Cancel</button>
+          </form>
+        }
+      </mat-card-content>
+    </mat-card>
   } @empty {
-    <p class="muted">
+    <p class="muted empty">
       No goals yet. Add one above — or just ask your assistant to create it in chat.
     </p>
   }

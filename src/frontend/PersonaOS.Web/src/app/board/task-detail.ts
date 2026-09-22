@@ -1,5 +1,13 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import {
@@ -17,12 +25,25 @@ import {
 } from '../core/board.service';
 import { BrandingService } from '../core/branding.service';
 import { Goal, GoalsService } from '../core/goals.service';
+import { Confirm } from '../core/confirm';
 import { Discussion } from '../shared/discussion';
 
 /** One task, full screen, at /board/tasks/TASK-7 — the link you can paste anywhere. */
 @Component({
   selector: 'app-task-detail',
-  imports: [FormsModule, RouterLink, Discussion],
+  imports: [
+    FormsModule,
+    RouterLink,
+    Discussion,
+    MatButtonModule,
+    MatCardModule,
+    MatChipsModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatProgressBarModule,
+    MatSelectModule,
+  ],
   templateUrl: './task-detail.html',
   styleUrl: './task-detail.scss',
 })
@@ -32,12 +53,12 @@ export class TaskDetail implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly branding = inject(BrandingService);
+  private readonly confirm = inject(Confirm);
 
   protected readonly task = signal<BoardTask | null>(null);
   protected readonly plan = signal<PlanView | null>(null);
   protected readonly goals = signal<Goal[]>([]);
   protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
   protected readonly editingTitle = signal(false);
   protected readonly editingDescription = signal(false);
 
@@ -61,9 +82,8 @@ export class TaskDetail implements OnInit {
     try {
       const detail = await this.api.task(this.key());
       this.task.set(detail.task);
-      this.error.set(null);
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not load that task.');
+      this.confirm.error(apiError(e).message ?? 'Could not load that task.');
     } finally {
       this.loading.set(false);
     }
@@ -141,12 +161,20 @@ export class TaskDetail implements OnInit {
 
   protected async remove(): Promise<void> {
     const task = this.task();
-    if (!task || !confirm(`Delete ${task.key} “${task.title}”? Its number will be reused.`)) return;
+    if (!task) return;
+    const ok = await this.confirm.ask({
+      title: `Delete ${task.key} “${task.title}”?`,
+      message: 'Its comments and attachments go too, and its number is reused by the next task.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+
     try {
       await this.api.delete(task.key);
       await this.router.navigate(['/board/backlog']);
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not delete that task.');
+      this.confirm.error(apiError(e).message ?? 'Could not delete that task.');
     }
   }
 
@@ -175,7 +203,7 @@ export class TaskDetail implements OnInit {
       await action();
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not save that change.');
+      this.confirm.error(apiError(e).message ?? 'Could not save that change.');
     }
   }
 }

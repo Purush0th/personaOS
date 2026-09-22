@@ -1,14 +1,35 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { RouterLink } from '@angular/router';
 
 import { BoardService, BoardTask, goalHue } from '../core/board.service';
 import { BrandingService } from '../core/branding.service';
+import { Confirm } from '../core/confirm';
 import { shiftLocalDate, todayLocal } from '../core/local-date';
 import { PlannerItemDto, PlannerService } from '../core/planner.service';
 
 @Component({
   selector: 'app-planner',
-  imports: [FormsModule],
+  imports: [
+    FormsModule,
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatProgressBarModule,
+    MatSelectModule,
+  ],
   templateUrl: './planner.html',
   styleUrl: './planner.scss',
 })
@@ -16,13 +37,13 @@ export class Planner implements OnInit {
   private readonly planner = inject(PlannerService);
   private readonly boardApi = inject(BoardService);
   private readonly branding = inject(BrandingService);
+  private readonly confirm = inject(Confirm);
 
   /** This week's unfinished sprint tasks, to pick the day's work from. */
   protected readonly sprintTasks = signal<BoardTask[]>([]);
 
   protected readonly items = signal<PlannerItemDto[]>([]);
   protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
   protected readonly date = signal(todayLocal());
 
   draftTitle = '';
@@ -51,7 +72,7 @@ export class Planner implements OnInit {
       this.draftTime = '';
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(this.messageFrom(e, 'Could not plan that task.'));
+      this.confirm.error(this.messageFrom(e, 'Could not plan that task.'));
     }
   }
 
@@ -64,9 +85,8 @@ export class Planner implements OnInit {
     try {
       const day = await this.planner.getDay(this.date());
       this.items.set(day.items);
-      this.error.set(null);
     } catch {
-      this.error.set('Could not load that day.');
+      this.confirm.error('Could not load that day.');
     } finally {
       this.loading.set(false);
     }
@@ -97,7 +117,7 @@ export class Planner implements OnInit {
       this.draftTime = '';
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(this.messageFrom(e, 'Could not add that task.'));
+      this.confirm.error(this.messageFrom(e, 'Could not add that task.'));
     }
   }
 
@@ -109,7 +129,7 @@ export class Planner implements OnInit {
       await this.planner.updateStatus(item.id, next);
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(this.messageFrom(e, 'Could not update that task.'));
+      this.confirm.error(this.messageFrom(e, 'Could not update that task.'));
     }
   }
 
@@ -118,7 +138,7 @@ export class Planner implements OnInit {
       await this.planner.move(item.id, shiftLocalDate(this.date(), 1));
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(this.messageFrom(e, 'Could not move that task.'));
+      this.confirm.error(this.messageFrom(e, 'Could not move that task.'));
     }
   }
 
@@ -127,7 +147,7 @@ export class Planner implements OnInit {
       await this.planner.delete(item.id);
       await this.reload();
     } catch {
-      this.error.set('Could not delete that task.');
+      this.confirm.error('Could not delete that task.');
     }
   }
 
