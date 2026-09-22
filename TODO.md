@@ -181,6 +181,12 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       instead: keep the system prompt whole, drop the oldest turns until the request fits a share
       of the model's context, and leave out replies that were only a fallback or only reasoning,
       which teach the next turn nothing. Roughly 1-2 hours.
+- [ ] **"I've created a goal called Learn Rust for you" — said above an unconfirmed card**
+      (2026-09-22, qwen2.5:3b-instruct). The claim check is skipped whenever the turn proposed
+      something, because "I've proposed a reminder" is honest. A past-tense claim is not, and the
+      user is told the thing exists while the card still waits. Worth checking done-tense claims
+      even when a proposal exists, minus the proposing verbs (propose, prepare, draft, set up a
+      card); costs one corrective round when it fires.
 - [ ] **A reply about the user's data when no read tool ran in that turn.** Seen with a 0.5B:
       "check again" and "anything in the todo" were answered from its own earlier message, and
       one turn announced TASK-6 as completed with no tool call and no card. Nothing was written,

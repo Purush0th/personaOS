@@ -112,6 +112,7 @@
 
     .cancel {
       background: none;
+      color: var(--ink);
       border-color: rgba(0, 0, 0, 0.25);
     }
   }
@@ -219,6 +220,9 @@
 
       &.discard {
         background: none;
+        // Buttons are white-on-ink by default, so a transparent one has to take its
+        // colour back — Discard was white text on a cream card, and read as disabled.
+        color: var(--ink);
         border-color: rgba(0, 0, 0, 0.25);
       }
 
