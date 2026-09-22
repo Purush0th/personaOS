@@ -1,9 +1,5 @@
-@if (error(); as message) {
-  <p class="error" role="alert">{{ message }}</p>
-}
-
 @if (loading()) {
-  <p class="muted">Loading…</p>
+  <mat-progress-bar mode="indeterminate" />
 } @else if (detail(); as detail) {
   <nav class="crumbs muted small">
     <a routerLink="/board">Board</a> · <a routerLink="/board/backlog">Backlog</a>
@@ -17,13 +13,13 @@
     </span>
     <span class="spacer"></span>
     @if (detail.sprint.status === 'planned') {
-      <button (click)="start_()">Start sprint</button>
+      <button mat-flat-button (click)="start_()">Start sprint</button>
     }
     @if (detail.sprint.status === 'active') {
-      <button (click)="complete()">Complete sprint</button>
+      <button mat-flat-button (click)="complete()">Complete sprint</button>
     }
     @if (detail.sprint.status !== 'closed') {
-      <button class="subtle" (click)="startEdit()">Edit</button>
+      <button mat-stroked-button (click)="startEdit()">Edit</button>
     }
   </header>
 
@@ -32,18 +28,27 @@
   @if (editing()) {
     <form class="sprint-form" (ngSubmit)="save()">
       <div class="fields">
-        <label>Name <input name="name" [(ngModel)]="name" placeholder="Optional" /></label>
-        <label>Starts <input name="start" type="datetime-local" [(ngModel)]="start" /></label>
-        <label>Ends <input name="end" type="datetime-local" [(ngModel)]="end" /></label>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+          <mat-label>Name</mat-label>
+          <input matInput name="name" [(ngModel)]="name" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Starts</mat-label>
+          <input matInput name="start" type="datetime-local" [(ngModel)]="start" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Ends</mat-label>
+          <input matInput name="end" type="datetime-local" [(ngModel)]="end" />
+        </mat-form-field>
       </div>
       <div class="row">
-        <button type="submit">Save</button>
-        <button type="button" class="subtle" (click)="editing.set(false)">Cancel</button>
+        <button mat-button type="button" (click)="editing.set(false)">Cancel</button>
+        <button mat-flat-button type="submit">Save</button>
       </div>
     </form>
   }
 
-  <section class="stats">
+  <mat-card class="stats-card" appearance="outlined"><mat-card-content><section class="stats">
     <div class="stat"><b>{{ detail.sprint.committedPoints ?? detail.sprint.totalPoints }}</b><span>committed</span></div>
     <div class="stat"><b>{{ detail.sprint.completedPoints }}</b><span>completed</span></div>
     <div class="stat"><b>{{ detail.sprint.addedPoints }}</b><span>added</span></div>
@@ -55,10 +60,10 @@
     @if (detail.velocity !== null) {
       <div class="stat"><b>{{ detail.velocity }}</b><span>velocity</span></div>
     }
-  </section>
+  </section></mat-card-content></mat-card>
 
   @if (plots().length > 1) {
-    <section class="chart">
+    <mat-card class="chart" appearance="outlined"><mat-card-content>
       <h2>Points remaining</h2>
       <svg [attr.viewBox]="'0 0 ' + chartSize().width + ' ' + chartSize().height" role="img"
            aria-label="Points remaining, day by day">
@@ -76,12 +81,12 @@
         <text class="tick end" [attr.x]="chartSize().width - chartSize().pad"
               [attr.y]="chartSize().height - 8">{{ plots()[plots().length - 1].label }}</text>
       </svg>
-    </section>
+    </mat-card-content></mat-card>
   }
 
   <section class="lists">
     @for (column of columnOrder; track column) {
-      <div class="list">
+      <mat-card class="list" appearance="outlined"><mat-card-content>
         <h2>
           {{ columnLabels[column] }}
           <span class="muted small">{{ tasksIn(column).length }} · {{ points(tasksIn(column)) }} pts</span>
@@ -100,7 +105,7 @@
             <li class="muted small">Nothing here.</li>
           }
         </ul>
-      </div>
+      </mat-card-content></mat-card>
     }
   </section>
 }

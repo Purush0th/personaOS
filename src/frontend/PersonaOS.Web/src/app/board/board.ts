@@ -1,6 +1,19 @@
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTabsModule } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
+
+import { Confirm } from '../core/confirm';
 
 import {
   BoardColumn,
@@ -27,24 +40,36 @@ interface ColumnDef {
  */
 @Component({
   selector: 'app-board',
-  imports: [FormsModule, RouterLink],
+  imports: [
+    FormsModule,
+    RouterLink,
+    DragDropModule,
+    MatButtonModule,
+    MatCardModule,
+    MatChipsModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatMenuModule,
+    MatProgressBarModule,
+    MatSelectModule,
+    MatTabsModule,
+  ],
   templateUrl: './board.html',
   styleUrl: './board.scss',
 })
 export class Board implements OnInit {
   private readonly api = inject(BoardService);
+  private readonly confirm = inject(Confirm);
 
   protected readonly board = signal<BoardView | null>(null);
   protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
 
   /** Column being added to, with the draft's title. */
   protected readonly addingTo = signal<BoardColumn | null>(null);
   draftTitle = '';
   draftPoints: number | null = null;
 
-  protected readonly draggingKey = signal<string | null>(null);
-  protected readonly dropColumn = signal<BoardColumn | null>(null);
 
   protected readonly columns = computed<ColumnDef[]>(() => {
     const b = this.board();
@@ -63,9 +88,8 @@ export class Board implements OnInit {
   protected async reload(): Promise<void> {
     try {
       this.board.set(await this.api.board());
-      this.error.set(null);
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not load the board.');
+      this.confirm.error(apiError(e).message ?? 'Could not load the board.');
     } finally {
       this.loading.set(false);
     }
@@ -79,11 +103,15 @@ export class Board implements OnInit {
     const sprint = this.board()?.sprint;
     if (!sprint) return;
     const open = sprint.taskCount - sprint.doneTaskCount;
-    const question = open === 0
-      ? `Complete ${this.sprintTitle(sprint)}?`
-      : `Complete ${this.sprintTitle(sprint)}? ${open} unfinished ${open === 1 ? 'task moves' : 'tasks move'} ` +
-        'to the next planned sprint, or to the backlog when there is none.';
-    if (!confirm(question)) return;
+    const ok = await this.confirm.ask({
+      title: `Complete ${this.sprintTitle(sprint)}?`,
+      message: open === 0
+        ? 'Everything in it is done.'
+        : `${open} unfinished ${open === 1 ? 'task moves' : 'tasks move'} to the next planned ` +
+          'sprint, or to the backlog when there is none.',
+      confirmLabel: 'Complete sprint',
+    });
+    if (!ok) return;
 
     await this.run(() => this.api.completeSprint(sprint.key, {}), 'Could not complete the sprint.');
   }
@@ -124,40 +152,21 @@ export class Board implements OnInit {
     );
   }
 
-  protected onDragStart(event: DragEvent, task: BoardTask): void {
-    this.draggingKey.set(task.key);
-    event.dataTransfer?.setData('text/plain', task.key);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-  }
-
-  protected onDragEnd(): void {
-    this.draggingKey.set(null);
-    this.dropColumn.set(null);
-  }
-
-  protected onDragOver(event: DragEvent, column: BoardColumn): void {
-    if (this.draggingKey() === null) return;
-    event.preventDefault();
-    this.dropColumn.set(column);
-  }
-
-  /** Dropped on a card: lands just before it. Dropped on the column: lands at the end. */
-  protected async onDrop(event: DragEvent, column: ColumnDef, before: BoardTask | null): Promise<void> {
-    event.preventDefault();
-    event.stopPropagation();
-    const key = this.draggingKey();
-    this.onDragEnd();
-    if (key === null) return;
-
-    const task = this.findTask(key);
-    if (!task || before?.key === key) return;
+  /**
+   * A card was dropped. CDK gives the column it landed in and where, which is all the server
+   * needs; the previous hand-rolled HTML5 drag did the same but never fired on a touchscreen.
+   */
+  protected async onDrop(event: CdkDragDrop<ColumnDef>): Promise<void> {
+    const task = event.item.data as BoardTask;
+    const target = event.container.data;
+    const movedWithin = event.previousContainer === event.container;
+    if (movedWithin && event.previousIndex === event.currentIndex) return;
 
     // The server places the task among the column's other tasks, so count without it.
-    const others = column.tasks.filter(t => t.key !== key);
-    const index = before ? others.findIndex(t => t.key === before.key) : others.length;
-    if (task.column === column.id && column.tasks.indexOf(task) === index) return;
+    const others = target.tasks.filter(t => t.key !== task.key);
+    const index = Math.min(event.currentIndex, others.length);
 
-    await this.moveTo(task, column.id, index);
+    await this.moveTo(task, target.id, index);
   }
 
   // ------------------------------------------------------------------ display helpers
@@ -186,10 +195,6 @@ export class Board implements OnInit {
     return formatWhen(value);
   }
 
-  private findTask(key: string): BoardTask | undefined {
-    const b = this.board();
-    return b ? [...b.todo, ...b.inProgress, ...b.done].find(t => t.key === key) : undefined;
-  }
 
   /**
    * Runs a change and reloads. Resolves to undefined when it failed (the error is shown), and to
@@ -201,7 +206,7 @@ export class Board implements OnInit {
       await this.reload();
       return result;
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? fallback);
+      this.confirm.error(apiError(e).message ?? fallback);
       return undefined;
     }
   }

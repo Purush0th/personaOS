@@ -1,38 +1,53 @@
 <header class="page-head">
   <h1>Documents</h1>
-  <label class="upload" [class.busy]="uploading()">
-    {{ uploading() ? 'Uploading…' : '↑ Upload' }}
-    <input type="file" (change)="onFileSelected($event)" [disabled]="uploading()" hidden />
-  </label>
+  <span class="spacer"></span>
+  <button mat-flat-button [disabled]="uploading()" (click)="file.click()">
+    <mat-icon>upload</mat-icon>
+    {{ uploading() ? 'Uploading…' : 'Upload' }}
+  </button>
+  <input #file type="file" (change)="onFileSelected($event)" [disabled]="uploading()" hidden />
 </header>
 
-@if (error(); as message) {
-  <p class="error">{{ message }}</p>
-}
-
 <form class="search" (ngSubmit)="reload()">
-  <input name="search" [(ngModel)]="search" placeholder="Search by name or description" />
-  <button type="submit" class="subtle">Search</button>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+    <mat-label>Search by name or description</mat-label>
+    <mat-icon matIconPrefix>search</mat-icon>
+    <input matInput name="search" [(ngModel)]="search" />
+  </mat-form-field>
+  <button mat-button type="submit">Search</button>
 </form>
 
+@if (uploading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
 @if (loading()) {
-  <p class="muted">Loading…</p>
+  <mat-progress-bar mode="indeterminate" />
 } @else {
-  @for (doc of items(); track doc.id) {
-    <article class="doc">
-      <div class="body">
-        <span class="name">{{ doc.fileName }}</span>
-        <span class="muted small">
-          {{ formatSize(doc.sizeBytes) }}
-          @if (doc.description) {
-            · {{ doc.description }}
-          }
-        </span>
-      </div>
-      <button class="subtle" (click)="download(doc)">Download</button>
-      <button class="subtle danger" (click)="remove(doc)">Delete</button>
-    </article>
-  } @empty {
-    <p class="muted">No documents yet. Upload a file, or ask your assistant to pull one in chat.</p>
-  }
+  <mat-card appearance="outlined" class="list-card">
+    <mat-list>
+      @for (doc of items(); track doc.id) {
+        <mat-list-item>
+          <mat-icon matListItemIcon>description</mat-icon>
+          <span matListItemTitle>{{ doc.fileName }}</span>
+          <span matListItemLine class="muted small">
+            {{ formatSize(doc.sizeBytes) }}
+            @if (doc.description) { · {{ doc.description }} }
+          </span>
+          <span matListItemMeta class="row-actions">
+            <button mat-icon-button aria-label="Download" (click)="download(doc)">
+              <mat-icon>download</mat-icon>
+            </button>
+            <button mat-icon-button aria-label="Delete" (click)="remove(doc)">
+              <mat-icon class="danger">delete</mat-icon>
+            </button>
+          </span>
+        </mat-list-item>
+      } @empty {
+        <p class="muted empty">
+          No documents yet. Upload a file, or ask your assistant to pull one in chat.
+        </p>
+      }
+    </mat-list>
+  </mat-card>
 }

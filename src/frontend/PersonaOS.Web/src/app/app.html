@@ -1,55 +1,88 @@
-<header class="topbar">
-  <span class="product">PersonaOS</span>
-  @if (brandingService.branding(); as b) {
-    <span class="nickname">{{ b.assistantNickname }}</span>
+@let branding = brandingService.branding();
+@let signedIn = !!branding?.isConfigured && auth.isLoggedIn();
 
-    @if (b.isConfigured && auth.isLoggedIn()) {
-      <nav>
-        <a routerLink="/chat" routerLinkActive="active">Chat</a>
-        @if (isEnabled('goals')) {
-          <a routerLink="/goals" routerLinkActive="active">Goals</a>
+<!-- One shell for every page: a rail on a desktop, a drawer behind the menu button on a phone.
+     Pages render into the outlet and carry their own header. -->
+<mat-sidenav-container class="shell">
+  <!-- Always in the DOM so the toolbar's menu button can reach it; empty and shut until there is
+       someone to show it to. -->
+  <mat-sidenav
+    #drawer
+    class="nav"
+    [mode]="handset() ? 'over' : 'side'"
+    [opened]="signedIn && !handset()"
+    [disableClose]="!signedIn"
+    [fixedInViewport]="handset()"
+  >
+    @if (signedIn) {
+      <div class="brand">
+        <span class="product">PersonaOS</span>
+        @if (branding?.assistantNickname; as nickname) {
+          <span class="nickname muted small">{{ nickname }}</span>
         }
-        @if (isEnabled('board')) {
-          <a routerLink="/board" routerLinkActive="active">Board</a>
+      </div>
+
+      <mat-nav-list>
+        @for (item of navItems(); track item.path) {
+          <a
+            mat-list-item
+            [routerLink]="item.path"
+            routerLinkActive
+            #link="routerLinkActive"
+            [activated]="link.isActive"
+            (click)="closeOnHandset(drawer)"
+          >
+            <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+            <span matListItemTitle>{{ item.label }}</span>
+          </a>
         }
-        @if (isEnabled('planner')) {
-          <a routerLink="/planner" routerLinkActive="active">Planner</a>
-        }
-        @if (isEnabled('reminders')) {
-          <a routerLink="/reminders" routerLinkActive="active">Reminders</a>
-        }
-        @if (isEnabled('docs')) {
-          <a routerLink="/documents" routerLinkActive="active">Documents</a>
-        }
-        <a routerLink="/settings" routerLinkActive="active">Settings</a>
-      </nav>
-      <button class="signout" (click)="auth.logout()">Sign out</button>
+      </mat-nav-list>
+
+      <div class="nav-footer">
+        <button mat-stroked-button class="full" (click)="auth.logout()">
+          <mat-icon>logout</mat-icon>
+          Sign out
+        </button>
+      </div>
     }
-  }
-</header>
+  </mat-sidenav>
 
-@if (updates.update(); as u) {
-  <div class="update-banner">
-    <span>
-      <strong>PersonaOS {{ u.version }}</strong> is available.
-      To update, run
-      <code>docker compose pull &amp;&amp; docker compose up -d</code>.
-    </span>
-    <a [href]="u.notesUrl" target="_blank" rel="noopener">Release notes</a>
-    <button class="dismiss" (click)="updates.dismiss()" title="Dismiss">✕</button>
-  </div>
-}
-
-<main class="content">
-  @if (brandingService.loadError(); as err) {
-    <p class="error">{{ err }}</p>
-  } @else if (brandingService.branding(); as b) {
-    @if (!b.isConfigured) {
-      <setup-wizard (completed)="onSetupCompleted()" />
-    } @else {
-      <router-outlet />
+  <mat-sidenav-content>
+    @if (signedIn && handset()) {
+      <mat-toolbar class="bar">
+        <button mat-icon-button aria-label="Menu" (click)="drawer.toggle()">
+          <mat-icon>menu</mat-icon>
+        </button>
+        <span class="product">PersonaOS</span>
+      </mat-toolbar>
     }
-  } @else {
-    <p class="muted">Loading…</p>
-  }
-</main>
+
+    @if (updates.update(); as u) {
+      <div class="update-banner">
+        <mat-icon>system_update_alt</mat-icon>
+        <span>
+          <strong>PersonaOS {{ u.version }}</strong> is available. To update, run
+          <code>docker compose pull &amp;&amp; docker compose up -d</code>.
+        </span>
+        <a mat-button [href]="u.notesUrl" target="_blank" rel="noopener">Release notes</a>
+        <button mat-icon-button aria-label="Dismiss" (click)="updates.dismiss()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    }
+
+    <main class="content">
+      @if (brandingService.loadError(); as err) {
+        <p class="error">{{ err }}</p>
+      } @else if (branding; as b) {
+        @if (!b.isConfigured) {
+          <setup-wizard (completed)="onSetupCompleted()" />
+        } @else {
+          <router-outlet />
+        }
+      } @else {
+        <p class="muted">Loading…</p>
+      }
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

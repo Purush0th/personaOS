@@ -1,10 +1,21 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { RouterLink } from '@angular/router';
 
 import { BoardColumn, BoardService, apiError } from '../core/board.service';
 import { BrandingService } from '../core/branding.service';
+import { Confirm } from '../core/confirm';
 import { Goal, GoalTaskSummary, GoalsService } from '../core/goals.service';
-import { GoalPeriod, defaultGoalEnd, formatGoalRange, goalPeriodProblem } from '../core/goal-period';
+import { GoalPeriod, defaultGoalEnd, formatGoalRange, goalDays, goalPeriodProblem } from '../core/goal-period';
 import { todayLocal } from '../core/local-date';
 
 const COLUMN_LABELS: Record<BoardColumn, string> = {
@@ -16,7 +27,19 @@ const COLUMN_LABELS: Record<BoardColumn, string> = {
 
 @Component({
   selector: 'app-goals',
-  imports: [FormsModule],
+  imports: [
+    FormsModule,
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatChipsModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatProgressBarModule,
+    MatSelectModule,
+  ],
   templateUrl: './goals.html',
   styleUrl: './goals.scss',
 })
@@ -24,10 +47,10 @@ export class Goals implements OnInit {
   private readonly goalsApi = inject(GoalsService);
   private readonly boardApi = inject(BoardService);
   private readonly branding = inject(BrandingService);
+  private readonly confirm = inject(Confirm);
 
   protected readonly goals = signal<Goal[]>([]);
   protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
   protected readonly includeDropped = signal(false);
   protected readonly adding = signal(false);
 
@@ -55,9 +78,8 @@ export class Goals implements OnInit {
     this.loading.set(true);
     try {
       this.goals.set(await this.goalsApi.getAll(this.includeDropped()));
-      this.error.set(null);
     } catch {
-      this.error.set('Could not load your goals.');
+      this.confirm.error('Could not load your goals.');
     } finally {
       this.loading.set(false);
     }
@@ -103,7 +125,7 @@ export class Goals implements OnInit {
       this.resetEnd();
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not add that goal.');
+      this.confirm.error(apiError(e).message ?? 'Could not add that goal.');
     }
   }
 
@@ -122,7 +144,7 @@ export class Goals implements OnInit {
       this.addingTaskTo.set(null);
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not add that task.');
+      this.confirm.error(apiError(e).message ?? 'Could not add that task.');
     }
   }
 
@@ -131,7 +153,7 @@ export class Goals implements OnInit {
       await this.goalsApi.updateStatus(goal.id, status);
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not update that goal.');
+      this.confirm.error(apiError(e).message ?? 'Could not update that goal.');
     }
   }
 
@@ -142,19 +164,30 @@ export class Goals implements OnInit {
       await this.goalsApi.updateProgress(goal.id, progress);
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not update progress.');
+      this.confirm.error(apiError(e).message ?? 'Could not update progress.');
     }
   }
 
+  protected draftDays(): number {
+    return goalDays(this.draftStart, this.draftEnd);
+  }
+
   protected async remove(goal: Goal): Promise<void> {
-    const extra = goal.taskCount > 0 ? ` Its ${goal.taskCount} tasks stay on the board without a goal.` : '';
-    if (!confirm(`Delete ${goal.key} “${goal.title}”?${extra}`)) return;
+    const ok = await this.confirm.ask({
+      title: `Delete ${goal.key} “${goal.title}”?`,
+      message: goal.taskCount > 0
+        ? `Its ${goal.taskCount} tasks stay on the board without a goal. This cannot be undone.`
+        : 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
 
     try {
       await this.goalsApi.delete(goal.id);
       await this.reload();
     } catch {
-      this.error.set('Could not delete that goal.');
+      this.confirm.error('Could not delete that goal.');
     }
   }
 
@@ -172,17 +205,23 @@ export class Goals implements OnInit {
       await this.boardApi.move(task.key, 'backlog', null, null, true);
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not reopen that task.');
+      this.confirm.error(apiError(e).message ?? 'Could not reopen that task.');
     }
   }
 
   protected async removeTask(task: GoalTaskSummary): Promise<void> {
-    if (!confirm(`Delete ${task.key} “${task.title}”? Its number will be reused.`)) return;
+    const ok = await this.confirm.ask({
+      title: `Delete ${task.key} “${task.title}”?`,
+      message: 'Its number will be reused by the next task.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await this.boardApi.delete(task.key);
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not delete that task.');
+      this.confirm.error(apiError(e).message ?? 'Could not delete that task.');
     }
   }
 }

@@ -1,6 +1,14 @@
 import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
+import { Confirm } from '../core/confirm';
 import {
   BoardService,
   WorkItemAttachment,
@@ -15,12 +23,22 @@ import {
  */
 @Component({
   selector: 'app-discussion',
-  imports: [FormsModule],
+  imports: [
+    FormsModule,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatProgressBarModule,
+  ],
   templateUrl: './discussion.html',
   styleUrl: './discussion.scss',
 })
 export class Discussion implements OnInit {
   private readonly api = inject(BoardService);
+  private readonly confirm = inject(Confirm);
 
   readonly itemType = input.required<'task' | 'goal'>();
   readonly itemKey = input.required<string>();
@@ -28,7 +46,6 @@ export class Discussion implements OnInit {
 
   protected readonly comments = signal<WorkItemComment[]>([]);
   protected readonly attachments = signal<WorkItemAttachment[]>([]);
-  protected readonly error = signal<string | null>(null);
   protected readonly uploading = signal(false);
   protected readonly editingId = signal<number | null>(null);
 
@@ -51,9 +68,8 @@ export class Discussion implements OnInit {
       ]);
       this.comments.set(comments);
       this.attachments.set(attachments);
-      this.error.set(null);
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not load comments.');
+      this.confirm.error(apiError(e).message ?? 'Could not load comments.');
     }
   }
 
@@ -65,7 +81,7 @@ export class Discussion implements OnInit {
       this.draft = '';
       await this.load();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not add that comment.');
+      this.confirm.error(apiError(e).message ?? 'Could not add that comment.');
     }
   }
 
@@ -82,17 +98,23 @@ export class Discussion implements OnInit {
       this.editingId.set(null);
       await this.load();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not save that comment.');
+      this.confirm.error(apiError(e).message ?? 'Could not save that comment.');
     }
   }
 
   protected async deleteComment(comment: WorkItemComment): Promise<void> {
-    if (!confirm('Delete this comment?')) return;
+    const ok = await this.confirm.ask({
+      title: 'Delete this comment?',
+      message: comment.body,
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await this.api.deleteComment(comment.id);
       await this.load();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not delete that comment.');
+      this.confirm.error(apiError(e).message ?? 'Could not delete that comment.');
     }
   }
 
@@ -105,19 +127,25 @@ export class Discussion implements OnInit {
       input.value = '';
       await this.load();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not upload that file.');
+      this.confirm.error(apiError(e).message ?? 'Could not upload that file.');
     } finally {
       this.uploading.set(false);
     }
   }
 
   protected async deleteAttachment(attachment: WorkItemAttachment): Promise<void> {
-    if (!confirm(`Delete ${attachment.fileName}?`)) return;
+    const ok = await this.confirm.ask({
+      title: `Delete ${attachment.fileName}?`,
+      message: 'The file is removed from the server. This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await this.api.deleteAttachment(attachment.id);
       await this.load();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not delete that file.');
+      this.confirm.error(apiError(e).message ?? 'Could not delete that file.');
     }
   }
 

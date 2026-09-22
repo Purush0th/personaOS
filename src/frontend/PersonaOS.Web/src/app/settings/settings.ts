@@ -1,7 +1,17 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+
 import { BrandingService } from '../core/branding.service';
+import { Confirm } from '../core/confirm';
 import { SettingsService, SettingsUpdate } from '../core/settings.service';
 import { PushConfig } from './push-config';
 
@@ -10,19 +20,29 @@ const MODULES = ['goals', 'board', 'planner', 'reminders', 'docs', 'voice', 'pro
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, PushConfig],
+  imports: [
+    FormsModule,
+    PushConfig,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatProgressBarModule,
+    MatSelectModule,
+    MatSlideToggleModule,
+  ],
   templateUrl: './settings.html',
   styleUrl: './settings.scss',
 })
 export class Settings implements OnInit {
   private readonly settings = inject(SettingsService);
   private readonly branding = inject(BrandingService);
+  private readonly confirm = inject(Confirm);
 
   protected readonly modules = MODULES;
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
-  protected readonly error = signal<string | null>(null);
-  protected readonly saved = signal<string | null>(null);
   protected readonly hasKey = signal(false);
   protected readonly testing = signal(false);
   protected readonly testResult = signal<{ ok: boolean; message: string } | null>(null);
@@ -80,7 +100,7 @@ export class Settings implements OnInit {
       this.features = { ...current.features };
       this.hasKey.set(current.hasAnthropicApiKey);
     } catch {
-      this.error.set('Could not load settings.');
+      this.confirm.error('Could not load settings.');
     } finally {
       this.loading.set(false);
     }
@@ -88,8 +108,6 @@ export class Settings implements OnInit {
 
   protected async save(): Promise<void> {
     this.saving.set(true);
-    this.saved.set(null);
-    this.error.set(null);
 
     const update: SettingsUpdate = {
       assistantNickname: this.nickname.trim(),
@@ -107,12 +125,11 @@ export class Settings implements OnInit {
       const result = await this.settings.update(update);
       this.apiKey = '';
       this.hasKey.set(true);
-      this.saved.set(result.message);
+      this.confirm.done(result.message);
       // Nickname and feature gating drive the header and nav, so refresh them.
       await this.branding.load();
     } catch (e: unknown) {
-      this.error.set(
-        (e as { error?: { error?: string } })?.error?.error ?? 'Could not save settings.'
+      this.confirm.error((e as { error?: { error?: string } })?.error?.error ?? 'Could not save settings.'
       );
     } finally {
       this.saving.set(false);
