@@ -21,6 +21,8 @@ export interface Goal {
   description: string | null;
   periodType: 'year' | 'quarter' | 'month';
   periodStart: string;
+  /** The day the goal is due, inclusive. */
+  periodEnd: string;
   status: 'active' | 'completed' | 'dropped';
   priority: 'highest' | 'high' | 'medium' | 'low' | 'lowest';
   commentCount: number;
@@ -64,6 +66,7 @@ export class GoalsService {
     title: string;
     periodType: string;
     periodStart: string;
+    periodEnd?: string | null;
     description?: string | null;
   }): Promise<Goal> {
     return firstValueFrom(this.http.post<Goal>('/api/goals', goal));

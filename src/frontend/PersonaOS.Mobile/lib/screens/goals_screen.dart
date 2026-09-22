@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
+import '../goal_period.dart';
 import 'board_screen.dart';
 
 /// Goals are the epics of the sprint board. They do not nest: a goal is broken down into tasks
-/// with story points, and its progress comes from those tasks.
+/// with value points, and its progress comes from those tasks.
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key, required this.api, this.boardEnabled = true});
 
@@ -216,6 +217,18 @@ class _GoalTile extends StatelessWidget {
                   _actions(),
                 ],
               ),
+              if (goal.periodStart != null && goal.periodEnd != null)
+                Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: formatGoalRange(goal.periodStart!, goal.periodEnd!)),
+                    if (goal.status == 'active' && goal.periodEnd!.isBefore(_today()))
+                      TextSpan(
+                        text: '  · overdue',
+                        style: TextStyle(color: theme.colorScheme.error, fontWeight: FontWeight.w600),
+                      ),
+                  ]),
+                  style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline),
+                ),
               if (goal.status != 'active')
                 Text(goal.status, style: theme.textTheme.labelSmall),
               Padding(
@@ -320,8 +333,26 @@ class _AddGoalSheet extends StatefulWidget {
 class _AddGoalSheetState extends State<_AddGoalSheet> {
   final _title = TextEditingController();
   String _period = 'month';
+  DateTime _start = DateTime.now();
+  late DateTime _end = defaultGoalEnd('month', _start);
   bool _busy = false;
   String? _error;
+
+  /// A new period or start resets the end to that period's default.
+  void _setPeriod(String period, DateTime start) {
+    setState(() {
+      _period = period;
+      _start = start;
+      _end = defaultGoalEnd(period, start);
+    });
+  }
+
+  Future<DateTime?> _pick(DateTime initial, DateTime first) => showDatePicker(
+        context: context,
+        initialDate: initial.isBefore(first) ? first : initial,
+        firstDate: first,
+        lastDate: DateTime(DateTime.now().year + 10),
+      );
 
   @override
   void dispose() {
@@ -335,12 +366,18 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
       setState(() => _error = 'Give the goal a title.');
       return;
     }
+    if (goalPeriodProblem(_period, _start, _end) != null) return;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await widget.api.createGoal(title: title, periodType: _period, periodStart: localYmd(DateTime.now()));
+      await widget.api.createGoal(
+        title: title,
+        periodType: _period,
+        periodStart: localYmd(_start),
+        periodEnd: localYmd(_end),
+      );
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
       setState(() {
@@ -378,10 +415,47 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
               ButtonSegment(value: 'month', label: Text('Monthly')),
             ],
             selected: {_period},
-            onSelectionChanged: (s) => setState(() => _period = s.first),
+            onSelectionChanged: (s) => _setPeriod(s.first, _start),
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.event, size: 18),
+                  label: Text('Starts ${localYmd(_start)}'),
+                  onPressed: () async {
+                    final picked = await _pick(_start, DateTime(DateTime.now().year - 1));
+                    if (picked != null) _setPeriod(_period, picked);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.flag, size: 18),
+                  label: Text('Ends ${localYmd(_end)}'),
+                  // A yearly goal always ends on 31 December, so there is nothing to choose.
+                  onPressed: _period == 'year'
+                      ? null
+                      : () async {
+                          final picked = await _pick(_end, _start);
+                          if (picked != null) setState(() => _end = picked);
+                        },
+                ),
+              ),
+            ],
+          ),
+          if (goalPeriodProblem(_period, _start, _end) case final problem?)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(problem, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ),
           const SizedBox(height: 16),
-          FilledButton(onPressed: _busy ? null : _submit, child: Text(_busy ? 'Adding…' : 'Add goal')),
+          FilledButton(
+            onPressed: _busy || goalPeriodProblem(_period, _start, _end) != null ? null : _submit,
+            child: Text(_busy ? 'Adding…' : 'Add goal'),
+          ),
         ],
       ),
     );
@@ -411,4 +485,10 @@ class _MessageList extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Local midnight today, so a goal due today is not yet overdue.
+DateTime _today() {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day);
 }

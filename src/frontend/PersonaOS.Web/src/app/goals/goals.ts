@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { BoardColumn, BoardService, apiError } from '../core/board.service';
 import { BrandingService } from '../core/branding.service';
 import { Goal, GoalTaskSummary, GoalsService } from '../core/goals.service';
+import { GoalPeriod, defaultGoalEnd, formatGoalRange, goalPeriodProblem } from '../core/goal-period';
 import { todayLocal } from '../core/local-date';
 
 const COLUMN_LABELS: Record<BoardColumn, string> = {
@@ -34,8 +35,9 @@ export class Goals implements OnInit {
   protected readonly addingTaskTo = signal<number | null>(null);
 
   draftTitle = '';
-  draftPeriod = 'month';
+  draftPeriod: GoalPeriod = 'month';
   draftStart = todayLocal();
+  draftEnd = defaultGoalEnd('month', todayLocal());
   taskTitle = '';
   taskPoints: number | null = null;
 
@@ -66,14 +68,39 @@ export class Goals implements OnInit {
     await this.reload();
   }
 
+  /** A new type or start resets the end to that type's default; a year's end is fixed anyway. */
+  protected resetEnd(): void {
+    if (this.draftStart) this.draftEnd = defaultGoalEnd(this.draftPeriod, this.draftStart);
+  }
+
+  protected draftProblem(): string | null {
+    return goalPeriodProblem(this.draftPeriod, this.draftStart, this.draftEnd);
+  }
+
+  protected range(goal: Goal): string {
+    return formatGoalRange(goal.periodStart, goal.periodEnd);
+  }
+
+  /** Still active after its last day. */
+  protected overdue(goal: Goal): boolean {
+    return goal.status === 'active' && goal.periodEnd < todayLocal();
+  }
+
   protected async add(): Promise<void> {
     const title = this.draftTitle.trim();
-    if (!title) return;
+    if (!title || this.draftProblem()) return;
 
     try {
-      await this.goalsApi.create({ title, periodType: this.draftPeriod, periodStart: this.draftStart });
+      await this.goalsApi.create({
+        title,
+        periodType: this.draftPeriod,
+        periodStart: this.draftStart,
+        periodEnd: this.draftEnd,
+      });
       this.adding.set(false);
       this.draftTitle = '';
+      this.draftStart = todayLocal();
+      this.resetEnd();
       await this.reload();
     } catch (e: unknown) {
       this.error.set(apiError(e).message ?? 'Could not add that goal.');

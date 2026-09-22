@@ -28,6 +28,7 @@ public static class ProposedActionSummary
         ("scheduledTime", ""),
         ("periodType", ""),
         ("periodStart", ""),
+        ("periodEnd", "until "),
         ("status", ""),
         ("progress", "progress "),
         ("column", "to "),
@@ -64,6 +65,16 @@ public static class ProposedActionSummary
         {
             var value = ToolPayloadText.FirstValue(input, [field]);
             if (!string.IsNullOrWhiteSpace(value)) parts.Add(prefix + value);
+        }
+
+        // A goal with no end given still gets one, so the card says which: the due date is what
+        // the user is agreeing to, and "month · 2026-09-22" alone does not say it.
+        if (toolName is "create_goal"
+            && ToolPayloadText.FirstValue(input, ["periodEnd"]) is null
+            && ToolPayloadText.FirstValue(input, ["periodType"]) is { } type
+            && DateOnly.TryParse(ToolPayloadText.FirstValue(input, ["periodStart"]), out var start))
+        {
+            parts.Add($"until {Domain.Services.GoalPeriodCalculator.DefaultEnd(type, start):yyyy-MM-dd}");
         }
 
         // Which goal a task lands under is the detail a model has actually got wrong, so state it

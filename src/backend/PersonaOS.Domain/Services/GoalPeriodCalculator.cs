@@ -3,34 +3,67 @@ using PersonaOS.Domain.Entities;
 namespace PersonaOS.Domain.Services;
 
 /// <summary>
-/// Snaps a goal's <c>PeriodStart</c> to the first day of the period it belongs to.
+/// The dates a goal runs between, and the rules they must keep.
 ///
-/// The tool contract says "periodStart is the first day of the period", but nothing used to
-/// enforce it, so a model could file a *monthly* goal starting on the 10th — observed in the
-/// wild. That is not a meaningful period, and it breaks grouping and ordering by period.
-/// Normalising here makes the stored data correct whichever model is driving, rather than
-/// relying on the model to get the arithmetic right.
+/// A goal starts on any day the user picks — future dates included — and its period type sets
+/// how long it may run:
+/// <list type="bullet">
+/// <item>a month goal spans at most <see cref="MaxMonthDays"/> days,</item>
+/// <item>a quarter goal at most <see cref="MaxQuarterDays"/>,</item>
+/// <item>a year goal always ends on 31 December of the year it starts in.</item>
+/// </list>
+/// Both ends count: 1–31 Oct is 31 days.
+///
+/// This replaced snapping every start to the first day of its month, quarter or year. That fixed
+/// a model filing a monthly goal on the 10th, but it also meant "Complete the course by Oct
+/// 15th" was stored as the whole of October with the real date left in the title, and nothing
+/// knew when a goal was due.
 /// </summary>
 public static class GoalPeriodCalculator
 {
+    public const int MaxMonthDays = 31;
+    public const int MaxQuarterDays = 90;
+
     /// <summary>
-    /// The first day of the <paramref name="periodType"/> period containing
-    /// <paramref name="start"/>. Unknown period types are returned unchanged — validation
-    /// elsewhere rejects them, and this should not be the thing that throws.
+    /// The end a goal gets when none is given: a month on from the start less a day, 90 days
+    /// for a quarter, 31 December for a year. Unknown period types end where they start —
+    /// validation rejects them elsewhere, and this should not be the thing that throws.
     /// </summary>
-    public static DateOnly NormalizeStart(string periodType, DateOnly start) => periodType switch
+    public static DateOnly DefaultEnd(string periodType, DateOnly start) => periodType switch
     {
-        GoalPeriods.Year => new DateOnly(start.Year, 1, 1),
-        GoalPeriods.Quarter => new DateOnly(start.Year, FirstMonthOfQuarter(start.Month), 1),
-        GoalPeriods.Month => new DateOnly(start.Year, start.Month, 1),
+        GoalPeriods.Year => EndOfYear(start),
+        GoalPeriods.Quarter => start.AddDays(MaxQuarterDays - 1),
+        GoalPeriods.Month => start.AddMonths(1).AddDays(-1),
         _ => start,
     };
 
-    private static int FirstMonthOfQuarter(int month) => month switch
+    /// <summary>Days from <paramref name="start"/> to <paramref name="end"/>, counting both.</summary>
+    public static int Days(DateOnly start, DateOnly end) => end.DayNumber - start.DayNumber + 1;
+
+    /// <summary>
+    /// Why <paramref name="start"/>–<paramref name="end"/> is not a valid
+    /// <paramref name="periodType"/> goal, in words for the user, or null when it is.
+    /// </summary>
+    public static string? Problem(string periodType, DateOnly start, DateOnly end)
     {
-        <= 3 => 1,
-        <= 6 => 4,
-        <= 9 => 7,
-        _ => 10,
-    };
+        if (end < start)
+            return $"The end date {end:yyyy-MM-dd} is before the start date {start:yyyy-MM-dd}.";
+
+        var days = Days(start, end);
+        return periodType switch
+        {
+            GoalPeriods.Month when days > MaxMonthDays =>
+                $"A monthly goal runs at most {MaxMonthDays} days; {start:yyyy-MM-dd} to {end:yyyy-MM-dd} "
+                + $"is {days}. Make it a quarterly goal, or end it by {start.AddDays(MaxMonthDays - 1):yyyy-MM-dd}.",
+            GoalPeriods.Quarter when days > MaxQuarterDays =>
+                $"A quarterly goal runs at most {MaxQuarterDays} days; {start:yyyy-MM-dd} to {end:yyyy-MM-dd} "
+                + $"is {days}. End it by {start.AddDays(MaxQuarterDays - 1):yyyy-MM-dd}, or make it yearly.",
+            GoalPeriods.Year when end != EndOfYear(start) =>
+                $"A yearly goal ends on 31 December of the year it starts, so one starting "
+                + $"{start:yyyy-MM-dd} ends {EndOfYear(start):yyyy-MM-dd}.",
+            _ => null,
+        };
+    }
+
+    private static DateOnly EndOfYear(DateOnly date) => new(date.Year, 12, 31);
 }

@@ -20,7 +20,9 @@ comments and attachments, and "story points" are called **value points**.
 | Sprint | Sprint | `Sprint n` | The board shows one sprint at a time |
 
 - **Goals stop nesting.** A goal is top level only and keeps its period (year / quarter /
-  month). What used to be a sub-goal is now a task under that goal. Existing sub-goals are
+  month). What used to be a sub-goal is now a task under that goal. Since 2026-09-22 a goal
+  also has a start and an end date: any start, future included; a month goal runs at most 31
+  days, a quarter at most 90, and a year ends on 31 December of its start year. Existing sub-goals are
   converted to tasks under their top-level goal. This also removes the period picker from the
   old "New sub-goal" form (phone testing issue #2).
 - **A task may have no goal.** "Renew car insurance" is still a task.
