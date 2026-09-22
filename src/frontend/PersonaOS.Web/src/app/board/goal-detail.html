@@ -1,119 +1,164 @@
-@if (error(); as message) {
-  <p class="error" role="alert">{{ message }}</p>
-}
-
 @if (loading()) {
-  <p class="muted">Loading…</p>
+  <mat-progress-bar mode="indeterminate" />
 } @else if (goal(); as goal) {
-  <nav class="crumbs muted small"><a routerLink="/goals">Goals</a> · <a routerLink="/board/backlog">Backlog</a></nav>
+  <nav class="crumbs muted small">
+    <a routerLink="/goals">Goals</a> · <a routerLink="/board/backlog">Backlog</a>
+  </nav>
 
   <header class="item-head">
     <span class="key" [style.--hue]="hue()">{{ goal.key }}</span>
     @if (editingTitle()) {
       <form class="title-form" (ngSubmit)="saveTitle()">
-        <input name="title" [(ngModel)]="titleDraft" autofocus />
-        <button type="submit">Save</button>
-        <button type="button" class="subtle" (click)="editingTitle.set(false)">Cancel</button>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+          <mat-label>Title</mat-label>
+          <input matInput name="title" [(ngModel)]="titleDraft" autofocus />
+        </mat-form-field>
+        <button mat-flat-button type="submit">Save</button>
+        <button mat-button type="button" (click)="editingTitle.set(false)">Cancel</button>
       </form>
     } @else {
       <h1 (click)="startTitle()" title="Click to edit">{{ goal.title }}</h1>
-      <button class="subtle" (click)="remove()">Delete</button>
+      <span class="spacer"></span>
+      <button mat-icon-button aria-label="Delete goal" (click)="remove()">
+        <mat-icon class="danger">delete</mat-icon>
+      </button>
     }
   </header>
 
   <div class="layout">
     <div class="main">
-      <div class="bar" [title]="goal.effectiveProgress + '%'">
-        <div class="fill" [style.width.%]="goal.effectiveProgress"></div>
-      </div>
-      <p class="muted small">
-        {{ goal.effectiveProgress }}%
-        @if (goal.taskCount > 0) {
-          · {{ goal.donePoints }} of {{ goal.totalPoints }} points · {{ goal.doneTaskCount }} of {{ goal.taskCount }} tasks
-        }
-      </p>
-
-      <h2>Description</h2>
-      @if (editingDescription()) {
-        <form (ngSubmit)="saveDescription()">
-          <textarea name="description" rows="6" [(ngModel)]="descriptionDraft" autofocus></textarea>
-          <div class="row">
-            <button type="submit">Save</button>
-            <button type="button" class="subtle" (click)="editingDescription.set(false)">Cancel</button>
-          </div>
-        </form>
-      } @else if (goal.description) {
-        <p class="description" (click)="startDescription()" title="Click to edit">{{ goal.description }}</p>
-      } @else {
-        <button class="subtle" (click)="startDescription()">Add a description</button>
-      }
-
-      <h2>Tasks <span class="muted small">{{ goal.taskCount }}</span></h2>
-      <ul class="tasks">
-        @for (task of goal.tasks; track task.id) {
-          <li [class.done]="task.column === 'done'">
-            <a class="key" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
-            <a class="title" [routerLink]="['/board/tasks', task.key]">{{ task.title }}</a>
-            <span class="muted small">
-              {{ columnLabels[task.column] }}@if (task.sprintNumber) { · SPRINT-{{ task.sprintNumber }}}
-            </span>
-            <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
-          </li>
-        } @empty {
-          <li class="muted small">No tasks yet.</li>
-        }
-      </ul>
-
-      @if (addingTask()) {
-        <form class="add" (ngSubmit)="addTask()">
-          <input name="taskTitle" [(ngModel)]="taskTitle" placeholder="Task under {{ goal.key }}" autofocus />
-          <select name="taskPoints" [(ngModel)]="taskPoints" aria-label="Value points">
-            <option [ngValue]="null">? pts</option>
-            @for (p of allowedPoints; track p) {
-              <option [ngValue]="p">{{ p }} pts</option>
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <mat-progress-bar mode="determinate" [value]="goal.effectiveProgress" />
+          <p class="muted small progress-line">
+            {{ goal.effectiveProgress }}%
+            @if (goal.taskCount > 0) {
+              · {{ goal.donePoints }} of {{ goal.totalPoints }} points
+              · {{ goal.doneTaskCount }} of {{ goal.taskCount }} tasks
             }
-          </select>
-          <button type="submit">Add to backlog</button>
-          <button type="button" class="subtle" (click)="addingTask.set(false)">Cancel</button>
-        </form>
-      } @else {
-        <button class="subtle" (click)="addingTask.set(true)">＋ Add task</button>
-      }
+          </p>
+
+          <h2>Description</h2>
+          @if (editingDescription()) {
+            <form (ngSubmit)="saveDescription()">
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Description</mat-label>
+                <textarea matInput name="description" rows="6" [(ngModel)]="descriptionDraft" autofocus></textarea>
+              </mat-form-field>
+              <div class="row">
+                <button mat-flat-button type="submit">Save</button>
+                <button mat-button type="button" (click)="editingDescription.set(false)">Cancel</button>
+              </div>
+            </form>
+          } @else if (goal.description) {
+            <p class="description" (click)="startDescription()" title="Click to edit">{{ goal.description }}</p>
+          } @else {
+            <button mat-button (click)="startDescription()">
+              <mat-icon>notes</mat-icon>
+              Add a description
+            </button>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined" class="tasks-card">
+        <mat-card-content>
+          <h2>Tasks <span class="muted small">{{ goal.taskCount }}</span></h2>
+          <mat-list class="tasks">
+            @for (task of goal.tasks; track task.id) {
+              <mat-list-item [class.done]="task.column === 'done'">
+                <a matListItemTitle class="title" [routerLink]="['/board/tasks', task.key]">
+                  <span class="key">{{ task.key }}</span>
+                  {{ task.title }}
+                </a>
+                <span matListItemMeta class="task-meta">
+                  <span class="muted small">
+                    {{ columnLabels[task.column] }}@if (task.sprintNumber) { · SPRINT-{{ task.sprintNumber }}}
+                  </span>
+                  <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
+                </span>
+              </mat-list-item>
+            } @empty {
+              <p class="muted small empty">No tasks yet.</p>
+            }
+          </mat-list>
+
+          @if (addingTask()) {
+            <form class="add" (ngSubmit)="addTask()">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+                <mat-label>Task under {{ goal.key }}</mat-label>
+                <input matInput name="taskTitle" [(ngModel)]="taskTitle" autofocus />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="points">
+                <mat-label>Points</mat-label>
+                <mat-select name="taskPoints" [(ngModel)]="taskPoints">
+                  <mat-option [value]="null">?</mat-option>
+                  @for (p of allowedPoints; track p) {
+                    <mat-option [value]="p">{{ p }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <button mat-flat-button type="submit">Add to backlog</button>
+              <button mat-button type="button" (click)="addingTask.set(false)">Cancel</button>
+            </form>
+          } @else {
+            <button mat-button (click)="addingTask.set(true)">
+              <mat-icon>add</mat-icon>
+              Add task
+            </button>
+          }
+        </mat-card-content>
+      </mat-card>
 
       <app-discussion itemType="goal" [itemKey]="key()" [assistantName]="assistantName()" />
     </div>
 
     <aside class="side">
-      <h2>Details</h2>
-      <label>
-        Status
-        <select [value]="goal.status" (change)="setStatus($any($event.target).value)">
-          <option value="active">Active</option>
-          <option value="completed">Completed</option>
-          <option value="dropped">Dropped</option>
-        </select>
-      </label>
-      <label>
-        Priority
-        <select [ngModel]="goal.priority" (ngModelChange)="setPriority($event)">
-          @for (p of priorities; track p) {
-            <option [ngValue]="p">{{ priorityLabels[p] }}</option>
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Details</h2>
+
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Status</mat-label>
+            <mat-select [ngModel]="goal.status" (ngModelChange)="setStatus($event)">
+              <mat-option value="active">Active</mat-option>
+              <mat-option value="completed">Completed</mat-option>
+              <mat-option value="dropped">Dropped</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Priority</mat-label>
+            <mat-select [ngModel]="goal.priority" (ngModelChange)="setPriority($event)">
+              @for (p of priorities; track p) {
+                <mat-option [value]="p">{{ priorityLabels[p] }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          @if (goal.taskCount === 0) {
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Progress</mat-label>
+              <input
+                matInput
+                type="number"
+                min="0"
+                max="100"
+                [value]="goal.progress"
+                (change)="setProgress($any($event.target).value)"
+              />
+              <span matTextSuffix>%</span>
+            </mat-form-field>
           }
-        </select>
-      </label>
-      @if (goal.taskCount === 0) {
-        <label>
-          Progress
-          <input type="number" min="0" max="100" [value]="goal.progress"
-                 (change)="setProgress($any($event.target).value)" />
-        </label>
-      }
-      <dl class="facts">
-        <dt>Period</dt>
-        <dd>{{ goal.periodType }} · {{ range(goal) }}</dd>
-        <dt>Created</dt>
-        <dd>{{ when(goal.createdAtUtc) }}</dd>
-      </dl>
+
+          <dl class="facts">
+            <dt>Period</dt>
+            <dd>{{ goal.periodType }} · {{ range(goal) }}</dd>
+            <dt>Created</dt>
+            <dd>{{ when(goal.createdAtUtc) }}</dd>
+          </dl>
+        </mat-card-content>
+      </mat-card>
     </aside>
   </div>
 }

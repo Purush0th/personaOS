@@ -1,6 +1,19 @@
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTabsModule } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
+
+import { Confirm } from '../core/confirm';
 
 import {
   BoardService,
@@ -33,18 +46,32 @@ interface Group {
  */
 @Component({
   selector: 'app-backlog',
-  imports: [FormsModule, RouterLink],
+  imports: [
+    FormsModule,
+    RouterLink,
+    DragDropModule,
+    MatButtonModule,
+    MatCardModule,
+    MatChipsModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatMenuModule,
+    MatProgressBarModule,
+    MatSelectModule,
+    MatTabsModule,
+  ],
   templateUrl: './backlog.html',
   styleUrl: './backlog.scss',
 })
 export class Backlog implements OnInit {
   private readonly api = inject(BoardService);
   private readonly goalsApi = inject(GoalsService);
+  private readonly confirm = inject(Confirm);
 
   protected readonly plan = signal<PlanView | null>(null);
   protected readonly goals = signal<Goal[]>([]);
   protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
   protected readonly collapsed = signal<Set<string>>(new Set());
 
   /** Group being added to ("backlog" or a sprint key), with the draft's fields. */
@@ -59,8 +86,6 @@ export class Backlog implements OnInit {
   sprintStart = '';
   sprintEnd = '';
 
-  protected readonly draggingKey = signal<string | null>(null);
-  protected readonly dropGroup = signal<string | null>(null);
 
   protected readonly priorityLabels = PRIORITY_LABELS;
   protected readonly columnLabels = COLUMN_LABELS;
@@ -72,9 +97,8 @@ export class Backlog implements OnInit {
   protected async reload(): Promise<void> {
     try {
       this.plan.set(await this.api.plan());
-      this.error.set(null);
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not load the plan.');
+      this.confirm.error(apiError(e).message ?? 'Could not load the plan.');
     } finally {
       this.loading.set(false);
     }
@@ -165,22 +189,38 @@ export class Backlog implements OnInit {
   }
 
   protected async startSprint(sprint: Sprint): Promise<void> {
-    if (!confirm(`Start ${this.sprintLabel(sprint)} with ${sprint.totalPoints} points?`)) return;
+    const ok = await this.confirm.ask({
+      title: `Start ${this.sprintLabel(sprint)}?`,
+      message: `${sprint.totalPoints} points are committed when it starts. Adding work afterwards ` +
+        'counts as a scope change.',
+      confirmLabel: 'Start sprint',
+    });
+    if (!ok) return;
     await this.run(() => this.api.startSprint(sprint.key), 'Could not start that sprint.');
   }
 
   protected async completeSprint(sprint: Sprint): Promise<void> {
     const open = sprint.taskCount - sprint.doneTaskCount;
-    const question = open === 0
-      ? `Complete ${this.sprintLabel(sprint)}?`
-      : `Complete ${this.sprintLabel(sprint)}? ${open} unfinished ${open === 1 ? 'task moves' : 'tasks move'} ` +
-        'to the next planned sprint, or to the backlog when there is none.';
-    if (!confirm(question)) return;
+    const ok = await this.confirm.ask({
+      title: `Complete ${this.sprintLabel(sprint)}?`,
+      message: open === 0
+        ? 'Everything in it is done.'
+        : `${open} unfinished ${open === 1 ? 'task moves' : 'tasks move'} to the next planned ` +
+          'sprint, or to the backlog when there is none.',
+      confirmLabel: 'Complete sprint',
+    });
+    if (!ok) return;
     await this.run(() => this.api.completeSprint(sprint.key, {}), 'Could not complete that sprint.');
   }
 
   protected async deleteSprint(sprint: Sprint): Promise<void> {
-    if (!confirm(`Delete ${this.sprintLabel(sprint)}? Its tasks go back to the backlog.`)) return;
+    const ok = await this.confirm.ask({
+      title: `Delete ${this.sprintLabel(sprint)}?`,
+      message: 'Its tasks go back to the backlog. This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
     await this.run(() => this.api.deleteSprint(sprint.key), 'Could not delete that sprint.');
   }
 
@@ -241,35 +281,17 @@ export class Backlog implements OnInit {
 
   // ------------------------------------------------------------------ drag and drop
 
-  protected onDragStart(event: DragEvent, task: BoardTask): void {
-    this.draggingKey.set(task.key);
-    event.dataTransfer?.setData('text/plain', task.key);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-  }
+  /**
+   * A row was dropped into a sprint or the backlog. CDK reports where it landed, and works with
+   * touch — the old HTML5 drag did not, so planning on a phone browser was impossible.
+   */
+  protected async onDrop(event: CdkDragDrop<Group>): Promise<void> {
+    const task = event.item.data as BoardTask;
+    const group = event.container.data;
+    if (event.previousContainer === event.container && event.previousIndex === event.currentIndex) return;
 
-  protected onDragEnd(): void {
-    this.draggingKey.set(null);
-    this.dropGroup.set(null);
-  }
-
-  protected onDragOver(event: DragEvent, groupId: string): void {
-    if (this.draggingKey() === null) return;
-    event.preventDefault();
-    this.dropGroup.set(groupId);
-  }
-
-  protected async onDrop(event: DragEvent, group: Group, before: BoardTask | null): Promise<void> {
-    event.preventDefault();
-    event.stopPropagation();
-    const key = this.draggingKey();
-    this.onDragEnd();
-    if (key === null || before?.key === key) return;
-
-    const task = this.findTask(key);
-    if (!task) return;
-
-    const others = group.tasks.filter(t => t.key !== key);
-    const index = before ? others.findIndex(t => t.key === before.key) : others.length;
+    const others = group.tasks.filter(t => t.key !== task.key);
+    const index = Math.min(event.currentIndex, others.length);
     await this.moveToGroup(task, this.groupId(group), index);
   }
 
@@ -293,17 +315,13 @@ export class Backlog implements OnInit {
       .map(g => ({ id: this.groupId(g), title: this.title(g) }));
   }
 
-  private findTask(key: string): BoardTask | undefined {
-    return this.groups().flatMap(g => g.tasks).find(t => t.key === key);
-  }
-
   private async run<T>(action: () => Promise<T>, fallback: string): Promise<T | undefined> {
     try {
       const result = await action();
       await this.reload();
       return result;
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? fallback);
+      this.confirm.error(apiError(e).message ?? fallback);
       return undefined;
     }
   }

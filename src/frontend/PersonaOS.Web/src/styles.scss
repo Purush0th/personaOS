@@ -1,155 +1,108 @@
-/* Shared primitives used across feature components. Component-specific layout
-   stays in each component's own stylesheet. */
+@use '@angular/material' as mat;
+/* Styles from before Material, still used by pages not yet migrated. Each rule disappears as its
+   page moves over; when this import goes, the migration is done. */
+@use 'legacy-primitives';
 
-:root {
-  --ink: #1a1a2e;
-  --line: #c9c9d4;
-  --muted: #6b6b7b;
-  --danger: #b00020;
+/* PersonaOS uses Angular Material 3. One theme here decides colour, type and density for every
+   component, which is the point: before this, buttons were styled three ways across pages and two
+   of them rendered white on white.
+
+   Both schemes are generated, so the app follows the device's light/dark setting instead of
+   forcing light as it used to. */
+/* Light and dark are emitted as separate blocks rather than through mat.theme's light-dark()
+   defaults: that CSS function did not resolve in every browser tested, leaving a dark-mode
+   device on the light palette. A media query works everywhere. */
+html {
+  color-scheme: light;
+
+  @include mat.theme((
+    color: (
+      primary: mat.$violet-palette,
+      tertiary: mat.$blue-palette,
+      theme-type: light,
+    ),
+    typography: Roboto,
+    density: 0,
+  ));
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+
+    @include mat.theme((
+      color: (
+        primary: mat.$violet-palette,
+        tertiary: mat.$blue-palette,
+        theme-type: dark,
+      ),
+      typography: Roboto,
+      density: 0,
+    ));
+  }
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
   margin: 0;
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  color: var(--ink);
-  /* The palette is light only. Without this a browser in dark mode paints a dark canvas behind
-     dark text and the app is unreadable. */
-  color-scheme: light;
-  background: #fff;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
 }
 
-.muted {
-  color: var(--muted);
+/* Material Symbols, used by every mat-icon in the app. */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-.small {
-  font-size: 0.85rem;
-}
-
-.error {
-  color: var(--danger);
-}
-
-button,
-a.button {
-  font: inherit;
-  font-weight: 600;
-  color: #fff;
-  background: var(--ink);
-  border: none;
-  border-radius: 8px;
-  padding: 0.55rem 1.1rem;
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.55;
-    cursor: default;
-  }
-
-  &.subtle {
-    background: none;
-    color: var(--ink);
-    border: 1px solid var(--line);
-    font-weight: 500;
-  }
-}
-
-a.button {
-  display: inline-block;
-  text-decoration: none;
-}
-
-/* Sprint | Backlog — the two views of the board, switched from the page itself. */
-.view-tabs {
-  display: flex;
-
-  a {
-    font: inherit;
-    font-size: 0.92rem;
-    font-weight: 500;
-    text-decoration: none;
-    color: var(--ink);
-    padding: 0.35rem 0.9rem;
-    border: 1px solid var(--line);
-
-    &:first-child {
-      border-radius: 8px 0 0 8px;
-    }
-
-    &:last-child {
-      border-radius: 0 8px 8px 0;
-      border-left: none;
-    }
-
-    &.on {
-      background: var(--ink);
-      color: #fff;
-      border-color: var(--ink);
-    }
-  }
-}
-
-label {
-  display: block;
-  margin: 0.9rem 0;
-  font-weight: 600;
-  font-size: 0.92rem;
-
-  input:not([type='checkbox']),
-  select,
-  textarea {
-    display: block;
-    width: 100%;
-    margin-top: 0.3rem;
-    padding: 0.55rem 0.7rem;
-    font: inherit;
-    font-weight: 400;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    box-sizing: border-box;
-
-    &:focus {
-      outline: 2px solid var(--ink);
-      border-color: transparent;
-    }
-  }
-}
-
-.card {
-  max-width: 26rem;
-  margin: 3rem auto;
-
-  h1 {
-    font-size: 1.5rem;
-    margin-bottom: 0.4rem;
-  }
-}
-
-/* Sprint-board pills, shared by the board, goals and planner pages. */
+/* A goal's colour chip, used on board cards, backlog rows, planner items and task pages. The
+   hue comes from the goal key, so a goal keeps its colour everywhere; the tint is mixed against
+   the surface so it works in both schemes rather than staying pale on a dark page. */
 .goal-chip {
-  font-size: 0.72rem;
-  border-radius: 999px;
-  padding: 0.08rem 0.45rem;
-  background: hsl(var(--hue, 240) 70% 92%);
-  color: hsl(var(--hue, 240) 45% 28%);
+  font: var(--mat-sys-label-small);
+  border-radius: var(--mat-sys-corner-full);
+  padding: 0.1rem 0.5rem;
+  background: color-mix(in srgb, hsl(var(--hue, 240) 70% 50%) 22%, var(--mat-sys-surface));
+  color: var(--mat-sys-on-surface);
+  border: 1px solid color-mix(in srgb, hsl(var(--hue, 240) 70% 50%) 40%, transparent);
   max-width: 10rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-decoration: none;
 }
 
+/* Value points, shown beside every task. */
 .points-pill {
-  font-size: 0.75rem;
+  font: var(--mat-sys-label-small);
   font-weight: 700;
   min-width: 1.4rem;
   text-align: center;
-  border-radius: 999px;
-  background: #e8e8f2;
-  padding: 0.05rem 0.4rem;
+  border-radius: var(--mat-sys-corner-full);
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+  padding: 0.05rem 0.45rem;
 
   &.none {
-    color: var(--muted);
     background: none;
-    border: 1px dashed var(--line);
+    color: var(--mat-sys-on-surface-variant);
+    border: 1px dashed var(--mat-sys-outline);
   }
+}
+
+/* Text helpers that survive the migration: they say what the text *is*, not how it looks. */
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.small {
+  font: var(--mat-sys-body-small);
+}
+
+.error {
+  color: var(--mat-sys-error);
 }

@@ -1,58 +1,76 @@
-<section class="push">
-  <h2>Push notifications</h2>
+<mat-card class="push" appearance="outlined">
+  <mat-card-header>
+    <mat-card-title>Push notifications</mat-card-title>
+    <mat-card-subtitle>
+      @if (status(); as current) {
+        @if (current.configured) {
+          On · Firebase project <code>{{ current.projectId }}</code>
+        } @else {
+          Off · reminders and briefs wait until push is set up
+        }
+      }
+    </mat-card-subtitle>
+  </mat-card-header>
 
-  @if (status(); as current) {
-    @if (current.configured) {
-      <p class="state on">On · Firebase project <code>{{ current.projectId }}</code></p>
-    } @else {
-      <p class="state off">Off · reminders and briefs wait until push is set up</p>
-    }
-  }
+  <mat-card-content>
+    <p class="muted small">
+      PersonaOS uses your own Firebase project, so no key is shared with anyone. Both files come
+      from the <a href="https://console.firebase.google.com" target="_blank" rel="noopener">Firebase console</a>:
+    </p>
+    <ol class="muted small steps">
+      <li>
+        <strong>Service account key</strong> — Project settings → Service accounts →
+        <em>Generate new private key</em>.
+      </li>
+      <li>
+        <strong>google-services.json</strong> — Project settings → General → add an Android app with
+        package name <code>com.personaos.personaos_mobile</code>, then download the file.
+      </li>
+    </ol>
 
-  <p class="muted small">
-    PersonaOS uses your own Firebase project, so no key is shared with anyone. Both files come
-    from the <a href="https://console.firebase.google.com" target="_blank" rel="noopener">Firebase console</a>:
-  </p>
-  <ol class="muted small steps">
-    <li>
-      <strong>Service account key</strong> — Project settings → Service accounts →
-      <em>Generate new private key</em>.
-    </li>
-    <li>
-      <strong>google-services.json</strong> — Project settings → General → add an Android app with
-      package name <code>com.personaos.personaos_mobile</code>, then download the file.
-    </li>
-  </ol>
+    <div class="files">
+      <div class="file">
+        <button mat-stroked-button type="button" (click)="serviceAccountInput.click()">
+          <mat-icon>key</mat-icon>
+          Service account key
+        </button>
+        <input
+          #serviceAccountInput
+          type="file"
+          accept=".json,application/json"
+          (change)="pick('serviceAccount', $event)"
+          hidden
+        />
+        @if (serviceAccountName(); as name) { <span class="muted small">{{ name }}</span> }
+      </div>
 
-  <label class="file">
-    Service account key
-    <input type="file" accept=".json,application/json" (change)="pick('serviceAccount', $event)" />
-    @if (serviceAccountName(); as name) { <span class="muted small">{{ name }}</span> }
-  </label>
+      <div class="file">
+        <button mat-stroked-button type="button" (click)="googleServicesInput.click()">
+          <mat-icon>android</mat-icon>
+          google-services.json
+        </button>
+        <input
+          #googleServicesInput
+          type="file"
+          accept=".json,application/json"
+          (change)="pick('googleServices', $event)"
+          hidden
+        />
+        @if (googleServicesName(); as name) { <span class="muted small">{{ name }}</span> }
+      </div>
+    </div>
 
-  <label class="file">
-    google-services.json
-    <input type="file" accept=".json,application/json" (change)="pick('googleServices', $event)" />
-    @if (googleServicesName(); as name) { <span class="muted small">{{ name }}</span> }
-  </label>
+    <p class="muted small">
+      The key is encrypted on the server and never shown again — uploading replaces it.
+    </p>
 
-  <p class="muted small">
-    The key is encrypted on the server and never shown again — uploading replaces it.
-  </p>
-
-  @if (error(); as text) {
-    <p class="error">{{ text }}</p>
-  }
-  @if (message(); as text) {
-    <p class="saved">{{ text }}</p>
-  }
-
-  <div class="actions">
-    <button type="button" (click)="upload()" [disabled]="!canUpload">
-      {{ busy() ? 'Saving…' : status()?.configured ? 'Replace Firebase files' : 'Turn on push' }}
-    </button>
-    @if (status()?.configured) {
-      <button type="button" class="subtle" (click)="remove()" [disabled]="busy()">Turn off</button>
-    }
-  </div>
-</section>
+    <div class="actions">
+      @if (status()?.configured) {
+        <button mat-button type="button" (click)="remove()" [disabled]="busy()">Turn off</button>
+      }
+      <button mat-flat-button type="button" (click)="upload()" [disabled]="!canUpload">
+        {{ busy() ? 'Saving…' : status()?.configured ? 'Replace Firebase files' : 'Turn on push' }}
+      </button>
+    </div>
+  </mat-card-content>
+</mat-card>

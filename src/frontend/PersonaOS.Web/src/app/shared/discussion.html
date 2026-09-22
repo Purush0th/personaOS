@@ -1,67 +1,100 @@
-<section class="attachments">
-  <h2>Attachments @if (attachments().length) { <span class="muted small">{{ attachments().length }}</span> }</h2>
+<mat-card class="attachments" appearance="outlined">
+  <mat-card-content>
+    <h2>
+      Attachments
+      @if (attachments().length) { <span class="muted small">{{ attachments().length }}</span> }
+    </h2>
 
-  @if (error(); as message) {
-    <p class="error">{{ message }}</p>
-  }
-
-  <ul>
-    @for (file of attachments(); track file.id) {
-      <li>
-        @if (isImage(file)) {
-          <a [href]="url(file)" target="_blank" rel="noopener" class="thumb">
-            <img [src]="url(file)" [alt]="file.fileName" />
+    <mat-list>
+      @for (file of attachments(); track file.id) {
+        <mat-list-item>
+          @if (isImage(file)) {
+            <a matListItemAvatar [href]="url(file)" target="_blank" rel="noopener" class="thumb">
+              <img [src]="url(file)" [alt]="file.fileName" />
+            </a>
+          } @else {
+            <mat-icon matListItemIcon>attach_file</mat-icon>
+          }
+          <a matListItemTitle class="name" [href]="url(file)" target="_blank" rel="noopener">
+            {{ file.fileName }}
           </a>
-        } @else {
-          <span class="icon" aria-hidden="true">📎</span>
-        }
-        <a class="name" [href]="url(file)" target="_blank" rel="noopener">{{ file.fileName }}</a>
-        <span class="muted small">{{ size(file.sizeBytes) }} · {{ when(file.createdAtUtc) }}</span>
-        <button class="subtle danger tiny" (click)="deleteAttachment(file)" [attr.aria-label]="'Delete ' + file.fileName">✕</button>
-      </li>
-    } @empty {
-      <li class="muted small">Nothing attached yet — PDFs, images and documents all work.</li>
-    }
-  </ul>
-
-  <label class="upload">
-    <input type="file" #fileInput (change)="upload(fileInput)" [disabled]="uploading()" />
-  </label>
-</section>
-
-<section class="comments">
-  <h2>Comments @if (comments().length) { <span class="muted small">{{ comments().length }}</span> }</h2>
-
-  @for (comment of comments(); track comment.id) {
-    <article class="comment" [class.assistant]="comment.author === 'assistant'">
-      <div class="head">
-        <strong>{{ author(comment) }}</strong>
-        <span class="muted small">{{ when(comment.createdAtUtc) }}</span>
-        @if (comment.updatedAtUtc !== comment.createdAtUtc) {
-          <span class="muted small">edited</span>
-        }
-        <span class="spacer"></span>
-        <button class="subtle tiny" (click)="startEdit(comment)">Edit</button>
-        <button class="subtle tiny danger" (click)="deleteComment(comment)">Delete</button>
-      </div>
-      @if (editingId() === comment.id) {
-        <form (ngSubmit)="saveEdit()">
-          <textarea name="edit" rows="3" [(ngModel)]="editDraft"></textarea>
-          <div class="row">
-            <button type="submit">Save</button>
-            <button type="button" class="subtle" (click)="editingId.set(null)">Cancel</button>
-          </div>
-        </form>
-      } @else {
-        <p class="body">{{ comment.body }}</p>
+          <span matListItemLine class="muted small">
+            {{ size(file.sizeBytes) }} · {{ when(file.createdAtUtc) }}
+          </span>
+          <span matListItemMeta>
+            <button
+              mat-icon-button
+              [attr.aria-label]="'Delete ' + file.fileName"
+              (click)="deleteAttachment(file)"
+            >
+              <mat-icon class="danger">delete</mat-icon>
+            </button>
+          </span>
+        </mat-list-item>
+      } @empty {
+        <p class="muted small empty">Nothing attached yet — PDFs, images and documents all work.</p>
       }
-    </article>
-  } @empty {
-    <p class="muted small">No comments yet.</p>
-  }
+    </mat-list>
 
-  <form class="new-comment" (ngSubmit)="addComment()">
-    <textarea name="comment" rows="3" [(ngModel)]="draft" placeholder="Add a comment…"></textarea>
-    <button type="submit" [disabled]="!draft.trim()">Comment</button>
-  </form>
-</section>
+    @if (uploading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    <button mat-stroked-button [disabled]="uploading()" (click)="fileInput.click()">
+      <mat-icon>upload</mat-icon>
+      {{ uploading() ? 'Uploading…' : 'Attach a file' }}
+    </button>
+    <input type="file" #fileInput (change)="upload(fileInput)" [disabled]="uploading()" hidden />
+  </mat-card-content>
+</mat-card>
+
+<mat-card class="comments" appearance="outlined">
+  <mat-card-content>
+    <h2>
+      Comments
+      @if (comments().length) { <span class="muted small">{{ comments().length }}</span> }
+    </h2>
+
+    @for (comment of comments(); track comment.id) {
+      <article class="comment" [class.assistant]="comment.author === 'assistant'">
+        <div class="head">
+          <strong>{{ author(comment) }}</strong>
+          <span class="muted small">{{ when(comment.createdAtUtc) }}</span>
+          @if (comment.updatedAtUtc !== comment.createdAtUtc) {
+            <span class="muted small">edited</span>
+          }
+          <span class="spacer"></span>
+          <button mat-icon-button aria-label="Edit comment" (click)="startEdit(comment)">
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button mat-icon-button aria-label="Delete comment" (click)="deleteComment(comment)">
+            <mat-icon class="danger">delete</mat-icon>
+          </button>
+        </div>
+        @if (editingId() === comment.id) {
+          <form (ngSubmit)="saveEdit()">
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Comment</mat-label>
+              <textarea matInput name="edit" rows="3" [(ngModel)]="editDraft"></textarea>
+            </mat-form-field>
+            <div class="row">
+              <button mat-button type="button" (click)="editingId.set(null)">Cancel</button>
+              <button mat-flat-button type="submit">Save</button>
+            </div>
+          </form>
+        } @else {
+          <p class="body">{{ comment.body }}</p>
+        }
+      </article>
+    } @empty {
+      <p class="muted small empty">No comments yet.</p>
+    }
+
+    <form class="new-comment" (ngSubmit)="addComment()">
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Add a comment</mat-label>
+        <textarea matInput name="comment" rows="3" [(ngModel)]="draft"></textarea>
+      </mat-form-field>
+      <button mat-flat-button type="submit" [disabled]="!draft.trim()">Comment</button>
+    </form>
+  </mat-card-content>
+</mat-card>

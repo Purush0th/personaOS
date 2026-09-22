@@ -1,9 +1,5 @@
-@if (error(); as message) {
-  <p class="error" role="alert">{{ message }}</p>
-}
-
 @if (loading()) {
-  <p class="muted">Loading…</p>
+  <mat-progress-bar mode="indeterminate" />
 } @else if (task(); as task) {
   <nav class="crumbs muted small">
     <a routerLink="/board">Board</a> ·
@@ -17,115 +13,137 @@
     <span class="key">{{ task.key }}</span>
     @if (editingTitle()) {
       <form class="title-form" (ngSubmit)="saveTitle()">
-        <input name="title" [(ngModel)]="titleDraft" autofocus />
-        <button type="submit">Save</button>
-        <button type="button" class="subtle" (click)="editingTitle.set(false)">Cancel</button>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+          <mat-label>Title</mat-label>
+          <input matInput name="title" [(ngModel)]="titleDraft" autofocus />
+        </mat-form-field>
+        <button mat-flat-button type="submit">Save</button>
+        <button mat-button type="button" (click)="editingTitle.set(false)">Cancel</button>
       </form>
     } @else {
       <h1 (click)="startTitle()" title="Click to edit">{{ task.title }}</h1>
-      <button class="subtle" (click)="remove()">Delete</button>
+      <span class="spacer"></span>
+      <button mat-icon-button aria-label="Delete task" (click)="remove()">
+        <mat-icon class="danger">delete</mat-icon>
+      </button>
     }
   </header>
 
   <div class="layout">
     <div class="main">
-      <h2>Description</h2>
-      @if (editingDescription()) {
-        <form (ngSubmit)="saveDescription()">
-          <textarea name="description" rows="6" [(ngModel)]="descriptionDraft" autofocus></textarea>
-          <div class="row">
-            <button type="submit">Save</button>
-            <button type="button" class="subtle" (click)="editingDescription.set(false)">Cancel</button>
-          </div>
-        </form>
-      } @else if (task.description) {
-        <p class="description" (click)="startDescription()" title="Click to edit">{{ task.description }}</p>
-      } @else {
-        <button class="subtle" (click)="startDescription()">Add a description</button>
-      }
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Description</h2>
+          @if (editingDescription()) {
+            <form (ngSubmit)="saveDescription()">
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Description</mat-label>
+                <textarea matInput name="description" rows="6" [(ngModel)]="descriptionDraft" autofocus></textarea>
+              </mat-form-field>
+              <div class="row">
+                <button mat-flat-button type="submit">Save</button>
+                <button mat-button type="button" (click)="editingDescription.set(false)">Cancel</button>
+              </div>
+            </form>
+          } @else if (task.description) {
+            <p class="description" (click)="startDescription()" title="Click to edit">{{ task.description }}</p>
+          } @else {
+            <button mat-button (click)="startDescription()">
+              <mat-icon>notes</mat-icon>
+              Add a description
+            </button>
+          }
+        </mat-card-content>
+      </mat-card>
 
       <app-discussion itemType="task" [itemKey]="key()" [assistantName]="assistantName()" />
     </div>
 
     <aside class="side">
-      <h2>Details</h2>
-      <label>
-        Status
-        <select [ngModel]="task.column" (ngModelChange)="setColumn($event)">
-          @for (c of columnOptions(); track c) {
-            <option [ngValue]="c">{{ columnLabels[c] }}</option>
-          }
-          @if (task.sprintKey) {
-            <option ngValue="backlog">Backlog</option>
-          }
-        </select>
-      </label>
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Details</h2>
 
-      <label>
-        Sprint
-        <select [ngModel]="task.sprintKey" (ngModelChange)="setSprint($event)">
-          <option [ngValue]="null">Backlog (no sprint)</option>
-          @for (s of sprintOptions(); track s.key) {
-            <option [ngValue]="s.key">{{ s.label }}</option>
-          }
-        </select>
-      </label>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Status</mat-label>
+            <mat-select [ngModel]="task.column" (ngModelChange)="setColumn($event)">
+              @for (c of columnOptions(); track c) {
+                <mat-option [value]="c">{{ columnLabels[c] }}</mat-option>
+              }
+              @if (task.sprintKey) {
+                <mat-option value="backlog">Backlog</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
 
-      <label>
-        Value points
-        <select [ngModel]="task.points" (ngModelChange)="setPoints($event)">
-          <option [ngValue]="null">Not estimated</option>
-          @for (p of plan()?.allowedPoints ?? []; track p) {
-            <option [ngValue]="p">{{ p }}</option>
-          }
-        </select>
-      </label>
-      @if ((task.points ?? 0) >= 13) {
-        <p class="hint">That's big — consider splitting it into smaller tasks.</p>
-      }
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Sprint</mat-label>
+            <mat-select [ngModel]="task.sprintKey" (ngModelChange)="setSprint($event)">
+              <mat-option [value]="null">Backlog (no sprint)</mat-option>
+              @for (s of sprintOptions(); track s.key) {
+                <mat-option [value]="s.key">{{ s.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
 
-      <label>
-        Priority
-        <select [ngModel]="task.priority" (ngModelChange)="setPriority($event)">
-          @for (p of plan()?.priorities ?? []; track p) {
-            <option [ngValue]="p">{{ priorityLabels[p] }}</option>
-          }
-        </select>
-      </label>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Value points</mat-label>
+            <mat-select [ngModel]="task.points" (ngModelChange)="setPoints($event)">
+              <mat-option [value]="null">Not estimated</mat-option>
+              @for (p of plan()?.allowedPoints ?? []; track p) {
+                <mat-option [value]="p">{{ p }}</mat-option>
+              }
+            </mat-select>
+            @if ((task.points ?? 0) >= 13) {
+              <mat-hint>That's big — consider splitting it.</mat-hint>
+            }
+          </mat-form-field>
 
-      <label>
-        Goal
-        <select [ngModel]="task.goalId" (ngModelChange)="setGoal($event)">
-          <option [ngValue]="null">No goal</option>
-          @for (g of goals(); track g.id) {
-            <option [ngValue]="g.id">{{ g.key }} {{ g.title }}</option>
-          }
-        </select>
-      </label>
-      @if (task.goalKey) {
-        <a class="goal-chip" [style.--hue]="hue(task.goalKey)" [routerLink]="['/board/goals', task.goalKey]">
-          {{ task.goalKey }} {{ task.goalTitle }}
-        </a>
-      }
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Priority</mat-label>
+            <mat-select [ngModel]="task.priority" (ngModelChange)="setPriority($event)">
+              @for (p of plan()?.priorities ?? []; track p) {
+                <mat-option [value]="p">{{ priorityLabels[p] }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
 
-      <dl class="facts">
-        @if (task.carryOverCount > 0) {
-          <dt>Carried over</dt>
-          <dd>{{ task.carryOverCount }} {{ task.carryOverCount === 1 ? 'sprint' : 'sprints' }}</dd>
-        }
-        @if (task.addedMidSprint) {
-          <dt>Scope</dt>
-          <dd>Added after the sprint started</dd>
-        }
-        @if (task.completedAtUtc) {
-          <dt>Completed</dt>
-          <dd>{{ when(task.completedAtUtc) }}</dd>
-        }
-        <dt>Created</dt>
-        <dd>{{ when(task.createdAtUtc) }}</dd>
-        <dt>Updated</dt>
-        <dd>{{ when(task.updatedAtUtc) }}</dd>
-      </dl>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Goal</mat-label>
+            <mat-select [ngModel]="task.goalId" (ngModelChange)="setGoal($event)">
+              <mat-option [value]="null">No goal</mat-option>
+              @for (g of goals(); track g.id) {
+                <mat-option [value]="g.id">{{ g.key }} {{ g.title }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          @if (task.goalKey) {
+            <a class="goal-chip" [style.--hue]="hue(task.goalKey)" [routerLink]="['/board/goals', task.goalKey]">
+              {{ task.goalKey }} {{ task.goalTitle }}
+            </a>
+          }
+
+          <dl class="facts">
+            @if (task.carryOverCount > 0) {
+              <dt>Carried over</dt>
+              <dd>{{ task.carryOverCount }} {{ task.carryOverCount === 1 ? 'sprint' : 'sprints' }}</dd>
+            }
+            @if (task.addedMidSprint) {
+              <dt>Scope</dt>
+              <dd>Added after the sprint started</dd>
+            }
+            @if (task.completedAtUtc) {
+              <dt>Completed</dt>
+              <dd>{{ when(task.completedAtUtc) }}</dd>
+            }
+            <dt>Created</dt>
+            <dd>{{ when(task.createdAtUtc) }}</dd>
+            <dt>Updated</dt>
+            <dd>{{ when(task.updatedAtUtc) }}</dd>
+          </dl>
+        </mat-card-content>
+      </mat-card>
     </aside>
   </div>
 }

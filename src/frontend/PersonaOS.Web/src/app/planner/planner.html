@@ -1,72 +1,109 @@
 <header class="page-head">
   <h1>Planner</h1>
+  <span class="spacer"></span>
   <div class="date-nav">
-    <button class="subtle" (click)="shiftDay(-1)" title="Previous day">‹</button>
-    <input type="date" [value]="date()" (change)="onDateChange($any($event.target).value)" />
-    <button class="subtle" (click)="shiftDay(1)" title="Next day">›</button>
+    <button mat-icon-button aria-label="Previous day" (click)="shiftDay(-1)">
+      <mat-icon>chevron_left</mat-icon>
+    </button>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="day">
+      <mat-label>Day</mat-label>
+      <input matInput type="date" [value]="date()" (change)="onDateChange($any($event.target).value)" />
+    </mat-form-field>
+    <button mat-icon-button aria-label="Next day" (click)="shiftDay(1)">
+      <mat-icon>chevron_right</mat-icon>
+    </button>
   </div>
 </header>
 
-@if (error(); as message) {
-  <p class="error">{{ message }}</p>
-}
+<mat-card class="add-card" appearance="outlined">
+  <form (ngSubmit)="add()">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+      <mat-label>What needs doing?</mat-label>
+      <input matInput name="title" [(ngModel)]="draftTitle" />
+    </mat-form-field>
 
-<form class="add-form" (ngSubmit)="add()">
-  <input name="title" [(ngModel)]="draftTitle" placeholder="What needs doing?" />
-  <input name="time" type="time" [(ngModel)]="draftTime" title="Optional time" />
-  <button type="submit">Add</button>
-  @if (sprintTasks().length > 0) {
-    <select class="pick" aria-label="Pick a task from this week's sprint" (change)="pickTask($any($event.target).value); $any($event.target).value = ''">
-      <option value="">From the board…</option>
-      @for (task of sprintTasks(); track task.id) {
-        <option [value]="task.id">{{ task.key }} {{ task.title }}{{ task.column === 'in_progress' ? ' (in progress)' : '' }}</option>
-      }
-    </select>
-  }
-</form>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="time">
+      <mat-label>Time</mat-label>
+      <input matInput name="time" type="time" [(ngModel)]="draftTime" />
+    </mat-form-field>
+
+    @if (sprintTasks().length > 0) {
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="pick">
+        <mat-label>From the board</mat-label>
+        <mat-select [value]="null" (selectionChange)="pickTask($any($event.value))">
+          @for (task of sprintTasks(); track task.id) {
+            <mat-option [value]="task.id">
+              {{ task.key }} {{ task.title }}{{ task.column === 'in_progress' ? ' (in progress)' : '' }}
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+
+    <button mat-flat-button type="submit" [disabled]="!draftTitle.trim()">Add</button>
+  </form>
+</mat-card>
 
 @if (loading()) {
-  <p class="muted">Loading…</p>
+  <mat-progress-bar mode="indeterminate" />
 } @else {
   @if (items().length > 0) {
-    <p class="muted small">{{ doneCount }} of {{ items().length }} done</p>
+    <p class="muted small count">{{ doneCount }} of {{ items().length }} done</p>
   }
 
-  @for (item of items(); track item.id) {
-    <article class="item" [class.done]="item.status === 'done'" [class.skipped]="item.status === 'skipped'">
-      <button
-        class="check"
-        (click)="cycleStatus(item)"
-        [title]="'Status: ' + item.status + ' — click to change'"
-      >
-        @switch (item.status) {
-          @case ('done') { ✓ }
-          @case ('skipped') { — }
-          @default { &nbsp; }
-        }
-      </button>
+  <mat-card appearance="outlined" class="day-list">
+    <mat-list>
+      @for (item of items(); track item.id) {
+        <mat-list-item
+          class="item"
+          [class.done]="item.status === 'done'"
+          [class.skipped]="item.status === 'skipped'"
+        >
+          <button
+            matListItemIcon
+            mat-icon-button
+            [attr.aria-label]="'Status: ' + item.status + ', change it'"
+            (click)="cycleStatus(item)"
+          >
+            <mat-icon>
+              @switch (item.status) {
+                @case ('done') { check_circle }
+                @case ('skipped') { remove_circle_outline }
+                @default { radio_button_unchecked }
+              }
+            </mat-icon>
+          </button>
 
-      <div class="body">
-        <span class="title">
-          @if (item.scheduledTime) {
-            <span class="time">{{ item.scheduledTime.slice(0, 5) }}</span>
-          }
-          {{ item.title }}
-        </span>
-        <span class="links">
-          @if (item.taskKey) {
-            <span class="task-key">{{ item.taskKey }}</span>
-          }
-          @if (item.goalTitle) {
-            <span class="goal-chip" [style.--hue]="hue(item.goalKey)" [title]="(item.goalKey ?? '') + ' ' + item.goalTitle">{{ item.goalTitle }}</span>
-          }
-        </span>
-      </div>
+          <span matListItemTitle class="title">
+            @if (item.scheduledTime) {
+              <span class="time">{{ item.scheduledTime.slice(0, 5) }}</span>
+            }
+            {{ item.title }}
+          </span>
 
-      <button class="subtle" (click)="moveToTomorrow(item)" title="Move to the next day">→ Tomorrow</button>
-      <button class="subtle danger" (click)="remove(item)">Delete</button>
-    </article>
-  } @empty {
-    <p class="muted">Nothing planned for this day.</p>
-  }
+          @if (item.taskKey || item.goalTitle) {
+            <span matListItemLine class="links">
+              @if (item.taskKey) {
+                <a class="task-key" [routerLink]="['/board/tasks', item.taskKey]">{{ item.taskKey }}</a>
+              }
+              @if (item.goalTitle) {
+                <span class="goal-chip" [style.--hue]="hue(item.goalKey)">{{ item.goalTitle }}</span>
+              }
+            </span>
+          }
+
+          <span matListItemMeta class="row-actions">
+            <button mat-icon-button aria-label="Move to the next day" (click)="moveToTomorrow(item)">
+              <mat-icon>east</mat-icon>
+            </button>
+            <button mat-icon-button aria-label="Delete" (click)="remove(item)">
+              <mat-icon class="danger">delete</mat-icon>
+            </button>
+          </span>
+        </mat-list-item>
+      } @empty {
+        <p class="muted empty">Nothing planned for this day.</p>
+      }
+    </mat-list>
+  </mat-card>
 }

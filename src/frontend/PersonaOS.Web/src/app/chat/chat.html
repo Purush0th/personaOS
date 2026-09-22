@@ -1,44 +1,42 @@
 <div class="chat-layout">
   <aside class="conversations">
-    <button class="new" (click)="startNew()">＋ New conversation</button>
+    <button mat-stroked-button class="new" (click)="startNew()">
+      <mat-icon>add</mat-icon>
+      New conversation
+    </button>
 
-    @for (conversation of conversations(); track conversation.id) {
-      <div class="conversation-row" [class.active]="conversation.id === conversationId()">
-        @if (confirmingDelete() === conversation.publicId) {
-          <!-- Deleting a thread cannot be undone, so it takes a second deliberate tap. -->
-          <span class="confirm-delete">
-            <span class="ask">Delete this conversation?</span>
-            <button type="button" class="danger" (click)="deleteConversation(conversation)">
-              Delete
+    <mat-nav-list class="threads">
+      @for (conversation of conversations(); track conversation.id) {
+        <mat-list-item
+          [activated]="conversation.id === conversationId()"
+          (click)="open(conversation)"
+        >
+          <span matListItemTitle class="thread-title">{{ conversation.title }}</span>
+          <span matListItemMeta>
+            <button
+              mat-icon-button
+              [attr.aria-label]="'Delete ' + conversation.title"
+              (click)="deleteConversation(conversation, $event)"
+            >
+              <mat-icon>close</mat-icon>
             </button>
-            <button type="button" class="cancel" (click)="cancelDelete()">Cancel</button>
           </span>
-        } @else {
-          <button class="conversation" (click)="open(conversation)">
-            {{ conversation.title }}
-          </button>
-          <button
-            type="button"
-            class="delete"
-            [attr.aria-label]="'Delete ' + conversation.title"
-            title="Delete conversation"
-            (click)="askDelete(conversation)"
-          >
-            ✕
-          </button>
-        }
-      </div>
-    } @empty {
-      <p class="muted small">No conversations yet.</p>
-    }
+        </mat-list-item>
+      } @empty {
+        <p class="muted small empty-threads">No conversations yet.</p>
+      }
+    </mat-nav-list>
   </aside>
 
   <section class="thread">
     <div class="messages" #scroller>
       @for (bubble of bubbles(); track $index) {
-        <div class="bubble" [class.user]="bubble.role === 'user'" [class.error]="bubble.isError">
+        <div class="bubble" [class.user]="bubble.role === 'user'" [class.failed]="bubble.isError">
           @if (bubble.tool) {
-            <span class="tool">Using {{ bubble.tool }}…</span>
+            <span class="tool">
+              <mat-icon inline>build</mat-icon>
+              Using {{ bubble.tool }}…
+            </span>
           } @else if (bubble.text) {
             {{ bubble.text }}
           } @else {
@@ -48,45 +46,36 @@
           <!-- Changes the assistant proposed. Nothing has been saved until Confirm: the
                model cannot write to the user's data on its own say-so. -->
           @if (bubble.pending?.length) {
-            <ul class="proposals" aria-label="Changes awaiting your confirmation">
-              @for (action of bubble.pending; track action.id) {
-                <li [class.resolved]="action.status !== 'pending'">
-                  @if (action.status === 'pending') {
-                    <span class="what">{{ action.summary }}</span>
-                    <span class="buttons">
-                      <button
-                        type="button"
-                        class="confirm"
-                        [disabled]="isResolving(action.id)"
-                        (click)="resolveAction(action, true)"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        type="button"
-                        class="discard"
-                        [disabled]="isResolving(action.id)"
-                        (click)="resolveAction(action, false)"
-                      >
-                        Discard
-                      </button>
-                    </span>
-                  } @else if (action.status === 'confirmed') {
-                    <span class="mark" aria-hidden="true">{{ action.resultOk ? '✓' : '✕' }}</span>
-                    <span class="what">{{ action.resultSummary || action.summary }}</span>
-                  } @else {
-                    <span class="mark" aria-hidden="true">—</span>
-                    <span class="what">Discarded: {{ action.summary }}</span>
-                  }
-                </li>
-              }
-            </ul>
+            @for (action of bubble.pending; track action.id) {
+              <div class="proposal" [class.resolved]="action.status !== 'pending'">
+                @if (action.status === 'pending') {
+                  <span class="what">{{ action.summary }}</span>
+                  <span class="buttons">
+                    <button mat-button [disabled]="isResolving(action.id)" (click)="resolveAction(action, false)">
+                      Discard
+                    </button>
+                    <button mat-flat-button [disabled]="isResolving(action.id)" (click)="resolveAction(action, true)">
+                      Confirm
+                    </button>
+                  </span>
+                } @else if (action.status === 'confirmed') {
+                  <mat-icon class="mark" [class.bad]="!action.resultOk">
+                    {{ action.resultOk ? 'check_circle' : 'error' }}
+                  </mat-icon>
+                  <span class="what">{{ action.resultSummary || action.summary }}</span>
+                } @else {
+                  <mat-icon class="mark muted">remove_circle_outline</mat-icon>
+                  <span class="what">Discarded: {{ action.summary }}</span>
+                }
+              </div>
+            }
           }
 
           <!-- The reply claims a change that no tool made, even after the server asked the model
                to correct itself. Say so plainly: the sentence above is not a receipt. -->
           @if (bubble.unverifiedClaim) {
             <p class="unverified" role="note">
+              <mat-icon inline>warning</mat-icon>
               This reply says a change was made, but nothing was saved. Ask again if you want it done.
             </p>
           }
@@ -97,7 +86,7 @@
             <ul class="receipts" aria-label="What was actually done">
               @for (action of bubble.actions; track $index) {
                 <li [class.failed]="!action.ok">
-                  <span class="mark" aria-hidden="true">{{ action.ok ? '✓' : '✕' }}</span>
+                  <mat-icon inline>{{ action.ok ? 'check' : 'close' }}</mat-icon>
                   <code>{{ action.tool }}</code>
                   @if (action.summary) {
                     <span class="detail">{{ action.summary }}</span>
@@ -115,15 +104,19 @@
     </div>
 
     <form class="composer" (ngSubmit)="send()">
-      <textarea
-        name="draft"
-        [(ngModel)]="draft"
-        (keydown)="onKeydown($event)"
-        rows="2"
-        placeholder="Message {{ branding.branding()?.assistantNickname ?? 'your assistant' }}…"
-      ></textarea>
-      <button type="submit" [disabled]="streaming()">
-        {{ streaming() ? '…' : 'Send' }}
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+        <mat-label>Message {{ branding.branding()?.assistantNickname ?? 'your assistant' }}</mat-label>
+        <textarea
+          matInput
+          name="draft"
+          [(ngModel)]="draft"
+          (keydown)="onKeydown($event)"
+          rows="2"
+        ></textarea>
+        <mat-hint class="small">Enter sends · Shift+Enter for a new line</mat-hint>
+      </mat-form-field>
+      <button mat-fab aria-label="Send" type="submit" [disabled]="streaming() || !draft.trim()">
+        <mat-icon>{{ streaming() ? 'hourglass_empty' : 'send' }}</mat-icon>
       </button>
     </form>
   </section>

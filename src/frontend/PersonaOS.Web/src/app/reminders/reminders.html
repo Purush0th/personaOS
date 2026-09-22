@@ -1,49 +1,55 @@
 <header class="page-head">
   <h1>Reminders</h1>
-  <button class="subtle" (click)="toggleCompleted()">
+  <span class="spacer"></span>
+  <button mat-button (click)="toggleCompleted()">
+    <mat-icon>{{ includeCompleted() ? 'filter_alt' : 'history' }}</mat-icon>
     {{ includeCompleted() ? 'Pending only' : 'Show all' }}
   </button>
 </header>
 
-@if (error(); as message) {
-  <p class="error">{{ message }}</p>
-}
-
-<form class="add-form" (ngSubmit)="add()">
-  <input name="message" [(ngModel)]="draftMessage" placeholder="Remind me to…" />
-  <input name="due" type="datetime-local" [(ngModel)]="draftDue" />
-  <button type="submit">Add</button>
-</form>
+<mat-card class="add-card" appearance="outlined">
+  <form (ngSubmit)="add()">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+      <mat-label>Remind me to…</mat-label>
+      <input matInput name="message" [(ngModel)]="draftMessage" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="due">
+      <mat-label>When</mat-label>
+      <input matInput name="due" type="datetime-local" [(ngModel)]="draftDue" />
+    </mat-form-field>
+    <button mat-flat-button type="submit" [disabled]="!draftMessage.trim() || !draftDue">Add</button>
+  </form>
+</mat-card>
 
 @if (loading()) {
-  <p class="muted">Loading…</p>
+  <mat-progress-bar mode="indeterminate" />
 } @else {
-  @for (item of items(); track item.id) {
-    <article class="reminder" [class.inactive]="item.status !== 'pending'">
-      <div class="body">
-        <span class="message">{{ item.message }}</span>
-        <span class="muted small">
-          {{ item.dueAtLocal | date: 'EEE d MMM, HH:mm' }}
-          @if (item.status !== 'pending') {
-            · {{ item.status }}
-          }
-          @if (item.goalTitle) {
-            · toward {{ item.goalTitle }}
-          }
-          @if (item.plannerItemTitle) {
-            · for {{ item.plannerItemTitle }}
-          }
-        </span>
-      </div>
-
-      @if (item.status === 'pending') {
-        <button class="subtle" (click)="cancel(item)">Cancel</button>
+  <mat-card appearance="outlined" class="list-card">
+    <mat-list>
+      @for (item of items(); track item.id) {
+        <mat-list-item class="reminder" [class.inactive]="item.status !== 'pending'">
+          <mat-icon matListItemIcon>{{ item.status === 'pending' ? 'alarm' : 'alarm_off' }}</mat-icon>
+          <span matListItemTitle>{{ item.message }}</span>
+          <span matListItemLine class="muted small">
+            {{ item.dueAtLocal | date: 'EEE d MMM, HH:mm' }}
+            @if (item.status !== 'pending') { · {{ item.status }} }
+            @if (item.goalTitle) { · toward {{ item.goalTitle }} }
+            @if (item.plannerItemTitle) { · for {{ item.plannerItemTitle }} }
+          </span>
+          <span matListItemMeta class="row-actions">
+            @if (item.status === 'pending') {
+              <button mat-button (click)="cancel(item)">Cancel</button>
+            }
+            <button mat-icon-button aria-label="Delete" (click)="remove(item)">
+              <mat-icon class="danger">delete</mat-icon>
+            </button>
+          </span>
+        </mat-list-item>
+      } @empty {
+        <p class="muted empty">
+          Nothing pending. Ask your assistant in chat — "remind me to call the dentist tomorrow at 9".
+        </p>
       }
-      <button class="subtle danger" (click)="remove(item)">Delete</button>
-    </article>
-  } @empty {
-    <p class="muted">
-      Nothing pending. Ask your assistant in chat — "remind me to call the dentist tomorrow at 9".
-    </p>
-  }
+    </mat-list>
+  </mat-card>
 }

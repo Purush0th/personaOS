@@ -5,39 +5,32 @@
   flex-wrap: wrap;
 
   h1 {
-    font-size: 1.5rem;
+    font: var(--mat-sys-headline-small);
     margin: 0;
   }
 
-  .actions {
-    margin-left: auto;
-    display: flex;
-    gap: 0.5rem;
+  .spacer {
+    flex: 1;
+  }
+
+  .views {
+    border-bottom: none;
   }
 }
 
 .sprint {
-  margin-top: 0.9rem;
+  margin: 0.9rem 0;
 
   .sprint-title {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.6rem;
     flex-wrap: wrap;
-  }
 
-  .state {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border-radius: 999px;
-    padding: 0.1rem 0.5rem;
-    border: 1px solid var(--line);
-
-    &.active {
-      background: #e6f2e8;
-      border-color: #9cc5a4;
-      color: #2f5d37;
+    .key {
+      font: var(--mat-sys-label-medium);
+      color: var(--mat-sys-on-surface-variant);
+      text-decoration: none;
     }
   }
 
@@ -45,251 +38,172 @@
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
-    margin-top: 0.35rem;
-    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-on-surface-variant);
 
-    .warn {
-      color: #8a5a00;
-    }
-  }
-}
-
-.banner {
-  margin: 0.8rem 0 0;
-  padding: 0.55rem 0.8rem;
-  border-left: 3px solid #b26a00;
-  background: rgba(178, 106, 0, 0.08);
-  font-size: 0.9rem;
-
-  &.quiet {
-    border-color: var(--line);
-    background: #f4f4f8;
-  }
-}
-
-.report {
-  margin-top: 1rem;
-
-  h2 {
-    font-size: 1.05rem;
-  }
-
-  .table-wrap {
-    overflow-x: auto;
-  }
-
-  table {
-    border-collapse: collapse;
-    font-size: 0.88rem;
-    min-width: 36rem;
-
-    th,
-    td {
-      text-align: left;
-      padding: 0.35rem 0.8rem 0.35rem 0;
-      border-bottom: 1px solid #ececf2;
+    b {
+      color: var(--mat-sys-on-surface);
     }
 
-    th {
-      color: var(--muted);
-      font-weight: 600;
+    .warn b {
+      color: var(--mat-sys-error);
     }
   }
 }
 
 .columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 0.8rem;
-  margin-top: 1rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
   align-items: start;
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .column {
-  background: #f4f4f8;
-  border-radius: 10px;
+  background: var(--mat-sys-surface-container-low);
+  border-radius: var(--mat-sys-corner-large);
   padding: 0.6rem;
-  min-height: 8rem;
-  border: 2px dashed transparent;
-
-  &.drop {
-    border-color: var(--ink);
-  }
 
   > header {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    margin-bottom: 0.4rem;
+    gap: 0.5rem;
+    padding: 0 0.25rem 0.5rem;
 
     .name {
-      font-weight: 600;
-    }
-
-    .count {
-      font-size: 0.78rem;
-      color: var(--muted);
+      font: var(--mat-sys-title-small);
     }
   }
 
   .wip {
-    font-size: 0.8rem;
-    color: #8a5a00;
-    margin: 0 0 0.4rem;
+    margin: 0 0 0.5rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: var(--mat-sys-corner-small);
+    background: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+    font: var(--mat-sys-body-small);
+  }
+
+  // Keeps an empty column a drop target rather than a 1px line.
+  .drop {
+    min-height: 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .empty {
-    margin: 0.6rem 0.2rem;
+    margin: 0.5rem 0.25rem;
+  }
+
+  .add-button {
+    margin-top: 0.5rem;
+  }
+
+  .add {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+
+    .add-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .points {
+      width: 6.5rem;
+    }
   }
 }
 
 .task {
-  background: #fff;
-  border: 1px solid #e2e2ea;
-  border-radius: 8px;
-  margin-bottom: 0.45rem;
-  padding: 0.45rem 0.55rem;
-  cursor: grab;
+  position: relative;
+  padding: 0.55rem 0.6rem 0.4rem 1.4rem;
 
-  &.dragging {
-    opacity: 0.4;
+  // The handle is a visible grip: dragging anywhere on the card would fight with the link.
+  .drag-handle {
+    position: absolute;
+    left: 0.1rem;
+    top: 0.45rem;
+    color: var(--mat-sys-outline);
+    cursor: grab;
+    touch-action: none;
   }
 
   .open {
     display: block;
-    width: 100%;
-    text-align: left;
-    background: none;
-    color: var(--ink);
-    padding: 0;
-    font-weight: 400;
-    border-radius: 4px;
-  }
+    color: inherit;
+    text-decoration: none;
 
-  .top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
 
-  .key {
-    font-size: 0.72rem;
-    color: var(--muted);
-    font-weight: 600;
-  }
+    .key {
+      font: var(--mat-sys-label-small);
+      color: var(--mat-sys-on-surface-variant);
+    }
 
-  .title {
-    display: block;
-    margin-top: 0.2rem;
-    line-height: 1.3;
+    .title {
+      display: block;
+      margin-top: 0.15rem;
+    }
+
+    &:hover .title {
+      text-decoration: underline;
+    }
   }
 
   .meta {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    margin-top: 0.4rem;
-  }
-
-  .flag {
-    font-size: 0.7rem;
-    color: var(--muted);
-
-    &.warn {
-      color: #8a5a00;
-    }
-  }
-
-  .move {
-    margin-left: auto;
-    font: inherit;
-    font-size: 0.72rem;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: #fff;
-    padding: 0.05rem 0.2rem;
-  }
-}
-
-.add {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-
-  input,
-  select {
-    font: inherit;
-    padding: 0.35rem 0.45rem;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    min-width: 0;
-  }
-
-  .add-row {
-    display: flex;
     gap: 0.35rem;
-
-    select {
-      flex: 1;
-    }
-
-    button {
-      padding: 0.3rem 0.8rem;
-    }
-  }
-}
-
-.add-button {
-  width: 100%;
-  padding: 0.35rem;
-  font-size: 0.85rem;
-}
-
-.hint {
-  font-size: 0.8rem;
-  color: #8a5a00;
-  margin: 0;
-}
-
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(20, 20, 40, 0.35);
-  z-index: 10;
-}
-
-.dialog {
-  position: fixed;
-  z-index: 11;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(28rem, calc(100vw - 2rem));
-  max-height: calc(100vh - 2rem);
-  overflow-y: auto;
-  background: #fff;
-  border-radius: 12px;
-  padding: 1rem 1.2rem;
-  box-sizing: border-box;
-
-  h2 {
-    margin: 0;
-    font-size: 1.1rem;
-  }
-
-  .dialog-actions {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 0.35rem;
 
     .spacer {
       flex: 1;
     }
 
-    .danger {
-      color: var(--danger);
-      border-color: #f0c8c8;
+    .flag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.15rem;
+      font: var(--mat-sys-label-small);
+      color: var(--mat-sys-on-surface-variant);
+
+      &.warn {
+        color: var(--mat-sys-error);
+      }
     }
   }
 }
+
+// While a card is in the air, and the gap it will drop into.
+.cdk-drag-preview {
+  box-shadow: var(--mat-sys-level3);
+  border-radius: var(--mat-sys-corner-medium);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
+.cdk-drop-list-dragging .task:not(.cdk-drag-placeholder) {
+  transition: transform 180ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.banner {
+  margin-top: 1rem;
+}
+

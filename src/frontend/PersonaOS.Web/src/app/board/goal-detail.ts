@@ -1,5 +1,14 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import {
@@ -14,12 +23,26 @@ import {
 import { BrandingService } from '../core/branding.service';
 import { formatGoalRange } from '../core/goal-period';
 import { Goal, GoalsService } from '../core/goals.service';
+import { Confirm } from '../core/confirm';
 import { Discussion } from '../shared/discussion';
 
 /** One goal, full screen, at /board/goals/GOAL-3: its tasks, progress and discussion. */
 @Component({
   selector: 'app-goal-detail',
-  imports: [FormsModule, RouterLink, Discussion],
+  imports: [
+    FormsModule,
+    RouterLink,
+    Discussion,
+    MatButtonModule,
+    MatCardModule,
+    MatChipsModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatProgressBarModule,
+    MatSelectModule,
+  ],
   templateUrl: './goal-detail.html',
   styleUrl: './goal-detail.scss',
 })
@@ -29,10 +52,10 @@ export class GoalDetail implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly branding = inject(BrandingService);
+  private readonly confirm = inject(Confirm);
 
   protected readonly goal = signal<Goal | null>(null);
   protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
   protected readonly editingTitle = signal(false);
   protected readonly editingDescription = signal(false);
   protected readonly addingTask = signal(false);
@@ -60,9 +83,8 @@ export class GoalDetail implements OnInit {
   protected async reload(): Promise<void> {
     try {
       this.goal.set(await this.goalsApi.getByKey(this.key()));
-      this.error.set(null);
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not load that goal.');
+      this.confirm.error(apiError(e).message ?? 'Could not load that goal.');
     } finally {
       this.loading.set(false);
     }
@@ -121,13 +143,21 @@ export class GoalDetail implements OnInit {
   protected async remove(): Promise<void> {
     const goal = this.goal();
     if (!goal) return;
-    const extra = goal.taskCount > 0 ? ` Its ${goal.taskCount} tasks stay on the board without a goal.` : '';
-    if (!confirm(`Delete ${goal.key} “${goal.title}”?${extra}`)) return;
+    const ok = await this.confirm.ask({
+      title: `Delete ${goal.key} “${goal.title}”?`,
+      message: goal.taskCount > 0
+        ? `Its ${goal.taskCount} tasks stay on the board without a goal. This cannot be undone.`
+        : 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+
     try {
       await this.goalsApi.delete(goal.id);
       await this.router.navigate(['/goals']);
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not delete that goal.');
+      this.confirm.error(apiError(e).message ?? 'Could not delete that goal.');
     }
   }
 
@@ -148,7 +178,7 @@ export class GoalDetail implements OnInit {
       await action();
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not save that change.');
+      this.confirm.error(apiError(e).message ?? 'Could not save that change.');
     }
   }
 }

@@ -1,5 +1,10 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+
+import { Confirm } from '../core/confirm';
 import { PushStatus, SettingsService } from '../core/settings.service';
 
 /**
@@ -11,16 +16,16 @@ import { PushStatus, SettingsService } from '../core/settings.service';
  */
 @Component({
   selector: 'app-push-config',
+  imports: [MatButtonModule, MatCardModule, MatIconModule],
   templateUrl: './push-config.html',
   styleUrl: './push-config.scss',
 })
 export class PushConfig implements OnInit {
   private readonly settings = inject(SettingsService);
+  private readonly confirm = inject(Confirm);
 
   protected readonly status = signal<PushStatus | null>(null);
   protected readonly busy = signal(false);
-  protected readonly error = signal<string | null>(null);
-  protected readonly message = signal<string | null>(null);
 
   /** File names only, for display. The contents are held just long enough to upload. */
   protected readonly serviceAccountName = signal<string | null>(null);
@@ -37,14 +42,12 @@ export class PushConfig implements OnInit {
     try {
       this.status.set(await this.settings.getPush());
     } catch {
-      this.error.set('Could not load push notification settings.');
+      this.confirm.error('Could not load push notification settings.');
     }
   }
 
   protected async pick(which: 'serviceAccount' | 'googleServices', event: Event): Promise<void> {
     const file = (event.target as HTMLInputElement).files?.[0];
-    this.error.set(null);
-    this.message.set(null);
     if (!file) return;
 
     const text = await file.text();
@@ -61,20 +64,17 @@ export class PushConfig implements OnInit {
     if (!this.serviceAccountJson || !this.googleServicesJson) return;
 
     this.busy.set(true);
-    this.error.set(null);
-    this.message.set(null);
     try {
       const status = await this.settings.setPush(this.serviceAccountJson, this.googleServicesJson);
       this.status.set(status);
-      this.message.set(
-        `Push notifications are on for project “${status.projectId}”. ` +
+      this.confirm.done(`Push notifications are on for project “${status.projectId}”. ` +
           'Sign in on the phone again for it to register.'
       );
       this.forgetFiles();
     } catch (e: unknown) {
       // The server explains exactly what is wrong — swapped files, mismatched projects, the
       // wrong package name — so show its message rather than a generic failure.
-      this.error.set(
+      this.confirm.error(
         (e as { error?: { error?: string } })?.error?.error ?? 'Could not save the Firebase files.'
       );
     } finally {
@@ -86,14 +86,12 @@ export class PushConfig implements OnInit {
     if (!confirm('Turn off push notifications and delete the stored Firebase key?')) return;
 
     this.busy.set(true);
-    this.error.set(null);
-    this.message.set(null);
     try {
       await this.settings.clearPush();
       this.status.set({ configured: false, projectId: null });
-      this.message.set('Push notifications are off. The Firebase key has been deleted.');
+      this.confirm.done('Push notifications are off. The Firebase key has been deleted.');
     } catch {
-      this.error.set('Could not remove the Firebase key.');
+      this.confirm.error('Could not remove the Firebase key.');
     } finally {
       this.busy.set(false);
     }

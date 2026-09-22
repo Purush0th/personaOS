@@ -1,6 +1,16 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+
+import { Confirm } from '../core/confirm';
 
 import {
   BoardColumn,
@@ -25,17 +35,28 @@ interface Plot {
 /** One sprint, full screen, at /board/sprints/SPRINT-2: how it went and what was in it. */
 @Component({
   selector: 'app-sprint-detail',
-  imports: [FormsModule, RouterLink],
+  imports: [
+    FormsModule,
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatChipsModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatProgressBarModule,
+  ],
   templateUrl: './sprint-detail.html',
   styleUrl: './sprint-detail.scss',
 })
 export class SprintDetail implements OnInit {
   private readonly api = inject(BoardService);
   private readonly route = inject(ActivatedRoute);
+  private readonly confirm = inject(Confirm);
 
   protected readonly detail = signal<SprintDetailView | null>(null);
   protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
   protected readonly editing = signal(false);
 
   name = '';
@@ -77,9 +98,8 @@ export class SprintDetail implements OnInit {
   protected async reload(): Promise<void> {
     try {
       this.detail.set(await this.api.sprint(this.key()));
-      this.error.set(null);
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not load that sprint.');
+      this.confirm.error(apiError(e).message ?? 'Could not load that sprint.');
     } finally {
       this.loading.set(false);
     }
@@ -108,7 +128,13 @@ export class SprintDetail implements OnInit {
 
   protected async start_(): Promise<void> {
     const sprint = this.detail()?.sprint;
-    if (!sprint || !confirm(`Start ${sprint.key} with ${sprint.totalPoints} points?`)) return;
+    if (!sprint) return;
+    const ok = await this.confirm.ask({
+      title: `Start ${sprint.key}?`,
+      message: `${sprint.totalPoints} points are committed when it starts.`,
+      confirmLabel: 'Start sprint',
+    });
+    if (!ok) return;
     await this.change(() => this.api.startSprint(sprint.key));
   }
 
@@ -116,11 +142,14 @@ export class SprintDetail implements OnInit {
     const sprint = this.detail()?.sprint;
     if (!sprint) return;
     const open = sprint.taskCount - sprint.doneTaskCount;
-    if (!confirm(
-      open === 0
-        ? `Complete ${sprint.key}?`
-        : `Complete ${sprint.key}? ${open} unfinished ${open === 1 ? 'task moves' : 'tasks move'} on.`
-    )) return;
+    const ok = await this.confirm.ask({
+      title: `Complete ${sprint.key}?`,
+      message: open === 0
+        ? 'Everything in it is done.'
+        : `${open} unfinished ${open === 1 ? 'task moves' : 'tasks move'} on to the next sprint.`,
+      confirmLabel: 'Complete sprint',
+    });
+    if (!ok) return;
     await this.change(() => this.api.completeSprint(sprint.key, {}));
   }
 
@@ -149,7 +178,7 @@ export class SprintDetail implements OnInit {
       await action();
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(apiError(e).message ?? 'Could not save that change.');
+      this.confirm.error(apiError(e).message ?? 'Could not save that change.');
     }
   }
 }

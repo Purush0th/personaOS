@@ -1,131 +1,81 @@
 :host {
   display: block;
-  min-height: 100vh;
+  height: 100%;
 }
 
-.topbar {
+.shell {
+  height: 100vh;
+}
+
+.nav {
+  width: 15rem;
+  border-right: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface-container-low);
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  // Wrap rather than clip: with every module enabled the nav is six links, which does
-  // not fit beside the brand and Sign out on a phone.
-  flex-wrap: wrap;
-  padding: 0.9rem 1.5rem;
-  background: var(--ink);
-  color: #fff;
+  flex-direction: column;
+
+  .brand {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 1.1rem 1.25rem 0.6rem;
+
+    .product {
+      font: var(--mat-sys-title-medium);
+      letter-spacing: 0.02em;
+    }
+  }
+
+  // Sign out sits at the bottom of the rail, away from the pages.
+  .nav-footer {
+    margin-top: auto;
+    padding: 0.75rem;
+
+    .full {
+      width: 100%;
+    }
+  }
+}
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 
   .product {
-    font-weight: 700;
-    letter-spacing: 0.03em;
-  }
-
-  .nickname {
-    opacity: 0.75;
-    font-size: 0.9rem;
-
-    &::before {
-      content: '· ';
-    }
-  }
-
-  nav {
-    display: flex;
-    gap: 0.35rem;
-    margin-left: 1.5rem;
-
-    a {
-      color: #fff;
-      opacity: 0.75;
-      text-decoration: none;
-      padding: 0.3rem 0.7rem;
-      border-radius: 6px;
-      font-size: 0.92rem;
-
-      &:hover {
-        opacity: 1;
-      }
-
-      &.active {
-        opacity: 1;
-        background: rgba(255, 255, 255, 0.15);
-      }
-    }
-  }
-
-  .signout {
-    margin-left: auto;
-    background: none;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    color: #fff;
-    font-weight: 500;
-    font-size: 0.85rem;
-    padding: 0.35rem 0.8rem;
-  }
-
-  // On a phone the brand and Sign out keep the first row; the nav drops to its own
-  // full-width row and scrolls sideways, so no module is ever unreachable.
-  @media (max-width: 720px) {
-    padding: 0.7rem 1rem;
-    gap: 0.5rem;
-
-    nav {
-      order: 3;
-      width: 100%;
-      margin-left: 0;
-      overflow-x: auto;
-      scrollbar-width: none;
-
-      &::-webkit-scrollbar {
-        display: none;
-      }
-
-      a {
-        white-space: nowrap;
-      }
-    }
+    font: var(--mat-sys-title-medium);
   }
 }
 
 .update-banner {
   display: flex;
   align-items: center;
+  gap: 0.6rem;
   flex-wrap: wrap;
-  gap: 1rem;
-  padding: 0.6rem 1.5rem;
-  background: #fff6e0;
-  border-bottom: 1px solid #f0dfa8;
-  font-size: 0.9rem;
+  margin: 1rem 1.5rem 0;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+
+  span {
+    flex: 1;
+    min-width: 12rem;
+  }
 
   code {
-    background: rgba(0, 0, 0, 0.06);
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.85em;
-  }
-
-  a {
-    color: var(--ink);
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  .dismiss {
-    margin-left: auto;
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-size: 0.9rem;
-    padding: 0.2rem 0.4rem;
   }
 }
 
 .content {
   max-width: 68rem;
   margin: 1.5rem auto;
-  padding: 0 1.5rem;
+  padding: 0 1.5rem 3rem;
 
   @media (max-width: 720px) {
     margin: 1rem auto;
-    padding: 0 1rem;
+    padding: 0 1rem 2rem;
   }
 }

@@ -2,20 +2,39 @@ import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+
+import { Confirm } from '../core/confirm';
 import { ReminderDto, RemindersService } from '../core/reminders.service';
 
 @Component({
   selector: 'app-reminders',
-  imports: [FormsModule, DatePipe],
+  imports: [
+    FormsModule,
+    DatePipe,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatProgressBarModule,
+  ],
   templateUrl: './reminders.html',
   styleUrl: './reminders.scss',
 })
 export class Reminders implements OnInit {
   private readonly reminders = inject(RemindersService);
+  private readonly confirm = inject(Confirm);
 
   protected readonly items = signal<ReminderDto[]>([]);
   protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
   protected readonly includeCompleted = signal(false);
 
   draftMessage = '';
@@ -29,9 +48,8 @@ export class Reminders implements OnInit {
     this.loading.set(true);
     try {
       this.items.set(await this.reminders.list(this.includeCompleted()));
-      this.error.set(null);
     } catch {
-      this.error.set('Could not load reminders.');
+      this.confirm.error('Could not load reminders.');
     } finally {
       this.loading.set(false);
     }
@@ -54,7 +72,7 @@ export class Reminders implements OnInit {
       this.draftDue = '';
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(this.messageFrom(e, 'Could not create that reminder.'));
+      this.confirm.error(this.messageFrom(e, 'Could not create that reminder.'));
     }
   }
 
@@ -63,16 +81,24 @@ export class Reminders implements OnInit {
       await this.reminders.cancel(item.id);
       await this.reload();
     } catch (e: unknown) {
-      this.error.set(this.messageFrom(e, 'Could not cancel that reminder.'));
+      this.confirm.error(this.messageFrom(e, 'Could not cancel that reminder.'));
     }
   }
 
   protected async remove(item: ReminderDto): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Delete this reminder?',
+      message: item.message,
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+
     try {
       await this.reminders.delete(item.id);
       await this.reload();
     } catch {
-      this.error.set('Could not delete that reminder.');
+      this.confirm.error('Could not delete that reminder.');
     }
   }
 
