@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -18,6 +18,7 @@ import { PushStatus, SettingsService } from '../core/settings.service';
   selector: 'app-push-config',
   imports: [MatButtonModule, MatCardModule, MatIconModule],
   templateUrl: './push-config.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './push-config.scss',
 })
 export class PushConfig implements OnInit {

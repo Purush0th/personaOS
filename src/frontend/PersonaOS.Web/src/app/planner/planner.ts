@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -31,6 +31,7 @@ import { PlannerItemDto, PlannerService } from '../core/planner.service';
     MatSelectModule,
   ],
   templateUrl: './planner.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './planner.scss',
 })
 export class Planner implements OnInit {

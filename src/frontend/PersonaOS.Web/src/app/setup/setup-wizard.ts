@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Output, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -34,6 +34,7 @@ interface FeatureOption {
     MatSlideToggleModule,
   ],
   templateUrl: './setup-wizard.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './setup-wizard.scss'
 })
 export class SetupWizard {

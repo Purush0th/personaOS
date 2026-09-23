@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, input, signal } from '@angular/core';
+import { Component, OnInit, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -34,6 +34,7 @@ import {
     MatProgressBarModule,
   ],
   templateUrl: './discussion.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './discussion.scss',
 })
 export class Discussion implements OnInit {
