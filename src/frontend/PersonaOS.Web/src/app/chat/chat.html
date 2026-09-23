@@ -8,7 +8,11 @@
             Using {{ bubble.tool }}…
           </span>
         } @else if (bubble.text) {
-          {{ bubble.text }}
+          @if (bubble.role === 'assistant' && !bubble.isError) {
+            <div class="md" [innerHTML]="bubble.text | markdown"></div>
+          } @else {
+            <span class="plain">{{ bubble.text }}</span>
+          }
         } @else {
           <span class="thinking">…</span>
         }
