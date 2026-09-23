@@ -22,11 +22,7 @@ public class ChatServiceClaimCheckTests
         var db = TestDbContext.Create();
         var config = new FakeInstanceConfigService(db);
         var streamer = new FakeAiMessageStreamer();
-        var registry = new PersonaToolRegistry(tools, config, NullLogger<PersonaToolRegistry>.Instance);
-        var chat = new ChatService(
-            db, config, new FakeSystemPromptBuilder(), new FakeAiMessageStreamerFactory(streamer), registry,
-            NullLogger<ChatService>.Instance);
-        return (db, chat, streamer);
+        return (db, TestChat.Create(db, config, streamer, tools), streamer);
     }
 
     private static async Task<List<ChatStreamEvent>> CollectAsync(IAsyncEnumerable<ChatStreamEvent> stream)

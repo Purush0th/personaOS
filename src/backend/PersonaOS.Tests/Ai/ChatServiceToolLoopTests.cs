@@ -21,11 +21,7 @@ public class ChatServiceToolLoopTests
         var db = TestDbContext.Create();
         var config = new FakeInstanceConfigService(db);
         var streamer = new FakeAiMessageStreamer();
-        var registry = new PersonaToolRegistry(tools, config, NullLogger<PersonaToolRegistry>.Instance);
-        var chat = new ChatService(
-            db, config, new FakeSystemPromptBuilder(), new FakeAiMessageStreamerFactory(streamer), registry,
-            NullLogger<ChatService>.Instance);
-        return (db, chat, streamer);
+        return (db, TestChat.Create(db, config, streamer, tools), streamer);
     }
 
     private static async Task<List<ChatStreamEvent>> CollectAsync(IAsyncEnumerable<ChatStreamEvent> stream)
@@ -143,10 +139,7 @@ public class ChatServiceToolLoopTests
 
         var streamer = new FakeAiMessageStreamer();
         streamer.EnqueueText("ok");
-        var chat = new ChatService(
-            db, config, new FakeSystemPromptBuilder(), new FakeAiMessageStreamerFactory(streamer),
-            new PersonaToolRegistry([docs], config, NullLogger<PersonaToolRegistry>.Instance),
-            NullLogger<ChatService>.Instance);
+        var chat = TestChat.Create(db, config, streamer, docs);
 
         await CollectAsync(chat.StreamChatAsync(null, "Read my notes"));
 
@@ -191,11 +184,7 @@ public class ChatServiceToolLoopTests
     {
         var db = TestDbContext.Create();
         var config = new FakeInstanceConfigService(db, apiKey: null);
-        var chat = new ChatService(
-            db, config, new FakeSystemPromptBuilder(),
-            new FakeAiMessageStreamerFactory(new FakeAiMessageStreamer()),
-            new PersonaToolRegistry([], config, NullLogger<PersonaToolRegistry>.Instance),
-            NullLogger<ChatService>.Instance);
+        var chat = TestChat.Create(db, config, new FakeAiMessageStreamer());
 
         var events = await CollectAsync(chat.StreamChatAsync(null, "Hi"));
 
