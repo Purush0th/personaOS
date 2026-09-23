@@ -641,6 +641,12 @@ class PersonaOsApi {
   Future<void> updateSettings(Map<String, Object?> changes) =>
       _put('/api/setup', changes);
 
+  /// What the assistant knows about the user; sent with every message.
+  Future<String> getAboutMe() async =>
+      ((await _get('/api/profile')) as Map<String, dynamic>)['aboutMe'] as String? ?? '';
+
+  Future<void> updateAboutMe(String aboutMe) => _put('/api/profile', {'aboutMe': aboutMe});
+
   Future<ConnectionTest> testConnection(Map<String, Object?> settings) async {
     final data = await _post('/api/setup/test', settings);
     return ConnectionTest.fromJson(data as Map<String, dynamic>);

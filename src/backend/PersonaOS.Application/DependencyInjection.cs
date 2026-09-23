@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<IReminderService, ReminderService>();
         services.AddScoped<IReminderAlarmPublisher, ReminderAlarmPublisher>();
         services.AddScoped<IDocumentService, DocumentService>();
+        services.AddScoped<PersonaOS.Application.Profile.IUserProfileService, PersonaOS.Application.Profile.UserProfileService>();
         services.AddScoped<PersonaOS.Application.Push.IPushConfigService, PersonaOS.Application.Push.PushConfigService>();
         services.AddScoped<IReminderDispatcher, ReminderDispatcher>();
         services.AddSingleton(TimeProvider.System);
@@ -70,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<IPersonaTool, CancelReminderTool>();
         services.AddScoped<IPersonaTool, ListDocumentsTool>();
         services.AddScoped<IPersonaTool, ReadDocumentTool>();
+        services.AddScoped<IPersonaTool, PersonaOS.Application.Profile.RememberAboutUserTool>();
 
         return services;
     }

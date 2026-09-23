@@ -18,6 +18,14 @@ export interface CurrentSettings {
   defaultContextTokens: number;
 }
 
+export interface UserProfile {
+  aboutMe: string;
+  updatedAtUtc: string;
+}
+
+/** The longest "about you" the server accepts: it is sent with every message. */
+export const ABOUT_ME_MAX_LENGTH = 2000;
+
 /** Only the fields present are changed; omit the key to leave it untouched. */
 export interface SettingsUpdate {
   assistantNickname?: string;
@@ -42,6 +50,15 @@ export class SettingsService {
 
   update(update: SettingsUpdate): Promise<{ message: string }> {
     return firstValueFrom(this.http.put<{ message: string }>('/api/setup', update));
+  }
+
+  /** What the assistant knows about the user; sent with every message. */
+  getProfile(): Promise<UserProfile> {
+    return firstValueFrom(this.http.get<UserProfile>('/api/profile'));
+  }
+
+  updateProfile(aboutMe: string): Promise<UserProfile> {
+    return firstValueFrom(this.http.put<UserProfile>('/api/profile', { aboutMe }));
   }
 
   /** Verifies the provider is reachable and answering, without saving. Omitted fields fall
