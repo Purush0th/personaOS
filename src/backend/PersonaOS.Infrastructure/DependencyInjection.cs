@@ -1,10 +1,11 @@
-using Microsoft.AspNetCore.DataProtection;
+﻿using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Ai;
+using PersonaOS.Application.Ai.Prompts;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Infrastructure.Ai;
@@ -62,6 +63,8 @@ public static class DependencyInjection
         services.AddSingleton<AnthropicMessageStreamer>();
         services.AddSingleton<OpenAiCompatibleMessageStreamer>();
         services.AddSingleton<IAiMessageStreamerFactory, AiMessageStreamerFactory>();
+        // Prompt fragments an installation has edited; everything else is the shipped default.
+        services.AddSingleton<IPromptOverrideSource, FilePromptOverrideSource>();
         // Push: bring-your-own Firebase, configured from the admin page at runtime. One sender
         // instance serves both roles — the app sends through it, and uploading a key reconfigures
         // it — so the two can never disagree about whether push is on. Until a key is uploaded it

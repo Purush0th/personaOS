@@ -1,5 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using PersonaOS.Application.Ai;
+using PersonaOS.Application.Ai.Prompts;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Auth;
 using PersonaOS.Application.Board;
@@ -24,6 +25,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IInstanceConfigService, InstanceConfigService>();
+        services.AddSingleton<IPromptLibrary, PromptLibrary>();
         services.AddScoped<ISystemPromptBuilder, SystemPromptBuilder>();
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<IGoalService, GoalService>();

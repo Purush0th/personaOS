@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
@@ -100,7 +100,7 @@ public class PersonaToolRegistry(
         var config = await configService.GetOrCreateAsync(ct);
         return tools
             .Where(t => t.RequiredFeature is null
-                || (config.Features.TryGetValue(t.RequiredFeature, out var on) && on))
+                || config.IsEnabled(t.RequiredFeature))
             .ToList();
     }
 

@@ -1,0 +1,8 @@
+---
+name: modules
+description: The modules switched on for this instance, so the assistant does not offer features the admin has turned off. Their tools and endpoints are gated anyway.
+inputs:
+  enabled: the enabled modules, as one comma-separated phrase (empty when none)
+  disabled: the switched-off modules, the same way
+---
+Enabled on this instance: {{#enabled}}{{enabled}}{{/enabled}}{{^enabled}}nothing beyond chat{{/enabled}}.{{#disabled}} Switched off, so do not offer it: {{disabled}}.{{/disabled}}

@@ -122,6 +122,29 @@ Then use `qwen2.5-3b-16k` as the model in Settings. For every model at once, set
 the size no longer fits your GPU it will show part on CPU, and generation slows to a crawl —
 drop to `8192` in that case.
 
+## Editing the assistant's instructions
+
+The system prompt is built from small text files, one per topic: `identity`, `tool-rules`,
+`product`, `modules`, `clock`, `goals`, `board`, `planner` and `reminders`. The defaults ship
+inside the server, in
+[`src/backend/PersonaOS.Application/Ai/Prompts/Fragments`](src/backend/PersonaOS.Application/Ai/Prompts/Fragments).
+Each file has a short header saying what it is for and which values it can use, then the text.
+
+To change one, copy it into the `prompts` folder of your data volume under the same name and
+edit it:
+
+```bash
+mkdir -p prompts
+curl -fsSL https://raw.githubusercontent.com/Purush0th/personaOS/dev/src/backend/PersonaOS.Application/Ai/Prompts/Fragments/tool-rules.prompty -o prompts/tool-rules.prompty
+# edit prompts/tool-rules.prompty, then:
+docker compose cp prompts/. api:/app/data/prompts
+```
+
+The next message uses it; no restart needed. Values go in as `{{nickname}}`; a block in
+`{{#goals}} … {{/goals}}` appears only when there is something to show, once per item as
+`{{.}}`. If an edited file has a mistake, such as a misspelt value, the server logs a warning and
+uses the default instead, so chat keeps working. Delete the file to go back to the default.
+
 ## Reaching it from your phone
 
 By default PersonaOS binds to **loopback only** — it is not exposed to your network. The
