@@ -1055,12 +1055,17 @@ real Anthropic key).
       against the border got `mat-card-content`. Card subtitles use body text, not a second bold
       title. Audit command for leftovers:
       `grep -rnE "var\(--(muted|line|ink)|#[0-9a-f]{3,6}\b" --include=*.scss src/app` (empty).
-- [ ] **Chat renders Markdown as raw text.** Replies arrive with `**bold**`, backticks and `-`
-      lists shown literally. Needs a Markdown renderer with sanitising (e.g. `marked` plus
-      Angular's sanitizer, or `ngx-markdown`); weigh the bundle cost, ideally load it with the
-      chat route only.
-- [ ] **Chat page scrolls twice on a phone.** `chat.scss` sizes the page `calc(100vh - 6rem)`,
-      which ignores the 64px handset toolbar, so the page and the message list both scroll.
+- [x] **Chat renders Markdown** (2026-09-23). Replies showed `**bold**`, backticks and `-`
+      lists literally. `shared/markdown.pipe.ts` renders them with `marked` (GFM, single line
+      breaks kept), escapes any raw HTML the model writes instead of passing it through, opens
+      links in a new tab with `noopener`, and still goes through Angular's sanitizer via
+      `[innerHTML]`. Loaded with the chat route only, so the first download is unchanged. The
+      user's own messages stay plain text. Spec covers rendering, escaping and link attributes.
+- [x] **Chat page no longer scrolls twice on a phone** (2026-09-23). `chat.scss` sized the page
+      `calc(100vh - 6rem)`, ignoring the 56px handset toolbar. The shell's content area is now a
+      flex column on the chat route (`.mat-drawer-content:has(app-chat)` in `styles.scss`), and
+      the page takes the height left over, so only the message list scrolls. Measured at 375x812
+      and 1280x720: page scroll height equals its client height.
 - [ ] **Web first-load budget.** `ng build` warns: the initial bundle is ~713 kB against a
       500 kB budget (578 kB after the Material commit, +8 kB for the history nav, +75 kB raw,
       ~18 kB gzipped, for `MatMenu` in the account footer, +58 kB for app-wide
