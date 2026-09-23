@@ -351,7 +351,11 @@ stops being code. Estimates assume one focused session each, tests kept green th
       `summarize-input` fragments, 1,200 characters at most) and appended to the system prompt
       (`conversation-summary`). When a summary is needed the window is cut to 60% of its room,
       so one summary serves several turns. A failed or slow summary never blocks the reply.
-- [ ] UserProfile edit endpoint + UI (entity exists; no API surface yet)
+- [x] **"About you": the user profile gets an API, a screen and a tool** (2026-09-23).
+      `UserProfileService` + `GET/PUT /api/profile`; 2,000 characters at most, since it is sent
+      with every message. Web Settings and the phone's settings have an "About you" field, saved
+      only when it changed. New `remember_about_user` tool: "remember that I'm vegetarian" adds
+      the fact on its own line (never twice), behind a card like every write.
 
 ## Phase 2 — Goals (Y/Q/M)
 

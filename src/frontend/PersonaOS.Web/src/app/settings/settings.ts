@@ -13,7 +13,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { AI_PROVIDERS, aiProvider } from '../core/ai-providers';
 import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
-import { SettingsService, SettingsUpdate } from '../core/settings.service';
+import { ABOUT_ME_MAX_LENGTH, SettingsService, SettingsUpdate } from '../core/settings.service';
 import { PushConfig } from './push-config';
 
 /** Module keys the server accepts; unknown keys are ignored server-side. */
@@ -62,6 +62,10 @@ export class Settings implements OnInit {
   features: Record<string, boolean> = {};
   /** Empty means the model's default. */
   contextTokens: number | null = null;
+  aboutMe = '';
+  /** As loaded, so saving only writes the profile when it changed. */
+  private savedAboutMe = '';
+  protected readonly aboutMeMax = ABOUT_ME_MAX_LENGTH;
 
   protected get selected() {
     return aiProvider(this.provider);
@@ -97,7 +101,8 @@ export class Settings implements OnInit {
 
   async ngOnInit(): Promise<void> {
     try {
-      const current = await this.settings.get();
+      const [current, profile] = await Promise.all([this.settings.get(), this.settings.getProfile()]);
+      this.aboutMe = this.savedAboutMe = profile.aboutMe;
       this.nickname = current.assistantNickname;
       this.persona = current.personaTemplate;
       this.provider = current.aiProvider;
@@ -133,6 +138,10 @@ export class Settings implements OnInit {
 
     try {
       const result = await this.settings.update(update);
+      if (this.aboutMe.trim() !== this.savedAboutMe) {
+        this.savedAboutMe = (await this.settings.updateProfile(this.aboutMe)).aboutMe;
+        this.aboutMe = this.savedAboutMe;
+      }
       this.apiKey = '';
       this.hasKey.set(true);
       this.confirm.done(result.message);
