@@ -18,23 +18,18 @@ public class AnthropicMessageStreamer : IAiMessageStreamer
     private const long MaxOutputTokens = 16000;
 
     public async IAsyncEnumerable<AiStreamChunk> StreamAsync(
-        string apiKey,
-        string model,
-        string? baseUrl,
-        string systemPrompt,
-        IReadOnlyList<AiChatTurn> turns,
-        IReadOnlyList<AiToolDefinition> tools,
-        [EnumeratorCancellation] CancellationToken ct = default)
+        AiRequest request, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        // baseUrl is for OpenAI-compatible providers; Anthropic uses its default endpoint.
-        var client = new AnthropicClient { ApiKey = apiKey };
+        // The base URL and model options are for local servers; Anthropic uses its own endpoint
+        // and manages context itself.
+        var client = new AnthropicClient { ApiKey = request.ApiKey };
         var parameters = new MessageCreateParams
         {
-            Model = model,
+            Model = request.Model,
             MaxTokens = MaxOutputTokens,
-            System = systemPrompt,
-            Messages = turns.Select(ToMessageParam).ToList(),
-            Tools = tools.Count > 0 ? tools.Select(ToSdkTool).ToList() : null,
+            System = request.SystemPrompt,
+            Messages = request.Turns.Select(ToMessageParam).ToList(),
+            Tools = request.Tools.Count > 0 ? request.Tools.Select(ToSdkTool).ToList() : null,
         };
 
         // Tool-use inputs arrive as partial-JSON deltas per content block; a call is

@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<ISystemPromptBuilder, SystemPromptBuilder>();
         services.AddScoped<ToolCallPipeline>();
         services.AddScoped<ReplyPipeline>();
+        services.AddSingleton<PersonaOS.Application.Ai.History.ConversationSummarizer>();
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<IGoalService, GoalService>();
         services.AddScoped<IBoardService, BoardService>();

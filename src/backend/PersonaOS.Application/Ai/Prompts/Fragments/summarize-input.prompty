@@ -1,0 +1,18 @@
+---
+name: summarize-input
+description: What the summarising model is given - the summary so far, if any, and the messages to fold into it.
+inputs:
+  previous: the summary written on an earlier turn (empty the first time)
+  transcript: the messages leaving the window, "User: …" and "Assistant: …"
+---
+{{#previous}}
+Summary so far:
+{{previous}}
+
+Continue it with these later messages:
+{{/previous}}
+{{^previous}}
+Summarise these messages:
+{{/previous}}
+
+{{transcript}}

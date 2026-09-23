@@ -13,6 +13,15 @@ public class Conversation
 
     public string Title { get; set; } = "New conversation";
 
+    /// <summary>
+    /// What the conversation said before the messages the model still sees, written by the model
+    /// when older messages leave the history window. Null until a conversation grows that long.
+    /// </summary>
+    public string? Summary { get; set; }
+
+    /// <summary>The newest message <see cref="Summary"/> covers.</summary>
+    public long? SummarizedThroughMessageId { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 

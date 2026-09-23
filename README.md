@@ -37,8 +37,11 @@ rebuild:
 
 - **Anthropic (Claude)** — bring your own [API key](https://console.anthropic.com/); you pay
   Anthropic directly for usage.
-- **OpenAI-compatible** — one setting (a base URL) covers **OpenAI, local Ollama, Groq,
-  OpenRouter, LM Studio**, and more. Local models like Ollama are **free and need no key**.
+- **Ollama** — local models, **free and keyless**, through Ollama's own API. PersonaOS tells
+  it how much context to load and to skip a thinking model's reasoning on every request, which
+  its OpenAI-compatible endpoint cannot do.
+- **OpenAI-compatible** — one setting (a base URL) covers **OpenAI, Groq, OpenRouter, LM
+  Studio**, and more.
 
 A **"Test connection"** button verifies the provider, model, and key before you save.
 
@@ -75,11 +78,17 @@ That's it — no database to set up; PersonaOS uses embedded SQLite.
 Run PersonaOS with no API key and no cloud calls at all:
 
 ```bash
-ollama pull qwen2.5          # a tool-capable local model
+ollama pull qwen2.5:3b-instruct     # a tool-capable local model
 ```
 
-In the Setup Wizard pick **OpenAI-compatible**, base URL `http://host.docker.internal:11434/v1`
-(so the container reaches Ollama on your host), model `qwen2.5`, and leave the key blank.
+In the Setup Wizard pick **Ollama**, base URL `http://host.docker.internal:11434` (so the
+container reaches Ollama on your host), model `qwen2.5:3b-instruct`, and leave the key blank.
+
+PersonaOS adjusts to the model it is given. Small models (1.5B parameters and under) get a
+shorter prompt and fewer tool rounds; thinking models such as Qwen 3 are told not to think
+before every reply; history is trimmed to what fits the model's context, with older messages
+kept as a short summary; and a model that goes silent ends the turn with an explanation instead
+of leaving a spinner running.
 
 #### Choosing a local model
 
@@ -99,10 +108,15 @@ Size matters more than it looks. Scored with `scripts/model-check.ps1` on one ma
 
 **`qwen2.5:3b-instruct` is a good default.** Below 3B a model starts answering "what are my
 tasks today" out of the wrong tool and inventing item keys. Qwen 3 reasons before every reply,
-which multiplies latency on a tool turn; `/no_think` does not reach it through Ollama's
-OpenAI-compatible endpoint.
+which multiplies latency on a tool turn; the **Ollama** provider switches that off (`/no_think`
+in the prompt does not reach it through Ollama's OpenAI-compatible endpoint).
 
 #### Give the model enough context
+
+With the **Ollama** provider this is handled for you: every request asks for a 16,384-token
+context (8,192 for small models), and Settings has a **Context size** field to change it. The
+rest of this section is for Ollama reached through the **OpenAI-compatible** provider, which
+cannot pass a context size.
 
 Ollama sizes a model's context from its own default, which is often **4,096 tokens** — smaller
 than a PersonaOS request, which carries the system prompt, the tool definitions and your live
@@ -125,7 +139,9 @@ drop to `8192` in that case.
 ## Editing the assistant's instructions
 
 The system prompt is built from small text files, one per topic: `identity`, `tool-rules`,
-`product`, `modules`, `clock`, `goals`, `board`, `planner` and `reminders`. The defaults ship
+`product`, `modules`, `clock`, `goals`, `board`, `planner` and `reminders`. Small models get the
+`.compact` versions where one exists (`tool-rules.compact`, `product.compact`,
+`board.compact`), and you can add your own `<name>.compact.prompty` too. The defaults ship
 inside the server, in
 [`src/backend/PersonaOS.Application/Ai/Prompts/Fragments`](src/backend/PersonaOS.Application/Ai/Prompts/Fragments).
 Each file has a short header saying what it is for and which values it can use, then the text.

@@ -107,7 +107,11 @@ public class SystemPromptBuilderTests
     {
         // Measured on the owner's box: 626 generated tokens for a one-sentence answer, paid again
         // at every step of a tool turn — about 15 seconds per reply.
-        var prompt = await BuildAsync(c => c.AiModel = model);
+        var prompt = await BuildAsync(c =>
+        {
+            c.AiProvider = InstanceConfig.Providers.OpenAiCompatible;
+            c.AiModel = model;
+        });
 
         Assert.StartsWith("/no_think", prompt);
     }
@@ -245,6 +249,26 @@ public class SystemPromptBuilderTests
         Assert.DoesNotContain("\n\n\n", prompt);
         // The board's rules stand on their own, with no sprint to describe.
         Assert.Contains("The sprint board works like Scrum", prompt);
+    }
+
+    [Fact]
+    public async Task A_small_model_gets_the_short_rules_and_a_capable_one_the_full_ones()
+    {
+        var small = await BuildAsync(c =>
+        {
+            c.AiProvider = InstanceConfig.Providers.Ollama;
+            c.AiModel = "qwen2.5:0.5b";
+        });
+        var capable = await BuildAsync(c =>
+        {
+            c.AiProvider = InstanceConfig.Providers.Ollama;
+            c.AiModel = "qwen2.5:3b-instruct";
+        });
+
+        Assert.Contains("Never ask the user to type \"yes\", \"no\" or \"confirm\"", small);
+        Assert.DoesNotContain("When the user wants to plan or review a sprint", small);
+        Assert.True(small.Length < capable.Length / 2, $"compact {small.Length} vs full {capable.Length}");
+        Assert.Contains("When the user wants to plan or review a sprint", capable);
     }
 
     [Fact]

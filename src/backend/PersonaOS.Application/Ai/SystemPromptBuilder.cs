@@ -1,4 +1,5 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using PersonaOS.Application.Ai.Models;
 using PersonaOS.Application.Ai.Prompts;
 using PersonaOS.Application.Common;
 using PersonaOS.Application.Common.Interfaces;
@@ -43,18 +44,21 @@ public class SystemPromptBuilder(
         var config = await configService.GetOrCreateAsync(ct);
         var today = UserClock.Today(config.TimeZone);
         var sections = new List<string>();
+        var model = ModelProfiles.For(config);
+        // A small model gets the compact wording of the fragments that have one.
+        var fragments = new Fragments(prompts, model.Prompt == PromptVariant.Compact ? "compact" : null);
 
-        // Qwen3 skips its reasoning pass when it sees this. Through Ollama's OpenAI-compatible
-        // endpoint it changed nothing measurable; kept because providers that read it cost nothing.
-        if (ModelTraits.ThinksUnlessTold(config.AiModel)) sections.Add(ModelTraits.NoThink);
+        // Qwen3 skips its reasoning pass when it sees this; the native Ollama adapter also sends
+        // think: false, which is the switch that measurably works.
+        if (model.Thinks) sections.Add(ModelProfiles.NoThink);
 
-        sections.Add(Render("identity", ("nickname", config.AssistantNickname)));
-        sections.Add(Render("tool-rules"));
-        sections.Add(Render("product",
+        sections.Add(fragments.Render("identity", ("nickname", config.AssistantNickname)));
+        sections.Add(fragments.Render("tool-rules"));
+        sections.Add(fragments.Render("product",
             ("nickname", config.AssistantNickname),
             ("projectUrl", PersonaOsProject.Url),
             ("releasesUrl", PersonaOsProject.ReleasesUrl)));
-        sections.Add(Render("modules",
+        sections.Add(fragments.Render("modules",
             ("enabled", string.Join(", ", ModuleLabels.Where(m => config.IsEnabled(m.Key)).Select(m => m.Label))),
             ("disabled", string.Join(", ", ModuleLabels.Where(m => !config.IsEnabled(m.Key)).Select(m => m.Label)))));
 
@@ -63,17 +67,17 @@ public class SystemPromptBuilder(
         var profile = await db.UserProfile.AsNoTracking().FirstOrDefaultAsync(ct);
         if (!string.IsNullOrWhiteSpace(profile?.AboutMe)) sections.Add("About the user:\n" + profile.AboutMe.Trim());
 
-        sections.Add(Render("clock", ("timeZone", config.TimeZone), ("today", today.ToString("yyyy-MM-dd"))));
+        sections.Add(fragments.Render("clock", ("timeZone", config.TimeZone), ("today", today.ToString("yyyy-MM-dd"))));
 
-        if (config.IsEnabled(InstanceConfig.Modules.Goals)) sections.Add(await GoalsAsync(ct));
-        if (config.IsEnabled(InstanceConfig.Modules.Board)) sections.Add(await BoardAsync(config, ct));
-        if (config.IsEnabled(InstanceConfig.Modules.Planner)) sections.Add(await PlannerAsync(today, ct));
-        if (config.IsEnabled(InstanceConfig.Modules.Reminders)) sections.Add(await RemindersAsync(config, ct));
+        if (config.IsEnabled(InstanceConfig.Modules.Goals)) sections.Add(await GoalsAsync(fragments, ct));
+        if (config.IsEnabled(InstanceConfig.Modules.Board)) sections.Add(await BoardAsync(fragments, config, ct));
+        if (config.IsEnabled(InstanceConfig.Modules.Planner)) sections.Add(await PlannerAsync(fragments, today, ct));
+        if (config.IsEnabled(InstanceConfig.Modules.Reminders)) sections.Add(await RemindersAsync(fragments, config, ct));
 
         return string.Join("\n\n", sections.Where(s => s.Length > 0));
     }
 
-    private async Task<string> GoalsAsync(CancellationToken ct)
+    private async Task<string> GoalsAsync(Fragments fragments, CancellationToken ct)
     {
         var goals = await db.Goals.AsNoTracking()
             .Where(g => g.Status == GoalStatuses.Active)
@@ -83,20 +87,20 @@ public class SystemPromptBuilder(
 
         return goals.Count == 0
             ? string.Empty
-            : Render("goals", ("goals", goals.Select(g => $"{ItemKeys.Goal(g.Number)} {g.Title} ({g.PeriodType})").ToList()));
+            : fragments.Render("goals", ("goals", goals.Select(g => $"{ItemKeys.Goal(g.Number)} {g.Title} ({g.PeriodType})").ToList()));
     }
 
     /// <summary>
     /// The board rules, plus the running (or next planned) sprint in brief. Read straight from the
     /// database so building a prompt never advances the sprint cycle as a side effect.
     /// </summary>
-    private async Task<string> BoardAsync(InstanceConfig config, CancellationToken ct)
+    private async Task<string> BoardAsync(Fragments fragments, InstanceConfig config, CancellationToken ct)
     {
         var sprint = await db.Sprints.AsNoTracking()
             .Where(s => s.Status != SprintStatuses.Closed)
             .OrderBy(s => s.Status == SprintStatuses.Active ? 0 : 1).ThenBy(s => s.Number)
             .FirstOrDefaultAsync(ct);
-        if (sprint is null) return Render("board", ("sprint", null), ("tasks", null));
+        if (sprint is null) return fragments.Render("board", ("sprint", null), ("tasks", null));
 
         var tasks = await db.BoardTasks.AsNoTracking()
             .Where(t => t.SprintId == sprint.Id)
@@ -117,10 +121,10 @@ public class SystemPromptBuilder(
             .Select(t => $"{ItemKeys.Task(t.Number)} {t.Title} [{t.Status}, {(t.Points is int p ? $"{p} pts" : "unestimated")}]")
             .ToList();
 
-        return Render("board", ("sprint", summary), ("tasks", open));
+        return fragments.Render("board", ("sprint", summary), ("tasks", open));
     }
 
-    private async Task<string> PlannerAsync(DateOnly today, CancellationToken ct)
+    private async Task<string> PlannerAsync(Fragments fragments, DateOnly today, CancellationToken ct)
     {
         var items = await db.PlannerItems.AsNoTracking()
             .Where(i => i.Date == today)
@@ -132,12 +136,12 @@ public class SystemPromptBuilder(
 
         return items.Count == 0
             ? string.Empty
-            : Render("planner", ("items", items
+            : fragments.Render("planner", ("items", items
                 .Select(i => $"{(i.ScheduledTime is TimeOnly time ? time.ToString("HH:mm") + " " : string.Empty)}{i.Title} [{i.Status}]")
                 .ToList()));
     }
 
-    private async Task<string> RemindersAsync(InstanceConfig config, CancellationToken ct)
+    private async Task<string> RemindersAsync(Fragments fragments, InstanceConfig config, CancellationToken ct)
     {
         var upcoming = await db.Reminders.AsNoTracking()
             .Where(r => r.Status == ReminderStatuses.Pending && r.DueAtUtc >= DateTime.UtcNow)
@@ -148,11 +152,15 @@ public class SystemPromptBuilder(
 
         return upcoming.Count == 0
             ? string.Empty
-            : Render("reminders", ("reminders", upcoming
+            : fragments.Render("reminders", ("reminders", upcoming
                 .Select(r => $"{UserClock.ToLocal(r.DueAtUtc, config.TimeZone):yyyy-MM-dd HH:mm} — {r.Message}")
                 .ToList()));
     }
 
-    private string Render(string fragment, params (string Name, object? Value)[] values) =>
-        prompts.Render(fragment, values.ToDictionary(v => v.Name, v => v.Value));
+    /// <summary>The library, fixed to the prompt variant this model gets.</summary>
+    private readonly record struct Fragments(IPromptLibrary Library, string? Variant)
+    {
+        public string Render(string fragment, params (string Name, object? Value)[] values) =>
+            Library.Render(fragment, values.ToDictionary(v => v.Name, v => v.Value), Variant);
+    }
 }
