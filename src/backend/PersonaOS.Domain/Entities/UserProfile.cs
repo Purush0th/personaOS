@@ -11,7 +11,7 @@ public class UserProfile
 
     public int Id { get; set; } = SingletonId;
 
-    /// <summary>Free-form facts/preferences about the user ("I'm a .NET developer, vegetarian, in Chennai…").</summary>
+    /// <summary>Free-form facts/preferences about the user ("I'm a .NET developer, vegetarian, in Lisbon…").</summary>
     public string AboutMe { get; set; } = string.Empty;
 
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;

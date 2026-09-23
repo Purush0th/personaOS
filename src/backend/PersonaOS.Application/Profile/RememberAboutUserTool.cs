@@ -5,7 +5,7 @@ namespace PersonaOS.Application.Profile;
 
 /// <summary>
 /// Lets the assistant add a lasting fact to what it knows about the user ("I'm vegetarian",
-/// "call me Purush"). Like every write it becomes a card, so nothing is remembered that the user
+/// "call me Sam"). Like every write it becomes a card, so nothing is remembered that the user
 /// did not agree to, and the text stays editable in Settings.
 /// </summary>
 public class RememberAboutUserTool(IUserProfileService profile) : IPersonaTool
@@ -16,7 +16,7 @@ public class RememberAboutUserTool(IUserProfileService profile) : IPersonaTool
 
     public string Description =>
         "Saves one lasting fact or preference about the user, in their words, so every future " +
-        "conversation knows it (e.g. \"is vegetarian\", \"prefers short answers\", \"lives in Chennai\"). " +
+        "conversation knows it (e.g. \"is vegetarian\", \"prefers short answers\", \"lives in Lisbon\"). " +
         "Only for things the user said about themselves and wants kept; not for tasks, goals or reminders.";
 
     public string InputSchemaJson => """
