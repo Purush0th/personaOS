@@ -44,14 +44,19 @@ stops being code. Estimates assume one focused session each, tests kept green th
       and not) before deleting the comparison. Also: `InstanceConfig.IsEnabled` replaces six
       copies of `Features.TryGetValue(...) && on`. README: "Editing the assistant's
       instructions". 353 backend tests.
-- [ ] **B. Guardrails become a pipeline** (~5-7 hours, the riskiest of the three). Two ports:
-      `IToolCallGuard`, run before a call executes or becomes a card, and `IReplyGuard`, run on
-      the finished reply. Move the existing six into it — dedup and `ValidateAsync` and the
-      mutating-tool gate into the first; `LeakedToolCallScrubber`, `ActionClaimDetector`,
-      `CorrectionPreamble` and the empty-reply fallback into the second — each as one class with
-      one test and one log counter, so it is visible how often each fires. `ChatService` keeps
-      orchestration only and should land near half its current size. The 32 tool-loop tests are
-      the safety net; do not change their assertions while refactoring.
+- [x] **B. Guardrails become a pipeline** (2026-09-23). `Application/Ai/Guards`. Tool calls
+      pass `ToolCallPipeline`: `ArgumentEnvelopeGuard` -> `RepeatedCallGuard` ->
+      `ConfirmationGate` (validates, then proposes); each lets a call through, rewrites it, or
+      answers the model so it never runs. Replies pass `ReplyPipeline`: `ThinkingGuard` ->
+      `LeakedToolCallGuard` -> `CorrectionPreambleGuard` -> `ClaimCheckGuard` -> `EmptyReplyGuard`.
+      Shared per-turn state is `ChatTurnState` (answered calls, repeats, proposals, receipts).
+      Every firing goes through `GuardTelemetry`: one log line and the
+      `personaos.chat.guard.fired` counter (meter `PersonaOS.Chat`), tagged guard + model.
+      `ChatService.StreamChatAsync` is orchestration only: history, `RunToolLoopAsync`, one
+      review, at most one corrective round, `PersistAsync`. The 39 chat-loop tests passed
+      unchanged; the rigs now share `TestChat.Create`. One behaviour change: a reply that was only
+      reasoning now gets "I did not manage to write an answer", not the leaked-tool-call message.
+      22 guard tests, including the metric. 375 backend tests.
 - [ ] **C. Model profiles** (~3 hours). Per-model settings instead of treating a 270M model and a
       72B model alike: whether it supports tools, its tool-iteration budget, and which prompt
       variant it gets (a small model needs a short, blunt prompt; a large one can take the full
