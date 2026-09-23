@@ -390,6 +390,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("PhraseBriefs")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("TimeZone")
                         .IsRequired()
                         .HasMaxLength(100)

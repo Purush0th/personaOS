@@ -674,8 +674,17 @@ real Anthropic key).
       Verified live: 403 when disabled, real brief from planner+goals, `force=false` skipped
       as "already ran today", rollup with open items, unknown job 400, audit trail, and both
       briefs appearing in chat history. 11 unit tests cover schedule/idempotency/edge cases.
-- [ ] Optional: model-written phrasing for briefs (must stay a graceful enhancement over the
-      deterministic text, never a dependency).
+- [x] **Model-written phrasing for briefs** (2026-09-23). Off by default; Settings (web, under
+      Modules, when proactive is on) has "Let <nickname> word the briefs"
+      (`InstanceConfig.PhraseBriefs`, migration `PhraseBriefs`). `BriefPhraser` hands the composed
+      brief to the model with the `brief-phrasing` fragment and uses the result only if every
+      bullet's title and every time and number of the original is in it and it is not three
+      times as long; any failure, a 60-second timeout or a changed fact sends the composed text.
+      Live with qwen2.5:3b: one of three rewordings accepted, two refused and sent as composed.
+      Found on the way: forcing a second run of a brief the same day failed with a 500 (the run
+      record is unique per job and day) after the brief had already gone out; the record is now
+      updated instead. Also fixed a flaky metric test (a shared static meter written from
+      parallel tests).
 
 ## Phase 9 — Packaging + open-source release
 

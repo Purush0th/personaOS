@@ -11,6 +11,7 @@ public class ProactiveService(
     IAppDbContext db,
     IInstanceConfigService configService,
     IProactiveBriefComposer composer,
+    IBriefPhraser phraser,
     IPushSender pushSender,
     TimeProvider timeProvider,
     ILogger<ProactiveService> logger) : IProactiveService
@@ -91,6 +92,9 @@ public class ProactiveService(
                 Skipped: "nothing to report");
         }
 
+        // In the assistant's own words when that is switched on and keeps every fact; as composed otherwise.
+        summary = await phraser.PhraseAsync(config, summary, ct) ?? summary;
+
         var pushed = await PushAsync(config, summary, ct);
         await SaveToConversationAsync(jobName, summary, ct);
         await RecordRunAsync(jobName, localDate, pushed, summary, ct);
@@ -145,16 +149,24 @@ public class ProactiveService(
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// One record per job and day. A forced re-run (the manual "run now") updates that day's record
+    /// rather than adding a second one, which the database refuses: it used to fail with a 500 after
+    /// the brief had already been pushed.
+    /// </summary>
     private async Task RecordRunAsync(
         string jobName, DateOnly localDate, bool pushed, string summary, CancellationToken ct)
     {
-        db.ProactiveJobRuns.Add(new ProactiveJobRun
+        var run = await db.ProactiveJobRuns.FirstOrDefaultAsync(r => r.JobName == jobName && r.LocalDate == localDate, ct);
+        if (run is null)
         {
-            JobName = jobName,
-            LocalDate = localDate,
-            Pushed = pushed,
-            Summary = summary,
-        });
+            run = new ProactiveJobRun { JobName = jobName, LocalDate = localDate };
+            db.ProactiveJobRuns.Add(run);
+        }
+
+        run.RanAtUtc = timeProvider.GetUtcNow().UtcDateTime;
+        run.Pushed = pushed;
+        run.Summary = summary;
         await db.SaveChangesAsync(ct);
     }
 

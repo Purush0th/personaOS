@@ -39,7 +39,7 @@ public class ProactiveServiceTests
 
         var push = new FakePushSender();
         var service = new ProactiveService(
-            db, config, new ProactiveBriefComposer(db), push,
+            db, config, new ProactiveBriefComposer(db), new NoBriefPhraser(), push,
             new FixedTimeProvider(Now), NullLogger<ProactiveService>.Instance);
         return (db, push, service, config);
     }
@@ -161,6 +161,23 @@ public class ProactiveServiceTests
 
         Assert.False(second.Ran);
         Assert.Equal("already ran today", second.Skipped);
+    }
+
+    [Fact]
+    public async Task Forcing_a_second_run_the_same_day_updates_that_days_record()
+    {
+        // The database keeps one run per job and day; a second record made "run now" fail with a
+        // 500 after the brief had already gone out.
+        var (db, _, service, _) = Setup();
+        await AddPlannedItemAsync(db, Today);
+
+        await service.RunJobAsync(ProactiveJobs.MorningBrief);
+        await AddPlannedItemAsync(db, Today);
+        var second = await service.RunJobAsync(ProactiveJobs.MorningBrief, force: true);
+
+        Assert.True(second.Ran);
+        var run = Assert.Single(await db.ProactiveJobRuns.ToListAsync());
+        Assert.Equal(second.Summary, run.Summary);
     }
 
     [Fact]

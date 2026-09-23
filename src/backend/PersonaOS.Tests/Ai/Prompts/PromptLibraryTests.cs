@@ -20,11 +20,11 @@ public class PromptLibraryTests
     private PromptLibrary Library() => new(_overrides, _logger);
 
     [Fact]
-    public void Ships_every_fragment_the_chat_uses()
+    public void Ships_every_fragment_the_app_uses()
     {
         Assert.Equal(
             [
-                "board", "board.compact", "clock", "conversation-summary", "goals", "identity", "modules", "planner",
+                "board", "board.compact", "brief-phrasing", "clock", "conversation-summary", "goals", "identity", "modules", "planner",
                 "product", "product.compact", "reminders", "summarize", "summarize-input", "tool-rules", "tool-rules.compact",
             ],
             PromptLibrary.DefaultNames());

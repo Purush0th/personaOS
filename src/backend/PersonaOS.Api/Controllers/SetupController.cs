@@ -46,7 +46,8 @@ public class SetupController(
         Dictionary<string, bool> Features,
         bool HasAnthropicApiKey,
         int? AiContextTokens,
-        int DefaultContextTokens);
+        int DefaultContextTokens,
+        bool PhraseBriefs);
 
     public record UpdateSettingsRequest(
         string? AssistantNickname,
@@ -57,7 +58,8 @@ public class SetupController(
         string? AiBaseUrl,
         string? TimeZone,
         Dictionary<string, bool>? Features,
-        int? AiContextTokens = null);
+        int? AiContextTokens = null,
+        bool? PhraseBriefs = null);
 
     /// <summary>
     /// Provider settings to test. Any omitted field falls back to what's stored, so the
@@ -141,7 +143,8 @@ public class SetupController(
             HasAnthropicApiKey: !string.IsNullOrEmpty(config.AnthropicApiKeyEncrypted),
             config.AiContextTokens,
             // What applies when the field is left empty, so the page can show it as the hint.
-            DefaultContextTokens: ModelProfiles.For(config.AiProvider, config.AiModel).ContextTokens));
+            DefaultContextTokens: ModelProfiles.For(config.AiProvider, config.AiModel).ContextTokens,
+            config.PhraseBriefs));
     }
 
     /// <summary>Edit settings after setup. Admin JWT required. Only provided fields change.</summary>
@@ -179,6 +182,8 @@ public class SetupController(
                 c.TimeZone = resolvedTimeZone;
             if (request.Features is not null)
                 ApplyFeatureToggles(c, request.Features);
+            if (request.PhraseBriefs is bool phrase)
+                c.PhraseBriefs = phrase;
         }, ct);
 
         return Ok(new { message = "Settings updated." });

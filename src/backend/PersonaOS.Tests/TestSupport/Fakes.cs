@@ -390,6 +390,13 @@ public static class TestChat
     }
 }
 
+/// <summary>Briefs go out as composed: the default, and what every brief test not about rewording wants.</summary>
+public class NoBriefPhraser : PersonaOS.Application.Proactive.IBriefPhraser
+{
+    public Task<string?> PhraseAsync(InstanceConfig config, string brief, CancellationToken ct = default) =>
+        Task.FromResult<string?>(null);
+}
+
 /// <summary>The real prompt library over the shipped fragments, as the app runs it.</summary>
 public static class TestPrompts
 {
