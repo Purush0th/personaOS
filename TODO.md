@@ -191,21 +191,24 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       instead: keep the system prompt whole, drop the oldest turns until the request fits a share
       of the model's context, and leave out replies that were only a fallback or only reasoning,
       which teach the next turn nothing. Roughly 1-2 hours.
-- [ ] **"I've created a goal called Learn Rust for you" — said above an unconfirmed card**
-      (2026-09-22, qwen2.5:3b-instruct). The claim check is skipped whenever the turn proposed
-      something, because "I've proposed a reminder" is honest. A past-tense claim is not, and the
-      user is told the thing exists while the card still waits. Worth checking done-tense claims
-      even when a proposal exists, minus the proposing verbs (propose, prepare, draft, set up a
-      card); costs one corrective round when it fires.
-- [ ] **A reply about the user's data when no read tool ran in that turn.** Seen with a 0.5B:
-      "check again" and "anything in the todo" were answered from its own earlier message, and
-      one turn announced TASK-6 as completed with no tool call and no card. Nothing was written,
-      so the confirmation gate held, but the user was told something untrue. Consider a quiet
-      "not checked against your data" note, the way an unverified claim is marked. Judged noisy
-      and imperfect when raised; recorded rather than built.
-- [ ] The assistant tells the user to reply "yes" or "no" to a confirm card, though the prompt
-      says the card has buttons. Small models ignore the rule. Consider rewriting that sentence
-      out of the reply the way the correction preamble is stripped.
+- [x] **"I've created a goal called Learn Rust for you" above an unconfirmed card** (2026-09-23).
+      `ClaimCheckGuard` now also runs when the turn proposed something, using
+      `ActionClaimDetector.FindDoneClaim`: done-tense claims only, and never a sentence about the
+      card itself (card, below, prepared, drafted, waiting, pending). It costs one corrective round,
+      with its own instruction ("describe the change as proposed, not done; do not call the tool
+      again"). No "nothing was saved" note in this case: the card is right there.
+- [x] **A reply about the user's data that is not true** (2026-09-23). The "no read tool ran"
+      heuristic stayed noisy: the prompt already carries today's goals, sprint and planner, so an
+      answer from it is legitimate. Built the checkable half instead: `ItemReferenceGuard` looks up
+      every GOAL-n, TASK-n and SPRINT-n the reply names, and the ones that do not exist are stored
+      (`ChatMessage.UnknownItems`, migration `ChatMessageUnknownItems`) and shown under the reply
+      on web and phone ("This reply mentions TASK-6, which does not exist"), spoken in hands-free.
+      Invented keys are what small models were seen producing.
+- [x] **"Reply yes to confirm" above a card with buttons** (2026-09-23). `CardInstructionGuard`,
+      only when the turn proposed something: sentences telling the user to answer in words ("reply
+      'yes'", "just say confirm", "(yes/no)", "yes or no") are replaced with "Use the Confirm
+      or Discard button below." The word must follow the verb, so "tell me if you want no
+      reminders" is left alone. The prompt rule now names yes and no too.
 - [x] **Goals have a start and an end date** (2026-09-22, owner's rules). A goal starts on any
       day the user picks, future ones included, and its type bounds the end: a month runs at most
       31 days, a quarter at most 90, a year always ends on 31 December of its start year — both

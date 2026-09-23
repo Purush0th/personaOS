@@ -18,6 +18,7 @@ class ChatEvent {
     this.actions,
     this.pending,
     this.unverifiedClaim = false,
+    this.unknownItems = const [],
   });
 
   factory ChatEvent.fromJson(Map<String, dynamic> json) => ChatEvent(
@@ -32,6 +33,7 @@ class ChatEvent {
             ?.map((a) => PendingAction.fromJson(a as Map<String, dynamic>))
             .toList(),
         unverifiedClaim: json['unverifiedClaim'] as bool? ?? false,
+        unknownItems: _stringList(json['unknownItems']),
       );
 
   final String type; // start | delta | tool | done | error
@@ -47,7 +49,13 @@ class ChatEvent {
 
   /// On `done`: the reply says a change was made, but no tool made one — nothing was saved.
   final bool unverifiedClaim;
+
+  /// On `done`: item keys the reply names that do not exist, e.g. `['TASK-6']`.
+  final List<String> unknownItems;
 }
+
+List<String> _stringList(Object? json) =>
+    (json as List<dynamic>?)?.map((e) => e as String).toList() ?? const [];
 
 /// A data-changing action the assistant proposed.
 ///
@@ -222,6 +230,7 @@ class ChatMessageDto {
     this.toolActions,
     this.pendingActions,
     this.unverifiedClaim = false,
+    this.unknownItems = const [],
   });
 
   factory ChatMessageDto.fromJson(Map<String, dynamic> json) => ChatMessageDto(
@@ -234,6 +243,7 @@ class ChatMessageDto {
             ?.map((a) => PendingAction.fromJson(a as Map<String, dynamic>))
             .toList(),
         unverifiedClaim: json['unverifiedClaim'] as bool? ?? false,
+        unknownItems: _stringList(json['unknownItems']),
       );
 
   final String role; // user | assistant
@@ -243,6 +253,9 @@ class ChatMessageDto {
 
   /// The reply says a change was made, but no tool made one — nothing was saved.
   final bool unverifiedClaim;
+
+  /// Item keys the reply names that do not exist.
+  final List<String> unknownItems;
 }
 
 /// A conversation with its full message history.

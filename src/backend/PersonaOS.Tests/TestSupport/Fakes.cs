@@ -372,7 +372,7 @@ public static class TestChat
         return new ChatService(
             db, config, new FakeSystemPromptBuilder(), new FakeAiMessageStreamerFactory(streamer), registry,
             new ToolCallPipeline(registry, NullLogger<ToolCallPipeline>.Instance),
-            new ReplyPipeline(NullLogger<ReplyPipeline>.Instance),
+            new ReplyPipeline(db, NullLogger<ReplyPipeline>.Instance),
             NullLogger<ChatService>.Instance);
     }
 }

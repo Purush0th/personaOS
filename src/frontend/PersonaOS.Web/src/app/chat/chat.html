@@ -54,6 +54,14 @@
           </p>
         }
 
+        <!-- The reply names items that are not there: checked against the data, not guessed. -->
+        @if (unknownItemsNote(bubble.unknownItems); as note) {
+          <p class="unverified" role="note">
+            <mat-icon inline>help</mat-icon>
+            {{ note }}
+          </p>
+        }
+
         <!-- What actually happened, recorded from the tool results themselves. Shown so
              the reply above can be checked against it rather than taken on trust. -->
         @if (bubble.actions?.length) {

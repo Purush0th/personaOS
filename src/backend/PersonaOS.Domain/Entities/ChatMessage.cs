@@ -31,6 +31,13 @@ public class ChatMessage
     public bool UnverifiedClaim { get; set; }
 
     /// <summary>
+    /// Item keys this assistant reply names that did not exist when it was written, comma-separated
+    /// ("TASK-6,GOAL-9"), or null. The client says so under the reply: an invented key reads just as
+    /// confidently as a real one.
+    /// </summary>
+    public string? UnknownItems { get; set; }
+
+    /// <summary>
     /// What the tools actually did during this turn, as a JSON array of receipts
     /// (assistant messages only; null when no tool ran). This is the app's own record —
     /// derived from real executions, never from what the model said it did — so a reply

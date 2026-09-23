@@ -157,4 +157,27 @@ void main() {
       expect(ChatMessageDto.fromJson({'role': 'user', 'content': 'hi'}).unverifiedClaim, isFalse);
     });
   });
+
+  group('unknown items', () {
+    test('reads the keys the server could not find from a done event', () {
+      final event = ChatEvent.fromJson({
+        'type': 'done',
+        'unknownItems': ['TASK-6', 'GOAL-9'],
+      });
+
+      expect(event.unknownItems, ['TASK-6', 'GOAL-9']);
+      expect(ChatEvent.fromJson({'type': 'done'}).unknownItems, isEmpty);
+    });
+
+    test('survives into replayed history', () {
+      final message = ChatMessageDto.fromJson({
+        'role': 'assistant',
+        'content': 'TASK-6 is done.',
+        'unknownItems': ['TASK-6'],
+      });
+
+      expect(message.unknownItems, ['TASK-6']);
+      expect(ChatMessageDto.fromJson({'role': 'user', 'content': 'hi'}).unknownItems, isEmpty);
+    });
+  });
 }

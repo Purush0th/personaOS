@@ -66,17 +66,23 @@ public static partial class ActionClaimDetector
     [GeneratedRegex(@"\b(can|could|would|should|shall|may|might)\s+i\b|\bi\s+(can|could|would|might|may)\b|\b(would|do)\s+you\s+(like|want)\b|\bwant\s+me\s+to\b|\bif\s+you\b|\blet\s+me\s+know\b|\bpropos(e|ed|ing|al)\b|\bconfirm|\bonce\s+you\b|\bneed\s+your\b|\bnot\s+(yet|been)\b|\bhaven'?t\b|\bhave\s+not\b|\bdidn'?t\b|\bcan'?t\b|\bcannot\b|\bunable\b", RegexOptions.IgnoreCase)]
     private static partial Regex NotAClaim();
 
+    /// <summary>
+    /// Wording about the card rather than the change: "I've prepared a card for it", "it's waiting
+    /// below". Honest above a card, so never read as a claim there.
+    /// </summary>
+    [GeneratedRegex(@"\bcards?\b|\bbelow\b|\bprepar(e|ed|ing)\b|\bdraft(ed|ing)?\b|\bwaiting\b|\bpending\b", RegexOptions.IgnoreCase)]
+    private static partial Regex DescribesTheCard();
+
     [GeneratedRegex(@"(?<=[.!?])\s+|\n+")]
     private static partial Regex SentenceBreak();
 
     /// <summary>
     /// Returns the first sentence of <paramref name="reply"/> that claims a change was made, or null.
+    /// For a turn that proposed nothing.
     /// </summary>
     public static string? FindClaim(string? reply)
     {
-        if (string.IsNullOrWhiteSpace(reply)) return null;
-
-        var sentences = SentenceBreak().Split(reply);
+        var sentences = Sentences(reply);
 
         // "Sure, I'll add a new goal … Would you like to proceed with these details?" is a
         // proposal, not a report, and the amber warning on it was wrong. So a sentence that only
@@ -84,24 +90,37 @@ public static partial class ActionClaimDetector
         // nothing. Anything claimed as already done still counts, question or no question.
         var awaitsTheUser = sentences.Any(s => AsksPermission().IsMatch(s));
 
-        foreach (var raw in sentences)
+        foreach (var sentence in Candidates(sentences))
         {
-            var sentence = raw.Trim();
-            if (sentence.Length == 0 || sentence.EndsWith('?')) continue;
-            if (NotAClaim().IsMatch(sentence)) continue;
-            if (!DomainObject().IsMatch(sentence)) continue;
-
-            if (FirstPersonDone().IsMatch(sentence)) return sentence;
-
-            // A passive sentence is the weakest signal, so it loses to any sign that the sentence
-            // is describing the user's data rather than announcing a change to it.
-            if (CompletedPassive().IsMatch(sentence) && !ReportsState().IsMatch(sentence))
-                return sentence;
-
-            if (!awaitsTheUser && FirstPersonIntent().IsMatch(sentence))
-                return sentence;
+            if (ClaimsDone(sentence)) return sentence;
+            if (!awaitsTheUser && FirstPersonIntent().IsMatch(sentence)) return sentence;
         }
 
         return null;
     }
+
+    /// <summary>
+    /// Returns the first sentence that says a change is already done, or null. For a turn that
+    /// proposed something: the card is still waiting, so "I've created a goal called Learn Rust"
+    /// above it is untrue, while "I'll create it once you confirm" and "I've prepared a card" are
+    /// not claims at all.
+    /// </summary>
+    public static string? FindDoneClaim(string? reply) =>
+        Candidates(Sentences(reply)).FirstOrDefault(s => !DescribesTheCard().IsMatch(s) && ClaimsDone(s));
+
+    private static string[] Sentences(string? reply) =>
+        string.IsNullOrWhiteSpace(reply) ? [] : SentenceBreak().Split(reply);
+
+    /// <summary>Statements (not questions, offers or negations) about something the assistant can change.</summary>
+    private static IEnumerable<string> Candidates(IEnumerable<string> sentences) => sentences
+        .Select(s => s.Trim())
+        .Where(s => s.Length > 0 && !s.EndsWith('?') && !NotAClaim().IsMatch(s) && DomainObject().IsMatch(s));
+
+    /// <summary>
+    /// A first-person "I've set", or a completed passive "has been set". The passive is the weakest
+    /// signal, so it loses to any sign the sentence describes the user's data rather than a change.
+    /// </summary>
+    private static bool ClaimsDone(string sentence) =>
+        FirstPersonDone().IsMatch(sentence)
+        || (CompletedPassive().IsMatch(sentence) && !ReportsState().IsMatch(sentence));
 }
