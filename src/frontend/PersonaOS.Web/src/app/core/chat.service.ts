@@ -33,6 +33,8 @@ export interface ChatEvent {
   pending?: PendingAction[];
   /** True when the reply says a change was made but no tool made one. */
   unverifiedClaim?: boolean;
+  /** Item keys the reply names that do not exist, e.g. ["TASK-6"]. */
+  unknownItems?: string[] | null;
 }
 
 export interface ConversationSummary {
@@ -54,6 +56,7 @@ export interface ChatMessageDto {
   toolActions?: ToolReceipt[] | null;
   pendingActions?: PendingAction[] | null;
   unverifiedClaim?: boolean;
+  unknownItems?: string[] | null;
 }
 
 export interface ConversationDetail {
@@ -153,4 +156,14 @@ export class ChatService {
       reader.releaseLock();
     }
   }
+}
+
+/**
+ * The note under a reply that names items which do not exist, or null when it names none.
+ * Small models invent keys, and an invented TASK-6 reads as confidently as a real one.
+ */
+export function unknownItemsNote(keys: readonly string[] | null | undefined): string | null {
+  if (!keys?.length) return null;
+  const list = keys.length === 1 ? keys[0] : `${keys.slice(0, -1).join(', ')} and ${keys[keys.length - 1]}`;
+  return `This reply mentions ${list}, which ${keys.length === 1 ? 'does' : 'do'} not exist. Check before relying on it.`;
 }

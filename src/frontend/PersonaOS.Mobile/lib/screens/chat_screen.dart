@@ -22,6 +22,15 @@ class _Bubble {
 
   /// The reply says a change was made, but no tool made one — nothing was saved.
   bool unverifiedClaim = false;
+
+  /// Item keys the reply names that do not exist.
+  List<String> unknownItems = const [];
+
+  /// The notes shown (and, hands-free, spoken) under the reply, in order.
+  List<String> get notes => [
+        if (unverifiedClaim) UnverifiedClaimNote.message,
+        ?UnknownItemsNote.messageFor(unknownItems),
+      ];
 }
 
 /// Streaming chat with the assistant. Deltas append to the live bubble.
@@ -224,6 +233,7 @@ class _ChatScreenState extends State<ChatScreen> {
             assistantBubble.actions = event.actions;
             assistantBubble.pending = event.pending;
             assistantBubble.unverifiedClaim = event.unverifiedClaim;
+            assistantBubble.unknownItems = event.unknownItems;
             _afterReply(assistantBubble);
         }
       });
@@ -252,10 +262,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (speakIt && !bubble.isError) {
       setState(() => _speaking = true);
-      // Hands-free users may never look at the screen, so the warning is spoken too.
-      await _voice.speak(bubble.unverifiedClaim
-          ? '${bubble.text}\n\n${UnverifiedClaimNote.message}'
-          : bubble.text);
+      // Hands-free users may never look at the screen, so the warnings are spoken too.
+      await _voice.speak([bubble.text, ...bubble.notes].join('\n\n'));
       if (!mounted) return;
       setState(() => _speaking = false);
     }
@@ -314,7 +322,8 @@ class _ChatScreenState extends State<ChatScreen> {
               )
                 ..actions = m.toolActions
                 ..pending = m.pendingActions
-                ..unverifiedClaim = m.unverifiedClaim));
+                ..unverifiedClaim = m.unverifiedClaim
+                ..unknownItems = m.unknownItems));
         _loadingHistory = false;
       });
       _scrollToBottom();
@@ -672,6 +681,7 @@ class _BubbleView extends StatelessWidget {
             else
               _MarkdownReply(text: bubble.text, foreground: foreground),
             if (bubble.unverifiedClaim && !bubble.isUser) const UnverifiedClaimNote(),
+            if (!bubble.isUser && bubble.unknownItems.isNotEmpty) UnknownItemsNote(keys: bubble.unknownItems),
             if (bubble.pending?.isNotEmpty ?? false)
               _ProposalList(actions: bubble.pending!, onResolve: onResolve),
             if (bubble.actions?.isNotEmpty ?? false)
@@ -692,29 +702,64 @@ class UnverifiedClaimNote extends StatelessWidget {
       'This reply says a change was made, but nothing was saved. Ask again if you want it done.';
 
   @override
+  Widget build(BuildContext context) =>
+      const _ReplyNote(icon: Icons.warning_amber_rounded, message: message);
+}
+
+/// Shown under a reply that names items which do not exist. Small models invent keys, and an
+/// invented TASK-6 reads as confidently as a real one. The server checked, not guessed.
+class UnknownItemsNote extends StatelessWidget {
+  const UnknownItemsNote({super.key, required this.keys});
+
+  final List<String> keys;
+
+  /// The note's wording, or null when every item the reply named exists. Matches the web app.
+  static String? messageFor(List<String> keys) {
+    if (keys.isEmpty) return null;
+    final list = keys.length == 1
+        ? keys.single
+        : '${keys.sublist(0, keys.length - 1).join(', ')} and ${keys.last}';
+    return 'This reply mentions $list, which ${keys.length == 1 ? 'does' : 'do'} not exist. '
+        'Check before relying on it.';
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _ReplyNote(icon: Icons.help_outline, message: messageFor(keys) ?? '');
+}
+
+/// A caution under a reply: tinted from the theme, so it reads in light and dark mode alike.
+class _ReplyNote extends StatelessWidget {
+  const _ReplyNote({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF3E0),
-        border: const Border(left: BorderSide(color: Color(0xFFB26A00), width: 3)),
+        color: colors.tertiaryContainer,
+        border: Border(left: BorderSide(color: colors.tertiary, width: 3)),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(right: 6, top: 1),
-            child: Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFF7A4A00)),
+          Padding(
+            padding: const EdgeInsets.only(right: 6, top: 1),
+            child: Icon(icon, size: 16, color: colors.onTertiaryContainer),
           ),
           Flexible(
             child: Text(
               message,
-              style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF7A4A00)),
+              style: theme.textTheme.bodySmall?.copyWith(color: colors.onTertiaryContainer),
             ),
           ),
         ],

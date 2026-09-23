@@ -29,7 +29,7 @@ public static class DependencyInjection
         services.AddSingleton<IPromptLibrary, PromptLibrary>();
         services.AddScoped<ISystemPromptBuilder, SystemPromptBuilder>();
         services.AddScoped<ToolCallPipeline>();
-        services.AddSingleton<ReplyPipeline>();
+        services.AddScoped<ReplyPipeline>();
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<IGoalService, GoalService>();
         services.AddScoped<IBoardService, BoardService>();

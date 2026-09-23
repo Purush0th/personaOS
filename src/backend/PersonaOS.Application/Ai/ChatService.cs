@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -92,42 +92,39 @@ public class ChatService(
             yield break;
         }
 
-        var reply = replyGuards.Review(new ReplyDraft(first.Text.ToString(), request.Turn, interrupted: first.Error is not null));
+        var reply = await replyGuards.ReviewAsync(
+            new ReplyDraft(first.Text.ToString(), request.Turn, interrupted: first.Error is not null), ct);
         var final = reply;
         var unverifiedClaim = false;
 
-        // The reply claimed a change nothing made: one chance to make it properly or take it back.
-        // Buffered, not streamed: the correction replaces the first draft wholesale rather than
-        // being appended after a claim the user has already read.
+        // The reply claimed a change that did not happen: one chance to put it right. Buffered, not
+        // streamed: the correction replaces the first draft wholesale rather than being appended
+        // after a claim the user has already read.
         if (first.Error is null && reply.UnbackedClaim is { } claim)
         {
-            logger.LogWarning("Model {Model} claimed a change without calling a tool; asking it to correct.", config.AiModel);
+            logger.LogWarning("Model {Model} claimed a change that did not happen; asking it to correct.", config.AiModel);
             request.Turns.Add(new AiChatTurn(ChatRoles.Assistant, reply.Text));
-            request.Turns.Add(new AiChatTurn(ChatRoles.User, ClaimCheckInstruction(claim)));
+            request.Turns.Add(new AiChatTurn(ChatRoles.User, reply.ClaimAwaitsConfirmation
+                ? AwaitingCardInstruction(claim)
+                : ClaimCheckInstruction(claim)));
 
             var correction = new ModelRound();
             await foreach (var evt in RunToolLoopAsync(request, correction, streamText: false, ct)) yield return evt;
 
             var corrected = correction.Error is null
-                ? replyGuards.Review(new ReplyDraft(correction.Text.ToString(), request.Turn, isCorrection: true))
+                ? await replyGuards.ReviewAsync(new ReplyDraft(correction.Text.ToString(), request.Turn, isCorrection: true), ct)
                 : null;
-            if (corrected is { Text.Length: > 0 })
-            {
-                final = corrected;
-                unverifiedClaim = corrected.UnbackedClaim is not null;
-            }
-            else
-            {
-                // The correction failed or said nothing: keep the first reply and flag the claim
-                // rather than hide it, unless the correction turned it into a real proposal.
-                unverifiedClaim = request.Turn.Proposals.Count == 0;
-            }
+            if (corrected is { Text.Length: > 0 }) final = corrected;
+
+            // The "nothing was saved" note is for a claim nothing backs. Above a card it would be
+            // wrong (the card is right there, waiting), so a claim that survives is left to it.
+            unverifiedClaim = request.Turn.Proposals.Count == 0 && (final == reply || final.UnbackedClaim is not null);
         }
 
         // What the user watched stream in is no longer the reply when a guard rewrote it or a
         // correction replaced it; the client must swap its bubble for the stored text.
         var replaceStreamedText = reply.Rewritten || final.Text != reply.Text;
-        var pending = await PersistAsync(conversation, userMessage, final.Text, request, unverifiedClaim);
+        var pending = await PersistAsync(conversation, userMessage, final, request, unverifiedClaim);
 
         if (first.Error is not null)
         {
@@ -144,7 +141,8 @@ public class ChatService(
             OutputTokens: request.Usage.Output,
             Actions: receipts.Count == 0 ? null : receipts,
             Pending: pending.Count == 0 ? null : pending,
-            UnverifiedClaim: unverifiedClaim ? true : null);
+            UnverifiedClaim: unverifiedClaim ? true : null,
+            UnknownItems: final.UnknownItems.Count == 0 ? null : final.UnknownItems);
     }
 
     /// <summary>
@@ -157,7 +155,17 @@ public class ChatService(
         + claim + "\" — but you did not call any tool, so nothing was saved or changed. "
         + "If the user asked for that change, call the right tool now. If they did not, "
         + "rewrite your reply so it does not say anything was done. "
-        + "Write only what the user should read, as if for the first time. Do not "
+        + CorrectionStyle;
+
+    /// <summary>Sent when the reply called a change done while its card still waits for the user.</summary>
+    private static string AwaitingCardInstruction(string claim) =>
+        "[Automatic check, not from the user] Your last reply says \"" + claim + "\", but nothing "
+        + "has been done yet: the change is on a card under your reply, waiting for the user to tap "
+        + "Confirm. Rewrite your reply to describe the change as proposed, not done. Do not call the "
+        + "tool again. " + CorrectionStyle;
+
+    private const string CorrectionStyle =
+        "Write only what the user should read, as if for the first time. Do not "
         + "mention this check, and do not introduce your reply.";
 
     /// <summary>The windowed history plus the new message, oldest first.</summary>
@@ -275,7 +283,7 @@ public class ChatService(
     /// proposals, against the message that made them.
     /// </summary>
     private async Task<List<PendingActionDto>> PersistAsync(
-        Conversation conversation, string userMessage, string replyText, ModelRequest request, bool unverifiedClaim)
+        Conversation conversation, string userMessage, ReplyDraft reply, ModelRequest request, bool unverifiedClaim)
     {
         var turn = request.Turn;
         var now = DateTime.UtcNow;
@@ -290,11 +298,12 @@ public class ChatService(
         {
             ConversationId = conversation.Id,
             Role = ChatRoles.Assistant,
-            Content = replyText,
+            Content = reply.Text,
             InputTokens = request.Usage.Input is long input ? (int)input : null,
             OutputTokens = request.Usage.Output is long output ? (int)output : null,
             ToolActionsJson = turn.Receipts.Count == 0 ? null : JsonSerializer.Serialize(turn.Receipts),
             UnverifiedClaim = unverifiedClaim,
+            UnknownItems = reply.UnknownItems.Count == 0 ? null : string.Join(",", reply.UnknownItems),
             CreatedAtUtc = now.AddMilliseconds(1),
         };
         db.ChatMessages.Add(assistantMessage);
@@ -384,7 +393,7 @@ public class ChatService(
                     .Select(m => new
                     {
                         m.Id, m.Role, m.Content, m.InputTokens, m.OutputTokens, m.CreatedAtUtc,
-                        m.ToolActionsJson, m.UnverifiedClaim,
+                        m.ToolActionsJson, m.UnverifiedClaim, m.UnknownItems,
                     })
                     .ToList(),
             })
@@ -406,7 +415,8 @@ public class ChatService(
                 actions.Where(a => a.ChatMessageId == m.Id).Select(ToDto).ToList() is { Count: > 0 } p
                     ? p
                     : null,
-                m.UnverifiedClaim))
+                m.UnverifiedClaim,
+                m.UnknownItems is { Length: > 0 } unknown ? unknown.Split(',') : null))
             .ToList();
 
         return new ConversationDetail(

@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 
 import { BrandingService } from '../core/branding.service';
-import { ChatService, PendingAction, ToolReceipt } from '../core/chat.service';
+import { ChatService, PendingAction, ToolReceipt, unknownItemsNote } from '../core/chat.service';
 import { ConversationsStore } from '../core/conversations.store';
 import { conversationRefFromSlug, conversationSlug } from '../core/conversation-slug';
 import { MarkdownPipe } from '../shared/markdown.pipe';
@@ -25,6 +25,8 @@ interface Bubble {
   actions?: ToolReceipt[] | null;
   /** The reply says something was changed, but no tool changed anything. */
   unverifiedClaim?: boolean;
+  /** Item keys the reply names that do not exist. */
+  unknownItems?: string[] | null;
 }
 
 @Component({
@@ -113,6 +115,7 @@ export class Chat implements OnInit {
           actions: m.toolActions ?? null,
           pending: m.pendingActions ?? null,
           unverifiedClaim: m.unverifiedClaim ?? false,
+          unknownItems: m.unknownItems ?? null,
         }))
       );
 
@@ -169,6 +172,7 @@ export class Chat implements OnInit {
               actions: event.actions ?? null,
               pending: event.pending ?? null,
               unverifiedClaim: event.unverifiedClaim ?? false,
+              unknownItems: event.unknownItems ?? null,
               ...(event.text ? { text: event.text } : {}),
             });
             break;
@@ -236,6 +240,8 @@ export class Chat implements OnInit {
       });
     }
   }
+
+  protected readonly unknownItemsNote = unknownItemsNote;
 
   protected isResolving(id: string): boolean {
     return this.resolving().has(id);
