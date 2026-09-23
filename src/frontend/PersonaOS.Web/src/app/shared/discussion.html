@@ -72,7 +72,7 @@
         </div>
         @if (editingId() === comment.id) {
           <form (ngSubmit)="saveEdit()">
-            <mat-form-field appearance="outline" class="full">
+            <mat-form-field class="full">
               <mat-label>Comment</mat-label>
               <textarea matInput name="edit" rows="3" [(ngModel)]="editDraft"></textarea>
             </mat-form-field>
@@ -90,7 +90,7 @@
     }
 
     <form class="new-comment" (ngSubmit)="addComment()">
-      <mat-form-field appearance="outline" class="full">
+      <mat-form-field class="full">
         <mat-label>Add a comment</mat-label>
         <textarea matInput name="comment" rows="3" [(ngModel)]="draft"></textarea>
       </mat-form-field>

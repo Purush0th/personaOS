@@ -122,12 +122,12 @@
             @if (column.id === 'todo') {
               @if (addingTo() === column.id) {
                 <form class="add" (ngSubmit)="add()">
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-form-field>
                     <mat-label>Task title</mat-label>
                     <input matInput name="title" [(ngModel)]="draftTitle" autofocus />
                   </mat-form-field>
                   <div class="add-row">
-                    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="points">
+                    <mat-form-field class="points">
                       <mat-label>Points</mat-label>
                       <mat-select name="points" [(ngModel)]="draftPoints">
                         <mat-option [value]="null">?</mat-option>

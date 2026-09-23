@@ -18,48 +18,50 @@
 
 @if (adding()) {
   <mat-card class="add-card" appearance="outlined">
-    <form (ngSubmit)="add()">
-      <mat-form-field appearance="outline" class="grow">
-        <mat-label>What do you want to achieve?</mat-label>
-        <input matInput name="title" [(ngModel)]="draftTitle" autofocus />
-      </mat-form-field>
+    <mat-card-content>
+      <form (ngSubmit)="add()">
+        <mat-form-field class="grow">
+          <mat-label>What do you want to achieve?</mat-label>
+          <input matInput name="title" [(ngModel)]="draftTitle" autofocus />
+        </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Period</mat-label>
-        <mat-select name="period" [(ngModel)]="draftPeriod" (ngModelChange)="resetEnd()">
-          <mat-option value="year">Yearly</mat-option>
-          <mat-option value="quarter">Quarterly</mat-option>
-          <mat-option value="month">Monthly</mat-option>
-        </mat-select>
-      </mat-form-field>
+        <mat-form-field>
+          <mat-label>Period</mat-label>
+          <mat-select name="period" [(ngModel)]="draftPeriod" (ngModelChange)="resetEnd()">
+            <mat-option value="year">Yearly</mat-option>
+            <mat-option value="quarter">Quarterly</mat-option>
+            <mat-option value="month">Monthly</mat-option>
+          </mat-select>
+        </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Starts</mat-label>
-        <input matInput name="start" type="date" [(ngModel)]="draftStart" (ngModelChange)="resetEnd()" />
-      </mat-form-field>
+        <mat-form-field>
+          <mat-label>Starts</mat-label>
+          <input matInput name="start" type="date" [(ngModel)]="draftStart" (ngModelChange)="resetEnd()" />
+        </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Ends</mat-label>
-        <!-- A yearly goal always ends on 31 December, so there is nothing to choose. -->
-        <input matInput name="end" type="date" [(ngModel)]="draftEnd" [min]="draftStart"
-               [readonly]="draftPeriod === 'year'" />
-        @if (draftProblem(); as problem) {
-          <mat-error>{{ problem }}</mat-error>
-        } @else {
-          <mat-hint>{{ draftDays() }} days</mat-hint>
-        }
-      </mat-form-field>
+        <mat-form-field>
+          <mat-label>Ends</mat-label>
+          <!-- A yearly goal always ends on 31 December, so there is nothing to choose. -->
+          <input matInput name="end" type="date" [(ngModel)]="draftEnd" [min]="draftStart"
+                 [readonly]="draftPeriod === 'year'" />
+          @if (draftProblem(); as problem) {
+            <mat-error>{{ problem }}</mat-error>
+          } @else {
+            <mat-hint>{{ draftDays() }} days</mat-hint>
+          }
+        </mat-form-field>
 
-      <div class="form-actions">
-        <button mat-button type="button" (click)="adding.set(false)">Cancel</button>
-        <button mat-flat-button type="submit" [disabled]="!draftTitle.trim() || !!draftProblem()">
-          Add goal
-        </button>
-      </div>
-    </form>
-    @if (draftProblem(); as problem) {
-      <p class="error small problem" role="alert">{{ problem }}</p>
-    }
+        <div class="form-actions">
+          <button mat-button type="button" (click)="adding.set(false)">Cancel</button>
+          <button mat-flat-button type="submit" [disabled]="!draftTitle.trim() || !!draftProblem()">
+            Add goal
+          </button>
+        </div>
+      </form>
+      @if (draftProblem(); as problem) {
+        <p class="error small problem" role="alert">{{ problem }}</p>
+      }
+    </mat-card-content>
   </mat-card>
 }
 
@@ -90,7 +92,7 @@
           <span class="muted small">{{ goal.effectiveProgress }}%</span>
 
           @if (goal.taskCount === 0) {
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="progress">
+            <mat-form-field class="progress">
               <mat-label>Progress</mat-label>
               <input
                 matInput
@@ -157,11 +159,11 @@
 
         @if (addingTaskTo() === goal.id) {
           <form class="task-form" (ngSubmit)="addTask(goal)">
-            <mat-form-field appearance="outline" class="grow" subscriptSizing="dynamic">
+            <mat-form-field class="grow">
               <mat-label>Task under {{ goal.key }}</mat-label>
               <input matInput name="taskTitle" [(ngModel)]="taskTitle" autofocus />
             </mat-form-field>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="points">
+            <mat-form-field class="points">
               <mat-label>Value points</mat-label>
               <mat-select name="taskPoints" [(ngModel)]="taskPoints">
                 <mat-option [value]="null">?</mat-option>

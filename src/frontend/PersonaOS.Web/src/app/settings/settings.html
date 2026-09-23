@@ -12,12 +12,12 @@
         <mat-card-subtitle>Who it is and how it speaks to you.</mat-card-subtitle>
       </mat-card-header>
       <mat-card-content>
-        <mat-form-field appearance="outline">
+        <mat-form-field>
           <mat-label>Assistant nickname</mat-label>
           <input matInput name="nickname" [(ngModel)]="nickname" maxlength="100" />
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field>
           <mat-label>Persona / tone</mat-label>
           <textarea
             matInput
@@ -28,7 +28,7 @@
           ></textarea>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field>
           <mat-label>Time zone</mat-label>
           <input matInput name="timeZone" [(ngModel)]="timeZone" placeholder="Asia/Kolkata" />
         </mat-form-field>
@@ -41,7 +41,7 @@
         <mat-card-subtitle>Where the thinking happens. A local model keeps everything on this machine.</mat-card-subtitle>
       </mat-card-header>
       <mat-card-content>
-        <mat-form-field appearance="outline">
+        <mat-form-field>
           <mat-label>Provider</mat-label>
           <mat-select name="provider" [(ngModel)]="provider">
             @for (p of providers; track p.id) {
@@ -51,7 +51,7 @@
         </mat-form-field>
 
         @if (isCompatible) {
-          <mat-form-field appearance="outline">
+          <mat-form-field>
             <mat-label>Base URL</mat-label>
             <input
               matInput
@@ -62,7 +62,7 @@
           </mat-form-field>
         }
 
-        <mat-form-field appearance="outline">
+        <mat-form-field>
           <mat-label>Model</mat-label>
           <input
             matInput
@@ -75,7 +75,7 @@
           }
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field>
           <mat-label>API key</mat-label>
           <input
             matInput

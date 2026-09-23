@@ -23,29 +23,33 @@
     }
   </header>
 
-  <p class="muted small">{{ when(detail.sprint.startsAtUtc) }} – {{ when(detail.sprint.endsAtUtc) }}</p>
+  <p class="muted small dates">{{ when(detail.sprint.startsAtUtc) }} – {{ when(detail.sprint.endsAtUtc) }}</p>
 
   @if (editing()) {
-    <form class="sprint-form" (ngSubmit)="save()">
-      <div class="fields">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
-          <mat-label>Name</mat-label>
-          <input matInput name="name" [(ngModel)]="name" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Starts</mat-label>
-          <input matInput name="start" type="datetime-local" [(ngModel)]="start" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Ends</mat-label>
-          <input matInput name="end" type="datetime-local" [(ngModel)]="end" />
-        </mat-form-field>
-      </div>
-      <div class="row">
-        <button mat-button type="button" (click)="editing.set(false)">Cancel</button>
-        <button mat-flat-button type="submit">Save</button>
-      </div>
-    </form>
+    <mat-card class="sprint-form" appearance="outlined">
+      <mat-card-content>
+        <form (ngSubmit)="save()">
+          <div class="fields">
+            <mat-form-field class="grow">
+              <mat-label>Name</mat-label>
+              <input matInput name="name" [(ngModel)]="name" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Starts</mat-label>
+              <input matInput name="start" type="datetime-local" [(ngModel)]="start" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Ends</mat-label>
+              <input matInput name="end" type="datetime-local" [(ngModel)]="end" />
+            </mat-form-field>
+          </div>
+          <div class="row">
+            <button mat-button type="button" (click)="editing.set(false)">Cancel</button>
+            <button mat-flat-button type="submit">Save</button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
   }
 
   <mat-card class="stats-card" appearance="outlined"><mat-card-content><section class="stats">

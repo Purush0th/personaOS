@@ -1,109 +1,131 @@
 <section class="wizard">
   <h1>Welcome to PersonaOS</h1>
-  <p class="intro">
-    Let's set up your private assistant. Everything here stays on your server —
-    your API key is encrypted at rest and never leaves your machine except to
-    call the AI provider you choose.
+  <p class="intro muted">
+    Let's set up your private assistant. Everything here stays on your server: your API key is
+    encrypted at rest and only ever sent to the AI provider you choose.
   </p>
 
   <form (ngSubmit)="submit()">
     <fieldset [disabled]="submitting()">
-      <h2>Your assistant</h2>
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Your assistant</h2>
+          <mat-form-field>
+            <mat-label>Assistant name</mat-label>
+            <input matInput name="nickname" [(ngModel)]="nickname" placeholder="e.g. Jarvis, Friday" maxlength="100" required />
+            <mat-hint>How your assistant refers to itself.</mat-hint>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Personality and tone (optional)</mat-label>
+            <textarea
+              matInput
+              name="persona"
+              [(ngModel)]="persona"
+              rows="3"
+              placeholder="e.g. Be warm and encouraging. Keep answers short unless asked for detail."
+            ></textarea>
+          </mat-form-field>
+        </mat-card-content>
+      </mat-card>
 
-      <label>
-        Assistant name
-        <input name="nickname" [(ngModel)]="nickname" placeholder="e.g. Siri, Jarvis, Friday" maxlength="100" required />
-        <small>How your assistant refers to itself. Pick anything you like.</small>
-      </label>
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Admin account</h2>
+          <mat-form-field>
+            <mat-label>Username</mat-label>
+            <input matInput name="adminUsername" [(ngModel)]="adminUsername" autocomplete="username" required />
+          </mat-form-field>
+          <div class="pair">
+            <mat-form-field>
+              <mat-label>Password</mat-label>
+              <input matInput name="adminPassword" type="password" [(ngModel)]="adminPassword" autocomplete="new-password" required />
+              <mat-hint>At least 8 characters.</mat-hint>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Confirm password</mat-label>
+              <input matInput name="adminPasswordConfirm" type="password" [(ngModel)]="adminPasswordConfirm" autocomplete="new-password" required />
+            </mat-form-field>
+          </div>
+        </mat-card-content>
+      </mat-card>
 
-      <label>
-        Personality &amp; tone <span class="optional">(optional)</span>
-        <textarea name="persona" [(ngModel)]="persona" rows="3"
-          placeholder="e.g. Be warm and encouraging. Keep answers short unless asked for detail."></textarea>
-      </label>
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>AI provider</h2>
+          <mat-form-field>
+            <mat-label>Provider</mat-label>
+            <mat-select name="aiProvider" [(ngModel)]="aiProvider">
+              @for (p of providers; track p.id) {
+                <mat-option [value]="p.id">{{ p.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
 
-      <h2>Admin account</h2>
-
-      <label>
-        Username
-        <input name="adminUsername" [(ngModel)]="adminUsername" autocomplete="username" required />
-      </label>
-
-      <div class="row">
-        <label>
-          Password
-          <input name="adminPassword" type="password" [(ngModel)]="adminPassword" autocomplete="new-password" required />
-        </label>
-        <label>
-          Confirm password
-          <input name="adminPasswordConfirm" type="password" [(ngModel)]="adminPasswordConfirm" autocomplete="new-password" required />
-        </label>
-      </div>
-
-      <h2>AI provider</h2>
-
-      <label>
-        Provider
-        <select name="aiProvider" [(ngModel)]="aiProvider">
-          @for (p of providers; track p.id) {
-            <option [value]="p.id">{{ p.label }}</option>
-          }
-        </select>
-      </label>
-
-      @if (isCompatible) {
-        <label>
-          Base URL
-          <input name="aiBaseUrl" [(ngModel)]="aiBaseUrl"
-            placeholder="https://api.openai.com/v1  ·  http://localhost:11434/v1 (Ollama)" />
-          <small>The OpenAI-compatible endpoint. Works with OpenAI, Ollama, Groq, OpenRouter, LM Studio, and more.</small>
-        </label>
-      }
-
-      <label>
-        API key
-        <input name="apiKey" type="password" [(ngModel)]="apiKey"
-          [placeholder]="isCompatible ? 'Provider API key (leave blank for local Ollama)' : 'sk-ant-…'" />
-        <small>
           @if (isCompatible) {
-            Optional for keyless local models; required for hosted providers.
-          } @else {
-            Get one at console.anthropic.com — you pay Anthropic directly for usage.
+            <mat-form-field>
+              <mat-label>Base URL</mat-label>
+              <input matInput name="aiBaseUrl" [(ngModel)]="aiBaseUrl" placeholder="http://localhost:11434/v1" />
+              <mat-hint>OpenAI, Ollama, Groq, OpenRouter, LM Studio and others.</mat-hint>
+            </mat-form-field>
           }
-        </small>
-      </label>
 
-      <label>
-        Model
-        <input name="aiModel" [(ngModel)]="aiModel"
-          [placeholder]="isCompatible ? 'e.g. gpt-4o, llama3.1, mixtral' : 'e.g. claude-opus-4-8, claude-sonnet-5'" />
-      </label>
+          <mat-form-field>
+            <mat-label>API key</mat-label>
+            <input
+              matInput
+              name="apiKey"
+              type="password"
+              [(ngModel)]="apiKey"
+              [placeholder]="isCompatible ? 'Leave blank for local Ollama' : 'sk-ant-…'"
+            />
+            <mat-hint>
+              @if (isCompatible) {
+                Optional for keyless local models; required for hosted providers.
+              } @else {
+                Get one at console.anthropic.com. You pay Anthropic directly for usage.
+              }
+            </mat-hint>
+          </mat-form-field>
 
-      <h2>Preferences</h2>
+          <mat-form-field>
+            <mat-label>Model</mat-label>
+            <input
+              matInput
+              name="aiModel"
+              [(ngModel)]="aiModel"
+              [placeholder]="isCompatible ? 'e.g. qwen2.5:3b-instruct' : 'e.g. claude-sonnet-5'"
+            />
+          </mat-form-field>
+        </mat-card-content>
+      </mat-card>
 
-      <label>
-        Time zone
-        <input name="timeZone" [(ngModel)]="timeZone" />
-        <small>Used for your planner and reminder times.</small>
-      </label>
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Preferences</h2>
+          <mat-form-field>
+            <mat-label>Time zone</mat-label>
+            <input matInput name="timeZone" [(ngModel)]="timeZone" />
+            <mat-hint>Used for your planner and reminder times.</mat-hint>
+          </mat-form-field>
 
-      <div class="features">
-        <span class="features-title">Modules</span>
-        @for (f of features; track f.key) {
-          <label class="feature">
-            <input type="checkbox" [name]="'feature_' + f.key" [(ngModel)]="f.enabled" />
-            {{ f.label }}
-          </label>
-        }
-      </div>
+          <h3>Modules</h3>
+          <div class="modules">
+            @for (f of features; track f.key) {
+              <mat-slide-toggle [name]="'feature_' + f.key" [(ngModel)]="f.enabled">{{ f.label }}</mat-slide-toggle>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
 
       @if (error(); as err) {
-        <p class="error">{{ err }}</p>
+        <p class="error" role="alert">{{ err }}</p>
       }
 
-      <button type="submit" class="submit">
-        {{ submitting() ? 'Setting up…' : 'Finish setup' }}
-      </button>
+      <div class="actions">
+        <button mat-flat-button type="submit" [disabled]="submitting()">
+          {{ submitting() ? 'Setting up…' : 'Finish setup' }}
+        </button>
+      </div>
     </fieldset>
   </form>
 </section>

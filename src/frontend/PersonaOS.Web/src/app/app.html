@@ -1,5 +1,5 @@
 @let branding = brandingService.branding();
-@let signedIn = !!branding?.isConfigured && auth.isLoggedIn();
+@let signedIn = this.signedIn();
 
 <!-- One shell for every page: a rail on a desktop, a drawer behind the menu button on a phone.
      Pages render into the outlet and carry their own header. -->
@@ -15,34 +15,132 @@
     [fixedInViewport]="handset()"
   >
     @if (signedIn) {
-      <div class="brand">
-        <span class="product">PersonaOS</span>
-        @if (branding?.assistantNickname; as nickname) {
-          <span class="nickname muted small">{{ nickname }}</span>
-        }
-      </div>
+      <!-- Brand on top, footer pinned to the bottom, and the pages scrolling between them. -->
+      <div class="nav-body">
+        <div class="brand">
+          <span class="product">PersonaOS</span>
+          @if (branding?.assistantNickname; as nickname) {
+            <span class="nickname muted small">{{ nickname }}</span>
+          }
+        </div>
 
-      <mat-nav-list>
-        @for (item of navItems(); track item.path) {
+        <mat-nav-list class="pages">
+          @for (item of navItems(); track item.path) {
+            <a
+              mat-list-item
+              [routerLink]="item.path"
+              routerLinkActive
+              #link="routerLinkActive"
+              [activated]="link.isActive"
+              (click)="closeOnHandset(drawer)"
+            >
+              <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+              <span matListItemTitle>{{ item.label }}</span>
+            </a>
+          }
+        </mat-nav-list>
+
+        <!-- Chat comes last because its history grows: it takes whatever height the pages leave
+             and scrolls inside it, like any chat app's sidebar. -->
+        <mat-nav-list class="chat">
           <a
             mat-list-item
-            [routerLink]="item.path"
+            routerLink="/chat"
             routerLinkActive
-            #link="routerLinkActive"
-            [activated]="link.isActive"
+            #chat="routerLinkActive"
+            [activated]="chat.isActive && !historyOpen()"
             (click)="closeOnHandset(drawer)"
           >
-            <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-            <span matListItemTitle>{{ item.label }}</span>
+            <mat-icon matListItemIcon>chat</mat-icon>
+            <span matListItemTitle>Chat</span>
+            <button
+              mat-icon-button
+              matListItemMeta
+              class="expander"
+              [attr.aria-expanded]="historyOpen()"
+              [attr.aria-label]="historyOpen() ? 'Hide chat history' : 'Show chat history'"
+              (click)="toggleHistory($event)"
+            >
+              <mat-icon>{{ historyOpen() ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </button>
           </a>
-        }
-      </mat-nav-list>
 
-      <div class="nav-footer">
-        <button mat-stroked-button class="full" (click)="auth.logout()">
-          <mat-icon>logout</mat-icon>
-          Sign out
-        </button>
+          @if (historyOpen()) {
+            <div class="history" role="group" aria-label="Chat history">
+              <a
+                mat-list-item
+                class="thread"
+                routerLink="/chat"
+                routerLinkActive
+                [routerLinkActiveOptions]="{ exact: true }"
+                #fresh="routerLinkActive"
+                [activated]="fresh.isActive"
+                (click)="closeOnHandset(drawer)"
+              >
+                <mat-icon matListItemIcon>add</mat-icon>
+                <span matListItemTitle>New chat</span>
+              </a>
+              @for (conversation of conversations.conversations(); track conversation.id) {
+                <a
+                  mat-list-item
+                  class="thread"
+                  [routerLink]="['/chat', conversations.slug(conversation)]"
+                  routerLinkActive
+                  #thread="routerLinkActive"
+                  [activated]="thread.isActive"
+                  [title]="conversation.title"
+                  (click)="closeOnHandset(drawer)"
+                >
+                  <span matListItemTitle>{{ conversation.title }}</span>
+                  <button
+                    mat-icon-button
+                    matListItemMeta
+                    class="delete"
+                    [attr.aria-label]="'Delete ' + conversation.title"
+                    (click)="deleteConversation(conversation, $event)"
+                  >
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </a>
+              } @empty {
+                <p class="muted small none">No conversations yet.</p>
+              }
+            </div>
+          }
+        </mat-nav-list>
+
+        <!-- The account: who is signed in, with Settings and Sign out behind it, and the
+             light/dark switch beside it. -->
+        <div class="nav-footer">
+          <button class="account" [matMenuTriggerFor]="account" aria-label="Account menu">
+            <span class="avatar" aria-hidden="true">{{ (auth.username() ?? '?').charAt(0).toUpperCase() }}</span>
+            <span class="name">{{ auth.username() ?? 'Account' }}</span>
+            <mat-icon class="chevron">unfold_more</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            [attr.aria-label]="theme.dark() ? 'Switch to light mode' : 'Switch to dark mode'"
+            [title]="theme.dark() ? 'Light mode' : 'Dark mode'"
+            (click)="theme.toggle()"
+          >
+            <mat-icon>{{ theme.dark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+          </button>
+        </div>
+
+        <mat-menu #account="matMenu" yPosition="above" class="account-menu">
+          @if (auth.username(); as name) {
+            <div class="menu-header muted small">Signed in as {{ name }}</div>
+          }
+          <a mat-menu-item routerLink="/settings" (click)="closeOnHandset(drawer)">
+            <mat-icon>settings</mat-icon>
+            <span>Settings</span>
+          </a>
+          <mat-divider />
+          <button mat-menu-item (click)="auth.logout()">
+            <mat-icon>logout</mat-icon>
+            <span>Sign out</span>
+          </button>
+        </mat-menu>
       </div>
     }
   </mat-sidenav>
@@ -76,7 +174,12 @@
         <p class="error">{{ err }}</p>
       } @else if (branding; as b) {
         @if (!b.isConfigured) {
-          <setup-wizard (completed)="onSetupCompleted()" />
+          <!-- Deferred: the wizard runs once per install, so its form modules load only then. -->
+          @defer {
+            <setup-wizard (completed)="onSetupCompleted()" />
+          } @loading (minimum 200ms) {
+            <p class="muted">Loading…</p>
+          }
         } @else {
           <router-outlet />
         }

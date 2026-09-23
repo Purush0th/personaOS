@@ -1028,3 +1028,43 @@ real Anthropic key).
       its own full-width row that scrolls horizontally. Verified at a real 380px viewport:
       media query matches, `document.scrollWidth` no longer exceeds the viewport, and scrolling
       the nav reaches Settings. Update banner wraps too; content padding tightened on mobile.
+- [x] **Web nav: chat history under Chat, and a light/dark switch (2026-09-23).** The conversation
+      list moved out of the chat page into the nav, as an expandable group under Chat (state
+      remembered per browser). Chat is the last nav item and its history takes the remaining
+      height with its own scroll, so the pages above and the footer below never move. Settings
+      and Sign out moved into an account menu in the footer (`mat-menu`, opens upward), labelled
+      with the username read from the JWT's `unique_name` claim.
+      `ConversationsStore` (core) is the one copy shared by nav and chat page; delete lives there
+      and lazy-loads the confirm dialog so the dialog code stays out of the first load. The nav
+      footer has a light/dark button (`ThemeService`): the device decides until the user picks,
+      the pick is `data-theme` on `<html>` and is applied by an inline script in `index.html`
+      before first paint. Also fixed `app.spec.ts`, failing since the Material commit (the brand
+      only renders once signed in), and added a spec for the history list. 11/11 web tests.
+- [x] **Web: finish the Material migration and fix field sizing (2026-09-23).** The owner
+      spotted uneven fields on the backlog. Root cause: `_legacy-primitives.scss` was still
+      imported globally, and its bare `label { display:block; margin:.9rem 0 }` rule hit
+      Material's floating label (which is a `<label>`), pushing labels down inside every field.
+      Deleted the file; migrated the setup wizard (now behind `@defer`). Four component
+      stylesheets had kept pre-Material rules (undefined `--muted`/`--line`, hardcoded light
+      greys, bare `input`/`textarea` rules): task, goal and sprint pages now share
+      `board/item-page.scss`, and discussion and push-config were rewritten on `--mat-sys-*`
+      tokens. One field size app-wide: 40px (button height) with 14px text, via
+      `mat.form-field-overrides` in `styles.scss`; outline and dynamic hint spacing are the
+      defaults in `app.config.ts`, so no template sets them. Backlog rows show priority and points
+      as compact chips that open shared menus instead of full-size selects. Cards whose forms sat
+      against the border got `mat-card-content`. Card subtitles use body text, not a second bold
+      title. Audit command for leftovers:
+      `grep -rnE "var\(--(muted|line|ink)|#[0-9a-f]{3,6}\b" --include=*.scss src/app` (empty).
+- [ ] **Chat renders Markdown as raw text.** Replies arrive with `**bold**`, backticks and `-`
+      lists shown literally. Needs a Markdown renderer with sanitising (e.g. `marked` plus
+      Angular's sanitizer, or `ngx-markdown`); weigh the bundle cost, ideally load it with the
+      chat route only.
+- [ ] **Chat page scrolls twice on a phone.** `chat.scss` sizes the page `calc(100vh - 6rem)`,
+      which ignores the 64px handset toolbar, so the page and the message list both scroll.
+- [ ] **Web first-load budget.** `ng build` warns: the initial bundle is ~713 kB against a
+      500 kB budget (578 kB after the Material commit, +8 kB for the history nav, +75 kB raw,
+      ~18 kB gzipped, for `MatMenu` in the account footer, +58 kB for app-wide
+      `MAT_FORM_FIELD_DEFAULT_OPTIONS` in `app.config.ts`, which pulls the form-field module into
+      the main chunk; the setup wizard moving behind `@defer` saved ~7 kB). Candidates: self-host
+      a Material Symbols subset, check what the shell pulls eagerly (`MatSidenav`, `MatList`,
+      `MatToolbar`), then raise the budget deliberately if what is left is the real floor.

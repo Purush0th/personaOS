@@ -1,6 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { firstValueFrom } from 'rxjs';
 
 interface FeatureOption {
@@ -16,7 +22,15 @@ interface FeatureOption {
  */
 @Component({
   selector: 'setup-wizard',
-  imports: [FormsModule],
+  imports: [
+    FormsModule,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatSlideToggleModule,
+  ],
   templateUrl: './setup-wizard.html',
   styleUrl: './setup-wizard.scss'
 })

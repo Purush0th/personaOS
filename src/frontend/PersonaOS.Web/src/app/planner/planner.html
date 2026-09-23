@@ -5,7 +5,7 @@
     <button mat-icon-button aria-label="Previous day" (click)="shiftDay(-1)">
       <mat-icon>chevron_left</mat-icon>
     </button>
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="day">
+    <mat-form-field class="day">
       <mat-label>Day</mat-label>
       <input matInput type="date" [value]="date()" (change)="onDateChange($any($event.target).value)" />
     </mat-form-field>
@@ -16,32 +16,34 @@
 </header>
 
 <mat-card class="add-card" appearance="outlined">
-  <form (ngSubmit)="add()">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
-      <mat-label>What needs doing?</mat-label>
-      <input matInput name="title" [(ngModel)]="draftTitle" />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="time">
-      <mat-label>Time</mat-label>
-      <input matInput name="time" type="time" [(ngModel)]="draftTime" />
-    </mat-form-field>
-
-    @if (sprintTasks().length > 0) {
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="pick">
-        <mat-label>From the board</mat-label>
-        <mat-select [value]="null" (selectionChange)="pickTask($any($event.value))">
-          @for (task of sprintTasks(); track task.id) {
-            <mat-option [value]="task.id">
-              {{ task.key }} {{ task.title }}{{ task.column === 'in_progress' ? ' (in progress)' : '' }}
-            </mat-option>
-          }
-        </mat-select>
+  <mat-card-content>
+    <form (ngSubmit)="add()">
+      <mat-form-field class="grow">
+        <mat-label>What needs doing?</mat-label>
+        <input matInput name="title" [(ngModel)]="draftTitle" />
       </mat-form-field>
-    }
 
-    <button mat-flat-button type="submit" [disabled]="!draftTitle.trim()">Add</button>
-  </form>
+      <mat-form-field class="time">
+        <mat-label>Time</mat-label>
+        <input matInput name="time" type="time" [(ngModel)]="draftTime" />
+      </mat-form-field>
+
+      @if (sprintTasks().length > 0) {
+        <mat-form-field class="pick">
+          <mat-label>From the board</mat-label>
+          <mat-select [value]="null" (selectionChange)="pickTask($any($event.value))">
+            @for (task of sprintTasks(); track task.id) {
+              <mat-option [value]="task.id">
+                {{ task.key }} {{ task.title }}{{ task.column === 'in_progress' ? ' (in progress)' : '' }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+
+      <button mat-flat-button type="submit" [disabled]="!draftTitle.trim()">Add</button>
+    </form>
+  </mat-card-content>
 </mat-card>
 
 @if (loading()) {

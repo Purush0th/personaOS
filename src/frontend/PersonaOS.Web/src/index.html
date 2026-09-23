@@ -6,6 +6,14 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Applies a saved light/dark choice before the first paint, so a dark-mode user never sees a
+       white flash while the app loads. ThemeService owns the choice after that. -->
+  <script>
+    try {
+      var t = localStorage.getItem('personaos.theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  </script>
   <!-- Material's own type and icon set. Self-hosting these is a later job; for a LAN app the
        cost is one cached request per device. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -44,7 +44,7 @@ import { Discussion } from '../shared/discussion';
     MatSelectModule,
   ],
   templateUrl: './goal-detail.html',
-  styleUrl: './goal-detail.scss',
+  styleUrls: ['./item-page.scss', './goal-detail.scss'],
 })
 export class GoalDetail implements OnInit {
   private readonly goalsApi = inject(GoalsService);
