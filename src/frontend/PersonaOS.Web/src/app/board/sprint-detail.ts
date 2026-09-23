@@ -48,7 +48,7 @@ interface Plot {
     MatProgressBarModule,
   ],
   templateUrl: './sprint-detail.html',
-  styleUrl: './sprint-detail.scss',
+  styleUrls: ['./item-page.scss', './sprint-detail.scss'],
 })
 export class SprintDetail implements OnInit {
   private readonly api = inject(BoardService);

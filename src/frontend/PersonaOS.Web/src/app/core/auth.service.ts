@@ -25,6 +25,9 @@ export class AuthService {
 
   readonly isLoggedIn = computed(() => this.token() !== null);
 
+  /** Who is signed in, read from the token itself so it survives a refresh with no request. */
+  readonly username = computed(() => usernameFromToken(this.token()));
+
   get accessToken(): string | null {
     return this.token();
   }
@@ -56,5 +59,21 @@ export class AuthService {
     localStorage.removeItem(TOKEN_KEY);
     this.token.set(null);
     void this.router.navigate(['/login']);
+  }
+}
+
+/**
+ * The `unique_name` claim of a JWT. Decoding without verifying is fine here: it only labels the
+ * account menu, and the server still verifies the token on every request.
+ */
+function usernameFromToken(token: string | null): string | null {
+  const payload = token?.split('.')[1];
+  if (!payload) return null;
+  try {
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    const name = (JSON.parse(json) as { unique_name?: unknown }).unique_name;
+    return typeof name === 'string' ? name : null;
+  } catch {
+    return null;
   }
 }

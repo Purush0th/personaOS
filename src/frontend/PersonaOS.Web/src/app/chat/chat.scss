@@ -4,51 +4,13 @@
   height: calc(100vh - 6rem);
 }
 
-.chat-layout {
-  display: grid;
-  grid-template-columns: 15rem 1fr;
-  gap: 1rem;
-  height: 100%;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-
-    // On a phone the thread is the page; the list of conversations rides above it.
-    .conversations {
-      max-height: 9rem;
-    }
-  }
-}
-
-.conversations {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  overflow-y: auto;
-  border-right: 1px solid var(--mat-sys-outline-variant);
-  padding-right: 0.5rem;
-
-  .new {
-    flex: none;
-  }
-
-  .threads {
-    padding: 0;
-  }
-
-  .thread-title {
-    font: var(--mat-sys-body-medium);
-  }
-
-  .empty-threads {
-    padding: 0 0.5rem;
-  }
-}
-
 .thread {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  height: 100%;
+  // The history is in the nav now, so the thread reads at a comfortable width, centred.
+  max-width: 52rem;
+  margin: 0 auto;
 }
 
 .messages {

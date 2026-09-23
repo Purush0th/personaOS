@@ -19,6 +19,7 @@ import {
   BoardService,
   BoardTask,
   COLUMN_LABELS,
+  PRIORITY_ICONS,
   PRIORITY_LABELS,
   PlanView,
   Priority,
@@ -88,6 +89,7 @@ export class Backlog implements OnInit {
 
 
   protected readonly priorityLabels = PRIORITY_LABELS;
+  protected readonly priorityIcons = PRIORITY_ICONS;
   protected readonly columnLabels = COLUMN_LABELS;
 
   async ngOnInit(): Promise<void> {

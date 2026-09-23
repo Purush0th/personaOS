@@ -13,7 +13,7 @@
     <span class="key">{{ task.key }}</span>
     @if (editingTitle()) {
       <form class="title-form" (ngSubmit)="saveTitle()">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+        <mat-form-field class="grow">
           <mat-label>Title</mat-label>
           <input matInput name="title" [(ngModel)]="titleDraft" autofocus />
         </mat-form-field>
@@ -21,7 +21,7 @@
         <button mat-button type="button" (click)="editingTitle.set(false)">Cancel</button>
       </form>
     } @else {
-      <h1 (click)="startTitle()" title="Click to edit">{{ task.title }}</h1>
+      <h1 class="editable" (click)="startTitle()" title="Click to edit">{{ task.title }}</h1>
       <span class="spacer"></span>
       <button mat-icon-button aria-label="Delete task" (click)="remove()">
         <mat-icon class="danger">delete</mat-icon>
@@ -36,7 +36,7 @@
           <h2>Description</h2>
           @if (editingDescription()) {
             <form (ngSubmit)="saveDescription()">
-              <mat-form-field appearance="outline" class="full">
+              <mat-form-field class="full">
                 <mat-label>Description</mat-label>
                 <textarea matInput name="description" rows="6" [(ngModel)]="descriptionDraft" autofocus></textarea>
               </mat-form-field>
@@ -64,7 +64,7 @@
         <mat-card-content>
           <h2>Details</h2>
 
-          <mat-form-field appearance="outline" class="full">
+          <mat-form-field class="full">
             <mat-label>Status</mat-label>
             <mat-select [ngModel]="task.column" (ngModelChange)="setColumn($event)">
               @for (c of columnOptions(); track c) {
@@ -76,7 +76,7 @@
             </mat-select>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="full">
+          <mat-form-field class="full">
             <mat-label>Sprint</mat-label>
             <mat-select [ngModel]="task.sprintKey" (ngModelChange)="setSprint($event)">
               <mat-option [value]="null">Backlog (no sprint)</mat-option>
@@ -86,7 +86,7 @@
             </mat-select>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="full">
+          <mat-form-field class="full">
             <mat-label>Value points</mat-label>
             <mat-select [ngModel]="task.points" (ngModelChange)="setPoints($event)">
               <mat-option [value]="null">Not estimated</mat-option>
@@ -99,7 +99,7 @@
             }
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="full">
+          <mat-form-field class="full">
             <mat-label>Priority</mat-label>
             <mat-select [ngModel]="task.priority" (ngModelChange)="setPriority($event)">
               @for (p of plan()?.priorities ?? []; track p) {
@@ -108,7 +108,7 @@
             </mat-select>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="full">
+          <mat-form-field class="full">
             <mat-label>Goal</mat-label>
             <mat-select [ngModel]="task.goalId" (ngModelChange)="setGoal($event)">
               <mat-option [value]="null">No goal</mat-option>

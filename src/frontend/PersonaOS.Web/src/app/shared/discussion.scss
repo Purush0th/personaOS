@@ -1,73 +1,58 @@
-h2 {
-  font-size: 1.05rem;
-  margin: 1.2rem 0 0.4rem;
+// Two cards, Attachments then Comments, spaced like every other card in the page's column.
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.tiny {
-  padding: 0.05rem 0.4rem;
-  font-size: 0.75rem;
+mat-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
 
-  &.danger {
-    color: var(--danger);
-    border-color: #f0c8c8;
-  }
+h2 {
+  font: var(--mat-sys-title-medium);
+  margin: 0;
 }
 
 .attachments {
-  ul {
-    list-style: none;
-    margin: 0;
+  mat-list {
     padding: 0;
   }
 
-  li {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.3rem 0;
-    font-size: 0.9rem;
-  }
-
   .thumb img {
-    height: 2.4rem;
-    width: 2.4rem;
+    height: 2.5rem;
+    width: 2.5rem;
     object-fit: cover;
-    border-radius: 6px;
-    border: 1px solid var(--line);
+    border-radius: var(--mat-sys-corner-small);
     display: block;
   }
 
   .name {
-    color: var(--ink);
+    color: inherit;
   }
 
-  .upload {
-    display: block;
-    margin-top: 0.5rem;
-    font-weight: 400;
-
-    input {
-      font: inherit;
-      font-size: 0.85rem;
-    }
+  button {
+    align-self: flex-start;
   }
 }
 
 .comment {
-  border: 1px solid #e2e2ea;
-  border-radius: 8px;
-  padding: 0.5rem 0.7rem;
-  margin-bottom: 0.5rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  padding: 0.25rem 0.25rem 0.6rem 0.75rem;
 
+  // The assistant's notes are tinted, so a glance tells you who said what.
   &.assistant {
-    background: #f6f6fb;
+    background: var(--mat-sys-surface-container);
   }
 
   .head {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.5rem;
-    font-size: 0.85rem;
+    font: var(--mat-sys-label-large);
 
     .spacer {
       flex: 1;
@@ -75,30 +60,32 @@ h2 {
   }
 
   .body {
-    margin: 0.35rem 0 0;
+    margin: 0 0.5rem 0 0;
     white-space: pre-wrap;
-  }
-
-  .row {
-    display: flex;
-    gap: 0.4rem;
-    margin-top: 0.4rem;
   }
 }
 
-textarea {
+.full {
   width: 100%;
-  box-sizing: border-box;
-  font: inherit;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 
 .new-comment {
-  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
 
-  button {
-    margin-top: 0.4rem;
-  }
+.empty {
+  margin: 0;
+}
+
+.danger {
+  color: var(--mat-sys-error);
 }

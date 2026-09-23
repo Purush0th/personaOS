@@ -14,28 +14,30 @@
 <mat-tab-nav-panel #panel>
   @if (editingSprint(); as editing) {
     <mat-card class="sprint-form" appearance="outlined">
-      <form (ngSubmit)="saveSprint()">
-        <h2>{{ editing === 'new' ? 'New sprint' : 'Edit ' + editing.key }}</h2>
-        <div class="fields">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
-            <mat-label>Name</mat-label>
-            <input matInput name="name" [(ngModel)]="sprintName" placeholder="Optional, e.g. Paperwork week" autofocus />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Starts</mat-label>
-            <input matInput name="start" type="datetime-local" [(ngModel)]="sprintStart" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Ends</mat-label>
-            <input matInput name="end" type="datetime-local" [(ngModel)]="sprintEnd" />
-          </mat-form-field>
-        </div>
-        <p class="muted small">Leave the dates empty for the next free Sunday-to-Sunday week.</p>
-        <div class="form-actions">
-          <button mat-button type="button" (click)="editingSprint.set(null)">Cancel</button>
-          <button mat-flat-button type="submit">Save</button>
-        </div>
-      </form>
+      <mat-card-content>
+        <form (ngSubmit)="saveSprint()">
+          <h2>{{ editing === 'new' ? 'New sprint' : 'Edit ' + editing.key }}</h2>
+          <div class="fields">
+            <mat-form-field class="grow">
+              <mat-label>Name</mat-label>
+              <input matInput name="name" [(ngModel)]="sprintName" placeholder="Optional, e.g. Paperwork week" autofocus />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Starts</mat-label>
+              <input matInput name="start" type="datetime-local" [(ngModel)]="sprintStart" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Ends</mat-label>
+              <input matInput name="end" type="datetime-local" [(ngModel)]="sprintEnd" />
+            </mat-form-field>
+          </div>
+          <p class="muted small">Leave the dates empty for the next free Sunday-to-Sunday week.</p>
+          <div class="form-actions">
+            <button mat-button type="button" (click)="editingSprint.set(null)">Cancel</button>
+            <button mat-flat-button type="submit">Save</button>
+          </div>
+        </form>
+      </mat-card-content>
     </mat-card>
   }
 
@@ -72,32 +74,36 @@
               }
 
               <span class="spacer"></span>
-              <span class="muted small count">
-                {{ group.tasks.length }} {{ group.tasks.length === 1 ? 'issue' : 'issues' }} ·
-                {{ points(group.tasks) }} pts
-              </span>
+              <!-- Count and actions wrap as one unit, so a narrow window never strands the menu
+                   button on a line of its own. -->
+              <span class="side">
+                <span class="muted small count">
+                  {{ group.tasks.length }} {{ group.tasks.length === 1 ? 'issue' : 'issues' }} ·
+                  {{ points(group.tasks) }} pts
+                </span>
 
-              @if (group.sprint; as sprint) {
-                @if (canStart(sprint)) {
-                  <button mat-flat-button (click)="startSprint(sprint)">Start sprint</button>
-                }
-                @if (sprint.status === 'active') {
-                  <button mat-flat-button (click)="completeSprint(sprint)">Complete sprint</button>
-                }
-                <button mat-icon-button [matMenuTriggerFor]="sprintMenu" [attr.aria-label]="'Actions for ' + sprint.key">
-                  <mat-icon>more_vert</mat-icon>
-                </button>
-                <mat-menu #sprintMenu="matMenu">
-                  <button mat-menu-item (click)="editSprint(sprint)">
-                    <mat-icon>edit</mat-icon>
-                    Edit dates and name
+                @if (group.sprint; as sprint) {
+                  @if (canStart(sprint)) {
+                    <button mat-flat-button (click)="startSprint(sprint)">Start sprint</button>
+                  }
+                  @if (sprint.status === 'active') {
+                    <button mat-flat-button (click)="completeSprint(sprint)">Complete sprint</button>
+                  }
+                  <button mat-icon-button [matMenuTriggerFor]="sprintMenu" [attr.aria-label]="'Actions for ' + sprint.key">
+                    <mat-icon>more_vert</mat-icon>
                   </button>
-                  <button mat-menu-item (click)="deleteSprint(sprint)">
-                    <mat-icon class="danger">delete</mat-icon>
-                    Delete sprint
-                  </button>
-                </mat-menu>
-              }
+                  <mat-menu #sprintMenu="matMenu">
+                    <button mat-menu-item (click)="editSprint(sprint)">
+                      <mat-icon>edit</mat-icon>
+                      Edit dates and name
+                    </button>
+                    <button mat-menu-item (click)="deleteSprint(sprint)">
+                      <mat-icon class="danger">delete</mat-icon>
+                      Delete sprint
+                    </button>
+                  </mat-menu>
+                }
+              </span>
             </header>
 
             @if (!isCollapsed(group)) {
@@ -131,34 +137,34 @@
                     }
 
                     <span class="spacer"></span>
-                    <span class="status muted small">{{ columnLabels[task.column] }}</span>
+                    <!-- Everything in the backlog group is in the backlog; the column only says
+                         something inside a sprint. -->
+                    @if (group.sprint) {
+                      <span class="status muted small">{{ columnLabels[task.column] }}</span>
+                    }
 
-                    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="priority">
-                      <mat-select
-                        [ngModel]="task.priority"
-                        [ngModelOptions]="{ standalone: true }"
-                        (ngModelChange)="setPriority(task, $event)"
-                        [attr.aria-label]="'Priority of ' + task.key"
-                      >
-                        @for (p of plan.priorities; track p) {
-                          <mat-option [value]="p">{{ priorityLabels[p] }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
-
-                    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="points">
-                      <mat-select
-                        [ngModel]="task.points"
-                        [ngModelOptions]="{ standalone: true }"
-                        (ngModelChange)="setPoints(task, $event)"
-                        [attr.aria-label]="'Value points of ' + task.key"
-                      >
-                        <mat-option [value]="null">?</mat-option>
-                        @for (p of plan.allowedPoints; track p) {
-                          <mat-option [value]="p">{{ p }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
+                    <!-- Priority and points are values you glance at and occasionally change, so
+                         they read as compact chips that open a menu, not as form fields. -->
+                    <button
+                      mat-button
+                      class="priority p-{{ task.priority }}"
+                      [matMenuTriggerFor]="priorityMenu"
+                      [matMenuTriggerData]="{ task }"
+                      [attr.aria-label]="'Priority of ' + task.key + ': ' + priorityLabels[task.priority]"
+                    >
+                      <mat-icon>{{ priorityIcons[task.priority] }}</mat-icon>
+                      {{ priorityLabels[task.priority] }}
+                    </button>
+                    <button
+                      type="button"
+                      class="points-pill"
+                      [class.none]="task.points === null"
+                      [matMenuTriggerFor]="pointsMenu"
+                      [matMenuTriggerData]="{ task }"
+                      [attr.aria-label]="'Value points of ' + task.key + ': ' + (task.points ?? 'not set')"
+                    >
+                      {{ task.points ?? '?' }}
+                    </button>
 
                     <button mat-icon-button [matMenuTriggerFor]="moveMenu" [attr.aria-label]="'Move ' + task.key">
                       <mat-icon>more_vert</mat-icon>
@@ -178,11 +184,11 @@
 
               @if (addingTo() === groupId(group)) {
                 <form class="add" (ngSubmit)="add(group)">
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+                  <mat-form-field class="grow">
                     <mat-label>What needs doing?</mat-label>
                     <input matInput name="title" [(ngModel)]="draftTitle" autofocus />
                   </mat-form-field>
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="points">
+                  <mat-form-field class="points">
                     <mat-label>Points</mat-label>
                     <mat-select name="points" [(ngModel)]="draftPoints">
                       <mat-option [value]="null">?</mat-option>
@@ -205,5 +211,25 @@
         </mat-card>
       }
     </div>
+
+    <!-- One priority menu and one points menu for every row; the row passes itself in. -->
+    <mat-menu #priorityMenu="matMenu">
+      <ng-template matMenuContent let-task="task">
+        @for (p of plan.priorities; track p) {
+          <button mat-menu-item (click)="setPriority(task, p)">
+            <mat-icon class="p-{{ p }}">{{ priorityIcons[p] }}</mat-icon>
+            {{ priorityLabels[p] }}
+          </button>
+        }
+      </ng-template>
+    </mat-menu>
+    <mat-menu #pointsMenu="matMenu" class="points-menu">
+      <ng-template matMenuContent let-task="task">
+        <button mat-menu-item (click)="setPoints(task, null)">Not estimated</button>
+        @for (p of plan.allowedPoints; track p) {
+          <button mat-menu-item (click)="setPoints(task, p)">{{ p }} {{ p === 1 ? 'point' : 'points' }}</button>
+        }
+      </ng-template>
+    </mat-menu>
   }
 </mat-tab-nav-panel>

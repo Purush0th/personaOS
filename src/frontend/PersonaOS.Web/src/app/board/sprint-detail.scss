@@ -1,128 +1,93 @@
-.crumbs {
-  margin-bottom: 0.4rem;
+// Crumbs, header and h2 come from item-page.scss.
 
-  a {
-    color: var(--muted);
+.item-head .state {
+  font: var(--mat-sys-label-medium);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-full);
+  padding: 0.1rem 0.6rem;
+  color: var(--mat-sys-on-surface-variant);
+
+  &.active {
+    background: var(--mat-sys-primary-container);
+    border-color: transparent;
+    color: var(--mat-sys-on-primary-container);
   }
 }
 
-.item-head {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-
-  .key {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--muted);
-  }
-
-  h1 {
-    font-size: 1.5rem;
-    margin: 0;
-  }
-
-  .spacer {
-    flex: 1;
-  }
-
-  .state {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 0.05rem 0.5rem;
-    color: var(--muted);
-
-    &.active {
-      background: #e6f2e8;
-      border-color: #9cc5a4;
-      color: #2f5d37;
-    }
-  }
+.dates {
+  margin: 0.25rem 0 1rem;
 }
 
 .sprint-form {
-  margin: 0.6rem 0;
-  padding: 0.8rem;
-  background: #f4f4f8;
-  border-radius: 10px;
+  margin-bottom: 1rem;
 
   .fields {
     display: flex;
-    gap: 0.8rem;
+    gap: 0.75rem;
     flex-wrap: wrap;
 
-    label {
-      margin: 0;
+    .grow {
       flex: 1;
       min-width: 12rem;
     }
   }
 
   .row {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.6rem;
+    margin-top: 0.75rem;
   }
+}
+
+.stats-card,
+.chart {
+  margin-bottom: 1rem;
 }
 
 .stats {
   display: flex;
-  gap: 1.4rem;
+  gap: 2rem;
   flex-wrap: wrap;
-  margin: 0.8rem 0;
 
   .stat {
     display: flex;
     flex-direction: column;
 
     b {
-      font-size: 1.3rem;
+      font: var(--mat-sys-headline-small);
     }
 
     span {
-      font-size: 0.78rem;
-      color: var(--muted);
+      font: var(--mat-sys-label-medium);
+      color: var(--mat-sys-on-surface-variant);
     }
   }
 }
 
-.chart {
-  h2 {
-    font-size: 1.05rem;
-    margin-bottom: 0.2rem;
+.chart svg {
+  width: 100%;
+  max-width: 34rem;
+  height: auto;
+
+  .axis {
+    stroke: var(--mat-sys-outline-variant);
+    stroke-width: 1;
   }
 
-  svg {
-    width: 100%;
-    max-width: 34rem;
-    height: auto;
+  .burn {
+    fill: none;
+    stroke: var(--mat-sys-primary);
+    stroke-width: 2;
+  }
 
-    .axis {
-      stroke: var(--line);
-      stroke-width: 1;
-    }
+  .dot {
+    fill: var(--mat-sys-primary);
+  }
 
-    .burn {
-      fill: none;
-      stroke: var(--ink);
-      stroke-width: 2;
-    }
+  .tick {
+    font: var(--mat-sys-label-small);
+    fill: var(--mat-sys-on-surface-variant);
 
-    .dot {
-      fill: var(--ink);
-    }
-
-    .tick {
-      font-size: 11px;
-      fill: var(--muted);
-
-      &.end {
-        text-anchor: end;
-      }
+    &.end {
+      text-anchor: end;
     }
   }
 }
@@ -131,10 +96,8 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
   gap: 1rem;
-  margin-top: 1rem;
 
   h2 {
-    font-size: 1rem;
     display: flex;
     gap: 0.5rem;
     align-items: baseline;
@@ -149,20 +112,23 @@
   li {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.25rem 0;
-    border-bottom: 1px solid #ececf2;
-    font-size: 0.9rem;
+    gap: 0.5rem;
+    min-height: 2.25rem;
+    font: var(--mat-sys-body-medium);
+
+    & + li {
+      border-top: 1px solid var(--mat-sys-outline-variant);
+    }
 
     .key {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--muted);
+      font: var(--mat-sys-label-small);
+      color: var(--mat-sys-on-surface-variant);
+      text-decoration: none;
     }
 
     .title {
       flex: 1;
-      color: var(--ink);
+      color: inherit;
       text-decoration: none;
 
       &:hover {

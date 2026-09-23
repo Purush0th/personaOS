@@ -45,7 +45,7 @@ import { Discussion } from '../shared/discussion';
     MatSelectModule,
   ],
   templateUrl: './task-detail.html',
-  styleUrl: './task-detail.scss',
+  styleUrl: './item-page.scss',
 })
 export class TaskDetail implements OnInit {
   private readonly api = inject(BoardService);

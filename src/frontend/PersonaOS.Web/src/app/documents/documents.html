@@ -9,7 +9,7 @@
 </header>
 
 <form class="search" (ngSubmit)="reload()">
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+  <mat-form-field class="grow">
     <mat-label>Search by name or description</mat-label>
     <mat-icon matIconPrefix>search</mat-icon>
     <input matInput name="search" [(ngModel)]="search" />

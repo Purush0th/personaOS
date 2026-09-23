@@ -8,17 +8,19 @@
 </header>
 
 <mat-card class="add-card" appearance="outlined">
-  <form (ngSubmit)="add()">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
-      <mat-label>Remind me to…</mat-label>
-      <input matInput name="message" [(ngModel)]="draftMessage" />
-    </mat-form-field>
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="due">
-      <mat-label>When</mat-label>
-      <input matInput name="due" type="datetime-local" [(ngModel)]="draftDue" />
-    </mat-form-field>
-    <button mat-flat-button type="submit" [disabled]="!draftMessage.trim() || !draftDue">Add</button>
-  </form>
+  <mat-card-content>
+    <form (ngSubmit)="add()">
+      <mat-form-field class="grow">
+        <mat-label>Remind me to…</mat-label>
+        <input matInput name="message" [(ngModel)]="draftMessage" />
+      </mat-form-field>
+      <mat-form-field class="due">
+        <mat-label>When</mat-label>
+        <input matInput name="due" type="datetime-local" [(ngModel)]="draftDue" />
+      </mat-form-field>
+      <button mat-flat-button type="submit" [disabled]="!draftMessage.trim() || !draftDue">Add</button>
+    </form>
+  </mat-card-content>
 </mat-card>
 
 @if (loading()) {
