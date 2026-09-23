@@ -11,6 +11,7 @@ import { BrandingService } from '../core/branding.service';
 import { ChatService, PendingAction, ToolReceipt } from '../core/chat.service';
 import { ConversationsStore } from '../core/conversations.store';
 import { conversationRefFromSlug, conversationSlug } from '../core/conversation-slug';
+import { MarkdownPipe } from '../shared/markdown.pipe';
 
 interface Bubble {
   role: 'user' | 'assistant';
@@ -34,6 +35,7 @@ interface Bubble {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MarkdownPipe,
   ],
   templateUrl: './chat.html',
   styleUrl: './chat.scss',
