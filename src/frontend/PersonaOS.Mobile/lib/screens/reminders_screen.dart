@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
+import '../push_service.dart';
 
 /// Reminders list: pending by default, with create / cancel / delete.
 class RemindersScreen extends StatefulWidget {
@@ -33,6 +36,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
     try {
       await action();
       _reload();
+      unawaited(PushService.instance.resyncAlarms(widget.api));
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -47,7 +51,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
       isScrollControlled: true,
       builder: (_) => _AddReminderSheet(api: widget.api),
     );
-    if (created == true) _reload();
+    if (created == true) {
+      _reload();
+      // Set the alarm now rather than wait for the server's push, which can arrive late.
+      unawaited(PushService.instance.resyncAlarms(widget.api));
+    }
   }
 
   @override

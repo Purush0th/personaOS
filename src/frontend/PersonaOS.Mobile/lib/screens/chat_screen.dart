@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../api/personaos_api.dart';
+import '../push_service.dart';
 import '../voice_service.dart';
 import 'conversations_screen.dart';
 
@@ -365,6 +366,10 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         }
       });
+      // A confirmed reminder card sets (or clears) the alarm on this phone straight away.
+      if (confirm && updated.tool.contains('reminder')) {
+        unawaited(PushService.instance.resyncAlarms(widget.api));
+      }
       await _resumeHandsFreeIfWaiting();
     } catch (_) {
       // Leave the card pending so it can be retried rather than lost.
