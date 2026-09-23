@@ -84,6 +84,12 @@ public class InstanceConfig
     /// <summary>Local time the evening rollup is sent; null disables just that job.</summary>
     public TimeOnly? EveningRollupTime { get; set; } = new(21, 0);
 
+    /// <summary>
+    /// Let the assistant reword the briefs in its own voice. Off by default: the composed text is
+    /// complete on its own, and a reworded one is used only when every item in it survives.
+    /// </summary>
+    public bool PhraseBriefs { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 

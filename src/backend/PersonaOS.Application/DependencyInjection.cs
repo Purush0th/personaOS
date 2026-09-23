@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<IReminderDispatcher, ReminderDispatcher>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IProactiveBriefComposer, ProactiveBriefComposer>();
+        services.AddScoped<IBriefPhraser, BriefPhraser>();
         services.AddScoped<IProactiveService, ProactiveService>();
 
         services.AddScoped<IPersonaToolRegistry, PersonaToolRegistry>();

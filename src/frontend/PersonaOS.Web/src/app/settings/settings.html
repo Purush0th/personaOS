@@ -149,6 +149,14 @@
             {{ module }}
           </mat-slide-toggle>
         }
+        @if (features['proactive']) {
+          <mat-slide-toggle [(ngModel)]="phraseBriefs" name="phraseBriefs">
+            Let {{ nickname || 'the assistant' }} word the briefs
+          </mat-slide-toggle>
+          <p class="muted small brief-note">
+            Its version is sent only when every item, time and number from the brief is still in it.
+          </p>
+        }
       </mat-card-content>
     </mat-card>
 

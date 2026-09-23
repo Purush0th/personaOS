@@ -63,6 +63,7 @@ export class Settings implements OnInit {
   /** Empty means the model's default. */
   contextTokens: number | null = null;
   aboutMe = '';
+  phraseBriefs = false;
   /** As loaded, so saving only writes the profile when it changed. */
   private savedAboutMe = '';
   protected readonly aboutMeMax = ABOUT_ME_MAX_LENGTH;
@@ -112,6 +113,7 @@ export class Settings implements OnInit {
       this.features = { ...current.features };
       this.hasKey.set(current.hasAnthropicApiKey);
       this.contextTokens = current.aiContextTokens;
+      this.phraseBriefs = current.phraseBriefs;
       this.defaultContextTokens.set(current.defaultContextTokens);
     } catch {
       this.confirm.error('Could not load settings.');
@@ -133,6 +135,7 @@ export class Settings implements OnInit {
       timeZone: this.timeZone.trim(),
       features: this.features,
       aiContextTokens: this.contextToSend,
+      phraseBriefs: this.phraseBriefs,
     };
     if (this.apiKey.trim()) update.anthropicApiKey = this.apiKey.trim();
 
