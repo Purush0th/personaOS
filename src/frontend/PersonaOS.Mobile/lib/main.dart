@@ -352,7 +352,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late Future<Branding> _branding;
 
   /// Titles the reminder alarms this phone schedules. Kept from the last branding fetch.
@@ -364,6 +364,20 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _api = PersonaOsApi(serverUrl: widget.serverUrl);
     _branding = _fetchBranding();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Coming back to the app re-checks every alarm against the server, so a reminder made on the
+  /// web while the phone was idle is set even if its push has not arrived yet.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(PushService.instance.resyncAlarms(_api));
   }
 
   /// Opens [builder]'s screen, first routing through login when needed.

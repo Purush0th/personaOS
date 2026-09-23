@@ -226,18 +226,19 @@ stops being code. Estimates assume one focused session each, tests kept green th
       position passed as an id is visible before Confirm; see the next item. The scope-change
       warning stays off for re-estimating mid-sprint, by design. Web drag and drop works on touch
       browsers since the move to CDK drag and drop.
-- [ ] **Reminder alarm rang a few minutes late.** A reminder created on the phone synced to the
-      web correctly, but the alarm did not go off at the scheduled time; it came a few minutes
-      later. Alpha.5 moved reminders to exact alarms set on the phone the moment the reminder is
-      created, which should ring on time. So either the exact alarm was never set (and the
-      server's due-time push arrived late instead), or Android deferred it.
-      Follow-up from the owner: **the same happens for reminders created on the server side**
-      (web or chat). The **first** reminder was late; after that late one rang, the following
-      reminders were all on time. That pattern points at something that only starts working
-      after the first alarm or push arrives: for example the exact-alarm schedule not being
-      set until the app wakes (the `reminder_scheduled` push delivered late while the app is
-      idle), a missing exact-alarm permission prompt, or the notification channel or timezone
-      data only being set up on first delivery.
+- [x] **Reminder alarm rang a few minutes late — fixed in code, to confirm on the phone**
+      (2026-09-23). The phone learnt about a new reminder only from the server's
+      `reminder_scheduled` push. That is a data-only message, and FCM lowers the priority of
+      data messages from an app that shows nothing for them, so on an idle phone it could arrive
+      after the reminder was due: the alarm was never set and the server's due-time push rang
+      instead, late. Once that one rang, the app counted as active again and later pushes came on
+      time — the reported pattern, for phone- and server-created reminders alike. (Exact-alarm
+      permission was ruled out: `USE_EXACT_ALARM` is declared and granted automatically.)
+      The alarm no longer depends on that push: `PushService.resyncAlarms` brings the phone's
+      alarms in line with the server right after the phone creates, cancels or deletes a
+      reminder, after a reminder card is confirmed in chat, and whenever the app comes back to
+      the foreground. A reminder made on the web while the phone sits untouched still relies on
+      the push; opening the app sets it. Needs a new APK and a real-phone check.
 - [x] **Sub-goal form should not ask for a period.** Settled by the sprint board: goals stopped
       nesting, sub-goals became tasks, and the child period picker went with them (web and phone).
       Original report below.
@@ -446,9 +447,9 @@ stops being code. Estimates assume one focused session each, tests kept green th
       ⚠️ The APK is unsigned-for-release (debug signing) and is **not** on a phone yet: the stack
       still binds to `127.0.0.1`, so a device on the tailnet cannot reach it — set
       `PERSONAOS_BIND=100.90.80.20` first.
-- [ ] Firebase project setup (FCM Android; APNs via FCM for iOS) — **owner task**, needs a
-      Firebase account. Backend is complete behind the `IPushSender` port; drop in an FCM
-      adapter and swap the `NullPushSender` registration in `Infrastructure/DependencyInjection`.
+- [x] Firebase project setup — superseded by bring-your-own Firebase (2026-09-14): the owner
+      uploads their own project's files in Settings, and push has worked on their phone since.
+      iOS/APNs is out of scope while there is no iOS app.
 - [x] **Alarm-style reminders + push fixes (2026-09-14).** Confirmed on the owner's phone: the alarm
       rang full screen. Follow-up found and fixed there: Dismiss/Snooze left the screen open
       (`maybePop()` honoured the alarm's own `PopScope(canPop: false)`; now `pop()`), and the
@@ -563,10 +564,9 @@ stops being code. Estimates assume one focused session each, tests kept green th
       System prompt now also lists the next 5 upcoming reminders.
       **End-to-end tool call still needs the live-key smoke test** (same blocker as Phases 1–3).
 - [x] Flutter Reminders screen (list, create with date+time picker, cancel, delete).
-- [ ] `flutter_local_notifications` for foreground display (mobile session)
-
-## Phase 5 — Docs storage
-
+- [x] `flutter_local_notifications` for foreground display — already done:
+      `PushService._showInForeground` shows FCM notifications while the app is open, on the
+      "Reminders and briefs" channel, and reminder data goes to the alarms. Closed 2026-09-23.
 - [x] `POST/GET /api/documents` — filesystem storage under `data/docs-storage/`
       — `Document` entity + migration `20260723055854_Documents`; `DocumentService` +
       `DocumentsController` (list/search, metadata, download, upload multipart, edit
@@ -608,19 +608,9 @@ stops being code. Estimates assume one focused session each, tests kept green th
       app has. Gaps found by inventory — mobile has chat, goals, planner, reminders, login; the
       web also has conversation history (list/open/delete), documents, and settings. The backend
       endpoints for all three already exist, so this is client work only.
-- [ ] (superseded, kept for the record) Voice input fails silently. Found on the emulator:
-      the mic turns on, Android shows the recording indicator, and then nothing ever comes back.
-      `VoiceService.ensureStt` passes `onError: (_) {}`, so every recognition error is discarded
-      and the chat screen leaves `_listening` true forever — the mic looks stuck on and the user
-      is told nothing. Surface the error and reset the mic state. Separately, `listen` never
-      passes a `localeId`, so it uses the device default with no fallback to a locale the
-      recognizer actually has. Note the emulator itself cannot transcribe — the AOSP image has no
-      SODA language pack (`Failed to get language pack of required locale: error 13`) and the
-      online recognizer needs a signed-in Google account — so confirming a *successful*
-      transcription still needs a real device.
-
-## Phase 7 — Dashboard parity
-
+- [x] Voice input fails silently (emulator, 2026-09). Closed 2026-09-23: superseded by the
+      hands-free voice work of 2026-09-12, which surfaces recognition errors and resets the mic;
+      the original report is in git history.
 - [x] Dashboard chat (reuse SSE endpoint) — `ChatService` reads the SSE stream with
       `fetch` + `ReadableStream` (not `EventSource`, which cannot send the bearer header).
       Conversation sidebar, streaming bubbles, per-call tool indicator, Enter-to-send.
