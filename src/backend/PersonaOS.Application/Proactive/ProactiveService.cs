@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Common;
 using PersonaOS.Application.Common.Interfaces;
@@ -26,7 +26,7 @@ public class ProactiveService(
     {
         var config = await configService.GetOrCreateAsync(ct);
         if (!config.IsConfigured) return [];
-        if (!config.Features.TryGetValue(InstanceConfig.Modules.Proactive, out var enabled) || !enabled)
+        if (!config.IsEnabled(InstanceConfig.Modules.Proactive))
             return [];
 
         var localNow = UserClock.ToLocal(timeProvider.GetUtcNow().UtcDateTime, config.TimeZone);

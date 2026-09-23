@@ -22,6 +22,9 @@
   <ItemGroup>
     <ProjectReference Include="..\PersonaOS.Application\PersonaOS.Application.csproj" />
     <ProjectReference Include="..\PersonaOS.Domain\PersonaOS.Domain.csproj" />
+    <!-- For the few adapters whose guards are worth testing directly: file-system paths and
+         prompt overrides. Everything else is tested at the Application layer through the fakes. -->
+    <ProjectReference Include="..\PersonaOS.Infrastructure\PersonaOS.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

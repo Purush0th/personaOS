@@ -1,4 +1,4 @@
-namespace PersonaOS.Domain.Entities;
+﻿namespace PersonaOS.Domain.Entities;
 
 /// <summary>
 /// Singleton configuration row for this PersonaOS install (always Id == 1).
@@ -67,6 +67,9 @@ public class InstanceConfig
 
     /// <summary>Feature toggle map (module name → enabled). Gates UI + endpoints.</summary>
     public Dictionary<string, bool> Features { get; set; } = new();
+
+    /// <summary>Whether a module is switched on. A module missing from the map is off.</summary>
+    public bool IsEnabled(string module) => Features.TryGetValue(module, out var on) && on;
 
     /// <summary>Local time the morning brief is sent; null disables just that job.</summary>
     public TimeOnly? MorningBriefTime { get; set; } = new(7, 30);

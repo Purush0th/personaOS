@@ -1,0 +1,10 @@
+---
+name: reminders
+description: The next few pending reminders. Only rendered when there are some.
+inputs:
+  reminders: one line per reminder, "2026-09-23 18:00 — Call mum"
+---
+Upcoming reminders (times in the user's zone):
+{{#reminders}}
+- {{.}}
+{{/reminders}}

@@ -10,6 +10,12 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The shipped prompt fragments. An installation overrides one by dropping a file of the same
+         name into its prompts directory; see PromptLibrary. -->
+    <EmbeddedResource Include="Ai\Prompts\Fragments\*.prompty" LogicalName="PersonaOS.Prompts.%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

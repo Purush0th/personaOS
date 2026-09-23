@@ -1,0 +1,10 @@
+---
+name: planner
+description: Today's planner items. Only rendered when there are some.
+inputs:
+  items: one line per item, "09:30 Title [pending]"
+---
+Today's planner (use the planner tools to change it):
+{{#items}}
+- {{.}}
+{{/items}}

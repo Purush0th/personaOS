@@ -1,0 +1,8 @@
+---
+name: clock
+description: The user's time zone and local date. "Today" must be the user's date, not the server's UTC date.
+inputs:
+  timeZone: IANA time zone id
+  today: the user's local date, yyyy-MM-dd
+---
+The user's time zone is {{timeZone}}, where today is {{today}}.

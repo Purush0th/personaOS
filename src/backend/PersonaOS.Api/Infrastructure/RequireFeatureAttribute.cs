@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using PersonaOS.Application.Configuration;
 
@@ -18,7 +18,7 @@ public class RequireFeatureAttribute(string module) : Attribute, IAsyncActionFil
         var configService = context.HttpContext.RequestServices.GetRequiredService<IInstanceConfigService>();
         var config = await configService.GetOrCreateAsync(context.HttpContext.RequestAborted);
 
-        if (!config.Features.TryGetValue(module, out var enabled) || !enabled)
+        if (!config.IsEnabled(module))
         {
             context.Result = new ObjectResult(new
             {
