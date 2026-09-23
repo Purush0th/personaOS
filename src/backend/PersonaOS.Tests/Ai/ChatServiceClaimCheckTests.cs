@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using PersonaOS.Application.Ai;
+using PersonaOS.Application.Ai.Guards;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
@@ -166,6 +167,25 @@ public class ChatServiceClaimCheckTests
         // The card is right there: no "nothing was saved" note on top of it.
         Assert.Null(done.UnverifiedClaim);
         Assert.Empty(goals.Invocations);
+    }
+
+    [Fact]
+    public async Task A_done_claim_that_survives_the_correction_is_taken_out_of_the_reply()
+    {
+        // Seen live: qwen2.5:3b-instruct repeated the claim word for word when asked to correct it.
+        const string claim = "I've created a new goal titled Learn Rust for this month.";
+        var (db, chat, streamer) = Setup(new FakeTool("create_goal", mutates: true));
+        streamer
+            .EnqueueToolCall("toolu_1", "create_goal", """{"title":"Learn Rust"}""")
+            .EnqueueText(claim + " You'll see a card with the details.")
+            .EnqueueText(claim + " You'll see a card with the details.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Create a goal called Learn Rust"));
+
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.Equal(EmptyReplyGuard.ProposalOnly + " You'll see a card with the details.", done.Text);
+        Assert.Null(done.UnverifiedClaim);
+        Assert.Equal(done.Text, (await db.ChatMessages.SingleAsync(m => m.Role == ChatRoles.Assistant)).Content);
     }
 
     [Fact]

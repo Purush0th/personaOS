@@ -172,6 +172,12 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("TEXT");
 
+                    b.Property<long?>("SummarizedThroughMessageId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -331,6 +337,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<string>("AiBaseUrl")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("AiContextTokens")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("AiModel")
                         .IsRequired()

@@ -1,0 +1,8 @@
+---
+name: conversation-summary
+description: Appended to the system prompt when older messages of a long conversation have been summarised instead of sent.
+inputs:
+  summary: the conversation's running summary
+---
+Earlier in this conversation (a summary; the messages themselves are no longer shown):
+{{summary}}

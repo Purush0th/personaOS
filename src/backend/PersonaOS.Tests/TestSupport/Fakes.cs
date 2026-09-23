@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using PersonaOS.Application.Ai;
 using PersonaOS.Application.Ai.Guards;
@@ -111,19 +111,25 @@ public class FakeAiMessageStreamer : IAiMessageStreamer
         return this;
     }
 
+    /// <summary>Every request as received, so tests can assert the prompt and model options.</summary>
+    public List<AiRequest> ReceivedRequests { get; } = new();
+
+    /// <summary>
+    /// Waits this long before each round's first chunk, to exercise the idle timeout;
+    /// <see cref="Timeout.InfiniteTimeSpan"/> waits until cancelled.
+    /// </summary>
+    public TimeSpan DelayBeforeFirstChunk { get; set; }
+
     public async IAsyncEnumerable<AiStreamChunk> StreamAsync(
-        string apiKey,
-        string model,
-        string? baseUrl,
-        string systemPrompt,
-        IReadOnlyList<AiChatTurn> turns,
-        IReadOnlyList<AiToolDefinition> tools,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        AiRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         CallCount++;
         // Snapshot: ChatService mutates its list between rounds.
-        ReceivedTurns.Add(turns.ToList());
-        ReceivedTools.Add(tools.ToList());
+        ReceivedTurns.Add(request.Turns.ToList());
+        ReceivedTools.Add(request.Tools.ToList());
+        ReceivedRequests.Add(request with { Turns = request.Turns.ToList() });
+
+        if (DelayBeforeFirstChunk != TimeSpan.Zero) await Task.Delay(DelayBeforeFirstChunk, ct);
 
         if (ThrowOnFirstCall is not null && CallCount == 1)
         {
@@ -366,13 +372,20 @@ public class FakePromptOverrides : IPromptOverrideSource
 public static class TestChat
 {
     public static ChatService Create(
-        TestDbContext db, IInstanceConfigService config, IAiMessageStreamer streamer, params IPersonaTool[] tools)
+        TestDbContext db, IInstanceConfigService config, IAiMessageStreamer streamer, params IPersonaTool[] tools) =>
+        Create(db, config, streamer, TimeProvider.System, tools);
+
+    public static ChatService Create(
+        TestDbContext db, IInstanceConfigService config, IAiMessageStreamer streamer, TimeProvider time, params IPersonaTool[] tools)
     {
         var registry = new PersonaToolRegistry(tools, config, NullLogger<PersonaToolRegistry>.Instance);
         return new ChatService(
             db, config, new FakeSystemPromptBuilder(), new FakeAiMessageStreamerFactory(streamer), registry,
             new ToolCallPipeline(registry, NullLogger<ToolCallPipeline>.Instance),
             new ReplyPipeline(db, NullLogger<ReplyPipeline>.Instance),
+            new PersonaOS.Application.Ai.History.ConversationSummarizer(
+                TestPrompts.Library(), NullLogger<PersonaOS.Application.Ai.History.ConversationSummarizer>.Instance),
+            time,
             NullLogger<ChatService>.Instance);
     }
 }

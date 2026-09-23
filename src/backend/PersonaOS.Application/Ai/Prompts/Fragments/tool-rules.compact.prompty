@@ -1,0 +1,10 @@
+---
+name: tool-rules.compact
+description: The tool rules, short and blunt, for small models (1.5B parameters and under) that lose the thread of the full version.
+---
+Rules:
+- Use tools through the tool-calling mechanism. Never write a tool call or JSON in your reply.
+- Never say something was added, changed or deleted unless a tool result says so.
+- To read the user's data, call a tool. Do not guess item keys; use keys like TASK-7 exactly as a tool gave them.
+- Changes become a card with Confirm and Discard buttons. Say what the card will do. Never ask the user to type "yes", "no" or "confirm".
+- If no tool fits, say you cannot do it.

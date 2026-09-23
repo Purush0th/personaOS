@@ -9,6 +9,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { firstValueFrom } from 'rxjs';
 
+import { AI_PROVIDERS, aiProvider } from '../core/ai-providers';
+
 interface FeatureOption {
   key: string;
   label: string;
@@ -53,13 +55,10 @@ export class SetupWizard {
   aiBaseUrl = '';
   timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
 
-  readonly providers = [
-    { id: 'anthropic', label: 'Anthropic (Claude)' },
-    { id: 'openai_compatible', label: 'OpenAI-compatible (OpenAI, Ollama, Groq, OpenRouter…)' },
-  ];
+  readonly providers = AI_PROVIDERS;
 
-  get isCompatible(): boolean {
-    return this.aiProvider === 'openai_compatible';
+  get selected() {
+    return aiProvider(this.aiProvider);
   }
 
   readonly features: FeatureOption[] = [
@@ -78,9 +77,9 @@ export class SetupWizard {
     if (!this.adminUsername.trim()) { this.error.set('Choose an admin username.'); return; }
     if (this.adminPassword.length < 8) { this.error.set('Password must be at least 8 characters.'); return; }
     if (this.adminPassword !== this.adminPasswordConfirm) { this.error.set('Passwords do not match.'); return; }
-    if (!this.isCompatible && !this.apiKey.trim()) { this.error.set('Your Anthropic API key is required.'); return; }
-    if (this.isCompatible && !this.aiBaseUrl.trim()) {
-      this.error.set('Enter the provider base URL (e.g. https://api.openai.com/v1 or http://localhost:11434/v1).');
+    if (!this.selected.keyless && !this.apiKey.trim()) { this.error.set('Your Anthropic API key is required.'); return; }
+    if (this.selected.needsBaseUrl && !this.aiBaseUrl.trim()) {
+      this.error.set(`Enter the provider's base URL (e.g. ${this.selected.baseUrlPlaceholder}).`);
       return;
     }
     if (!this.aiModel.trim()) { this.error.set('Enter a model id.'); return; }
@@ -95,7 +94,7 @@ export class SetupWizard {
         anthropicApiKey: this.apiKey.trim(),
         aiProvider: this.aiProvider,
         aiModel: this.aiModel.trim(),
-        aiBaseUrl: this.isCompatible ? this.aiBaseUrl.trim() : null,
+        aiBaseUrl: this.selected.needsBaseUrl ? this.aiBaseUrl.trim() : null,
         timeZone: this.timeZone,
         features: Object.fromEntries(this.features.map(f => [f.key, f.enabled])),
       }));

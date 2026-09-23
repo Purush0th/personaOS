@@ -10,6 +10,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
+import { AI_PROVIDERS, aiProvider } from '../core/ai-providers';
 import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
 import { SettingsService, SettingsUpdate } from '../core/settings.service';
@@ -47,10 +48,8 @@ export class Settings implements OnInit {
   protected readonly testing = signal(false);
   protected readonly testResult = signal<{ ok: boolean; message: string } | null>(null);
 
-  protected readonly providers = [
-    { id: 'anthropic', label: 'Anthropic (Claude)' },
-    { id: 'openai_compatible', label: 'OpenAI-compatible (OpenAI, Ollama, Groq, OpenRouter…)' },
-  ];
+  protected readonly providers = AI_PROVIDERS;
+  protected readonly defaultContextTokens = signal<number | null>(null);
 
   nickname = '';
   persona = '';
@@ -61,9 +60,16 @@ export class Settings implements OnInit {
   /** Blank means "leave the stored key untouched" — we never receive the current one. */
   apiKey = '';
   features: Record<string, boolean> = {};
+  /** Empty means the model's default. */
+  contextTokens: number | null = null;
 
-  protected get isCompatible(): boolean {
-    return this.provider === 'openai_compatible';
+  protected get selected() {
+    return aiProvider(this.provider);
+  }
+
+  /** What to send for the context size: 0 clears it, so the model's default applies again. */
+  private get contextToSend(): number {
+    return this.contextTokens && this.contextTokens > 0 ? Math.round(this.contextTokens) : 0;
   }
 
   protected async test(): Promise<void> {
@@ -73,9 +79,10 @@ export class Settings implements OnInit {
       const result = await this.settings.testConnection({
         aiProvider: this.provider,
         aiModel: this.model.trim(),
-        aiBaseUrl: this.isCompatible ? this.baseUrl.trim() : '',
+        aiBaseUrl: this.selected.needsBaseUrl ? this.baseUrl.trim() : '',
         // Send a freshly-typed key if present; otherwise the server tests the stored one.
         anthropicApiKey: this.apiKey.trim() || undefined,
+        aiContextTokens: this.contextToSend || undefined,
       });
       this.testResult.set(result);
     } catch (e: unknown) {
@@ -99,6 +106,8 @@ export class Settings implements OnInit {
       this.timeZone = current.timeZone;
       this.features = { ...current.features };
       this.hasKey.set(current.hasAnthropicApiKey);
+      this.contextTokens = current.aiContextTokens;
+      this.defaultContextTokens.set(current.defaultContextTokens);
     } catch {
       this.confirm.error('Could not load settings.');
     } finally {
@@ -114,10 +123,11 @@ export class Settings implements OnInit {
       personaTemplate: this.persona.trim(),
       aiProvider: this.provider,
       aiModel: this.model.trim(),
-      // Send the base URL for compatible providers; clear it (empty) for Anthropic.
-      aiBaseUrl: this.isCompatible ? this.baseUrl.trim() : '',
+      // Send the base URL for providers reached at an address; clear it (empty) for Anthropic.
+      aiBaseUrl: this.selected.needsBaseUrl ? this.baseUrl.trim() : '',
       timeZone: this.timeZone.trim(),
       features: this.features,
+      aiContextTokens: this.contextToSend,
     };
     if (this.apiKey.trim()) update.anthropicApiKey = this.apiKey.trim();
 

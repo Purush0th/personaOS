@@ -1,0 +1,15 @@
+---
+name: board.compact
+description: The sprint board in brief, for small models. Planning advice is left out; they only need the keys and what is in the sprint.
+inputs:
+  sprint: one line summarising the running or next sprint (empty when there is none)
+  tasks: its open tasks, one line each, "TASK-7 Title [todo, 3 pts]"
+---
+The board has goals (GOAL-n), tasks (TASK-n) and sprints (SPRINT-n). Always use these keys, never a position in a list.
+{{#sprint}}
+
+{{sprint}}
+{{#tasks}}
+- {{.}}
+{{/tasks}}
+{{/sprint}}

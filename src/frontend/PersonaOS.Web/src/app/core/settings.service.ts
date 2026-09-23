@@ -12,6 +12,10 @@ export interface CurrentSettings {
   features: Record<string, boolean>;
   /** The key itself is never returned — only whether one is stored. */
   hasAnthropicApiKey: boolean;
+  /** Set in Settings; null means the model's default applies. */
+  aiContextTokens: number | null;
+  /** The context size this model gets when none is set. */
+  defaultContextTokens: number;
 }
 
 /** Only the fields present are changed; omit the key to leave it untouched. */
@@ -24,6 +28,8 @@ export interface SettingsUpdate {
   aiBaseUrl?: string;
   timeZone?: string;
   features?: Record<string, boolean>;
+  /** 0 clears it back to the model's default. */
+  aiContextTokens?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -71,6 +77,7 @@ export interface TestConnection {
   aiModel?: string;
   aiBaseUrl?: string;
   anthropicApiKey?: string;
+  aiContextTokens?: number;
 }
 
 export interface TestConnectionResult {

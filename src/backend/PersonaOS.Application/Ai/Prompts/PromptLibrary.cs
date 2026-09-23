@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 
 namespace PersonaOS.Application.Ai.Prompts;
@@ -13,8 +13,12 @@ namespace PersonaOS.Application.Ai.Prompts;
 /// </summary>
 public interface IPromptLibrary
 {
-    /// <summary>Renders the fragment, trimmed. Empty when the fragment renders to nothing.</summary>
-    string Render(string fragment, IReadOnlyDictionary<string, object?> values);
+    /// <summary>
+    /// Renders the fragment, trimmed; empty when it renders to nothing. With a
+    /// <paramref name="variant"/>, a fragment named <c>{fragment}.{variant}</c> is used where one
+    /// exists (overridden or shipped), and the plain fragment otherwise.
+    /// </summary>
+    string Render(string fragment, IReadOnlyDictionary<string, object?> values, string? variant = null);
 }
 
 public sealed class PromptLibrary(IPromptOverrideSource overrides, ILogger<PromptLibrary> logger) : IPromptLibrary
@@ -24,10 +28,20 @@ public sealed class PromptLibrary(IPromptOverrideSource overrides, ILogger<Promp
 
     private static readonly ConcurrentDictionary<string, PromptTemplate> Defaults = new();
 
-    public string Render(string fragment, IReadOnlyDictionary<string, object?> values)
+    public string Render(string fragment, IReadOnlyDictionary<string, object?> values, string? variant = null)
     {
-        var fileName = fragment + Extension;
-        var overrideText = overrides.Read(fileName);
+        if (variant is not null)
+        {
+            var specific = fragment + "." + variant;
+            if (overrides.Read(specific + Extension) is not null || HasDefault(specific)) return RenderOne(specific, values);
+        }
+
+        return RenderOne(fragment, values);
+    }
+
+    private string RenderOne(string fragment, IReadOnlyDictionary<string, object?> values)
+    {
+        var overrideText = overrides.Read(fragment + Extension);
         if (overrideText is not null)
         {
             try
@@ -43,6 +57,9 @@ public sealed class PromptLibrary(IPromptOverrideSource overrides, ILogger<Promp
 
         return Default(fragment).Render(values).Trim();
     }
+
+    private static bool HasDefault(string fragment) =>
+        typeof(PromptLibrary).Assembly.GetManifestResourceInfo(ResourcePrefix + fragment + Extension) is not null;
 
     /// <summary>The shipped fragment. Throws for a name that does not exist: that is a bug here, not a user edit.</summary>
     public static PromptTemplate Default(string fragment) => Defaults.GetOrAdd(fragment, name =>

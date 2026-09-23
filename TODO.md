@@ -57,19 +57,20 @@ stops being code. Estimates assume one focused session each, tests kept green th
       unchanged; the rigs now share `TestChat.Create`. One behaviour change: a reply that was only
       reasoning now gets "I did not manage to write an answer", not the leaked-tool-call message.
       22 guard tests, including the metric. 375 backend tests.
-- [ ] **C. Model profiles** (~3 hours). Per-model settings instead of treating a 270M model and a
-      72B model alike: whether it supports tools, its tool-iteration budget, and which prompt
-      variant it gets (a small model needs a short, blunt prompt; a large one can take the full
-      thing). Fill the profile from evidence with a `scripts/model-check.sh <model>` that points
-      the instance at a model, runs scripted turns against `/api/chat` — tools supported at all,
-      "tasks for today" answered in one call, keys used instead of list positions, a card refused
-      for a target that does not exist, no tool syntax in prose — prints pass/fail per scenario
-      and restores the previous model. Depends on A for the prompt variants.
-
-## Sprint board (requested 2026-09-15; spec: [docs/sprint-board.md](docs/sprint-board.md))
-
-The owner put bug fixing on hold for this feature. Cross-area, built solo.
-
+- [x] **C. Model profiles** (2026-09-23). `Application/Ai/Models/ModelProfile.cs`: a profile per
+      provider and model name (context size, thinks, tool-round budget, prompt variant, idle
+      timeout), from the model-check scores. Small models (1.5B and under, read from the name)
+      get `*.compact.prompty` fragments (`tool-rules`, `product`, `board`) and 4 tool rounds;
+      Qwen3 is a thinking model; a context size set in Settings wins. New **`ollama` provider**:
+      `OllamaMessageStreamer` speaks Ollama's own `/api/chat` and sends `think: false`,
+      `options.num_ctx` and `keep_alive` from the profile (the OpenAI-compatible adapter cannot).
+      The streaming port now takes one `AiRequest` with `AiModelOptions` instead of seven
+      parameters. Settings (web, setup wizard, phone) offer Ollama first for local models; the
+      web has a Context size field (`InstanceConfig.AiContextTokens`, migration
+      `ModelProfilesAndSummaries`). Checked live against `qwen2.5:3b-instruct` on this PC:
+      `get_goals` in 1.8 s with a 9.2k-token prompt, and a goal proposal became a card.
+      `scripts/model-check.ps1` works with any provider (it switches only the model); no
+      separate .sh was written.
 - [x] Backend (2026-09-15). Goals no longer nest and get `GOAL-n` keys; `BoardTask` (`TASK-n`)
       and `Sprint` entities; migration `SprintBoard` turns sub-goals at any depth into tasks
       under their top-level goal (checked against a copy of the live DB first) and switches the
@@ -143,13 +144,12 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       (object or JSON string) where the rest of the object is only envelope keys, applied where
       tool calls enter the chat loop so the registry, the card, its summary and the repeat check
       all see the same fields. `add_planner_item` also validates its date before proposing.
-- [ ] Qwen3 emits thinking. The instance ran it with a 4096-token context, which truncates our
-      prompt (turns log 8k-16k input tokens), and the chat sat on "Using get_planner…" with no
-      content ever arriving. Worked around by hand with a `num_ctx 16384` Modelfile and
-      `/no_think` in the persona field. Three gaps behind it, none fixed: nothing times out or
-      says "still working" when a model streams nothing after a tool result; `<think>` blocks are
-      never stripped, so reasoning shown as content would reach the bubble; and nothing warns
-      when the model's context is smaller than the prompt being sent.
+- [x] **Qwen3 thinking: the three gaps** (2026-09-23). A model that sends nothing for its
+      profile's idle timeout (60 s hosted, 180 s local, 300 s thinking) ends the turn with "The
+      model stopped responding…" instead of a spinner; the wait restarts with every chunk
+      (`TimeProvider`-driven, tested with `FakeTimeProvider`). `<think>` blocks were already
+      stripped (`ThinkingGuard`). A prompt larger than the model's context is logged as a warning
+      naming the fix (Settings, Context size), and history is budgeted so it does not add to it.
 - [x] **False "nothing was saved" warning on a reply that read the board back** (2026-09-21).
       "All tasks are either in progress or have been scheduled for future planned sprints" is a
       description of existing state, but the passive rule read "have been scheduled" plus "tasks"
@@ -180,17 +180,13 @@ The owner put bug fixing on hold for this feature. Cross-area, built solo.
       before proposing; and the gate's own message ("Tell them what you are proposing…") was
       phrased as instructions, which a 0.5B model repeated to the user word for word — it is a
       status object now.
-- [ ] **`/no_think` does not reach Qwen3 through Ollama's OpenAI-compatible endpoint.** Measured
-      both ways — in the system prompt and appended to the user's turn — and neither changed the
-      timings. The switch stays in the prompt because a provider that reads it costs nothing, but
-      the real fix is the native Ollama adapter in item C: `/api/chat` takes `think`, `num_ctx`
-      and `keep_alive` as parameters, which would also settle the context-length problem below.
-- [ ] **History is a flat window of 20 messages, whatever the model.** A 0.5B model answered a
-      fresh thread correctly and produced nonsense in a long one — twenty turns of a confused
-      conversation crowd out the prompt's rules on a small context. Budget the history by tokens
-      instead: keep the system prompt whole, drop the oldest turns until the request fits a share
-      of the model's context, and leave out replies that were only a fallback or only reasoning,
-      which teach the next turn nothing. Roughly 1-2 hours.
+- [x] **`/no_think` does not reach Qwen3 through the OpenAI-compatible endpoint** (2026-09-23).
+      Settled by the Ollama provider, which sends `think: false`; the prompt switch stays for
+      providers that read it.
+- [x] **History budgeted by tokens** (2026-09-23). `HistoryPlanner`: the prompt, tools and new
+      message are always sent whole, a quarter of the context (at most 2,048 tokens) is kept for
+      the reply, and the newest messages that fit fill the rest. Fallback replies are left out.
+      Up to 200 stored messages are considered.
 - [x] **"I've created a goal called Learn Rust for you" above an unconfirmed card** (2026-09-23).
       `ClaimCheckGuard` now also runs when the turn proposed something, using
       `ActionClaimDetector.FindDoneClaim`: done-tense claims only, and never a sentence about the
@@ -352,7 +348,11 @@ Noted as reported, not yet investigated.
 - [x] **Live smoke test — DONE (free, via Ollama).** The blocker was Anthropic *credits*, not code:
       the Anthropic path authenticated a real key and reached the API; the completion + native
       tool-use loop is now proven end-to-end against a local OpenAI-compatible model instead.
-- [ ] Rolling summarization of older turns (windowing only for now)
+- [x] **Rolling summaries of older turns** (2026-09-23). Messages leaving the window are folded
+      into `Conversation.Summary` by `ConversationSummarizer` (one model call, `summarize` and
+      `summarize-input` fragments, 1,200 characters at most) and appended to the system prompt
+      (`conversation-summary`). When a summary is needed the window is cut to 60% of its room,
+      so one summary serves several turns. A failed or slow summary never blocks the reply.
 - [ ] UserProfile edit endpoint + UI (entity exists; no API surface yet)
 
 ## Phase 2 — Goals (Y/Q/M)

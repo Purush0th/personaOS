@@ -93,4 +93,15 @@ public class ActionClaimDetectorTests
         Assert.NotNull(ActionClaimDetector.FindClaim(
             "I've set the reminder for 7pm. Would you like to proceed with anything else?"));
     }
+
+    [Fact]
+    public void Catches_a_done_claim_above_a_card_even_when_a_later_sentence_admits_it()
+    {
+        // Seen live on 2026-09-23, qwen2.5:3b-instruct through the Ollama provider, above a card.
+        const string reply = "I've created a new goal titled \"Learn Rust\" for this month. It hasn't been saved yet, "
+            + "but you'll see a card with this information. Once you confirm the creation of this goal, I can start "
+            + "working on it. How can I assist you further with the goal management?";
+
+        Assert.Equal("I've created a new goal titled \"Learn Rust\" for this month.", ActionClaimDetector.FindDoneClaim(reply));
+    }
 }

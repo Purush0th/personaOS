@@ -43,19 +43,37 @@ public class AiStreamException(string userMessage, Exception? inner = null)
     : Exception(userMessage, inner);
 
 /// <summary>
+/// How to run the model, beyond which one. Each adapter applies what its provider supports and
+/// ignores the rest: only a local server can be told the context size, and only some models think.
+/// </summary>
+/// <param name="ContextTokens">Context window to load the model with (Ollama's <c>num_ctx</c>).</param>
+/// <param name="Think">For models that reason before answering: false turns it off, null leaves the default.</param>
+/// <param name="KeepAlive">How long a local server keeps the model loaded after a request, e.g. "30m".</param>
+public record AiModelOptions(int? ContextTokens = null, bool? Think = null, string? KeepAlive = null)
+{
+    public static readonly AiModelOptions Default = new();
+}
+
+/// <summary>One call to the model: who to ask, what they have been told, and what they may use.</summary>
+public record AiRequest(
+    string ApiKey,
+    string Model,
+    string? BaseUrl,
+    string SystemPrompt,
+    IReadOnlyList<AiChatTurn> Turns,
+    IReadOnlyList<AiToolDefinition> Tools,
+    AiModelOptions? Options = null)
+{
+    public AiModelOptions ModelOptions => Options ?? AiModelOptions.Default;
+}
+
+/// <summary>
 /// LLM streaming port. Provider SDKs live in Infrastructure adapters; Application
 /// only ever sees provider-neutral chunks.
 /// </summary>
 public interface IAiMessageStreamer
 {
-    IAsyncEnumerable<AiStreamChunk> StreamAsync(
-        string apiKey,
-        string model,
-        string? baseUrl,
-        string systemPrompt,
-        IReadOnlyList<AiChatTurn> turns,
-        IReadOnlyList<AiToolDefinition> tools,
-        CancellationToken ct = default);
+    IAsyncEnumerable<AiStreamChunk> StreamAsync(AiRequest request, CancellationToken ct = default);
 }
 
 /// <summary>Selects the streaming adapter for the configured provider.</summary>
