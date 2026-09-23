@@ -994,9 +994,15 @@ real Anthropic key).
       `google-services.json`, Firebase key or keystore is tracked. Left on purpose, for the owner
       to decide before going public: `CLAUDE.md` documents the dev credentials, and `TODO.md`
       is a working log that names the owner and their setup throughout.
-- [ ] Unpin Angular 20 → Angular latest. (Node half is **done**: 24.19.0 installed 2026-09-05,
-      which is ≥ 24.15, so the constraint that forced the CLI pin is gone. Only the version bump
-      itself remains, and it should be its own change — it is a framework upgrade, not a fix.)
+- [x] **Angular 20 -> 22** (2026-09-23), one major at a time with `ng update` (core, CLI,
+      Material, CDK), building and testing after each. Migrations kept behaviour:
+      `ChangeDetectionStrategy.Eager` on every component (v22 changed the default) and
+      `withXhr()` for HttpClient. The migration also suppressed two template diagnostics
+      (`nullishCoalescingNotNullable`, `optionalChainNotNullable`); the build reports nothing with
+      them on, so the suppression was left out. All pages checked in a browser on 22, a chat turn
+      streamed and rendered, 26 web tests. First load grew from ~714 kB to ~762 kB.
+      Also: the web app now retries branding a few times while the API starts, and shows "Try
+      again" instead of a dead "could not reach" page.
 - [x] **Conversation URLs use an opaque 8-char public id (2026-09-11).** `/chat/m74gjks6`.
       Owner's call: the title must not appear in the address bar (it leaks the subject into
       history, bookmarks and proxy logs) and neither should the sequential row id (it advertises

@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { MatButtonModule } from '@angular/material/button';
@@ -27,6 +27,7 @@ import { ReminderDto, RemindersService } from '../core/reminders.service';
     MatProgressBarModule,
   ],
   templateUrl: './reminders.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './reminders.scss',
 })
 export class Reminders implements OnInit {

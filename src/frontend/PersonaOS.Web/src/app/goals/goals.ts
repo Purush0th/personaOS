@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -41,6 +41,7 @@ const COLUMN_LABELS: Record<BoardColumn, string> = {
     MatSelectModule,
   ],
   templateUrl: './goals.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './goals.scss',
 })
 export class Goals implements OnInit {

@@ -1,4 +1,4 @@
-import { Component, OnInit, effect, inject, signal, viewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, effect, inject, signal, viewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
@@ -40,6 +40,7 @@ interface Bubble {
     MarkdownPipe,
   ],
   templateUrl: './chat.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat.scss',
 })
 export class Chat implements OnInit {

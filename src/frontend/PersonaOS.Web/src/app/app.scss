@@ -175,6 +175,13 @@
   }
 }
 
+.unreachable {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .content {
   max-width: 68rem;
   margin: 1.5rem auto;

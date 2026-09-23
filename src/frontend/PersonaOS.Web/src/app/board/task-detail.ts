@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -45,6 +45,7 @@ import { Discussion } from '../shared/discussion';
     MatSelectModule,
   ],
   templateUrl: './task-detail.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './item-page.scss',
 })
 export class TaskDetail implements OnInit {
