@@ -969,8 +969,13 @@ real Anthropic key).
       ("“Gym” on 2026-09-23") and reminders ("“Call mum” at 2026-09-23 19:00"). A key the target
       already names is not repeated in the details. `create_task` already says "no goal" when it
       has none, which is the parentage mismatch from the original report (goals no longer nest).
-- [ ] Widen coverage: `PlannerService`, `GoalService`, `DocumentService` (esp. the
-      path-traversal guard), `PersonaToolRegistry` feature gating.
+- [x] **Wider test coverage** (2026-09-23). `PlannerServiceTests` (ordering, ranges, items from
+      board tasks, validation, moves, clearing), `GoalServiceTests` (keys, key parsing, status and
+      progress rules, dropped goals, delete keeps tasks and planner items), `DocumentServiceTests`
+      (bare names, empty files, text vs binary, delete removes bytes), `FileSystemDocumentStorage`
+      (server-made names, safe extensions, refusing `../` and `..\` escapes, truncation) and
+      `PersonaToolRegistryTests` (a switched-off module offers no tools, cannot be run by name,
+      never needs a card; bad JSON). 481 backend tests.
 - [x] Fix the wrong upstream repo slug (2026-09-01) — `personaos/personaos` was hardcoded in
       four places but the real remote is `Purush0th/personaOS`, and `release.yml` pushes images
       to `ghcr.io/${{ github.repository_owner }}/…` = `ghcr.io/purush0th/*`. So the **shipped
@@ -982,7 +987,14 @@ real Anthropic key).
       `AppDbContext.cs` + `GoalService.cs`. Backend build 0-warning `-warnaserror`, 46 tests green.
       ✅ Angular build confirmed 2026-09-10 — Node 24.19.0 has since been installed, `npm ci` +
       `npx ng build` run clean on the host. (The note that Node was missing is now historical.)
-- [ ] Personalization grep-check (no user data in source) before first public push
+- [x] **Personal-data check before a public push** (2026-09-23). `git grep` for the owner's
+      name, email, city, LAN address and dev password across tracked files. Fixed:
+      `scripts/model-check.ps1` defaulted to the owner's dev login (now `-User`/`-Password` or
+      `PERSONAOS_USER`/`PERSONAOS_PASSWORD`, and it refuses to run without them); "Chennai" and
+      "call me Purush" examples in placeholders and comments became neutral ones. No `.env`,
+      `google-services.json`, Firebase key or keystore is tracked. Left on purpose, for the owner
+      to decide before going public: `CLAUDE.md` documents the dev credentials, and `TODO.md`
+      is a working log that names the owner and their setup throughout.
 - [ ] Unpin Angular 20 → Angular latest. (Node half is **done**: 24.19.0 installed 2026-09-05,
       which is ≥ 24.15, so the constraint that forced the CLI pin is gone. Only the version bump
       itself remains, and it should be its own change — it is a framework upgrade, not a fix.)

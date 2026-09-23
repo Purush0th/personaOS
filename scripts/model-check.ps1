@@ -12,18 +12,25 @@
   because the scenarios expect the data they seed.
 
 .EXAMPLE
+  $env:PERSONAOS_USER = 'admin'; $env:PERSONAOS_PASSWORD = '…'
   ./scripts/model-check.ps1 -Model qwen2.5:0.5b -Server http://localhost:5080
 #>
 [CmdletBinding()]
 param(
     [string]$Model,
     [string]$Server = 'http://localhost:5080',
-    [string]$User = 'purush',
-    [string]$Password = 'S3cure-Pass!',
+    # The admin login of the instance under test. Taken from the environment so no one's
+    # credentials live in the script: set PERSONAOS_USER and PERSONAOS_PASSWORD, or pass them.
+    [string]$User = $env:PERSONAOS_USER,
+    [string]$Password = $env:PERSONAOS_PASSWORD,
     [int]$TimeoutSec = 180
 )
 
 $ErrorActionPreference = 'Stop'
+
+if (-not $User -or -not $Password) {
+    throw 'Give the admin login: -User and -Password, or set PERSONAOS_USER and PERSONAOS_PASSWORD.'
+}
 
 function Invoke-Api {
     param([string]$Method, [string]$Path, $Body, [string]$Token)

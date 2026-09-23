@@ -22,7 +22,7 @@ public interface IUserProfileService
 }
 
 /// <summary>
-/// The single user's "about me": free-form facts and preferences ("vegetarian, lives in Chennai,
+/// The single user's "about me": free-form facts and preferences ("vegetarian, lives in Lisbon,
 /// prefers short answers") that go into every system prompt, so the assistant is theirs.
 /// </summary>
 public class UserProfileService(IAppDbContext db) : IUserProfileService
