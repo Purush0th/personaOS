@@ -10,6 +10,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { firstValueFrom } from 'rxjs';
 
 import { AI_PROVIDERS, aiProvider } from '../core/ai-providers';
+import { FORM_FIELD_DEFAULTS } from '../core/form-field-defaults';
 
 interface FeatureOption {
   key: string;
@@ -33,6 +34,8 @@ interface FeatureOption {
     MatSelectModule,
     MatSlideToggleModule,
   ],
+  // The wizard renders outside the page routes, which is where the form-field defaults live.
+  providers: [FORM_FIELD_DEFAULTS],
   templateUrl: './setup-wizard.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './setup-wizard.scss'
