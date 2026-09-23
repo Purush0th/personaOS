@@ -1,6 +1,9 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using PersonaOS.Application.Ai;
+using PersonaOS.Application.Ai.Guards;
 using PersonaOS.Application.Ai.Prompts;
+using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
 using Microsoft.EntityFrameworkCore;
@@ -357,6 +360,21 @@ public class FakePromptOverrides : IPromptOverrideSource
     public Dictionary<string, string> Files { get; } = [];
 
     public string? Read(string fileName) => Files.GetValueOrDefault(fileName);
+}
+
+/// <summary>The real chat service with the real guards, over a scripted model and in-memory data.</summary>
+public static class TestChat
+{
+    public static ChatService Create(
+        TestDbContext db, IInstanceConfigService config, IAiMessageStreamer streamer, params IPersonaTool[] tools)
+    {
+        var registry = new PersonaToolRegistry(tools, config, NullLogger<PersonaToolRegistry>.Instance);
+        return new ChatService(
+            db, config, new FakeSystemPromptBuilder(), new FakeAiMessageStreamerFactory(streamer), registry,
+            new ToolCallPipeline(registry, NullLogger<ToolCallPipeline>.Instance),
+            new ReplyPipeline(NullLogger<ReplyPipeline>.Instance),
+            NullLogger<ChatService>.Instance);
+    }
 }
 
 /// <summary>The real prompt library over the shipped fragments, as the app runs it.</summary>
