@@ -145,6 +145,45 @@ public class ChatServiceClaimCheckTests
     }
 
     [Fact]
+    public async Task A_done_claim_above_a_waiting_card_is_rewritten_as_a_proposal()
+    {
+        // 2026-09-22, qwen2.5:3b-instruct: "I've created a goal called Learn Rust" above a card
+        // the user had not confirmed.
+        var goals = new FakeTool("create_goal", mutates: true);
+        var (_, chat, streamer) = Setup(goals);
+        streamer
+            .EnqueueToolCall("toolu_1", "create_goal", """{"title":"Learn Rust"}""")
+            .EnqueueText("I've created a goal called Learn Rust for you.")
+            .EnqueueText("Here is Learn Rust as a monthly goal — confirm the card below to add it.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Create a goal called Learn Rust"));
+
+        Assert.Equal(3, streamer.CallCount);
+        Assert.Contains(streamer.ReceivedTurns[2], t => t.Role == ChatRoles.User && t.Content.Contains("waiting for the user to tap"));
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.Equal("Here is Learn Rust as a monthly goal — confirm the card below to add it.", done.Text);
+        Assert.Single(done.Pending!);
+        // The card is right there: no "nothing was saved" note on top of it.
+        Assert.Null(done.UnverifiedClaim);
+        Assert.Empty(goals.Invocations);
+    }
+
+    [Fact]
+    public async Task A_reply_naming_items_that_do_not_exist_says_so_and_keeps_it()
+    {
+        var (db, chat, streamer) = Setup();
+        streamer.EnqueueText("TASK-6 is already done, and TASK-7 is next.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Anything in the todo?"));
+
+        Assert.Equal(["TASK-6", "TASK-7"], Assert.Single(events, e => e.Type == "done").UnknownItems);
+        var stored = await db.ChatMessages.SingleAsync(m => m.Role == ChatRoles.Assistant);
+        Assert.Equal("TASK-6,TASK-7", stored.UnknownItems);
+        var detail = await chat.GetConversationAsync(stored.ConversationId.ToString());
+        Assert.Equal(["TASK-6", "TASK-7"], detail!.Messages.Single(m => m.Role == ChatRoles.Assistant).UnknownItems);
+    }
+
+    [Fact]
     public async Task A_failed_correction_keeps_the_reply_and_flags_it_without_an_error()
     {
         var (db, chat, streamer) = Setup(new FakeTool("create_reminder", mutates: true));
