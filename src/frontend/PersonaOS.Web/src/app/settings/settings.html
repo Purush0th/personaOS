@@ -1,166 +1,166 @@
-<header class="page-head">
-  <h1>Settings</h1>
-</header>
-
-@if (loading()) {
-  <mat-progress-bar mode="indeterminate" />
-} @else {
-  <form (ngSubmit)="save()">
-    <mat-card appearance="outlined" class="group">
-      <mat-card-header>
-        <mat-card-title>Assistant</mat-card-title>
-        <mat-card-subtitle>Who it is and how it speaks to you.</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <mat-form-field>
-          <mat-label>Assistant nickname</mat-label>
-          <input matInput name="nickname" [(ngModel)]="nickname" maxlength="100" />
-        </mat-form-field>
-
-        <mat-form-field>
-          <mat-label>Persona / tone</mat-label>
-          <textarea
-            matInput
-            name="persona"
-            [(ngModel)]="persona"
-            rows="4"
-            placeholder="e.g. Warm but concise. Skip pleasantries and get to the point."
-          ></textarea>
-        </mat-form-field>
-
-        <mat-form-field>
-          <mat-label>Time zone</mat-label>
-          <input matInput name="timeZone" [(ngModel)]="timeZone" placeholder="Asia/Kolkata" />
-        </mat-form-field>
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card appearance="outlined" class="group">
-      <mat-card-header>
-        <mat-card-title>About you</mat-card-title>
-        <mat-card-subtitle>
-          What {{ nickname || 'your assistant' }} should always know. Sent with every message; ask it to
-          "remember" something and it offers to add it here.
-        </mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <mat-form-field>
-          <mat-label>About you</mat-label>
-          <textarea
-            matInput
-            name="aboutMe"
-            [(ngModel)]="aboutMe"
-            rows="5"
-            [maxlength]="aboutMeMax"
-            placeholder="e.g. Vegetarian. Lives in Chennai. Works on .NET. Prefers short answers."
-          ></textarea>
-          <mat-hint align="end">{{ aboutMe.length }} / {{ aboutMeMax }}</mat-hint>
-        </mat-form-field>
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card appearance="outlined" class="group">
-      <mat-card-header>
-        <mat-card-title>AI provider</mat-card-title>
-        <mat-card-subtitle>Where the thinking happens. A local model keeps everything on this machine.</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <mat-form-field>
-          <mat-label>Provider</mat-label>
-          <mat-select name="provider" [(ngModel)]="provider">
-            @for (p of providers; track p.id) {
-              <mat-option [value]="p.id">{{ p.label }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-
-        @if (selected.needsBaseUrl) {
-          <mat-form-field>
-            <mat-label>Base URL</mat-label>
-            <input matInput name="baseUrl" [(ngModel)]="baseUrl" [placeholder]="selected.baseUrlPlaceholder ?? ''" />
-          </mat-form-field>
-        }
-
-        <mat-form-field>
-          <mat-label>Model</mat-label>
-          <input
-            matInput
-            name="model"
-            [(ngModel)]="model"
-            [placeholder]="selected.modelPlaceholder"
-          />
-          @if (selected.needsBaseUrl) {
-            <mat-hint>The model must support tool calling. 3B parameters and up works well.</mat-hint>
-          }
-        </mat-form-field>
-
-        @if (selected.needsBaseUrl) {
-          <mat-form-field>
-            <mat-label>Context size (tokens)</mat-label>
-            <input
-              matInput
-              name="contextTokens"
-              type="number"
-              min="2048"
-              step="1024"
-              [(ngModel)]="contextTokens"
-              [placeholder]="defaultContextTokens() ? 'Default: ' + defaultContextTokens() : ''"
-            />
-            <mat-hint>
-              How much conversation the model can hold. Leave empty for the model's default.
-              @if (provider === 'ollama') { Sent to Ollama with every message. }
-            </mat-hint>
-          </mat-form-field>
-        }
-
-        <mat-form-field>
-          <mat-label>API key</mat-label>
-          <input
-            matInput
-            name="apiKey"
-            type="password"
-            [(ngModel)]="apiKey"
-            autocomplete="off"
-            [placeholder]="hasKey() ? 'A key is stored — leave blank to keep it' : 'No key set yet'"
-          />
-          <mat-hint>
-            Encrypted at rest and never sent back to this page.
-            @if (selected.keyless) { Leave blank for keyless local models. }
-          </mat-hint>
-        </mat-form-field>
-
-        @if (testResult(); as result) {
-          <p class="test" [class.ok]="result.ok" [class.error]="!result.ok">
-            <mat-icon>{{ result.ok ? 'check_circle' : 'error' }}</mat-icon>
-            {{ result.message }}
-          </p>
-        }
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card appearance="outlined" class="group">
-      <mat-card-header>
-        <mat-card-title>Modules</mat-card-title>
-        <mat-card-subtitle>Switched-off modules disappear from the nav, and the assistant stops offering them.</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content class="modules">
-        @for (module of modules; track module) {
-          <mat-slide-toggle [(ngModel)]="features[module]" [name]="'feature-' + module">
-            {{ module }}
-          </mat-slide-toggle>
-        }
-      </mat-card-content>
-    </mat-card>
-
-    <div class="actions">
-      <button mat-stroked-button type="button" (click)="test()" [disabled]="testing() || saving()">
-        {{ testing() ? 'Testing…' : 'Test connection' }}
-      </button>
-      <button mat-flat-button type="submit" [disabled]="saving() || testing()">
-        {{ saving() ? 'Saving…' : 'Save settings' }}
-      </button>
-    </div>
-  </form>
-}
-
-<app-push-config />
+<header class="page-head">
+  <h1>Settings</h1>
+</header>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+} @else {
+  <form (ngSubmit)="save()">
+    <mat-card appearance="outlined" class="group">
+      <mat-card-header>
+        <mat-card-title>Assistant</mat-card-title>
+        <mat-card-subtitle>Who it is and how it speaks to you.</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-form-field>
+          <mat-label>Assistant nickname</mat-label>
+          <input matInput name="nickname" [(ngModel)]="nickname" maxlength="100" />
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Persona / tone</mat-label>
+          <textarea
+            matInput
+            name="persona"
+            [(ngModel)]="persona"
+            rows="4"
+            placeholder="e.g. Warm but concise. Skip pleasantries and get to the point."
+          ></textarea>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Time zone</mat-label>
+          <input matInput name="timeZone" [(ngModel)]="timeZone" placeholder="Asia/Kolkata" />
+        </mat-form-field>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="group">
+      <mat-card-header>
+        <mat-card-title>About you</mat-card-title>
+        <mat-card-subtitle>
+          What {{ nickname || 'your assistant' }} should always know. Sent with every message; ask it to
+          "remember" something and it offers to add it here.
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-form-field>
+          <mat-label>About you</mat-label>
+          <textarea
+            matInput
+            name="aboutMe"
+            [(ngModel)]="aboutMe"
+            rows="5"
+            [maxlength]="aboutMeMax"
+            placeholder="e.g. Vegetarian. Lives in Lisbon. Works on .NET. Prefers short answers."
+          ></textarea>
+          <mat-hint align="end">{{ aboutMe.length }} / {{ aboutMeMax }}</mat-hint>
+        </mat-form-field>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="group">
+      <mat-card-header>
+        <mat-card-title>AI provider</mat-card-title>
+        <mat-card-subtitle>Where the thinking happens. A local model keeps everything on this machine.</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-form-field>
+          <mat-label>Provider</mat-label>
+          <mat-select name="provider" [(ngModel)]="provider">
+            @for (p of providers; track p.id) {
+              <mat-option [value]="p.id">{{ p.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        @if (selected.needsBaseUrl) {
+          <mat-form-field>
+            <mat-label>Base URL</mat-label>
+            <input matInput name="baseUrl" [(ngModel)]="baseUrl" [placeholder]="selected.baseUrlPlaceholder ?? ''" />
+          </mat-form-field>
+        }
+
+        <mat-form-field>
+          <mat-label>Model</mat-label>
+          <input
+            matInput
+            name="model"
+            [(ngModel)]="model"
+            [placeholder]="selected.modelPlaceholder"
+          />
+          @if (selected.needsBaseUrl) {
+            <mat-hint>The model must support tool calling. 3B parameters and up works well.</mat-hint>
+          }
+        </mat-form-field>
+
+        @if (selected.needsBaseUrl) {
+          <mat-form-field>
+            <mat-label>Context size (tokens)</mat-label>
+            <input
+              matInput
+              name="contextTokens"
+              type="number"
+              min="2048"
+              step="1024"
+              [(ngModel)]="contextTokens"
+              [placeholder]="defaultContextTokens() ? 'Default: ' + defaultContextTokens() : ''"
+            />
+            <mat-hint>
+              How much conversation the model can hold. Leave empty for the model's default.
+              @if (provider === 'ollama') { Sent to Ollama with every message. }
+            </mat-hint>
+          </mat-form-field>
+        }
+
+        <mat-form-field>
+          <mat-label>API key</mat-label>
+          <input
+            matInput
+            name="apiKey"
+            type="password"
+            [(ngModel)]="apiKey"
+            autocomplete="off"
+            [placeholder]="hasKey() ? 'A key is stored — leave blank to keep it' : 'No key set yet'"
+          />
+          <mat-hint>
+            Encrypted at rest and never sent back to this page.
+            @if (selected.keyless) { Leave blank for keyless local models. }
+          </mat-hint>
+        </mat-form-field>
+
+        @if (testResult(); as result) {
+          <p class="test" [class.ok]="result.ok" [class.error]="!result.ok">
+            <mat-icon>{{ result.ok ? 'check_circle' : 'error' }}</mat-icon>
+            {{ result.message }}
+          </p>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="group">
+      <mat-card-header>
+        <mat-card-title>Modules</mat-card-title>
+        <mat-card-subtitle>Switched-off modules disappear from the nav, and the assistant stops offering them.</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content class="modules">
+        @for (module of modules; track module) {
+          <mat-slide-toggle [(ngModel)]="features[module]" [name]="'feature-' + module">
+            {{ module }}
+          </mat-slide-toggle>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <div class="actions">
+      <button mat-stroked-button type="button" (click)="test()" [disabled]="testing() || saving()">
+        {{ testing() ? 'Testing…' : 'Test connection' }}
+      </button>
+      <button mat-flat-button type="submit" [disabled]="saving() || testing()">
+        {{ saving() ? 'Saving…' : 'Save settings' }}
+      </button>
+    </div>
+  </form>
+}
+
+<app-push-config />
