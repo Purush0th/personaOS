@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Domain.Entities;
 
@@ -20,6 +20,10 @@ public abstract class ReminderToolBase : IPersonaTool
 
     /// <summary>Tools that act on an existing item override this to check it early.</summary>
     public virtual Task ValidateAsync(JsonElement input, CancellationToken ct = default) => Task.CompletedTask;
+
+    /// <summary>Tools that act on an existing item name it, for the confirmation card.</summary>
+    public virtual Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
+        Task.FromResult<string?>(null);
 
     protected static string? GetString(JsonElement input, string name) =>
         input.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
@@ -142,6 +146,11 @@ public class CancelReminderTool(IReminderService reminders) : ReminderToolBase
         if (await reminders.GetAsync(id, ct) is null)
             throw new ReminderValidationException($"Reminder {id} does not exist. Use an id from get_reminders.");
     }
+
+    public override async Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
+        GetInt(input, "reminderId") is int id && await reminders.GetAsync(id, ct) is { } reminder
+            ? $"“{reminder.Message}” at {reminder.DueAtLocal:yyyy-MM-dd HH:mm}"
+            : null;
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using PersonaOS.Application.Goals;
 using PersonaOS.Application.Goals.Tools;
 using PersonaOS.Application.WorkItems;
@@ -21,6 +21,15 @@ public abstract class BoardToolBase(IBoardService board, IGoalService goals) : G
             ?? throw new BoardValidationException(
                 $"There is no task {key}. Use the key values from get_board or get_goals (like \"TASK-7\"), not list positions.");
     }
+
+    /// <summary>"TASK-7 “File taxes”", for a confirmation card; null when the key names no task.</summary>
+    protected async Task<string?> DescribeTaskAsync(string? key, CancellationToken ct) =>
+        await Board.ResolveTaskKeyAsync(key, ct) is int id && await Board.GetTaskAsync(id, ct) is { } detail
+            ? $"{detail.Task.Key} “{detail.Task.Title}”"
+            : null;
+
+    public override Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
+        GetKey(input, "taskKey") is { } key ? DescribeTaskAsync(key, ct) : Task.FromResult<string?>(null);
 
     protected async Task<int?> OptionalGoalAsync(string? key, CancellationToken ct) =>
         string.IsNullOrWhiteSpace(key) ? null : await RequireGoalAsync(goals, key, ct);

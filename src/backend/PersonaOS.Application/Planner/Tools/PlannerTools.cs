@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Configuration;
 using PersonaOS.Domain.Entities;
@@ -22,6 +22,10 @@ public abstract class PlannerToolBase : IPersonaTool
     /// <summary>Tools that act on an existing item override this to check it early.</summary>
     public virtual Task ValidateAsync(JsonElement input, CancellationToken ct = default) => Task.CompletedTask;
 
+    /// <summary>Tools that act on an existing item name it, for the confirmation card.</summary>
+    public virtual Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
+        Task.FromResult<string?>(null);
+
     /// <summary>Checks that the 'itemId' in the input names a planner item that exists.</summary>
     protected static async Task RequirePlannerItemAsync(
         IPlannerService planner, JsonElement input, CancellationToken ct)
@@ -31,6 +35,12 @@ public abstract class PlannerToolBase : IPersonaTool
             throw new PlannerValidationException(
                 $"Planner item {id} does not exist. Use an id from get_planner.");
     }
+
+    /// <summary>"“Gym” on 2026-09-23", for a confirmation card; null when the id names no item.</summary>
+    protected static async Task<string?> DescribePlannerItemAsync(IPlannerService planner, JsonElement input, CancellationToken ct) =>
+        GetInt(input, "itemId") is int id && await planner.GetAsync(id, ct) is { } item
+            ? $"“{item.Title}” on {item.Date:yyyy-MM-dd}"
+            : null;
 
     protected static string? GetString(JsonElement input, string name) =>
         input.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
@@ -204,6 +214,9 @@ public class UpdatePlannerItemStatusTool(IPlannerService planner) : PlannerToolB
     public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
         RequirePlannerItemAsync(planner, input, ct);
 
+    public override Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
+        DescribePlannerItemAsync(planner, input, ct);
+
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var id = RequireInt(input, "itemId");
@@ -232,6 +245,9 @@ public class MovePlannerItemTool(IPlannerService planner) : PlannerToolBase
 
     public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
         RequirePlannerItemAsync(planner, input, ct);
+
+    public override Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
+        DescribePlannerItemAsync(planner, input, ct);
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {

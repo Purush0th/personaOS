@@ -220,14 +220,12 @@ stops being code. Estimates assume one focused session each, tests kept green th
       show their range and an overdue badge. Phone: the same, with date pickers in the new-goal
       sheet. Both mirror the rules for instant feedback; the server stays the authority.
       307 backend tests, 74 mobile.
-- [ ] Open questions for later: planner items still use ids in chat tools (same position
-      risk as goals had); scope-change warning is not shown for re-estimating mid-sprint by
-      design; web drag and drop does not work on touch browsers (the menu does).
-
-## Phone testing issues (alpha.6, reported by the owner 2026-09-15)
-
-Noted as reported, not yet investigated.
-
+- [x] **Open questions from the goal-dates work, settled** (2026-09-23). Planner items still use
+      ids in chat tools, but a confirmation card now names the item an id points at, looked up
+      when it is proposed ("Update planner item status “Gym” on 2026-09-23 — done"), so a list
+      position passed as an id is visible before Confirm; see the next item. The scope-change
+      warning stays off for re-estimating mid-sprint, by design. Web drag and drop works on touch
+      browsers since the move to CDK drag and drop.
 - [ ] **Reminder alarm rang a few minutes late.** A reminder created on the phone synced to the
       web correctly, but the alarm did not go off at the scheduled time; it came a few minutes
       later. Alpha.5 moved reminders to exact alarms set on the phone the moment the reminder is
@@ -960,15 +958,13 @@ real Anthropic key).
       `update_goal_status` properly in 5 tries, so the corrective path has not been seen live
       yet, and the web note has not been looked at in a browser. Honest replies cost nothing
       extra; a flagged one costs one more model call.
-- [ ] **Claim and action disagree even though a tool fired** (split from the item above).
-      2026-09-11, reading a real chat: the model said it was creating a sub-goal "as part of your
-      Master AI goal", the tool **did** run, but it passed no `parentGoalId`, so the goal was
-      created top-level. **The claim and the action disagreed even though a tool fired** — the
-      no-tool case below is only half the problem. It also wrote after the user said
-      *"Lets discuss before we add anything"*, i.e. acted without consent.
-      A richer receipt is the defence (fix 1 above makes the period visible); showing parentage
-      would close this specific case. (Writes now go through the confirmation card, so the
-      consent half is covered; the parentage mismatch is not.)
+- [x] **Claim and action disagree even though a tool fired** (2026-09-23). The defence is a card
+      that says exactly what will happen, in the user's terms. Tools that act on an existing item
+      now implement `IPersonaTool.DescribeTargetAsync`, and `ConfirmationGate` stores the result
+      on the proposal: goals ("GOAL-2 “Learn Rust”"), tasks ("TASK-7 “File taxes”"), planner items
+      ("“Gym” on 2026-09-23") and reminders ("“Call mum” at 2026-09-23 19:00"). A key the target
+      already names is not repeated in the details. `create_task` already says "no goal" when it
+      has none, which is the parentage mismatch from the original report (goals no longer nest).
 - [ ] Widen coverage: `PlannerService`, `GoalService`, `DocumentService` (esp. the
       path-traversal guard), `PersonaToolRegistry` feature gating.
 - [x] Fix the wrong upstream repo slug (2026-09-01) — `personaos/personaos` was hardcoded in
