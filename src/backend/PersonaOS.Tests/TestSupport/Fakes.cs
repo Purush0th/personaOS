@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Ai;
+using PersonaOS.Application.Ai.Prompts;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
 using Microsoft.EntityFrameworkCore;
@@ -334,4 +336,32 @@ public class FakeDocumentStorage : IDocumentStorage
         _files.Remove(storageName);
         return Task.CompletedTask;
     }
+}
+
+/// <summary>A logger that keeps what was logged, so a test can assert a warning was raised.</summary>
+public class ListLogger<T> : ILogger<T>
+{
+    public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+        Func<TState, Exception?, string> formatter) => Entries.Add((logLevel, formatter(state, exception)));
+}
+
+/// <summary>Prompt overrides held in memory, keyed by file name.</summary>
+public class FakePromptOverrides : IPromptOverrideSource
+{
+    public Dictionary<string, string> Files { get; } = [];
+
+    public string? Read(string fileName) => Files.GetValueOrDefault(fileName);
+}
+
+/// <summary>The real prompt library over the shipped fragments, as the app runs it.</summary>
+public static class TestPrompts
+{
+    public static IPromptLibrary Library(IPromptOverrideSource? overrides = null) =>
+        new PromptLibrary(overrides ?? new NoPromptOverrides(), new ListLogger<PromptLibrary>());
 }

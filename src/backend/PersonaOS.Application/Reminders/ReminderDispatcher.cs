@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
@@ -32,7 +32,7 @@ public class ReminderDispatcher(
     {
         var config = await configService.GetOrCreateAsync(ct);
         if (!config.IsConfigured) return 0;
-        if (!config.Features.TryGetValue(InstanceConfig.Modules.Reminders, out var enabled) || !enabled)
+        if (!config.IsEnabled(InstanceConfig.Modules.Reminders))
             return 0;
 
         var now = DateTime.UtcNow;

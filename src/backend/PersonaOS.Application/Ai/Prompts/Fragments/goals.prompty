@@ -1,0 +1,11 @@
+---
+name: goals
+description: The user's active goals. Only rendered when there are some.
+inputs:
+  goals: one line per goal, "GOAL-3 Title (month)"
+---
+{{! Keys, not positions: a model that saw a numbered list passed "3" as a goal id. }}
+The user's active goals. Always refer to a goal by its key, never by its position in a list:
+{{#goals}}
+- {{.}}
+{{/goals}}

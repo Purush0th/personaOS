@@ -1,4 +1,4 @@
-using PersonaOS.Application.Board;
+﻿using PersonaOS.Application.Board;
 using PersonaOS.Application.Configuration;
 using PersonaOS.Domain.Entities;
 
@@ -28,7 +28,7 @@ public class SprintScheduleService(
                     .GetOrCreateAsync(stoppingToken);
 
                 if (config.IsConfigured
-                    && config.Features.TryGetValue(InstanceConfig.Modules.Board, out var enabled) && enabled)
+                    && config.IsEnabled(InstanceConfig.Modules.Board))
                 {
                     var events = await scope.ServiceProvider.GetRequiredService<IBoardService>()
                         .RunRemindersAsync(stoppingToken);

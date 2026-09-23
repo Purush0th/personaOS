@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.EntityFrameworkCore;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
@@ -36,7 +36,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
         sb.Append("Good morning. Here's ").Append(localDate.ToString("dddd, d MMM")).Append('.');
         var hasContent = false;
 
-        if (Enabled(config, InstanceConfig.Modules.Planner))
+        if (config.IsEnabled(InstanceConfig.Modules.Planner))
         {
             var items = await db.PlannerItems.AsNoTracking()
                 .Where(i => i.Date == localDate && i.Status == PlannerItemStatuses.Planned)
@@ -59,7 +59,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
             }
         }
 
-        if (Enabled(config, InstanceConfig.Modules.Reminders))
+        if (config.IsEnabled(InstanceConfig.Modules.Reminders))
         {
             var dayStartUtc = Common.UserClock.ToUtc(localDate.ToDateTime(TimeOnly.MinValue), config.TimeZone);
             var dayEndUtc = Common.UserClock.ToUtc(localDate.ToDateTime(new TimeOnly(23, 59, 59)), config.TimeZone);
@@ -84,7 +84,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
             }
         }
 
-        if (Enabled(config, InstanceConfig.Modules.Board))
+        if (config.IsEnabled(InstanceConfig.Modules.Board))
         {
             // The morning nudge to plan the day: what the week's sprint still holds, so the day's
             // plan can be picked from it.
@@ -108,7 +108,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
             }
         }
 
-        if (Enabled(config, InstanceConfig.Modules.Goals))
+        if (config.IsEnabled(InstanceConfig.Modules.Goals))
         {
             var active = await db.Goals.AsNoTracking()
                 .Include(g => g.Tasks)
@@ -140,7 +140,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
     private async Task<string?> ComposeEveningRollupAsync(
         InstanceConfig config, DateOnly localDate, CancellationToken ct)
     {
-        if (!Enabled(config, InstanceConfig.Modules.Planner)) return null;
+        if (!config.IsEnabled(InstanceConfig.Modules.Planner)) return null;
 
         var items = await db.PlannerItems.AsNoTracking()
             .Where(i => i.Date == localDate)
@@ -172,7 +172,4 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
 
         return sb.ToString();
     }
-
-    private static bool Enabled(InstanceConfig config, string module) =>
-        config.Features.TryGetValue(module, out var on) && on;
 }

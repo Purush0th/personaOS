@@ -29,16 +29,21 @@ again. The layer boundaries are fine; the shape inside this layer is not.
 Do these in order — A is the one the owner feels immediately, and B is easier once the prompt
 stops being code. Estimates assume one focused session each, tests kept green throughout.
 
-- [ ] **A. Prompt lives in files, not in C#** (~3-4 hours). Split the prompt into fragments —
-      identity, tool rules, product grounding, enabled modules, board, live data — as `.prompty`
-      files (YAML front matter plus a template body) with `{{nickname}}`, `{{today}}`,
-      `{{goals}}` filled from config and the database. Defaults ship as embedded resources; a
-      fragment of the same name under `data/prompts/` on the server overrides it, so editing the
-      prompt is editing a file and restarting the container. Write the loader (roughly 150 lines:
-      front matter, variable substitution, fragment composition) rather than taking a dependency
-      on Semantic Kernel for it. Keep `SystemPromptBuilderTests` asserting that the rendered
-      prompt still carries the load-bearing rules. Document the override directory in the README
-      and mount it in `docker-compose.yml`.
+- [x] **A. Prompt lives in files, not in C#** (2026-09-23). Nine `.prompty` fragments
+      (`identity`, `tool-rules`, `product`, `modules`, `clock`, `goals`, `board`, `planner`,
+      `reminders`) under `Application/Ai/Prompts/Fragments`, embedded in the assembly. Front
+      matter says what each is for; the body is a Mustache subset (`{{var}}`, `{{#list}}`,
+      `{{^empty}}`, `{{! why }}`) rendered by `PromptTemplate`, about 200 lines with no new
+      dependency. `SystemPromptBuilder` now only gathers values and picks fragments; user-written
+      text (persona, about me) is appended raw, never rendered, so braces in it cannot inject tags.
+      Overrides: a file of the same name in `Prompts:OverridePath` (compose:
+      `/app/data/prompts`) replaces a default and is read per request, so edits apply without a
+      restart; a broken override logs a warning and falls back to the default.
+      `FilePromptOverrideSource` refuses any name that is not a plain `*.prompty`. Verified the
+      new output byte-for-byte against the old builder (with and without data, thinking model
+      and not) before deleting the comparison. Also: `InstanceConfig.IsEnabled` replaces six
+      copies of `Features.TryGetValue(...) && on`. README: "Editing the assistant's
+      instructions". 353 backend tests.
 - [ ] **B. Guardrails become a pipeline** (~5-7 hours, the riskiest of the three). Two ports:
       `IToolCallGuard`, run before a call executes or becomes a card, and `IReplyGuard`, run on
       the finished reply. Move the existing six into it — dedup and `ValidateAsync` and the

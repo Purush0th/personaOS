@@ -1,4 +1,5 @@
-using PersonaOS.Application.Ai;
+﻿using PersonaOS.Application.Ai;
+using PersonaOS.Application.Ai.Prompts;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Tests.TestSupport;
 
@@ -12,15 +13,41 @@ namespace PersonaOS.Tests.Ai;
 /// </summary>
 public class SystemPromptBuilderTests
 {
-    private static async Task<string> BuildAsync(Action<InstanceConfig>? configure = null)
+    private static async Task<string> BuildAsync(
+        Action<InstanceConfig>? configure = null,
+        Action<TestDbContext>? seed = null,
+        IPromptOverrideSource? overrides = null)
     {
         var db = TestDbContext.Create();
         var config = new FakeInstanceConfigService(db);
         var instance = await config.GetOrCreateAsync();
         configure?.Invoke(instance);
+        seed?.Invoke(db);
         await db.SaveChangesAsync();
 
-        return await new SystemPromptBuilder(config, db).BuildAsync();
+        return await new SystemPromptBuilder(config, db, TestPrompts.Library(overrides)).BuildAsync();
+    }
+
+    /// <summary>A goal, a running sprint with open and done work, today's planner and a reminder.</summary>
+    internal static void SeedEverything(TestDbContext db)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        db.Goals.Add(new Goal { Number = 1, Title = "Ship PersonaOS", PeriodType = GoalPeriods.Year, PeriodStart = today, PeriodEnd = today });
+        var sprint = new Sprint
+        {
+            Number = 2, Name = "Paperwork", Status = SprintStatuses.Active,
+            StartsAtUtc = new DateTime(2026, 9, 20, 18, 0, 0, DateTimeKind.Utc),
+            EndsAtUtc = new DateTime(2026, 9, 27, 18, 0, 0, DateTimeKind.Utc),
+        };
+        db.Sprints.Add(sprint);
+        db.BoardTasks.AddRange(
+            new BoardTask { Number = 7, Title = "File taxes", Points = 5, Sprint = sprint, SortOrder = 1 },
+            new BoardTask { Number = 8, Title = "Unsized", Sprint = sprint, SortOrder = 2, Status = BoardTaskStatuses.InProgress },
+            new BoardTask { Number = 9, Title = "Finished", Points = 3, Sprint = sprint, SortOrder = 3, Status = BoardTaskStatuses.Done });
+        db.PlannerItems.AddRange(
+            new PlannerItem { Title = "Gym", Date = today, ScheduledTime = new TimeOnly(7, 30) },
+            new PlannerItem { Title = "Read", Date = today });
+        db.Reminders.Add(new Reminder { Message = "Call mum", DueAtUtc = DateTime.UtcNow.AddDays(1) });
     }
 
     [Fact]
@@ -168,5 +195,74 @@ public class SystemPromptBuilderTests
         });
 
         Assert.Equal(anthropic, local);
+    }
+
+    [Fact]
+    public async Task Lists_active_goals_by_key()
+    {
+        var prompt = await BuildAsync(seed: SeedEverything);
+
+        Assert.Contains("Always refer to a goal by its key", prompt);
+        Assert.Contains("\n- GOAL-1 Ship PersonaOS (year)", prompt);
+    }
+
+    [Fact]
+    public async Task Summarises_the_running_sprint_and_lists_only_its_open_tasks()
+    {
+        var prompt = await BuildAsync(c => c.TimeZone = "UTC", SeedEverything);
+
+        Assert.Contains("SPRINT-2 “Paperwork” is running until Sun 27 Sep 18:00: 3 of 8 points done.", prompt);
+        Assert.Contains("\n- TASK-7 File taxes [todo, 5 pts]", prompt);
+        Assert.Contains("\n- TASK-8 Unsized [in_progress, unestimated]", prompt);
+        Assert.DoesNotContain("TASK-9", prompt);
+    }
+
+    [Fact]
+    public async Task Lists_todays_planner_with_times_first()
+    {
+        var prompt = await BuildAsync(c => c.TimeZone = "UTC", SeedEverything);
+
+        Assert.Contains("Today's planner (use the planner tools to change it):\n- 07:30 Gym [planned]\n- Read [planned]", prompt);
+    }
+
+    [Fact]
+    public async Task Lists_upcoming_reminders_in_the_users_zone()
+    {
+        var prompt = await BuildAsync(seed: SeedEverything);
+
+        Assert.Contains("Upcoming reminders (times in the user's zone):", prompt);
+        Assert.Contains(" — Call mum", prompt);
+    }
+
+    [Fact]
+    public async Task Leaves_out_sections_with_nothing_in_them()
+    {
+        var prompt = await BuildAsync();
+
+        Assert.DoesNotContain("The user's active goals", prompt);
+        Assert.DoesNotContain("Today's planner", prompt);
+        Assert.DoesNotContain("Upcoming reminders", prompt);
+        Assert.DoesNotContain("\n\n\n", prompt);
+        // The board's rules stand on their own, with no sprint to describe.
+        Assert.Contains("The sprint board works like Scrum", prompt);
+    }
+
+    [Fact]
+    public async Task Text_the_user_wrote_is_never_read_as_a_template()
+    {
+        var prompt = await BuildAsync(c => c.PersonaTemplate = "Call me {{nickname}} and never {{#x}}.");
+
+        Assert.Contains("Call me {{nickname}} and never {{#x}}.", prompt);
+    }
+
+    [Fact]
+    public async Task An_installation_can_reword_a_fragment_without_a_rebuild()
+    {
+        var overrides = new FakePromptOverrides();
+        overrides.Files["identity.prompty"] = "You are {{nickname}}, the house assistant.";
+
+        var prompt = await BuildAsync(c => c.AssistantNickname = "Juno", overrides: overrides);
+
+        Assert.StartsWith("You are Juno, the house assistant.", prompt);
     }
 }

@@ -21,11 +21,13 @@ services:
       #   personaos.db        — the SQLite database (config, chat, goals, encrypted key)
       #   docs-storage/       — uploaded document files
       #   dp-keys/            — Data Protection keyring that decrypts the stored API key
+      #   prompts/            — optional edits to the assistant's instructions (see README)
       # Back this volume up as a unit — the ciphertext (db) and its keyring live together.
       # See docs/BACKUP.md for the nightly backup job and off-host options.
       Database__Path: /app/data/personaos.db
       Documents__StoragePath: /app/data/docs-storage
       DataProtection__KeysPath: /app/data/dp-keys
+      Prompts__OverridePath: /app/data/prompts
       # Nightly local snapshot (VACUUM INTO + docs + keyring). For real resilience,
       # mount Backup__Path on a SEPARATE volume/host path — see docs/BACKUP.md.
       Backup__Enabled: "true"
