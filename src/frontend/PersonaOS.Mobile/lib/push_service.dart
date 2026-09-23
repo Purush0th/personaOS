@@ -33,6 +33,9 @@ class PushService {
 
   bool _started = false;
   String? _registeredToken;
+
+  /// Titles the alarms this phone schedules; kept from the last sign-in.
+  String _assistantNickname = 'PersonaOS';
   StreamSubscription<String>? _tokenRefresh;
   StreamSubscription<RemoteMessage>? _foreground;
 
@@ -41,6 +44,7 @@ class PushService {
   /// pruned it or the database may have been reset since the last launch.
   Future<void> start(PersonaOsApi api, {required String assistantNickname}) async {
     if (!Platform.isAndroid) return;
+    _assistantNickname = assistantNickname;
 
     // Alarms first, and independently of push. The phone schedules its own alarms from the
     // server's pending reminders, so they ring even on an instance where nobody has set up
@@ -114,6 +118,19 @@ class PushService {
 
     final token = await messaging.getToken();
     if (token != null) await _register(api, token);
+  }
+
+  /// Brings this phone's alarms in line with the server now, instead of waiting for the server's
+  /// "reminder scheduled" push.
+  ///
+  /// That push is a data-only message, and FCM quietly lowers the priority of data messages from
+  /// an app that shows nothing for them, so on an idle phone it could arrive after the reminder
+  /// was due: the first reminder rang late, from the server's fallback push, and later ones were
+  /// on time because the ringing alarm had woken the app up. Called whenever this phone changes a
+  /// reminder and whenever the app comes to the foreground, the alarm no longer depends on it.
+  Future<void> resyncAlarms(PersonaOsApi api) async {
+    if (!Platform.isAndroid || !api.isLoggedIn) return;
+    await _syncAlarms(api, _assistantNickname);
   }
 
   /// Schedules this phone's alarms to match the server's pending reminders. A server with
