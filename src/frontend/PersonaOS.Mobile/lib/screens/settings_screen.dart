@@ -21,6 +21,9 @@ const _providers = <String, String>{
   'openai_compatible': 'OpenAI-compatible (OpenAI, Groq…)',
 };
 
+/// The longest "about you" the server accepts: it is sent with every message.
+const _aboutMeMaxLength = 2000;
+
 /// Example address for each provider reached at one; Anthropic has a fixed service.
 const _baseUrlHints = <String, String>{
   'ollama': 'http://localhost:11434',
@@ -44,6 +47,10 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _nickname = TextEditingController();
   final _persona = TextEditingController();
+  final _aboutMe = TextEditingController();
+
+  /// As loaded, so saving only writes the profile when it changed.
+  String _savedAboutMe = '';
   final _model = TextEditingController();
   final _baseUrl = TextEditingController();
   final _timeZone = TextEditingController();
@@ -87,6 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _nickname.dispose();
     _persona.dispose();
+    _aboutMe.dispose();
     _model.dispose();
     _baseUrl.dispose();
     _timeZone.dispose();
@@ -100,9 +108,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _loadError = null;
     });
     try {
-      final settings = await widget.api.getSettings();
+      final (settings, aboutMe) = await (widget.api.getSettings(), widget.api.getAboutMe()).wait;
       if (!mounted) return;
       setState(() {
+        _aboutMe.text = _savedAboutMe = aboutMe;
         _nickname.text = settings.assistantNickname;
         _persona.text = settings.personaTemplate;
         _model.text = settings.aiModel;
@@ -144,6 +153,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _saving = true);
     try {
       await widget.api.updateSettings(_changes());
+      if (_aboutMe.text.trim() != _savedAboutMe) await widget.api.updateAboutMe(_aboutMe.text.trim());
       if (!mounted) return;
       _apiKey.clear();
       ScaffoldMessenger.of(context)
@@ -219,6 +229,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Persona / tone',
                         hintText: 'How should the assistant speak to you?',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _aboutMe,
+                      minLines: 3,
+                      maxLines: 8,
+                      maxLength: _aboutMeMaxLength,
+                      decoration: const InputDecoration(
+                        labelText: 'About you',
+                        hintText: 'What the assistant should always know, e.g. vegetarian, lives in Chennai.',
+                        helperText: 'Sent with every message.',
                       ),
                     ),
                     const SizedBox(height: 12),
