@@ -1,7 +1,4 @@
 @use '@angular/material' as mat;
-/* Styles from before Material, still used by pages not yet migrated. Each rule disappears as its
-   page moves over; when this import goes, the migration is done. */
-@use 'legacy-primitives';
 
 /* PersonaOS uses Angular Material 3. One theme here decides colour, type and density for every
    component, which is the point: before this, buttons were styled three ways across pages and two
@@ -11,35 +8,66 @@
    forcing light as it used to. */
 /* Light and dark are emitted as separate blocks rather than through mat.theme's light-dark()
    defaults: that CSS function did not resolve in every browser tested, leaving a dark-mode
-   device on the light palette. A media query works everywhere. */
-html {
-  color-scheme: light;
+   device on the light palette. A media query works everywhere.
+
+   The device decides until the user picks a scheme with the toggle in the nav; the pick is
+   data-theme on <html> (see ThemeService) and beats the media query either way. */
+@mixin colors($type) {
+  color-scheme: $type;
 
   @include mat.theme((
     color: (
       primary: mat.$violet-palette,
       tertiary: mat.$blue-palette,
-      theme-type: light,
+      theme-type: $type,
     ),
+  ));
+}
+
+html {
+  @include mat.theme((
     typography: Roboto,
     density: 0,
+  ));
+  @include colors(light);
+
+  /* One field size everywhere: 40px, the height of a Material button, with 14px text. Material's
+     default 56px field is sized for a form on its own; in this app fields sit in rows beside
+     buttons, chips and list items, and at 56px they towered over everything next to them.
+     Outlined fields keep their floating label at this density (only filled ones lose it). */
+  @include mat.form-field-overrides((
+    container-height: 40px,
+    container-vertical-padding: 8px,
+    container-text-size: var(--mat-sys-body-medium-size),
+    container-text-line-height: var(--mat-sys-body-medium-line-height),
+    outlined-label-text-size: var(--mat-sys-body-medium-size),
+  ));
+  /* A card's subtitle explains the card; Material's default sets it as a second, bold title. */
+  @include mat.card-overrides((
+    title-text-font: var(--mat-sys-title-medium-font),
+    title-text-size: var(--mat-sys-title-medium-size),
+    title-text-weight: var(--mat-sys-title-medium-weight),
+    title-text-line-height: var(--mat-sys-title-medium-line-height),
+    subtitle-text-font: var(--mat-sys-body-medium-font),
+    subtitle-text-size: var(--mat-sys-body-medium-size),
+    subtitle-text-weight: var(--mat-sys-body-medium-weight),
+    subtitle-text-line-height: var(--mat-sys-body-medium-line-height),
+    subtitle-text-color: var(--mat-sys-on-surface-variant),
+  ));
+  @include mat.select-overrides((
+    trigger-text-size: var(--mat-sys-body-medium-size),
+    trigger-text-line-height: var(--mat-sys-body-medium-line-height),
   ));
 }
 
 @media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-
-    @include mat.theme((
-      color: (
-        primary: mat.$violet-palette,
-        tertiary: mat.$blue-palette,
-        theme-type: dark,
-      ),
-      typography: Roboto,
-      density: 0,
-    ));
+  html:not([data-theme='light']) {
+    @include colors(dark);
   }
+}
+
+html[data-theme='dark'] {
+  @include colors(dark);
 }
 
 html,
@@ -94,6 +122,39 @@ body {
   }
 }
 
+/* The same pill as a control that opens a menu. */
+button.points-pill {
+  border: 1px solid transparent;
+  cursor: pointer;
+  line-height: 1.4;
+
+  &:hover,
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 1px;
+  }
+}
+
+/* Priority colours, shared by rows and the priority menu (which renders in an overlay). */
+.p-highest,
+.p-high {
+  --priority-color: var(--mat-sys-error);
+}
+
+.p-medium {
+  --priority-color: var(--mat-sys-tertiary);
+}
+
+.p-low,
+.p-lowest {
+  --priority-color: var(--mat-sys-primary);
+}
+
+mat-icon[class*='p-'],
+.mat-mdc-menu-item mat-icon[class*='p-'] {
+  color: var(--priority-color);
+}
+
 /* Text helpers that survive the migration: they say what the text *is*, not how it looks. */
 .muted {
   color: var(--mat-sys-on-surface-variant);
@@ -105,4 +166,14 @@ body {
 
 .error {
   color: var(--mat-sys-error);
+}
+
+/* The account menu in the nav footer. Menus render in an overlay outside the shell component,
+   so their styles have to be global. */
+.account-menu {
+  min-width: 15rem !important;
+
+  .menu-header {
+    padding: 0.5rem 1rem 0.4rem;
+  }
 }

@@ -8,11 +8,17 @@
 }
 
 .nav {
-  width: 15rem;
+  width: 17rem;
   border-right: 1px solid var(--mat-sys-outline-variant);
   background: var(--mat-sys-surface-container-low);
-  display: flex;
-  flex-direction: column;
+
+  // mat-sidenav wraps its content in a scrolling container; this column fills it so the footer
+  // can sit at the bottom instead of straight under the last page.
+  .nav-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
 
   .brand {
     display: flex;
@@ -26,13 +32,113 @@
     }
   }
 
-  // Sign out sits at the bottom of the rail, away from the pages.
-  .nav-footer {
-    margin-top: auto;
-    padding: 0.75rem;
+  .pages {
+    flex: none;
+    padding-bottom: 0;
+  }
 
-    .full {
-      width: 100%;
+  // Chat is last and takes the rest of the rail; only its history scrolls, so the pages above
+  // and the account below never move.
+  .chat {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: 0;
+  }
+
+  // Threads are indented under Chat and quieter than the pages, so the two read as levels.
+  .history {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-left: 0.75rem;
+
+    .thread {
+      --mat-list-list-item-one-line-container-height: 36px;
+      --mat-list-list-item-label-text-size: var(--mat-sys-body-medium-size);
+      // Titles need every pixel the rail has; Material's default 16px each side wastes them.
+      padding-left: 12px;
+      padding-right: 4px;
+    }
+
+    // The delete button only takes room on the thread under the pointer, so an idle title is
+    // not cut short by an invisible button. On touch there is no hover, so it always shows.
+    .delete {
+      --mat-icon-button-state-layer-size: 32px;
+      width: 32px;
+      height: 32px;
+      padding: 4px;
+      margin-left: 4px;
+    }
+
+    @media (hover: hover) {
+      .thread:not(:hover):not(:focus-within) .delete {
+        display: none;
+      }
+    }
+
+    .none {
+      margin: 0.25rem 1rem 0.5rem;
+    }
+  }
+
+  // The account button and the theme switch sit at the bottom of the rail, away from the pages.
+  .nav-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-top: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  .account {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.5rem;
+    border: none;
+    border-radius: var(--mat-sys-corner-medium);
+    background: none;
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-label-large);
+    cursor: pointer;
+    text-align: left;
+
+    &:hover,
+    &:focus-visible,
+    &[aria-expanded='true'] {
+      background: var(--mat-sys-surface-container-highest);
+      outline: none;
+    }
+
+    .avatar {
+      flex: none;
+      width: 1.75rem;
+      height: 1.75rem;
+      display: grid;
+      place-items: center;
+      border-radius: var(--mat-sys-corner-full);
+      background: var(--mat-sys-primary-container);
+      color: var(--mat-sys-on-primary-container);
+      font: var(--mat-sys-label-large);
+    }
+
+    .name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chevron {
+      color: var(--mat-sys-on-surface-variant);
+      font-size: 1.1rem;
+      width: 1.1rem;
+      height: 1.1rem;
     }
   }
 }

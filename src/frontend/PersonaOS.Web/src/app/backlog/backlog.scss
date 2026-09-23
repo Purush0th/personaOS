@@ -76,6 +76,13 @@
     .dates {
       white-space: nowrap;
     }
+
+    .side {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-left: auto;
+    }
   }
 
   .rows {
@@ -95,7 +102,7 @@
     gap: 0.5rem;
     align-items: center;
     flex-wrap: wrap;
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
 
     .grow {
       flex: 1;
@@ -103,7 +110,7 @@
     }
 
     .points {
-      width: 6.5rem;
+      width: 7rem;
     }
   }
 }
@@ -112,12 +119,18 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.3rem 0.25rem;
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
-  background: var(--mat-sys-surface);
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
+  border-radius: var(--mat-sys-corner-small);
+  font: var(--mat-sys-body-medium);
 
-  &:last-child {
-    border-bottom: none;
+  // Rows sit on the card's own surface; the pointer lights one up instead of stripes and fills.
+  &:hover {
+    background: var(--mat-sys-surface-container-high);
+  }
+
+  & + .row {
+    border-top: 1px solid var(--mat-sys-outline-variant);
   }
 
   .handle {
@@ -158,20 +171,25 @@
     color: var(--mat-sys-on-surface-variant);
   }
 
+  // Compact chip: coloured icon, quiet label, the height of the row's other controls.
   .priority {
-    width: 7.5rem;
-  }
+    --mat-button-text-horizontal-padding: 8px;
+    --mat-button-text-container-height: 32px;
+    --mat-button-text-label-text-color: var(--mat-sys-on-surface-variant);
+    --mat-button-text-label-text-weight: 400;
+    width: 6.5rem;
+    justify-content: flex-start;
 
-  .points {
-    width: 5.5rem;
+    mat-icon {
+      color: var(--priority-color);
+    }
   }
 
   // Everything but the title and the controls folds away on a phone.
   @media (max-width: 720px) {
     flex-wrap: wrap;
 
-    .status,
-    .priority {
+    .status {
       display: none;
     }
   }

@@ -1,0 +1,148 @@
+/* The layout shared by the task and goal pages: crumbs, a title you click to edit, the main
+   column of cards, and a Details card on the right that stacks under it on a narrow window. */
+
+.crumbs {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface-variant);
+
+  a {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+    }
+  }
+}
+
+.item-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  min-height: 3rem;
+
+  .key {
+    font: var(--mat-sys-label-large);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  h1 {
+    font: var(--mat-sys-headline-small);
+    margin: 0;
+    min-width: 0;
+
+    // A title you can click to rename shows it on hover.
+    &.editable {
+      flex: 1;
+      cursor: text;
+      border-radius: var(--mat-sys-corner-small);
+
+      &:hover {
+        background: var(--mat-sys-surface-container-high);
+      }
+    }
+  }
+
+  .title-form {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+
+    .grow {
+      flex: 1;
+    }
+  }
+
+  .spacer {
+    flex: 1;
+  }
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Cards in a column keep the same 1rem rhythm as the grid gap.
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+h2 {
+  font: var(--mat-sys-title-medium);
+  margin: 0 0 0.75rem;
+}
+
+.description {
+  white-space: pre-wrap;
+  cursor: text;
+  margin: 0;
+  padding: 0.25rem;
+  border-radius: var(--mat-sys-corner-small);
+
+  &:hover {
+    background: var(--mat-sys-surface-container-high);
+  }
+}
+
+.full {
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+// Details: one field per line, 1rem apart, with the facts underneath.
+.side mat-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  h2 {
+    margin: 0;
+  }
+
+  .goal-chip {
+    align-self: flex-start;
+  }
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 0.75rem;
+  margin: 0;
+  font: var(--mat-sys-body-small);
+
+  dt {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.danger {
+  color: var(--mat-sys-error);
+}

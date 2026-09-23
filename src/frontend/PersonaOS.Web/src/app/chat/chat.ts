@@ -6,16 +6,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
 
 import { BrandingService } from '../core/branding.service';
-import { Confirm } from '../core/confirm';
-import {
-  ChatService,
-  ConversationSummary,
-  PendingAction,
-  ToolReceipt,
-} from '../core/chat.service';
+import { ChatService, PendingAction, ToolReceipt } from '../core/chat.service';
+import { ConversationsStore } from '../core/conversations.store';
 import { conversationRefFromSlug, conversationSlug } from '../core/conversation-slug';
 
 interface Bubble {
@@ -40,7 +34,6 @@ interface Bubble {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatListModule,
   ],
   templateUrl: './chat.html',
   styleUrl: './chat.scss',
@@ -50,11 +43,11 @@ export class Chat implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   protected readonly branding = inject(BrandingService);
-  private readonly confirm = inject(Confirm);
+  /** The history lives in the nav; this page only adds to it. */
+  private readonly store = inject(ConversationsStore);
 
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
 
-  protected readonly conversations = signal<ConversationSummary[]>([]);
   protected readonly bubbles = signal<Bubble[]>([]);
   protected readonly conversationId = signal<number | null>(null);
   /** Public id of the open conversation; what appears in the URL. */
@@ -76,7 +69,7 @@ export class Chat implements OnInit {
     });
   }
 
-  async ngOnInit(): Promise<void> {
+  ngOnInit(): void {
     // Subscribe BEFORE any await. Awaiting first leaves a window in which a message can be
     // sent and answered, and this subscription then fires late with no slug and wipes the
     // conversation that was just created — losing the thread on screen.
@@ -98,57 +91,6 @@ export class Chat implements OnInit {
         void this.load(ref);
       }
     });
-
-    await this.refreshConversations();
-  }
-
-  protected async refreshConversations(): Promise<void> {
-    try {
-      this.conversations.set(await this.chat.listConversations());
-    } catch {
-      // A failed list shouldn't block composing a new message.
-    }
-  }
-
-  protected startNew(): void {
-    void this.router.navigate(['/chat']);
-  }
-
-  /** Opening a conversation is a navigation; the route subscription does the loading. */
-  protected open(conversation: ConversationSummary): void {
-    void this.router.navigate(['/chat', conversationSlug(conversation.publicId, conversation.id)]);
-  }
-
-  /**
-   * Permanently removes a conversation. If it is the one on screen, the thread is cleared and
-   * the URL returns to /chat — otherwise the address bar would point at something gone.
-   *
-   * The row itself opens the conversation, so the delete button stops its click from bubbling.
-   */
-  protected async deleteConversation(conversation: ConversationSummary, event: Event): Promise<void> {
-    event.stopPropagation();
-    const ok = await this.confirm.ask({
-      title: 'Delete this conversation?',
-      message: `“${conversation.title}” and everything in it. This cannot be undone.`,
-      confirmLabel: 'Delete',
-      destructive: true,
-    });
-    if (!ok) return;
-
-    const wasOpen = conversation.publicId === this.conversationPublicId();
-
-    try {
-      await this.chat.deleteConversation(conversation.publicId);
-    } catch {
-      this.confirm.error('Could not delete that conversation.');
-      return; // Leave the list untouched; the conversation is still there.
-    }
-
-    await this.refreshConversations();
-    if (wasOpen) {
-      this.showEmptyThread();
-      void this.router.navigate(['/chat'], { replaceUrl: true });
-    }
   }
 
   private showEmptyThread(): void {
@@ -237,7 +179,7 @@ export class Chat implements OnInit {
       patch({ tool: null, isError: true, text: 'The connection was interrupted.' });
     } finally {
       this.streaming.set(false);
-      await this.refreshConversations();
+      await this.store.refresh();
       this.syncUrlToConversation();
     }
   }
@@ -252,7 +194,7 @@ export class Chat implements OnInit {
     if (id === null) return;
 
     // The list was just refreshed, so the new conversation is in it with its public id.
-    const conversation = this.conversations().find(c => c.id === id);
+    const conversation = this.store.conversations().find(c => c.id === id);
     const slug = conversationSlug(conversation?.publicId, id);
     if (!slug) return;
 
