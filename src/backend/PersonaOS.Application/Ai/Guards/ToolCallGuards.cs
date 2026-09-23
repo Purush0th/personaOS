@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Common.Interfaces;
 
@@ -76,7 +76,7 @@ public sealed class ConfirmationGate(IPersonaToolRegistry registry) : IToolCallG
                 JsonSerializer.Serialize(new { error = problem }), IsError: true, $"refused to propose: {problem}");
         }
 
-        turn.Proposals.Add(new ProposedAction(call.Name, call.InputJson));
+        turn.Proposals.Add(new ProposedAction(call.Name, call.InputJson, await registry.DescribeTargetAsync(call, ct)));
         var waiting = Waiting(call.Name);
         turn.Remember(call, waiting);
         return new ToolCallVerdict.Answer(waiting, IsError: false, "proposed for confirmation");

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using PersonaOS.Application.Common.Interfaces;
 
 namespace PersonaOS.Application.Ai.Tools;
@@ -43,6 +43,14 @@ public interface IPersonaTool
     /// Tools that create something new have nothing to check and keep the default.
     /// </summary>
     Task ValidateAsync(JsonElement input, CancellationToken ct = default) => Task.CompletedTask;
+
+    /// <summary>
+    /// Names the existing item a call acts on, in the user's terms, for its confirmation card:
+    /// "“Gym” on 2026-09-23", "GOAL-2 “Learn Rust”". The call's own fields only say
+    /// <c>itemId: 2</c>, so without this a card could not show which item a wrong id points at,
+    /// and the user would confirm blind. Null for tools that create something new.
+    /// </summary>
+    Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) => Task.FromResult<string?>(null);
 }
 
 public interface IPersonaToolRegistry
@@ -61,6 +69,9 @@ public interface IPersonaToolRegistry
     /// reason it cannot work, or null when it looks fine. Never throws.
     /// </summary>
     Task<string?> ValidateAsync(AiToolCall call, CancellationToken ct = default);
+
+    /// <summary>The item a call acts on, for its confirmation card, or null. Never throws.</summary>
+    Task<string?> DescribeTargetAsync(AiToolCall call, CancellationToken ct = default);
 
     /// <summary>
     /// Names of the enabled tools that change data, and so need the user's confirmation before

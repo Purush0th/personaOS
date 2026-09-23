@@ -386,7 +386,7 @@ public class ChatService(
                 ChatMessageId = assistantMessage.Id,
                 ToolName = proposal.ToolName,
                 InputJson = string.IsNullOrWhiteSpace(proposal.InputJson) ? "{}" : proposal.InputJson,
-                Summary = ProposedActionSummary.Describe(proposal.ToolName, proposal.InputJson),
+                Summary = ProposedActionSummary.Describe(proposal.ToolName, proposal.InputJson, proposal.Target),
             };
             db.PendingActions.Add(action);
             pending.Add(new PendingActionDto(
