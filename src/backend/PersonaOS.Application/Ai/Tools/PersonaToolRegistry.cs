@@ -73,6 +73,23 @@ public class PersonaToolRegistry(
         }
     }
 
+    public async Task<string?> DescribeTargetAsync(AiToolCall call, CancellationToken ct = default)
+    {
+        var (tool, input, _) = await PrepareAsync(call, ct);
+        if (tool is null) return null;
+
+        try
+        {
+            return await tool.DescribeTargetAsync(input, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A card without the item's name is worse, but still a card: never block on this.
+            logger.LogWarning(ex, "Describing the target of {Tool} failed", call.Name);
+            return null;
+        }
+    }
+
     /// <summary>
     /// Finds the enabled tool a call names and parses its input. Returns the reason in
     /// <c>Error</c> when either step fails, with a null tool.

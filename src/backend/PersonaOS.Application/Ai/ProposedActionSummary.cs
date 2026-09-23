@@ -1,10 +1,13 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 
 namespace PersonaOS.Application.Ai;
 
-/// <summary>A tool call the model asked for, held until the user confirms it.</summary>
-public record ProposedAction(string ToolName, string InputJson);
+/// <summary>
+/// A tool call the model asked for, held until the user confirms it. <paramref name="Target"/>
+/// names the existing item it acts on, looked up when it was proposed.
+/// </summary>
+public record ProposedAction(string ToolName, string InputJson, string? Target = null);
 
 /// <summary>
 /// Turns a proposed tool call into a line the user can actually judge.
@@ -38,7 +41,7 @@ public static class ProposedActionSummary
         ("priority", "priority "),
     ];
 
-    public static string Describe(string toolName, string? inputJson)
+    public static string Describe(string toolName, string? inputJson, string? target = null)
     {
         var action = HumanAction(toolName);
 
@@ -57,14 +60,25 @@ public static class ProposedActionSummary
 
         var sb = new StringBuilder(action);
 
-        var label = ToolPayloadText.FirstValue(input, ToolPayloadText.LabelFields);
-        if (label is not null) sb.Append(" “").Append(ToolPayloadText.Truncate(label, 80)).Append('”');
+        // The item the call acts on, by name, comes first: it is what a wrong id gets wrong.
+        if (target is not null)
+        {
+            sb.Append(' ').Append(ToolPayloadText.Truncate(target, 120));
+        }
+        else if (ToolPayloadText.FirstValue(input, ToolPayloadText.LabelFields) is { } label)
+        {
+            sb.Append(" “").Append(ToolPayloadText.Truncate(label, 80)).Append('”');
+        }
 
         var parts = new List<string>();
         foreach (var (field, prefix) in Details)
         {
             var value = ToolPayloadText.FirstValue(input, [field]);
-            if (!string.IsNullOrWhiteSpace(value)) parts.Add(prefix + value);
+            // A key the target already names ("TASK-7 “File taxes”") is not repeated.
+            if (!string.IsNullOrWhiteSpace(value) && target?.Contains(value, StringComparison.OrdinalIgnoreCase) != true)
+            {
+                parts.Add(prefix + value);
+            }
         }
 
         // A goal with no end given still gets one, so the card says which: the due date is what

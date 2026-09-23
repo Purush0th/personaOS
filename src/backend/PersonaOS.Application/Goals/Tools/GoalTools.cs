@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Domain.Services;
@@ -21,6 +21,10 @@ public abstract class GoalToolBase : IPersonaTool
 
     /// <summary>Tools that act on an existing goal override this to resolve its key early.</summary>
     public virtual Task ValidateAsync(JsonElement input, CancellationToken ct = default) => Task.CompletedTask;
+
+    /// <summary>Tools that act on an existing item name it, for the confirmation card.</summary>
+    public virtual Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
+        Task.FromResult<string?>(null);
 
     protected static string? GetString(JsonElement input, string name) =>
         input.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
@@ -57,6 +61,13 @@ public abstract class GoalToolBase : IPersonaTool
         return DateOnly.TryParse(raw, out var date)
             ? date
             : throw new GoalValidationException($"'{name}' must be an ISO date like 2026-07-01.");
+    }
+
+    /// <summary>"GOAL-2 “Learn Rust”", for a confirmation card; null when the key names no goal.</summary>
+    protected static async Task<string?> DescribeGoalAsync(IGoalService goals, string? key, CancellationToken ct)
+    {
+        var id = await goals.ResolveKeyAsync(key, ct);
+        return id is int found && await goals.GetAsync(found, ct) is { } goal ? $"{goal.Key} “{goal.Title}”" : null;
     }
 
     protected static async Task<int> RequireGoalAsync(IGoalService goals, string? key, CancellationToken ct)
@@ -169,6 +180,9 @@ public class UpdateGoalStatusTool(IGoalService goals) : GoalToolBase
     public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
         RequireGoalAsync(goals, GetKey(input, "goalKey") ?? GetKey(input, "goalId"), ct);
 
+    public override Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
+        DescribeGoalAsync(goals, GetKey(input, "goalKey") ?? GetKey(input, "goalId"), ct);
+
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var id = await RequireGoalAsync(goals, GetKey(input, "goalKey") ?? GetKey(input, "goalId"), ct);
@@ -205,6 +219,9 @@ public class DeleteGoalTool(IGoalService goals) : GoalToolBase
 
     public override Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
         RequireGoalAsync(goals, GetKey(input, "goalKey"), ct);
+
+    public override Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
+        DescribeGoalAsync(goals, GetKey(input, "goalKey"), ct);
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
