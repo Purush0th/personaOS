@@ -125,7 +125,10 @@ public class ToolCallGuardTests
     [Fact]
     public async Task Every_firing_is_counted_by_guard_and_model()
     {
-        var fired = new List<(long Value, string? Guard, string? Model)>();
+        // The meter is static, so tests running in parallel report to this listener too, from
+        // other threads: collect thread-safely and look only for this test's own model name.
+        const string model = "metric-test-model";
+        var fired = new System.Collections.Concurrent.ConcurrentBag<(long Value, string? Guard, string? Model)>();
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, l) =>
         {
@@ -141,8 +144,8 @@ public class ToolCallGuardTests
         listener.Start();
 
         await Pipeline(new FakeTool("create_goal", mutates: true))
-            .DecideAsync(new AiToolCall("1", "create_goal", "{}"), Turn("create_goal"), default);
+            .DecideAsync(new AiToolCall("1", "create_goal", "{}"), new ChatTurnState(model, new HashSet<string> { "create_goal" }, []), default);
 
-        Assert.Contains((1L, "confirmation-gate", "test-model"), fired);
+        Assert.Contains((1L, "confirmation-gate", model), fired);
     }
 }

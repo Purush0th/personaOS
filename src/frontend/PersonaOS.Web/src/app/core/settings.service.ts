@@ -16,6 +16,8 @@ export interface CurrentSettings {
   aiContextTokens: number | null;
   /** The context size this model gets when none is set. */
   defaultContextTokens: number;
+  /** The assistant rewords the briefs in its own voice. */
+  phraseBriefs: boolean;
 }
 
 export interface UserProfile {
@@ -38,6 +40,7 @@ export interface SettingsUpdate {
   features?: Record<string, boolean>;
   /** 0 clears it back to the model's default. */
   aiContextTokens?: number;
+  phraseBriefs?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })

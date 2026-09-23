@@ -28,6 +28,12 @@ form {
     gap: 0.75rem 1.5rem;
   }
 
+  // The note under the briefs toggle spans the grid, so it reads as one line under it.
+  .brief-note {
+    grid-column: 1 / -1;
+    margin: -0.5rem 0 0;
+  }
+
   .test {
     display: flex;
     align-items: center;
