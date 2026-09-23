@@ -61,11 +61,10 @@
             </mat-select>
           </mat-form-field>
 
-          @if (isCompatible) {
+          @if (selected.needsBaseUrl) {
             <mat-form-field>
               <mat-label>Base URL</mat-label>
-              <input matInput name="aiBaseUrl" [(ngModel)]="aiBaseUrl" placeholder="http://localhost:11434/v1" />
-              <mat-hint>OpenAI, Ollama, Groq, OpenRouter, LM Studio and others.</mat-hint>
+              <input matInput name="aiBaseUrl" [(ngModel)]="aiBaseUrl" [placeholder]="selected.baseUrlPlaceholder ?? ''" />
             </mat-form-field>
           }
 
@@ -76,10 +75,10 @@
               name="apiKey"
               type="password"
               [(ngModel)]="apiKey"
-              [placeholder]="isCompatible ? 'Leave blank for local Ollama' : 'sk-ant-…'"
+              [placeholder]="selected.keyless ? 'Leave blank for local models' : 'sk-ant-…'"
             />
             <mat-hint>
-              @if (isCompatible) {
+              @if (selected.keyless) {
                 Optional for keyless local models; required for hosted providers.
               } @else {
                 Get one at console.anthropic.com. You pay Anthropic directly for usage.
@@ -93,7 +92,7 @@
               matInput
               name="aiModel"
               [(ngModel)]="aiModel"
-              [placeholder]="isCompatible ? 'e.g. qwen2.5:3b-instruct' : 'e.g. claude-sonnet-5'"
+              [placeholder]="selected.modelPlaceholder"
             />
           </mat-form-field>
         </mat-card-content>

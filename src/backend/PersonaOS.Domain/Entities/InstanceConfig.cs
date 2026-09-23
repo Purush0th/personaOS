@@ -39,6 +39,13 @@ public class InstanceConfig
     public string? AiBaseUrl { get; set; }
 
     /// <summary>
+    /// The model's context window in tokens, when the user knows better than the model profile.
+    /// Sent to Ollama with every request, and used everywhere to decide how much history fits.
+    /// Null means the profile's default.
+    /// </summary>
+    public int? AiContextTokens { get; set; }
+
+    /// <summary>
     /// The configured provider's API key, encrypted at rest via Data Protection. Never the
     /// raw key. Column name kept for backward compatibility — existing ciphertext is bound
     /// to the protector purpose and must not be re-encrypted under a new one.
@@ -91,7 +98,14 @@ public class InstanceConfig
         /// Groq, OpenRouter, LM Studio, etc. Requires <see cref="AiBaseUrl"/>.</summary>
         public const string OpenAiCompatible = "openai_compatible";
 
-        public static readonly string[] All = [Anthropic, OpenAiCompatible];
+        /// <summary>Ollama through its own API rather than its OpenAI-compatible one, which cannot
+        /// be told the context size or to skip a model's thinking. Requires <see cref="AiBaseUrl"/>.</summary>
+        public const string Ollama = "ollama";
+
+        public static readonly string[] All = [Anthropic, OpenAiCompatible, Ollama];
+
+        /// <summary>Providers reached at an address the user gives, rather than a fixed service.</summary>
+        public static bool NeedsBaseUrl(string provider) => provider is OpenAiCompatible or Ollama;
     }
 
     /// <summary>Canonical module names used as keys in <see cref="Features"/>.</summary>

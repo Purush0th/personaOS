@@ -62,6 +62,9 @@ public static class DependencyInjection
         // AI providers: concrete adapters + a factory that selects one per InstanceConfig.
         services.AddSingleton<AnthropicMessageStreamer>();
         services.AddSingleton<OpenAiCompatibleMessageStreamer>();
+        // A streamed reply from a local model can take minutes; the chat loop's idle timeout and
+        // the request's cancellation bound it instead of HttpClient's 100-second default.
+        services.AddSingleton(_ => new OllamaMessageStreamer(new HttpClient { Timeout = Timeout.InfiniteTimeSpan }));
         services.AddSingleton<IAiMessageStreamerFactory, AiMessageStreamerFactory>();
         // Prompt fragments an installation has edited; everything else is the shipped default.
         services.AddSingleton<IPromptOverrideSource, FilePromptOverrideSource>();

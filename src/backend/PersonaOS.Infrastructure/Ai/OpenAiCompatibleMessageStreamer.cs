@@ -22,27 +22,25 @@ public class OpenAiCompatibleMessageStreamer : IAiMessageStreamer
 
     private const int MaxOutputTokens = 16000;
 
+    /// <summary>
+    /// Model options are not sent: the Chat Completions API has no field for a context size or
+    /// for turning thinking off. That is what the native Ollama adapter is for.
+    /// </summary>
     public async IAsyncEnumerable<AiStreamChunk> StreamAsync(
-        string apiKey,
-        string model,
-        string? baseUrl,
-        string systemPrompt,
-        IReadOnlyList<AiChatTurn> turns,
-        IReadOnlyList<AiToolDefinition> tools,
-        [EnumeratorCancellation] CancellationToken ct = default)
+        AiRequest aiRequest, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(baseUrl))
+        if (string.IsNullOrWhiteSpace(aiRequest.BaseUrl))
             throw new AiStreamException("No base URL is set for the OpenAI-compatible provider. Add one in Settings.");
 
-        var url = $"{baseUrl.TrimEnd('/')}/chat/completions";
-        var body = BuildRequestBody(model, systemPrompt, turns, tools);
+        var url = $"{aiRequest.BaseUrl.TrimEnd('/')}/chat/completions";
+        var body = BuildRequestBody(aiRequest.Model, aiRequest.SystemPrompt, aiRequest.Turns, aiRequest.Tools);
 
         var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
             Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
         };
-        if (!string.IsNullOrEmpty(apiKey))
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        if (!string.IsNullOrEmpty(aiRequest.ApiKey))
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", aiRequest.ApiKey);
 
         // `yield` cannot live inside try/catch — advance the reader inside try, yield outside.
         HttpResponseMessage response;

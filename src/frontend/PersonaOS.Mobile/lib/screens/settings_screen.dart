@@ -17,7 +17,14 @@ const _modules = <String, String>{
 
 const _providers = <String, String>{
   'anthropic': 'Anthropic (Claude)',
-  'openai_compatible': 'OpenAI-compatible (OpenAI, Ollama, Groq…)',
+  'ollama': 'Ollama (local, recommended)',
+  'openai_compatible': 'OpenAI-compatible (OpenAI, Groq…)',
+};
+
+/// Example address for each provider reached at one; Anthropic has a fixed service.
+const _baseUrlHints = <String, String>{
+  'ollama': 'http://localhost:11434',
+  'openai_compatible': 'https://api.openai.com/v1',
 };
 
 /// Instance settings: assistant nickname and persona, AI provider, modules.
@@ -52,7 +59,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _loadError;
   ConnectionTest? _testResult;
 
-  bool get _isCompatible => _provider == 'openai_compatible';
+  /// Every provider but Anthropic is reached at an address the user gives.
+  bool get _needsBaseUrl => _baseUrlHints.containsKey(_provider);
 
   final _vault = AuthVault();
   bool _hasSavedSignIn = false;
@@ -126,7 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'personaTemplate': _persona.text.trim(),
         'aiProvider': _provider,
         'aiModel': _model.text.trim(),
-        'aiBaseUrl': _isCompatible ? _baseUrl.text.trim() : '',
+        'aiBaseUrl': _needsBaseUrl ? _baseUrl.text.trim() : '',
         'timeZone': _timeZone.text.trim(),
         'features': _features,
         if (_apiKey.text.trim().isNotEmpty) 'anthropicApiKey': _apiKey.text.trim(),
@@ -160,7 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final result = await widget.api.testConnection({
         'aiProvider': _provider,
         'aiModel': _model.text.trim(),
-        'aiBaseUrl': _isCompatible ? _baseUrl.text.trim() : '',
+        'aiBaseUrl': _needsBaseUrl ? _baseUrl.text.trim() : '',
         if (_apiKey.text.trim().isNotEmpty) 'anthropicApiKey': _apiKey.text.trim(),
       });
       if (mounted) setState(() => _testResult = result);
@@ -244,17 +252,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       controller: _model,
                       decoration: const InputDecoration(
                         labelText: 'Model',
-                        hintText: 'e.g. qwen2.5:latest',
+                        hintText: 'e.g. qwen2.5:3b-instruct',
                       ),
                     ),
-                    if (_isCompatible) ...[
+                    if (_needsBaseUrl) ...[
                       const SizedBox(height: 12),
                       TextField(
                         controller: _baseUrl,
                         keyboardType: TextInputType.url,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Base URL',
-                          hintText: 'http://localhost:11434/v1',
+                          hintText: _baseUrlHints[_provider],
                         ),
                       ),
                     ],

@@ -1,4 +1,4 @@
-using PersonaOS.Application.Common.Interfaces;
+﻿using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
 
 namespace PersonaOS.Infrastructure.Ai;
@@ -10,11 +10,13 @@ namespace PersonaOS.Infrastructure.Ai;
 /// </summary>
 public class AiMessageStreamerFactory(
     AnthropicMessageStreamer anthropic,
-    OpenAiCompatibleMessageStreamer openAiCompatible) : IAiMessageStreamerFactory
+    OpenAiCompatibleMessageStreamer openAiCompatible,
+    OllamaMessageStreamer ollama) : IAiMessageStreamerFactory
 {
     public IAiMessageStreamer ForProvider(string provider) => provider switch
     {
         InstanceConfig.Providers.OpenAiCompatible => openAiCompatible,
+        InstanceConfig.Providers.Ollama => ollama,
         _ => anthropic,
     };
 }

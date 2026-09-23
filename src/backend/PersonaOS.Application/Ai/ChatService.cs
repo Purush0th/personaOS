@@ -4,6 +4,8 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Ai.Guards;
+using PersonaOS.Application.Ai.History;
+using PersonaOS.Application.Ai.Models;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
@@ -24,14 +26,12 @@ public class ChatService(
     IPersonaToolRegistry toolRegistry,
     ToolCallPipeline toolCallGuards,
     ReplyPipeline replyGuards,
+    ConversationSummarizer summarizer,
+    TimeProvider time,
     ILogger<ChatService> logger) : IChatService
 {
-    /// <summary>History window: how many prior messages are sent to the model per request.
-    /// Older turns are dropped (rolling summarization is a later enhancement).</summary>
-    private const int HistoryWindow = 20;
-
-    /// <summary>Upper bound on model↔tool round-trips within one user message.</summary>
-    private const int MaxToolIterations = 8;
+    /// <summary>Stored messages considered for the history window; far more than any context holds.</summary>
+    private const int MaxHistoryMessages = 200;
 
     public async IAsyncEnumerable<ChatStreamEvent> StreamChatAsync(
         int? conversationId,
@@ -70,14 +70,18 @@ public class ChatService(
 
         yield return new ChatStreamEvent("start", ConversationId: conversation.Id);
 
+        var profile = ModelProfiles.For(config);
         var tools = await toolRegistry.GetEnabledToolDefinitionsAsync(ct);
+        var streamer = streamerFactory.ForProvider(config.AiProvider);
+        var model = new AiRequest(apiKey ?? string.Empty, config.AiModel, config.AiBaseUrl, string.Empty, [], tools,
+            profile.OptionsFor(config.AiProvider));
+        var (systemPrompt, turns) = await PrepareContextAsync(
+            conversation, userMessage, await promptBuilder.BuildAsync(ct), streamer, model, profile, ct);
         var request = new ModelRequest(
-            streamerFactory.ForProvider(config.AiProvider),
-            apiKey ?? string.Empty,
-            config,
-            await promptBuilder.BuildAsync(ct),
-            await HistoryAsync(conversation.Id, userMessage, ct),
-            tools,
+            streamer,
+            model with { SystemPrompt = systemPrompt },
+            profile,
+            turns,
             // Which tools need confirmation is fixed for the turn, so it is resolved once.
             new ChatTurnState(config.AiModel, await toolRegistry.GetMutatingToolNamesAsync(ct), tools.Select(t => t.Name).ToList()),
             conversation.Id);
@@ -115,6 +119,14 @@ public class ChatService(
                 ? await replyGuards.ReviewAsync(new ReplyDraft(correction.Text.ToString(), request.Turn, isCorrection: true), ct)
                 : null;
             if (corrected is { Text.Length: > 0 }) final = corrected;
+
+            // Above a card, a claim that survived the correction is taken out: qwen2.5:3b repeated
+            // "I've created a new goal" word for word when asked to describe the card instead.
+            // The card itself says what will happen, so nothing is lost by removing the sentence.
+            if (final.ClaimAwaitsConfirmation || (final == reply && reply.ClaimAwaitsConfirmation))
+            {
+                final.Rewrite(WithoutClaim(final.Text, final.UnbackedClaim ?? claim));
+            }
 
             // The "nothing was saved" note is for a claim nothing backs. Above a card it would be
             // wrong (the card is right there, waiting), so a claim that survives is left to it.
@@ -164,24 +176,62 @@ public class ChatService(
         + "Confirm. Rewrite your reply to describe the change as proposed, not done. Do not call the "
         + "tool again. " + CorrectionStyle;
 
+    /// <summary>The reply without the sentence calling the change done, led by a pointer to the card.</summary>
+    private static string WithoutClaim(string text, string claim)
+    {
+        var rest = text.Replace(claim, string.Empty, StringComparison.Ordinal).Trim();
+        return rest.Length == 0 ? EmptyReplyGuard.ProposalOnly : $"{EmptyReplyGuard.ProposalOnly} {rest}";
+    }
+
     private const string CorrectionStyle =
         "Write only what the user should read, as if for the first time. Do not "
         + "mention this check, and do not introduce your reply.";
 
-    /// <summary>The windowed history plus the new message, oldest first.</summary>
-    private async Task<List<AiChatTurn>> HistoryAsync(int conversationId, string userMessage, CancellationToken ct)
+    /// <summary>
+    /// The system prompt and the turns to send: as much recent history as the model's context
+    /// holds (see <see cref="HistoryPlanner"/>), with older messages folded into the conversation's
+    /// running summary as they leave the window.
+    /// </summary>
+    private async Task<(string SystemPrompt, List<AiChatTurn> Turns)> PrepareContextAsync(
+        Conversation conversation, string userMessage, string basePrompt, IAiMessageStreamer streamer,
+        AiRequest model, ModelProfile profile, CancellationToken ct)
     {
-        var history = await db.ChatMessages.AsNoTracking()
-            .Where(m => m.ConversationId == conversationId)
+        var messages = await db.ChatMessages.AsNoTracking()
+            .Where(m => m.ConversationId == conversation.Id)
             .OrderByDescending(m => m.CreatedAtUtc).ThenByDescending(m => m.Id)
-            .Take(HistoryWindow)
+            .Take(MaxHistoryMessages)
             .OrderBy(m => m.CreatedAtUtc).ThenBy(m => m.Id)
             .ToListAsync(ct);
 
-        var turns = new List<AiChatTurn>(history.Count + 1);
-        turns.AddRange(history.Select(m => new AiChatTurn(m.Role, m.Content)));
+        // Room for a summary is always kept, so writing one never pushes the window over.
+        var fixedTokens = TokenEstimate.Of(basePrompt) + TokenEstimate.Of(model.Tools) + TokenEstimate.Of(userMessage)
+            + ConversationSummarizer.MaxSummaryChars / 4;
+        var plan = HistoryPlanner.Plan(messages, conversation.SummarizedThroughMessageId, fixedTokens, profile.ContextTokens);
+
+        if (plan.PromptTooLarge)
+        {
+            logger.LogWarning(
+                "The prompt and tools (about {Tokens} tokens) do not fit {Model}'s {Context}-token context; the model "
+                + "will see them cut short. Raise the context size in Settings.",
+                fixedTokens, model.Model, profile.ContextTokens);
+        }
+
+        if (plan.ToSummarize.Count > 0)
+        {
+            var summary = await summarizer.SummarizeAsync(
+                streamer, model, conversation.Summary, plan.ToSummarize, profile.IdleTimeout, ct);
+            if (summary is not null)
+            {
+                conversation.Summary = summary;
+                conversation.SummarizedThroughMessageId = plan.ToSummarize[^1].Id;
+                await db.SaveChangesAsync(ct);
+            }
+        }
+
+        var turns = plan.Kept.Select(m => new AiChatTurn(m.Role, m.Content)).ToList();
         turns.Add(new AiChatTurn(ChatRoles.User, userMessage));
-        return turns;
+        var systemPrompt = conversation.Summary is { } saved ? basePrompt + "\n\n" + summarizer.Section(saved) : basePrompt;
+        return (systemPrompt, turns);
     }
 
     /// <summary>
@@ -193,18 +243,24 @@ public class ChatService(
         ModelRequest request, ModelRound round, bool streamText, [EnumeratorCancellation] CancellationToken ct)
     {
         var turn = request.Turn;
-        for (var iteration = 0; iteration < MaxToolIterations; iteration++)
+        var idleTimeout = request.Profile.IdleTimeout;
+        for (var iteration = 0; iteration < request.Profile.MaxToolIterations; iteration++)
         {
             var iterationText = new StringBuilder();
             var toolCalls = new List<AiToolCall>();
             string? stopReason = null;
 
+            // A model that goes quiet (after a tool result, or while it thinks) must not leave the
+            // user watching a spinner forever: the wait restarts with every chunk that arrives.
+            using var idle = new CancellationTokenSource(Timeout.InfiniteTimeSpan, time);
+            using var stop = ct.Register(static state => ((CancellationTokenSource)state!).Cancel(), idle);
+            idle.CancelAfter(idleTimeout);
+
             // `yield` cannot sit inside a try with a catch, so the stream is advanced inside one
             // and its events are yielded outside it.
             var stream = request.Streamer
-                .StreamAsync(request.ApiKey, request.Config.AiModel, request.Config.AiBaseUrl, request.SystemPrompt,
-                    request.Turns, request.Tools, ct)
-                .GetAsyncEnumerator(ct);
+                .StreamAsync(request.Model with { Turns = request.Turns }, idle.Token)
+                .GetAsyncEnumerator(idle.Token);
             try
             {
                 while (true)
@@ -214,6 +270,15 @@ public class ChatService(
                     {
                         if (!await stream.MoveNextAsync()) break;
                         chunk = stream.Current;
+                        idle.CancelAfter(idleTimeout);
+                    }
+                    catch (OperationCanceledException) when (idle.IsCancellationRequested && !ct.IsCancellationRequested)
+                    {
+                        logger.LogWarning("Model {Model} sent nothing for {Seconds} s; giving up on it",
+                            request.Model.Model, idleTimeout.TotalSeconds);
+                        round.Error = $"The model stopped responding (nothing for {idleTimeout.TotalSeconds:0} seconds). "
+                            + "It may still be loading, or its context may be too small for the conversation. Try again.";
+                        break;
                     }
                     catch (AiStreamException ex)
                     {
@@ -272,7 +337,7 @@ public class ChatService(
             if (turn.IsStuck)
             {
                 logger.LogWarning("Model {Model} kept repeating tool calls; stopping after {Repeats}",
-                    request.Config.AiModel, turn.Repeats);
+                    request.Model.Model, turn.Repeats);
                 yield break;
             }
         }
@@ -332,14 +397,12 @@ public class ChatService(
         return pending;
     }
 
-    /// <summary>Everything one turn's model rounds share.</summary>
+    /// <summary>Everything one turn's model rounds share. <see cref="Turns"/> grows as tools run.</summary>
     private sealed record ModelRequest(
         IAiMessageStreamer Streamer,
-        string ApiKey,
-        InstanceConfig Config,
-        string SystemPrompt,
+        AiRequest Model,
+        ModelProfile Profile,
         List<AiChatTurn> Turns,
-        IReadOnlyList<AiToolDefinition> Tools,
         ChatTurnState Turn,
         int ConversationId)
     {

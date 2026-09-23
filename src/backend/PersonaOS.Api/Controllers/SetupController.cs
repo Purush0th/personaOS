@@ -1,6 +1,7 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PersonaOS.Domain.Entities;
+using PersonaOS.Application.Ai.Models;
 using PersonaOS.Application.Auth;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
@@ -31,7 +32,8 @@ public class SetupController(
         string? AiModel,
         string? AiBaseUrl,
         string? TimeZone,
-        Dictionary<string, bool>? Features);
+        Dictionary<string, bool>? Features,
+        int? AiContextTokens = null);
 
     /// <summary>Current settings minus any secret. <c>HasAnthropicApiKey</c> stands in for the key itself.</summary>
     public record CurrentSettingsResponse(
@@ -42,7 +44,9 @@ public class SetupController(
         string? AiBaseUrl,
         string TimeZone,
         Dictionary<string, bool> Features,
-        bool HasAnthropicApiKey);
+        bool HasAnthropicApiKey,
+        int? AiContextTokens,
+        int DefaultContextTokens);
 
     public record UpdateSettingsRequest(
         string? AssistantNickname,
@@ -52,7 +56,8 @@ public class SetupController(
         string? AiModel,
         string? AiBaseUrl,
         string? TimeZone,
-        Dictionary<string, bool>? Features);
+        Dictionary<string, bool>? Features,
+        int? AiContextTokens = null);
 
     /// <summary>
     /// Provider settings to test. Any omitted field falls back to what's stored, so the
@@ -62,7 +67,8 @@ public class SetupController(
         string? AiProvider,
         string? AiModel,
         string? AiBaseUrl,
-        string? AnthropicApiKey);
+        string? AnthropicApiKey,
+        int? AiContextTokens = null);
 
     public record TestConnectionResponse(bool Ok, string Message);
 
@@ -94,7 +100,7 @@ public class SetupController(
         if (!TryResolveTimeZone(request.TimeZone, out var timeZone))
             return BadRequest(new { error = $"Unknown time zone '{request.TimeZone}'." });
 
-        var providerError = ValidateProvider(request.AiProvider, request.AiBaseUrl);
+        var providerError = ValidateProvider(request.AiProvider, request.AiBaseUrl) ?? ValidateContext(request.AiContextTokens);
         if (providerError is not null)
             return BadRequest(new { error = providerError });
 
@@ -106,7 +112,7 @@ public class SetupController(
             c.AssistantNickname = request.AssistantNickname.Trim();
             c.PersonaTemplate = request.PersonaTemplate?.Trim() ?? string.Empty;
             c.TimeZone = timeZone;
-            ApplyAiSettings(c, request.AiProvider, request.AiModel, request.AiBaseUrl);
+            ApplyAiSettings(c, request.AiProvider, request.AiModel, request.AiBaseUrl, request.AiContextTokens);
             if (request.Features is not null)
                 ApplyFeatureToggles(c, request.Features);
             c.IsConfigured = true;
@@ -132,7 +138,10 @@ public class SetupController(
             config.AiBaseUrl,
             config.TimeZone,
             config.Features,
-            HasAnthropicApiKey: !string.IsNullOrEmpty(config.AnthropicApiKeyEncrypted)));
+            HasAnthropicApiKey: !string.IsNullOrEmpty(config.AnthropicApiKeyEncrypted),
+            config.AiContextTokens,
+            // What applies when the field is left empty, so the page can show it as the hint.
+            DefaultContextTokens: ModelProfiles.For(config.AiProvider, config.AiModel).ContextTokens));
     }
 
     /// <summary>Edit settings after setup. Admin JWT required. Only provided fields change.</summary>
@@ -155,7 +164,7 @@ public class SetupController(
         var current = await configService.GetOrCreateAsync(ct);
         var effectiveProvider = string.IsNullOrWhiteSpace(request.AiProvider) ? current.AiProvider : request.AiProvider;
         var effectiveBaseUrl = request.AiBaseUrl ?? current.AiBaseUrl;
-        var providerError = ValidateProvider(effectiveProvider, effectiveBaseUrl);
+        var providerError = ValidateProvider(effectiveProvider, effectiveBaseUrl) ?? ValidateContext(request.AiContextTokens);
         if (providerError is not null)
             return BadRequest(new { error = providerError });
 
@@ -165,7 +174,7 @@ public class SetupController(
                 c.AssistantNickname = request.AssistantNickname.Trim();
             if (request.PersonaTemplate is not null)
                 c.PersonaTemplate = request.PersonaTemplate.Trim();
-            ApplyAiSettings(c, request.AiProvider, request.AiModel, request.AiBaseUrl);
+            ApplyAiSettings(c, request.AiProvider, request.AiModel, request.AiBaseUrl, request.AiContextTokens);
             if (resolvedTimeZone is not null)
                 c.TimeZone = resolvedTimeZone;
             if (request.Features is not null)
@@ -193,7 +202,7 @@ public class SetupController(
         var model = string.IsNullOrWhiteSpace(request.AiModel) ? config.AiModel : request.AiModel.Trim();
         var baseUrl = request.AiBaseUrl ?? config.AiBaseUrl;
 
-        var providerError = ValidateProvider(provider, baseUrl);
+        var providerError = ValidateProvider(provider, baseUrl) ?? ValidateContext(request.AiContextTokens);
         if (providerError is not null)
             return BadRequest(new { error = providerError });
 
@@ -213,10 +222,13 @@ public class SetupController(
 
         try
         {
+            // The model's own options apply: a thinking model asked to think first could spend the
+            // whole 30 seconds reasoning about the word "OK".
+            var options = ModelProfiles.For(provider, model, request.AiContextTokens ?? config.AiContextTokens).OptionsFor(provider);
             await foreach (var chunk in streamer.StreamAsync(
-                apiKey ?? string.Empty, model, baseUrl,
-                "You are a connection test. Reply with a single short word.",
-                turns, [], cts.Token))
+                new AiRequest(apiKey ?? string.Empty, model, baseUrl,
+                    "You are a connection test. Reply with a single short word.", turns, [], options),
+                cts.Token))
             {
                 // First sign of life (text, usage, or a stop) means the round-trip works — stop early.
                 if (chunk.TextDelta is { Length: > 0 } || chunk.OutputTokens is not null || chunk.StopReason is not null)
@@ -262,15 +274,33 @@ public class SetupController(
         if (!InstanceConfig.Providers.All.Contains(normalized))
             return $"Unknown AI provider '{provider}'. Use one of: {string.Join(", ", InstanceConfig.Providers.All)}.";
 
-        if (normalized == InstanceConfig.Providers.OpenAiCompatible && string.IsNullOrWhiteSpace(baseUrl))
-            return "AiBaseUrl is required for the openai_compatible provider (e.g. https://api.openai.com/v1 or http://localhost:11434/v1).";
+        if (InstanceConfig.Providers.NeedsBaseUrl(normalized) && string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return normalized == InstanceConfig.Providers.Ollama
+                ? "AiBaseUrl is required for the ollama provider (e.g. http://localhost:11434)."
+                : "AiBaseUrl is required for the openai_compatible provider (e.g. https://api.openai.com/v1 or http://localhost:11434/v1).";
+        }
 
         return null;
     }
 
-    /// <summary>Applies provided AI settings; null/blank fields are left unchanged.</summary>
-    private static void ApplyAiSettings(InstanceConfig config, string? provider, string? model, string? baseUrl)
+    /// <summary>Smallest and largest context size accepted; 0 clears the setting back to the model's default.</summary>
+    private const int MinContextTokens = 2_048;
+    private const int MaxContextTokens = 1_048_576;
+
+    private static string? ValidateContext(int? contextTokens) =>
+        contextTokens is null or 0 or (>= MinContextTokens and <= MaxContextTokens)
+            ? null
+            : $"AiContextTokens must be between {MinContextTokens} and {MaxContextTokens}, or 0 for the model's default.";
+
+    /// <summary>
+    /// Applies provided AI settings; null/blank fields are left unchanged. A context size of 0
+    /// clears it, so the model profile's default applies again.
+    /// </summary>
+    private static void ApplyAiSettings(InstanceConfig config, string? provider, string? model, string? baseUrl, int? contextTokens)
     {
+        if (contextTokens is int tokens)
+            config.AiContextTokens = tokens == 0 ? null : tokens;
         if (!string.IsNullOrWhiteSpace(provider))
             config.AiProvider = provider.Trim().ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(model))
