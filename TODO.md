@@ -1096,10 +1096,13 @@ real Anthropic key).
       flex column on the chat route (`.mat-drawer-content:has(app-chat)` in `styles.scss`), and
       the page takes the height left over, so only the message list scrolls. Measured at 375x812
       and 1280x720: page scroll height equals its client height.
-- [ ] **Web first-load budget.** `ng build` warns: the initial bundle is ~713 kB against a
-      500 kB budget (578 kB after the Material commit, +8 kB for the history nav, +75 kB raw,
-      ~18 kB gzipped, for `MatMenu` in the account footer, +58 kB for app-wide
-      `MAT_FORM_FIELD_DEFAULT_OPTIONS` in `app.config.ts`, which pulls the form-field module into
-      the main chunk; the setup wizard moving behind `@defer` saved ~7 kB). Candidates: self-host
-      a Material Symbols subset, check what the shell pulls eagerly (`MatSidenav`, `MatList`,
-      `MatToolbar`), then raise the budget deliberately if what is left is the real floor.
+- [x] **Web first-load budget** (2026-09-23). Measured with `ng build --stats-json`: the form-field
+      defaults imported in `app.config.ts` pulled the form-field module into the shell. They moved
+      to `core/form-field-defaults.ts`, provided by a lazy parent route (`pages.routes.ts`, which
+      now holds every page) and by the setup wizard: 762 kB -> 699 kB raw, 175 -> 166 kB
+      compressed. What remains is the floor for this shell: Angular core and router, the CDK
+      overlay (the account menu), and Material's sidenav, list, button and menu. `@angular/forms`
+      (50 kB) stays because `MatListModule` includes `MatSelectionList`, and importing the list's
+      parts one by one does not shake it out; dropping it would mean hand-building the nav instead
+      of using Material's, for about 20 kB compressed. The budget is now 750 kB warning / 900 kB
+      error, set deliberately against that floor.
