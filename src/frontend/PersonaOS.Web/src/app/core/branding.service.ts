@@ -24,12 +24,24 @@ export class BrandingService {
   readonly branding = signal<Branding | null>(null);
   readonly loadError = signal<string | null>(null);
 
-  async load(): Promise<void> {
-    try {
-      const result = await firstValueFrom(this.http.get<Branding>('/api/branding'));
-      this.branding.set(result);
-    } catch {
-      this.loadError.set('Could not reach the PersonaOS server.');
+  /**
+   * Fetches the branding, trying again a few times before giving up: the API may still be
+   * starting (after a restart or an update), and a page stuck on "could not reach" until someone
+   * reloads it is worse than a short wait.
+   */
+  async load(retryDelaysMs: readonly number[] = [1000, 2000, 4000, 8000]): Promise<void> {
+    this.loadError.set(null);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        this.branding.set(await firstValueFrom(this.http.get<Branding>('/api/branding')));
+        return;
+      } catch {
+        if (attempt >= retryDelaysMs.length) {
+          this.loadError.set('Could not reach the PersonaOS server.');
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, retryDelaysMs[attempt]));
+      }
     }
   }
 

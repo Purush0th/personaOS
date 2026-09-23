@@ -1,5 +1,5 @@
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -56,6 +56,7 @@ interface ColumnDef {
     MatTabsModule,
   ],
   templateUrl: './board.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './board.scss',
 })
 export class Board implements OnInit {

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -44,6 +44,7 @@ import { Discussion } from '../shared/discussion';
     MatSelectModule,
   ],
   templateUrl: './goal-detail.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./item-page.scss', './goal-detail.scss'],
 })
 export class GoalDetail implements OnInit {

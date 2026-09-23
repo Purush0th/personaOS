@@ -171,7 +171,13 @@
 
     <main class="content">
       @if (brandingService.loadError(); as err) {
-        <p class="error">{{ err }}</p>
+        <div class="unreachable">
+          <p class="error">{{ err }}</p>
+          <button mat-stroked-button (click)="brandingService.load()">
+            <mat-icon>refresh</mat-icon>
+            Try again
+          </button>
+        </div>
       } @else if (branding; as b) {
         @if (!b.isConfigured) {
           <!-- Deferred: the wizard runs once per install, so its form modules load only then. -->
