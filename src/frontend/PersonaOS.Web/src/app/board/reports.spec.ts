@@ -137,7 +137,7 @@ describe('Reports', () => {
     const page = await render('/board/reports');
     const headings = [...page.querySelectorAll('.panel h3')].map(h => text(h));
 
-    expect(headings.indexOf('Points remaining')).toBe(headings.indexOf('Task details') - 1);
+    expect(headings.indexOf('Burndown')).toBe(headings.indexOf('Task details') - 1);
     expect(page.querySelectorAll('app-burndown-chart .dot').length).toBe(2);
     expect(page.querySelector('a[href^="/board/sprints/"]')).toBeNull();
   });
@@ -146,7 +146,7 @@ describe('Reports', () => {
     const page = await render('/board/reports');
     const [status, priority] = [...page.querySelectorAll('app-breakdown-bar')];
 
-    expect([...status.querySelectorAll('li')].map(li => text(li))).toEqual(['This week 1', 'In progress 1', 'Done 1']);
+    expect([...status.querySelectorAll('li')].map(li => text(li))).toEqual(['To do 1', 'In progress 1', 'Done 1']);
     expect([...priority.querySelectorAll('li')].map(li => text(li))).toEqual(
       ['Highest 0', 'High 1', 'Medium 2', 'Low 0', 'Lowest 0']
     );

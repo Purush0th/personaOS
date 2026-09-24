@@ -9,7 +9,7 @@ import { BreakdownBar, BreakdownPart } from './breakdown-bar';
 })
 class Host {
   readonly parts = signal<BreakdownPart[]>([
-    { label: 'This week', count: 3, tone: 's-todo' },
+    { label: 'To do', count: 3, tone: 's-todo' },
     { label: 'In progress', count: 0, tone: 's-in_progress' },
     { label: 'Done', count: 1, tone: 's-done' },
   ]);
@@ -33,7 +33,7 @@ describe('BreakdownBar', () => {
   it('lists every part in the legend, zeros included, and reads out as one sentence', () => {
     const page = render();
     expect([...page.querySelectorAll('li')].map(li => li.textContent?.replace(/\s+/g, ' ').trim()))
-      .toEqual(['This week 3', 'In progress 0', 'Done 1']);
-    expect(page.querySelector('.bar')?.getAttribute('aria-label')).toBe('This week 3, In progress 0, Done 1');
+      .toEqual(['To do 3', 'In progress 0', 'Done 1']);
+    expect(page.querySelector('.bar')?.getAttribute('aria-label')).toBe('To do 3, In progress 0, Done 1');
   });
 });

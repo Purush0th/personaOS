@@ -40,7 +40,7 @@ export class Planner implements OnInit {
   private readonly branding = inject(BrandingService);
   private readonly confirm = inject(Confirm);
 
-  /** This week's unfinished sprint tasks, to pick the day's work from. */
+  /** The running sprint's unfinished tasks, to pick the day's work from. */
   protected readonly sprintTasks = signal<BoardTask[]>([]);
 
   protected readonly items = signal<PlannerItemDto[]>([]);

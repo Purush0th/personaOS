@@ -1,0 +1,45 @@
+<form (submit)="$event.preventDefault(); save()">
+  <h2>{{ sprint() ? 'Edit ' + sprint()!.key : 'New sprint' }}</h2>
+  <div class="fields">
+    <mat-form-field class="name">
+      <mat-label>Name</mat-label>
+      <input
+        matInput
+        placeholder="Optional, e.g. Paperwork week"
+        [value]="name()"
+        (input)="name.set($any($event.target).value)"
+      />
+    </mat-form-field>
+
+    <mat-form-field class="start" floatLabel="always">
+      <mat-label>Starts</mat-label>
+      <input
+        #startField
+        matInput
+        type="date"
+        [value]="startsOn()"
+        (input)="startsOn.set(startField.value)"
+        (click)="openCalendar(startField)"
+      />
+      <button
+        mat-icon-button
+        matIconSuffix
+        type="button"
+        aria-label="Pick the start day"
+        (click)="openCalendar(startField)"
+      >
+        <mat-icon>calendar_month</mat-icon>
+      </button>
+    </mat-form-field>
+
+    <div class="end" aria-live="polite">
+      <span class="label">Ends</span>
+      <span class="value">{{ endsAt() ? formatEnd(endsAt()!) : 'The Sunday after it starts' }}</span>
+    </div>
+  </div>
+  <p class="hint">A sprint ends on the first Sunday after it starts, at 6 PM. Leave the start empty for the next free week.</p>
+  <div class="actions">
+    <button mat-button type="button" (click)="cancelled.emit()">Cancel</button>
+    <button mat-flat-button type="submit" [disabled]="saving()">Save</button>
+  </div>
+</form>

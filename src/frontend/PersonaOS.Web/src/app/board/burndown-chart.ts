@@ -11,8 +11,10 @@ interface Plot {
 }
 
 /**
- * A sprint's burndown: points remaining, day by day, as one line. Shown on the sprint page and
- * in the board's Reports; it needs two days of data to draw a line, and says so until then.
+ * A sprint's burndown: the points left at the end of each day, as one line. Shown on the sprint
+ * page and in the board's Reports under the heading "Burndown"; the caption says what the line
+ * is, which holds for a running sprint and a finished one alike. It needs two days of data to
+ * draw a line, and says so until then.
  *
  * The plot stretches to any width at a fixed height. Only the line is SVG, drawn in percentages
  * with strokes that keep their thickness; the dots and labels are HTML placed at the same
@@ -22,6 +24,7 @@ interface Plot {
   selector: 'app-burndown-chart',
   template: `
     @if (plots().length > 1) {
+      <p class="caption">Points left at the end of each day</p>
       <div class="chart" role="img" [attr.aria-label]="summary()">
         <span class="y top">{{ max() }}</span>
         <span class="y bottom">0</span>
@@ -44,6 +47,17 @@ interface Plot {
   styles: `
     :host {
       display: block;
+    }
+
+    .caption,
+    .waiting {
+      margin: 0;
+      font: var(--mat-sys-body-small);
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .caption {
+      margin-bottom: 0.75rem;
     }
 
     .chart {
@@ -112,12 +126,6 @@ interface Plot {
     .x.last {
       justify-self: end;
     }
-
-    .waiting {
-      margin: 0;
-      font: var(--mat-sys-body-small);
-      color: var(--mat-sys-on-surface-variant);
-    }
   `,
 })
 export class BurndownChart {
@@ -147,6 +155,6 @@ export class BurndownChart {
     const plots = this.plots();
     const first = plots[0];
     const last = plots[plots.length - 1];
-    return `Points remaining: ${first.remaining} on ${first.label}, ${last.remaining} on ${last.label}`;
+    return `Burndown: ${first.remaining} points left on ${first.label}, ${last.remaining} on ${last.label}`;
   });
 }

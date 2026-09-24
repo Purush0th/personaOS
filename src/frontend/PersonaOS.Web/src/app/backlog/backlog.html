@@ -1,31 +1,11 @@
 <app-board-tabs>
   @if (editingSprint(); as editing) {
-    <mat-card class="sprint-form" appearance="outlined">
-      <mat-card-content>
-        <form (ngSubmit)="saveSprint()">
-          <h2>{{ editing === 'new' ? 'New sprint' : 'Edit ' + editing.key }}</h2>
-          <div class="fields">
-            <mat-form-field class="grow">
-              <mat-label>Name</mat-label>
-              <input matInput name="name" [(ngModel)]="sprintName" placeholder="Optional, e.g. Paperwork week" autofocus />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Starts</mat-label>
-              <input matInput name="start" type="datetime-local" [(ngModel)]="sprintStart" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Ends</mat-label>
-              <input matInput name="end" type="datetime-local" [(ngModel)]="sprintEnd" />
-            </mat-form-field>
-          </div>
-          <p class="muted small">Leave the dates empty for the next free Sunday-to-Sunday week.</p>
-          <div class="form-actions">
-            <button mat-button type="button" (click)="editingSprint.set(null)">Cancel</button>
-            <button mat-flat-button type="submit">Save</button>
-          </div>
-        </form>
-      </mat-card-content>
-    </mat-card>
+    <app-sprint-form
+      class="sprint-form"
+      [sprint]="editing === 'new' ? null : editing"
+      (saved)="sprintSaved()"
+      (cancelled)="editingSprint.set(null)"
+    />
   }
 
   @if (loading()) {
@@ -71,7 +51,13 @@
 
               @if (group.sprint; as sprint) {
                 @if (canStart(sprint)) {
-                  <button mat-stroked-button (click)="startSprint(sprint)">Start sprint</button>
+                  <!-- Before its first day the server refuses; the button says why instead. -->
+                  <button
+                    mat-stroked-button
+                    [disabled]="!dayHasCome(sprint)"
+                    [title]="startHint(sprint)"
+                    (click)="startSprint(sprint)"
+                  >Start sprint</button>
                 }
                 @if (sprint.status === 'active') {
                   <button mat-stroked-button (click)="completeSprint(sprint)">Complete sprint</button>
@@ -126,8 +112,9 @@
                   }
 
                   <span class="spacer"></span>
-                  <!-- Status only means something inside a sprint; in the backlog every task is
-                       simply in the backlog. -->
+                  <!-- Statuses run Backlog, To do, In progress, Done. In a sprint the lozenge is a
+                       menu that moves the task; in the backlog it only says Backlog, since moving
+                       out of it means choosing a sprint (drag, or the row's menu). -->
                   @if (group.sprint; as sprint) {
                     <button
                       type="button"
@@ -139,6 +126,8 @@
                       {{ columnLabels[task.column] }}
                       <mat-icon>expand_more</mat-icon>
                     </button>
+                  } @else {
+                    <span class="lozenge status">{{ columnLabels[task.column] }}</span>
                   }
                   <button
                     type="button"

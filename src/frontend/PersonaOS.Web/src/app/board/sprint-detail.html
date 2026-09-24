@@ -14,7 +14,13 @@
     </span>
     <span class="spacer"></span>
     @if (detail.sprint.status === 'planned') {
-      <button mat-flat-button (click)="start_()">Start sprint</button>
+      <!-- Before its first day the server refuses; the button says why instead. -->
+      <button
+        mat-flat-button
+        [disabled]="!dayHasCome(detail.sprint)"
+        [title]="startHint(detail.sprint)"
+        (click)="start_()"
+      >Start sprint</button>
     }
     @if (detail.sprint.status === 'active') {
       <button mat-flat-button (click)="complete()">Complete sprint</button>
@@ -27,30 +33,7 @@
   <p class="muted small dates">{{ when(detail.sprint.startsAtUtc) }} – {{ when(detail.sprint.endsAtUtc) }}</p>
 
   @if (editing()) {
-    <mat-card class="sprint-form" appearance="outlined">
-      <mat-card-content>
-        <form (ngSubmit)="save()">
-          <div class="fields">
-            <mat-form-field class="grow">
-              <mat-label>Name</mat-label>
-              <input matInput name="name" [(ngModel)]="name" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Starts</mat-label>
-              <input matInput name="start" type="datetime-local" [(ngModel)]="start" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Ends</mat-label>
-              <input matInput name="end" type="datetime-local" [(ngModel)]="end" />
-            </mat-form-field>
-          </div>
-          <div class="row">
-            <button mat-button type="button" (click)="editing.set(false)">Cancel</button>
-            <button mat-flat-button type="submit">Save</button>
-          </div>
-        </form>
-      </mat-card-content>
-    </mat-card>
+    <app-sprint-form class="sprint-form" [sprint]="detail.sprint" (saved)="sprintSaved()" (cancelled)="editing.set(false)" />
   }
 
   <mat-card class="stats-card" appearance="outlined"><mat-card-content><section class="stats">
@@ -69,7 +52,7 @@
 
   @if (detail.burndown.length > 0) {
     <mat-card class="chart" appearance="outlined"><mat-card-content>
-      <h2>Points remaining</h2>
+      <h2>Burndown</h2>
       <app-burndown-chart [points]="detail.burndown" />
     </mat-card-content></mat-card>
   }

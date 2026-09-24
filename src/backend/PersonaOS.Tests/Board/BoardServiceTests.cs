@@ -185,6 +185,53 @@ public class BoardServiceTests
         Assert.Contains("has not started", ex.Message);
     }
 
+    [Fact]
+    public async Task A_sprint_for_a_later_week_waits_for_its_first_day_then_starts_at_any_hour()
+    {
+        var rig = Setup(); // Tuesday 15th
+        var sunday = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null, StartsOn: new DateOnly(2026, 9, 20)));
+
+        var early = await Assert.ThrowsAsync<BoardValidationException>(() => rig.Board.StartSprintAsync(sunday.Id));
+        Assert.Equal($"{sunday.Key} starts on Sun, Sep 20. Move its start to today to begin it now.", early.Message);
+        Assert.Equal(SprintStatuses.Planned, (await rig.Board.GetSprintAsync(sunday.Id))!.Sprint.Status);
+
+        rig.At(20, 19); // Sunday 19:00, the planning window, an hour before its 20:00 start
+        var started = await rig.Board.StartSprintAsync(sunday.Id);
+
+        Assert.Equal(SprintStatuses.Active, started!.Status);
+    }
+
+    [Theory]
+    [InlineData(18, 20)] // a Friday runs to the coming Sunday
+    [InlineData(20, 27)] // a Sunday runs a full week, to the next one
+    public async Task A_sprint_given_a_start_day_starts_at_eight_and_closes_the_first_Sunday_after(int startDay, int endDay)
+    {
+        var rig = Setup();
+
+        var sprint = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null, StartsOn: new DateOnly(2026, 9, startDay)));
+
+        Assert.Equal(new DateTime(2026, 9, startDay, 20, 0, 0), sprint.StartsAtUtc);
+        Assert.Equal(new DateTime(2026, 9, endDay, 18, 0, 0), sprint.EndsAtUtc);
+    }
+
+    [Fact]
+    public async Task Moving_a_sprints_start_moves_its_end_unless_an_end_is_given()
+    {
+        var rig = Setup();
+        var sprint = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null, StartsOn: new DateOnly(2026, 9, 20)));
+
+        var moved = await rig.Board.UpdateSprintAsync(sprint.Id, new UpdateSprintRequest(StartsOn: new DateOnly(2026, 9, 23)));
+        Assert.Equal(new DateTime(2026, 9, 23, 20, 0, 0), moved!.StartsAtUtc);
+        Assert.Equal(new DateTime(2026, 9, 27, 18, 0, 0), moved.EndsAtUtc);
+
+        var longer = await rig.Board.UpdateSprintAsync(sprint.Id, new UpdateSprintRequest(
+            StartsOn: new DateOnly(2026, 9, 23), EndsAtLocal: new DateTime(2026, 10, 4, 18, 0, 0)));
+        Assert.Equal(new DateTime(2026, 10, 4, 18, 0, 0), longer!.EndsAtUtc);
+
+        var renamed = await rig.Board.UpdateSprintAsync(sprint.Id, new UpdateSprintRequest(Name: "Paperwork"));
+        Assert.Equal(new DateTime(2026, 10, 4, 18, 0, 0), renamed!.EndsAtUtc); // no new start, no new end
+    }
+
     [Theory]
     [InlineData(BoardColumns.InProgress)]
     [InlineData(BoardColumns.Done)]

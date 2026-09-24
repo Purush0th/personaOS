@@ -156,7 +156,7 @@ void main() {
 
       expect(find.text('SPRINT-2 · Week two'), findsOneWidget);
       expect(find.text('8 committed'), findsOneWidget);
-      expect(find.byKey(const Key('card-TASK-2')), findsOneWidget); // This week, the first page
+      expect(find.byKey(const Key('card-TASK-2')), findsOneWidget); // To do, the first page
       expect(tester.takeException(), isNull);
     });
 

@@ -47,7 +47,7 @@ describe('BurndownChart', () => {
     expect([text('.y.top'), text('.y.bottom')]).toEqual(['10', '0']);
     expect([text('.x.first'), text('.x.last')]).toEqual([day('2026-09-23'), day('2026-09-25')]);
     expect(page.querySelector('.chart')?.getAttribute('aria-label')).toBe(
-      `Points remaining: 10 on ${day('2026-09-23')}, 0 on ${day('2026-09-25')}`
+      `Burndown: 10 points left on ${day('2026-09-23')}, 0 on ${day('2026-09-25')}`
     );
   });
 
@@ -61,6 +61,10 @@ describe('BurndownChart', () => {
     page.style.width = '1400px';
     expect(size()).toBe(narrow);
     page.remove();
+  });
+
+  it('says what the line is, in words that fit a finished sprint as well as a running one', () => {
+    expect(render().querySelector('.caption')?.textContent?.trim()).toBe('Points left at the end of each day');
   });
 
   it('waits for a second day instead of drawing a single dot', () => {

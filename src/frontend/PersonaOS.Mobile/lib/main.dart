@@ -512,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 _ModuleCard(
                   icon: Icons.view_kanban_outlined,
                   title: 'Board',
-                  subtitle: "This week's sprint, card by card",
+                  subtitle: 'The running sprint, card by card',
                   onTap: () => _openAfterLogin((_) => BoardScreen(api: _api)),
                 ),
               if (enabled('planner'))
