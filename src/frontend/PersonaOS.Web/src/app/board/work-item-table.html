@@ -1,0 +1,55 @@
+<label class="search">
+  <mat-icon>search</mat-icon>
+  <input
+    type="search"
+    placeholder="Search tasks"
+    aria-label="Search tasks"
+    [value]="query()"
+    (input)="query.set($any($event.target).value)"
+  />
+</label>
+
+<div class="table">
+  <table>
+    <thead>
+      <tr>
+        @for (column of columns; track column.id) {
+          <th scope="col" [class.num]="column.numeric" [attr.aria-sort]="ariaSort(column.id)">
+            <button type="button" (click)="sortBy(column.id)">
+              {{ column.label }}
+              <mat-icon class="arrow" [class.shown]="sort().column === column.id">
+                {{ sort().column === column.id && sort().descending ? 'arrow_downward' : 'arrow_upward' }}
+              </mat-icon>
+            </button>
+          </th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (task of rows(); track task.key) {
+        <tr>
+          <td class="key">
+            <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
+            <a [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
+          </td>
+          <td class="summary">
+            <a [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.title }}</a>
+          </td>
+          <td><span class="lozenge s-{{ task.column }}">{{ columnLabels[task.column] }}</span></td>
+          <td class="priority p-{{ task.priority }}">
+            <mat-icon aria-hidden="true">{{ priorityIcons[task.priority] }}</mat-icon>
+            {{ priorityLabels[task.priority] }}
+          </td>
+          <td class="num"><span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span></td>
+        </tr>
+      } @empty {
+        <tr>
+          <td class="none" [attr.colspan]="columns.length">
+            {{ tasks().length === 0 ? 'No tasks in this sprint.' : 'No task matches “' + query() + '”.' }}
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+<p class="count">Showing {{ rows().length }} of {{ tasks().length }}</p>

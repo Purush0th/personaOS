@@ -1,32 +1,128 @@
 /* Reports sit on the same work surfaces as the board and backlog (the --work-* tokens in
    styles.scss). Commitment is grey and completed green, the colours Jira's velocity chart uses. */
 
-.panel {
+.picker {
   margin-top: 1rem;
+
+  .sprint-search {
+    width: min(24rem, 100%);
+  }
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  font: var(--mat-sys-body-small);
+
+  b {
+    font: var(--mat-sys-body-medium);
+  }
+}
+
+.sprint-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin: 1rem 0 0.75rem;
+
+  h2 {
+    font: var(--mat-sys-title-large);
+    margin: 0;
+  }
+
+  .spacer {
+    flex: 1;
+  }
+
+  .burndown {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--mat-sys-primary);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+}
+
+.tile {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--work-lane);
+
+  mat-icon {
+    grid-row: span 2;
+    padding: 0.4rem;
+    border-radius: var(--mat-sys-corner-small);
+    background: var(--work-item);
+  }
+
+  .done {
+    color: var(--status-done-fg);
+  }
+
+  .points {
+    color: var(--mat-sys-primary);
+  }
+
+  .scope {
+    color: var(--mat-sys-error);
+  }
+
+  .time {
+    color: var(--status-progress-fg);
+  }
+
+  b {
+    font: var(--mat-sys-title-medium);
+  }
+
+  span {
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.breakdowns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0 0.75rem;
+}
+
+.panel {
+  margin-top: 0.75rem;
   padding: 0.75rem 1rem 1rem;
   border-radius: var(--mat-sys-corner-medium);
   background: var(--work-lane);
 
-  > header {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 0.25rem 1rem;
-    margin-bottom: 0.75rem;
+  h3 {
+    font: var(--mat-sys-title-small);
+    margin: 0 0 0.75rem;
   }
+}
 
-  h2 {
-    font: var(--mat-sys-title-medium);
-    margin: 0;
-  }
+.velocity-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
 
-  .average {
-    color: var(--mat-sys-on-surface-variant);
-
-    b {
-      font: var(--mat-sys-title-medium);
-      color: var(--mat-sys-on-surface);
-    }
+  b {
+    color: var(--mat-sys-on-surface);
   }
 }
 
@@ -34,9 +130,9 @@
 .chart {
   display: flex;
   align-items: flex-end;
-  gap: 1rem;
-  height: 12rem;
-  padding: 1.25rem 0.75rem 0;
+  gap: 0.5rem;
+  height: 9rem;
+  padding: 1.25rem 0.5rem 0;
   overflow-x: auto;
   border-radius: var(--mat-sys-corner-small);
   background: var(--work-item);
@@ -48,11 +144,19 @@
     flex-direction: column;
     align-items: center;
     height: 100%;
+    padding: 0 0.25rem;
+    border-radius: var(--mat-sys-corner-extra-small) var(--mat-sys-corner-extra-small) 0 0;
     color: inherit;
     text-decoration: none;
 
-    &:hover .label {
-      text-decoration: underline;
+    &:hover,
+    &.selected {
+      background: var(--work-item-hover);
+    }
+
+    &.selected .label {
+      color: var(--mat-sys-primary);
+      font-weight: 700;
     }
   }
 
@@ -68,7 +172,7 @@
     position: relative;
     flex: 1;
     min-height: 2px;
-    border-radius: var(--mat-sys-corner-extra-small) var(--mat-sys-corner-extra-small) 0 0;
+    border-radius: 2px 2px 0 0;
 
     .value {
       position: absolute;
@@ -111,48 +215,5 @@
     margin-right: 0.35rem;
     vertical-align: -0.1rem;
     border-radius: 2px;
-  }
-}
-
-.table {
-  overflow-x: auto;
-  border-radius: var(--mat-sys-corner-small);
-  background: var(--work-item);
-  box-shadow: var(--work-item-shadow);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font: var(--mat-sys-body-medium);
-
-  th {
-    font: var(--mat-sys-label-medium);
-    color: var(--mat-sys-on-surface-variant);
-    text-align: left;
-  }
-
-  th,
-  td {
-    padding: 0.55rem 0.75rem;
-    white-space: nowrap;
-  }
-
-  tbody tr {
-    border-top: 1px solid var(--mat-sys-outline-variant);
-  }
-
-  .num {
-    text-align: right;
-  }
-
-  a {
-    color: inherit;
-    font-weight: 500;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 }
