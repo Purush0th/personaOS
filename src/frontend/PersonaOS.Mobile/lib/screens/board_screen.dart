@@ -446,7 +446,7 @@ class _ColumnPage extends StatelessWidget {
             if (overWip)
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
-                child: Text('More than $wipLimit in progress. Finishing beats starting.',
+                child: Text('Over $wipLimit in progress. Finish some first.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFB26A00))),
               ),
             Expanded(
@@ -561,7 +561,7 @@ class TaskCard extends StatelessWidget {
   }
 }
 
-/// Value points, or "?" while unestimated.
+/// Value points, or "–" while unestimated.
 class PointsPill extends StatelessWidget {
   const PointsPill({super.key, required this.points});
 
@@ -580,7 +580,7 @@ class PointsPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        none ? '?' : '$points',
+        none ? '–' : '$points',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
       ),
@@ -746,7 +746,7 @@ class _TaskSheetState extends State<TaskSheet> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Delete ${task.key}?'),
-        content: Text('“${task.title}” will be deleted, and its number reused for the next task.'),
+        content: Text('“${task.title}” will be deleted.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
@@ -796,7 +796,7 @@ class _TaskSheetState extends State<TaskSheet> {
               spacing: 6,
               runSpacing: 6,
               children: [
-                ChoiceChip(label: const Text('?'), selected: _points == null, onSelected: (_) => setState(() => _points = null)),
+                ChoiceChip(label: const Text('–'), selected: _points == null, onSelected: (_) => setState(() => _points = null)),
                 for (final p in valuePoints)
                   ChoiceChip(label: Text('$p'), selected: _points == p, onSelected: (_) => setState(() => _points = p)),
               ],
@@ -804,7 +804,7 @@ class _TaskSheetState extends State<TaskSheet> {
             if ((_points ?? 0) >= 13)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text("That's big — consider splitting it into smaller tasks.",
+                child: Text('Consider splitting it.',
                     style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFFB26A00))),
               ),
             if (widget.fixedGoalId == null && widget.goals.isNotEmpty) ...[
@@ -909,7 +909,7 @@ class SprintReportScreen extends StatelessWidget {
               if (report.velocity != null)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-                  child: Text('Velocity ${report.velocity} — average completed points of the last three sprints.',
+                  child: Text('Velocity ${report.velocity} (last 3 sprints)',
                       style: theme.textTheme.bodySmall),
                 ),
               if (report.sprints.isEmpty) const _Message(text: 'No sprints yet.'),

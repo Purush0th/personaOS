@@ -76,7 +76,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Delete ${task.key}?'),
-        content: Text('“${task.title}” will be deleted, and its number reused for the next task.'),
+        content: Text('“${task.title}” will be deleted.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),

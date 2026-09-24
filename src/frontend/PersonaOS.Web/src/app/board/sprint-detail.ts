@@ -87,7 +87,7 @@ export class SprintDetail implements OnInit {
   protected startHint(sprint: Sprint): string {
     return this.dayHasCome(sprint)
       ? ''
-      : `Starts ${formatWhen(sprint.startsAtUtc)}. Move its start to today to begin it now.`;
+      : `Starts ${formatWhen(sprint.startsAtUtc)}`;
   }
 
   protected async start_(): Promise<void> {

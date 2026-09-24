@@ -40,7 +40,7 @@
             <mat-icon aria-hidden="true">{{ priorityIcons[task.priority] }}</mat-icon>
             {{ priorityLabels[task.priority] }}
           </td>
-          <td class="num"><span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span></td>
+          <td class="num"><span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '–' }}</span></td>
         </tr>
       } @empty {
         <tr>
