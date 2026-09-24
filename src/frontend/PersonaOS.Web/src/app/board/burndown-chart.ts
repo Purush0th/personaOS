@@ -24,7 +24,7 @@ interface Plot {
   selector: 'app-burndown-chart',
   template: `
     @if (plots().length > 1) {
-      <p class="caption">Points left at the end of each day</p>
+      <p class="caption">Points left each day</p>
       <div class="chart" role="img" [attr.aria-label]="summary()">
         <span class="y top">{{ max() }}</span>
         <span class="y bottom">0</span>
@@ -40,7 +40,7 @@ interface Plot {
         <span class="x last">{{ plots()[plots().length - 1].label }}</span>
       </div>
     } @else {
-      <p class="waiting">The line starts once the sprint has run for a day.</p>
+      <p class="waiting">Shows after the first day.</p>
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

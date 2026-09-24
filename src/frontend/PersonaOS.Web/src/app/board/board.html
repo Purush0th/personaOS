@@ -55,7 +55,7 @@
               }
             </header>
             @if (overWip(column)) {
-              <p class="wip">More than {{ b.wipLimit }} in progress. Finishing beats starting.</p>
+              <p class="wip">Over {{ b.wipLimit }} in progress. Finish some first.</p>
             }
 
             <div
@@ -109,7 +109,7 @@
                       <span class="flag"><mat-icon inline>attach_file</mat-icon>{{ task.attachmentCount }}</span>
                     }
                     <span class="spacer"></span>
-                    <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
+                    <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '–' }}</span>
                   </div>
                 </div>
               }
@@ -136,7 +136,7 @@
         <ng-template matMenuContent let-task="task">
           <a mat-menu-item [routerLink]="['/board/tasks', task.key]">
             <mat-icon>open_in_full</mat-icon>
-            Open as a full page
+            Open
           </a>
           @for (target of moveTargets(task); track target.id) {
             <button mat-menu-item (click)="moveTo(task, target.id)">
@@ -148,7 +148,7 @@
       </mat-menu>
     } @else {
       <p class="empty-state">
-        No sprint is running. Open the <a routerLink="/board/backlog">Backlog</a> to plan one and start it.
+        No sprint running. Start one from the <a routerLink="/board/backlog">Backlog</a>.
       </p>
     }
   }

@@ -101,7 +101,7 @@ describe('Reports', () => {
     expect(keys(page)).toEqual(['TASK-1', 'TASK-2', 'TASK-3']);
     const tiles = [...page.querySelectorAll('.tile b')].map(b => text(b));
     expect(tiles.slice(0, 3)).toEqual(['1 of 3', '2 of 10', '+2 / −1']);
-    expect(text(page.querySelector('.tile:last-child span'))).toBe('left in the sprint');
+    expect(text(page.querySelector('.tile:last-child span'))).toBe('left');
   });
 
   it('shows the sprint the URL names, finished ones included', async () => {
@@ -160,21 +160,21 @@ describe('Reports', () => {
     expect([...bars[0].querySelectorAll<HTMLElement>('.bar')].map(b => b.style.height)).toEqual(['50%', '100%']);
     expect(bars[2].getAttribute('aria-current')).toBe('true');
     expect(bars[0].getAttribute('href')).toBe('/board/reports?sprint=SPRINT-1');
-    expect(text(page.querySelector('.velocity-head'))).toContain('7.5 points a sprint');
+    expect(text(page.querySelector('.velocity-head'))).toContain('7.5 points per sprint (last 3 finished)');
   });
 
   it('says there is no average before a sprint finishes, and shows a real zero as zero', async () => {
     let page = await render('/board/reports', { velocity: null, sprints: [report.sprints[0]] });
-    expect(text(page.querySelector('.velocity-head'))).toContain('once a sprint is finished');
+    expect(text(page.querySelector('.velocity-head'))).toContain('No finished sprint yet');
 
     TestBed.resetTestingModule();
     page = await render('/board/reports', { velocity: 0, sprints: [report.sprints[0]] });
-    expect(text(page.querySelector('.velocity-head'))).toContain('0 points a sprint');
+    expect(text(page.querySelector('.velocity-head'))).toContain('0 points per sprint');
   });
 
   it('points to the backlog before any sprint has started', async () => {
     const page = await render('/board/reports', { velocity: null, sprints: [] });
-    expect(text(page.querySelector('.empty-state'))).toContain('Plan one in the backlog');
+    expect(text(page.querySelector('.empty-state'))).toContain('No sprint started yet.');
     expect(api.sprint).not.toHaveBeenCalled();
   });
 

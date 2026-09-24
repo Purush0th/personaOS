@@ -68,11 +68,11 @@
                 <mat-menu #sprintMenu="matMenu">
                   <button mat-menu-item (click)="editSprint(sprint)">
                     <mat-icon>edit</mat-icon>
-                    Edit dates and name
+                    Edit
                   </button>
                   <button mat-menu-item (click)="deleteSprint(sprint)">
                     <mat-icon class="danger">delete</mat-icon>
-                    Delete sprint
+                    Delete
                   </button>
                 </mat-menu>
               } @else {
@@ -137,7 +137,7 @@
                     [matMenuTriggerData]="{ task }"
                     [attr.aria-label]="'Value points of ' + task.key + ': ' + (task.points ?? 'not set')"
                   >
-                    {{ task.points ?? '?' }}
+                    {{ task.points ?? '–' }}
                   </button>
                   <!-- Priority reads as its icon alone, as in Jira; the label is on hover. -->
                   <button
@@ -162,7 +162,7 @@
                 </div>
               } @empty {
                 <p class="empty">
-                  {{ group.sprint ? 'Plan this sprint by dragging tasks into it, or create them here.' : 'Your backlog is empty.' }}
+                  {{ group.sprint ? 'Drag tasks here, or create one.' : 'Backlog is empty.' }}
                 </p>
               }
             </div>
@@ -217,7 +217,7 @@
       <ng-template matMenuContent let-task="task">
         <a mat-menu-item [routerLink]="['/board/tasks', task.key]">
           <mat-icon>open_in_full</mat-icon>
-          Open as a full page
+          Open
         </a>
         @for (target of moveTargets(task); track target.id) {
           <button mat-menu-item (click)="moveToGroup(task, target.id)">

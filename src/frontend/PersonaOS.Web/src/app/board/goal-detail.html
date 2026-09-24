@@ -75,7 +75,7 @@
                   <span class="muted small">
                     {{ columnLabels[task.column] }}@if (task.sprintNumber) { · SPRINT-{{ task.sprintNumber }}}
                   </span>
-                  <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
+                  <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '–' }}</span>
                 </span>
               </mat-list-item>
             } @empty {
@@ -92,7 +92,7 @@
               <mat-form-field class="points">
                 <mat-label>Points</mat-label>
                 <mat-select name="taskPoints" [(ngModel)]="taskPoints">
-                  <mat-option [value]="null">?</mat-option>
+                  <mat-option [value]="null">–</mat-option>
                   @for (p of allowedPoints; track p) {
                     <mat-option [value]="p">{{ p }}</mat-option>
                   }

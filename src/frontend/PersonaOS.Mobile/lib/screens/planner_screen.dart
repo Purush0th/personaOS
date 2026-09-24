@@ -289,7 +289,7 @@ class _PlannerTile extends StatelessWidget {
       child: ListTile(
         leading: IconButton(
           icon: Icon(icon),
-          tooltip: 'Status: ${item.status} — tap to change',
+          tooltip: 'Status: ${item.status}',
           onPressed: onToggle,
         ),
         title: Text(

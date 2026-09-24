@@ -64,12 +64,12 @@ describe('BurndownChart', () => {
   });
 
   it('says what the line is, in words that fit a finished sprint as well as a running one', () => {
-    expect(render().querySelector('.caption')?.textContent?.trim()).toBe('Points left at the end of each day');
+    expect(render().querySelector('.caption')?.textContent?.trim()).toBe('Points left each day');
   });
 
   it('waits for a second day instead of drawing a single dot', () => {
     const page = render([{ date: '2026-09-23', remainingPoints: 5, completedPoints: 0 }]);
     expect(page.querySelector('.chart')).toBeNull();
-    expect(page.textContent).toContain('once the sprint has run for a day');
+    expect(page.textContent).toContain('Shows after the first day.');
   });
 });

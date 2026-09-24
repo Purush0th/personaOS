@@ -166,6 +166,6 @@ describe('Backlog, starting a sprint', () => {
     expect(start('SPRINT-1').disabled).toBeFalse();
     expect(start('SPRINT-1').title).toBe('');
     expect(start('SPRINT-2').disabled).toBeTrue();
-    expect(start('SPRINT-2').title).toContain('Move its start to today to begin it now.');
+    expect(start('SPRINT-2').title).toMatch(/^Starts /);
   });
 });
