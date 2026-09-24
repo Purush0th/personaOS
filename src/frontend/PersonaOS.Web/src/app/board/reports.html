@@ -39,11 +39,6 @@
           {{ d.sprint.status === 'active' ? 'Running' : 'Finished' }}
         </span>
         <span class="muted">{{ dates(d.sprint) }}</span>
-        <span class="spacer"></span>
-        <a class="burndown" [routerLink]="['/board/sprints', d.sprint.key]">
-          <mat-icon>show_chart</mat-icon>
-          Burndown
-        </a>
       </header>
 
       <!-- The sprint in four numbers, as Jira's reports open with four tiles. -->
@@ -81,6 +76,11 @@
           <app-breakdown-bar [parts]="byPriority()" />
         </section>
       </div>
+
+      <section class="panel">
+        <h3>Points remaining</h3>
+        <app-burndown-chart [points]="d.burndown" />
+      </section>
 
       <section class="panel">
         <h3>Task details</h3>
