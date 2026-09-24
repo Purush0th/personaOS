@@ -1106,3 +1106,16 @@ real Anthropic key).
       parts one by one does not shake it out; dropping it would mean hand-building the nav instead
       of using Material's, for about 20 kB compressed. The budget is now 750 kB warning / 900 kB
       error, set deliberately against that floor.
+- [x] **Board behaves like the owner's Jira board** (2026-09-24). Observed on the owner's Jira
+      board (via Claude in Chrome) and matched on web: cards drag from anywhere (the grip is gone;
+      `core/drag-defaults.ts` adds a 250 ms press on touch so swipes still scroll). Columns are
+      separate CDK drop lists, so the dragged card stays faded in its own column while the column
+      under the pointer lights up with a "This week -> In progress" label (`onDragMoved`); a drop
+      there moves the card to the end of that column, a drop in its own column reorders it. A click
+      opens the task in a dialog over the board or backlog, driven by `?task=TASK-3`
+      (`board/task-dialog.ts`: Esc/close drops the parameter, Back closes the dialog, and it is
+      created from the page's injector so it keeps the route's outlined form fields). Every column
+      has an inline Create ("What needs to be done?", Enter creates and stays open); the API's
+      `CreateTaskRequest` gained an optional `Column` (in progress/done only in a running sprint).
+      The card menu shows on hover. `board.spec.ts` drives real CDK drags; synthetic mouse events
+      need `detail: 1` (CDK ignores screen-reader clicks) and `view: window` (or pageY skips scroll).

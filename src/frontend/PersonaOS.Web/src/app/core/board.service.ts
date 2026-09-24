@@ -124,6 +124,8 @@ export interface TaskDraft {
   goalId?: number | null;
   /** Sprint key like SPRINT-2; omit for the backlog. */
   sprintKey?: string | null;
+  /** Column in the running sprint; omit for To do. */
+  column?: BoardColumn | null;
 }
 
 export interface TaskChanges {

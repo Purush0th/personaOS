@@ -115,9 +115,8 @@
               >
                 @for (task of group.tasks; track task.key) {
                   <div class="row" cdkDrag [cdkDragData]="task">
-                    <mat-icon class="handle" cdkDragHandle aria-label="Drag to move">drag_indicator</mat-icon>
-                    <a class="key" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
-                    <a class="title" [routerLink]="['/board/tasks', task.key]">{{ task.title }}</a>
+                    <a class="key" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
+                    <a class="title" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.title }}</a>
 
                     @if (task.goalKey) {
                       <span class="goal-chip" [style.--hue]="hue(task.goalKey)" [title]="task.goalKey">

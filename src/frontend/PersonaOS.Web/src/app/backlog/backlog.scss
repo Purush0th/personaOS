@@ -123,6 +123,8 @@
   padding: 0 0.25rem;
   border-radius: var(--mat-sys-corner-small);
   font: var(--mat-sys-body-medium);
+  // The whole row drags (see DRAG_DEFAULTS); its links still open the task on a plain click.
+  cursor: grab;
 
   // Rows sit on the card's own surface; the pointer lights one up instead of stripes and fills.
   &:hover {
@@ -131,12 +133,6 @@
 
   & + .row {
     border-top: 1px solid var(--mat-sys-outline-variant);
-  }
-
-  .handle {
-    color: var(--mat-sys-outline);
-    cursor: grab;
-    touch-action: none;
   }
 
   .key {

@@ -14,6 +14,8 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 
 import { Confirm } from '../core/confirm';
+import { DRAG_DEFAULTS } from '../core/drag-defaults';
+import { openTaskFromQuery } from '../board/task-dialog';
 
 import {
   BoardService,
@@ -62,6 +64,7 @@ interface Group {
     MatSelectModule,
     MatTabsModule,
   ],
+  providers: [DRAG_DEFAULTS],
   templateUrl: './backlog.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './backlog.scss',
@@ -92,6 +95,10 @@ export class Backlog implements OnInit {
   protected readonly priorityLabels = PRIORITY_LABELS;
   protected readonly priorityIcons = PRIORITY_ICONS;
   protected readonly columnLabels = COLUMN_LABELS;
+
+  constructor() {
+    openTaskFromQuery(() => void this.reload());
+  }
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.reload(), this.loadGoals()]);
