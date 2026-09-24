@@ -1,22 +1,6 @@
-.page-head {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-
-  h1 {
-    font: var(--mat-sys-headline-small);
-    margin: 0;
-  }
-
-  .spacer {
-    flex: 1;
-  }
-
-  .views {
-    border-bottom: none;
-  }
-}
+/* The backlog, after Jira's: each sprint and the backlog is a section set off from the page, its
+   tasks are raised rows inside it, and status, points and priority are small lozenges and icons
+   rather than words. Surfaces come from the --work-* tokens in styles.scss. */
 
 .sprint-form {
   margin-top: 1rem;
@@ -46,72 +30,70 @@
 }
 
 .group {
-  margin-top: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.25rem 0.5rem 0.5rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--work-lane);
 
-  &.backlog {
-    background: var(--mat-sys-surface-container-low);
-  }
-
-  > mat-card-content > header {
+  > header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.25rem 0.5rem;
     flex-wrap: wrap;
-    padding-top: 0.5rem;
+    min-height: 2.75rem;
+
+    .twisty {
+      --mat-icon-button-state-layer-size: 32px;
+      width: 32px;
+      height: 32px;
+      padding: 4px;
+    }
 
     .name {
       font: var(--mat-sys-title-small);
       color: inherit;
       text-decoration: none;
-
-      &:hover {
-        text-decoration: underline;
-      }
     }
 
-    .spacer {
-      flex: 1;
+    a.name:hover {
+      text-decoration: underline;
     }
 
     .dates {
       white-space: nowrap;
     }
 
-    .side {
+    .spacer {
+      flex: 1;
+    }
+
+    .side,
+    .totals {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.25rem;
       margin-left: auto;
+    }
+
+    .side {
+      gap: 0.5rem;
     }
   }
 
+  // The rows read as one raised list: shared border, dividers between, rounded at the ends.
   .rows {
     display: flex;
     flex-direction: column;
-    min-height: 2.5rem;
-    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
   }
 
   .empty {
-    padding: 0.5rem 0.25rem;
     margin: 0;
-  }
-
-  .add {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: 0.75rem;
-
-    .grow {
-      flex: 1;
-      min-width: 12rem;
-    }
-
-    .points {
-      width: 7rem;
-    }
+    padding: 0.75rem;
+    text-align: center;
+    border: 1px dashed var(--mat-sys-outline-variant);
+    border-radius: var(--mat-sys-corner-small);
+    color: var(--mat-sys-on-surface-variant);
   }
 }
 
@@ -119,32 +101,48 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0 0.25rem;
-  border-radius: var(--mat-sys-corner-small);
+  min-height: 2.5rem;
+  padding: 0 0.25rem 0 0.75rem;
+  background: var(--work-item);
+  box-shadow: var(--work-item-shadow);
   font: var(--mat-sys-body-medium);
   // The whole row drags (see DRAG_DEFAULTS); its links still open the task on a plain click.
   cursor: grab;
 
-  // Rows sit on the card's own surface; the pointer lights one up instead of stripes and fills.
-  &:hover {
-    background: var(--mat-sys-surface-container-high);
+  &:first-child {
+    border-top-left-radius: var(--mat-sys-corner-small);
+    border-top-right-radius: var(--mat-sys-corner-small);
   }
 
-  & + .row {
-    border-top: 1px solid var(--mat-sys-outline-variant);
+  &:last-child {
+    border-bottom-left-radius: var(--mat-sys-corner-small);
+    border-bottom-right-radius: var(--mat-sys-corner-small);
+  }
+
+  &:hover {
+    background: var(--work-item-hover);
+  }
+
+  .type {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+    color: var(--mat-sys-tertiary);
   }
 
   .key {
-    font: var(--mat-sys-label-small);
     color: var(--mat-sys-on-surface-variant);
     text-decoration: none;
-    min-width: 4rem;
+    white-space: nowrap;
   }
 
   .title {
     color: inherit;
     text-decoration: none;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     &:hover {
       text-decoration: underline;
@@ -155,10 +153,6 @@
     flex: 1;
   }
 
-  .status {
-    white-space: nowrap;
-  }
-
   .flag {
     display: inline-flex;
     align-items: center;
@@ -167,34 +161,60 @@
     color: var(--mat-sys-on-surface-variant);
   }
 
-  // Compact chip: coloured icon, quiet label, the height of the row's other controls.
-  .priority {
-    --mat-button-text-horizontal-padding: 8px;
-    --mat-button-text-container-height: 32px;
-    --mat-button-text-label-text-color: var(--mat-sys-on-surface-variant);
-    --mat-button-text-label-text-weight: 400;
-    width: 6.5rem;
-    justify-content: flex-start;
+  .priority,
+  .more {
+    --mat-icon-button-state-layer-size: 32px;
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+  }
 
-    mat-icon {
-      color: var(--priority-color);
+  .priority mat-icon {
+    color: var(--priority-color);
+  }
+
+  // Shows on hover or focus, as in Jira; always there where nothing hovers.
+  .more {
+    opacity: 0;
+
+    @media (hover: none) {
+      opacity: 1;
     }
   }
 
-  // Everything but the title and the controls folds away on a phone.
+  &:hover .more,
+  &:focus-within .more,
+  .more[aria-expanded='true'] {
+    opacity: 1;
+  }
+
+  // A phone gives the title its own line and puts the controls under it, rather than
+  // squeezing the title to a few letters beside them; the rest folds away.
   @media (max-width: 720px) {
     flex-wrap: wrap;
+    padding-block: 0.375rem;
 
-    .status {
+    .title {
+      flex: 1 1 calc(100% - 5rem);
+      white-space: normal;
+    }
+
+    .goal-chip,
+    .flag,
+    .type {
       display: none;
     }
   }
 }
 
+// A divider between neighbouring rows, drawn by the lower one.
+.row + .row {
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
 .cdk-drag-preview {
   box-shadow: var(--mat-sys-level3);
-  border-radius: var(--mat-sys-corner-medium);
-  background: var(--mat-sys-surface);
+  border-radius: var(--mat-sys-corner-small);
 }
 
 .cdk-drag-placeholder {

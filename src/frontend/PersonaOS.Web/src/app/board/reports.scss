@@ -1,0 +1,158 @@
+/* Reports sit on the same work surfaces as the board and backlog (the --work-* tokens in
+   styles.scss). Commitment is grey and completed green, the colours Jira's velocity chart uses. */
+
+.panel {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem 1rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--work-lane);
+
+  > header {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  h2 {
+    font: var(--mat-sys-title-medium);
+    margin: 0;
+  }
+
+  .average {
+    color: var(--mat-sys-on-surface-variant);
+
+    b {
+      font: var(--mat-sys-title-medium);
+      color: var(--mat-sys-on-surface);
+    }
+  }
+}
+
+// One pair of bars per sprint, scrolling sideways when there are many, like the board's lanes.
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  height: 12rem;
+  padding: 1.25rem 0.75rem 0;
+  overflow-x: auto;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--work-item);
+  box-shadow: var(--work-item-shadow);
+
+  .sprint {
+    flex: 0 0 3.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
+
+    &:hover .label {
+      text-decoration: underline;
+    }
+  }
+
+  .bars {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.25rem;
+    width: 100%;
+  }
+
+  .bar {
+    position: relative;
+    flex: 1;
+    min-height: 2px;
+    border-radius: var(--mat-sys-corner-extra-small) var(--mat-sys-corner-extra-small) 0 0;
+
+    .value {
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font: var(--mat-sys-label-small);
+      color: var(--mat-sys-on-surface-variant);
+    }
+  }
+
+  .label {
+    padding: 0.35rem 0;
+    font: var(--mat-sys-label-small);
+    color: var(--mat-sys-on-surface-variant);
+    white-space: nowrap;
+  }
+}
+
+.committed {
+  background: var(--mat-sys-outline);
+}
+
+.completed {
+  background: var(--status-done-fg);
+}
+
+.legend {
+  display: flex;
+  gap: 1.25rem;
+  margin: 0.6rem 0 0;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+
+  .swatch {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    margin-right: 0.35rem;
+    vertical-align: -0.1rem;
+    border-radius: 2px;
+  }
+}
+
+.table {
+  overflow-x: auto;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--work-item);
+  box-shadow: var(--work-item-shadow);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--mat-sys-body-medium);
+
+  th {
+    font: var(--mat-sys-label-medium);
+    color: var(--mat-sys-on-surface-variant);
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: 0.55rem 0.75rem;
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    border-top: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  .num {
+    text-align: right;
+  }
+
+  a {
+    color: inherit;
+    font-weight: 500;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}

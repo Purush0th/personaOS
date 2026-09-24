@@ -3,21 +3,21 @@ import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@ang
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTabsModule } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 
 import { Confirm } from '../core/confirm';
 import { DRAG_DEFAULTS } from '../core/drag-defaults';
+import { BoardTabs } from '../board/board-tabs';
 import { openTaskFromQuery } from '../board/task-dialog';
+import { InlineCreate, NewTask } from '../shared/inline-create';
 
 import {
+  BoardColumn,
   BoardService,
   BoardTask,
   COLUMN_LABELS,
@@ -52,17 +52,16 @@ interface Group {
   imports: [
     FormsModule,
     RouterLink,
+    BoardTabs,
     DragDropModule,
+    InlineCreate,
     MatButtonModule,
     MatCardModule,
-    MatChipsModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
     MatMenuModule,
     MatProgressBarModule,
-    MatSelectModule,
-    MatTabsModule,
   ],
   providers: [DRAG_DEFAULTS],
   templateUrl: './backlog.html',
@@ -79,11 +78,8 @@ export class Backlog implements OnInit {
   protected readonly loading = signal(true);
   protected readonly collapsed = signal<Set<string>>(new Set());
 
-  /** Group being added to ("backlog" or a sprint key), with the draft's fields. */
+  /** The section whose Create is open: "backlog" or a sprint key. */
   protected readonly addingTo = signal<string | null>(null);
-  draftTitle = '';
-  draftPoints: number | null = null;
-  draftGoalId: number | null = null;
 
   /** The sprint being created or edited, as form fields. */
   protected readonly editingSprint = signal<Sprint | 'new' | null>(null);
@@ -144,6 +140,17 @@ export class Backlog implements OnInit {
 
   protected points(tasks: BoardTask[]): number {
     return tasks.reduce((sum, t) => sum + (t.points ?? 0), 0);
+  }
+
+  /** Points to do, in progress and done, for the three lozenges in a sprint's header. */
+  protected statusPoints(tasks: BoardTask[]): { column: BoardColumn; points: number }[] {
+    const columns: BoardColumn[] = ['todo', 'in_progress', 'done'];
+    return columns.map(column => ({ column, points: this.points(tasks.filter(t => t.column === column)) }));
+  }
+
+  /** The statuses a task in this sprint can take: work only moves on once the sprint runs. */
+  protected statusOptions(sprint: Sprint): BoardColumn[] {
+    return sprint.status === 'active' ? ['todo', 'in_progress', 'done'] : ['todo'];
   }
 
   protected isCollapsed(group: Group): boolean {
@@ -240,31 +247,26 @@ export class Backlog implements OnInit {
 
   // ------------------------------------------------------------------ tasks
 
-  protected startAdd(group: Group): void {
-    this.addingTo.set(this.groupId(group));
-    this.draftTitle = '';
-    this.draftPoints = null;
-    this.draftGoalId = null;
-  }
+  /** Creates a task in the section whose Create is open; see InlineCreate. */
+  protected readonly createTask = async (task: NewTask): Promise<boolean> => {
+    const groupId = this.addingTo();
+    if (!groupId) return false;
 
-  protected async add(group: Group): Promise<void> {
-    const title = this.draftTitle.trim();
-    if (!title) return;
-
+    const draft = { ...task, sprintKey: groupId === 'backlog' ? null : groupId };
     const created = await this.run(
-      () =>
-        withScopeConfirmation(ack =>
-          this.api.create(
-            { title, points: this.draftPoints, goalId: this.draftGoalId, sprintKey: group.key },
-            ack
-          )
-        ),
+      () => withScopeConfirmation(ack => this.api.create(draft, ack)),
       'Could not add that task.'
     );
-    if (created) {
-      this.draftTitle = '';
-      this.draftPoints = null;
-    }
+    return !!created;
+  };
+
+  /** A new status from the row's lozenge: the same move the board makes between columns. */
+  protected async setColumn(task: BoardTask, column: BoardColumn): Promise<void> {
+    if (column === task.column) return;
+    await this.run(
+      () => withScopeConfirmation(ack => this.api.move(task.key, column, task.sprintKey, null, ack)),
+      'Could not change the status.'
+    );
   }
 
   protected async moveToGroup(task: BoardTask, groupId: string, index: number | null = null): Promise<void> {

@@ -106,6 +106,7 @@ export function openTaskFromQuery(onClosed: () => void): void {
         width: '960px',
         maxWidth: 'calc(100vw - 2rem)',
         maxHeight: '90vh',
+        panelClass: 'task-dialog',
       });
       open = ref;
       ref.afterClosed().subscribe(() => {

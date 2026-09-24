@@ -172,6 +172,9 @@ describe('Board', () => {
     const router = TestBed.inject(Router);
     const dialog = TestBed.inject(MatDialog);
     expect(router.url).toBe('/board?task=TASK-1');
+    // An open task does not change which view the tabs show.
+    const active = [...root().querySelectorAll('app-board-tabs a.mdc-tab--active')].map(a => a.textContent?.trim());
+    expect(active).toEqual(['Sprint']);
     expect(dialog.openDialogs.length).toBe(1);
     expect(api.task).toHaveBeenCalledWith('TASK-1');
     // The dialog sees the page's providers: its fields are outlined like the rest of the app.
@@ -196,7 +199,7 @@ describe('Board', () => {
   });
 
   it('creates straight into the column whose Create was used, and stays open for the next', async () => {
-    (column('in_progress').querySelector('.add-button') as HTMLElement).click();
+    (column('in_progress').querySelector('.create-trigger') as HTMLElement).click();
     harness.detectChanges();
     await settle();
 

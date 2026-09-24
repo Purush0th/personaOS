@@ -1,52 +1,31 @@
-<header class="page-head">
-  <h1>Board</h1>
-  <nav mat-tab-nav-bar [tabPanel]="panel" class="views">
-    <a mat-tab-link routerLink="/board" [active]="true">Sprint</a>
-    <a mat-tab-link routerLink="/board/backlog" [active]="false">Backlog</a>
-  </nav>
-  <span class="spacer"></span>
+<app-board-tabs>
   @if (board()?.sprint) {
-    <a mat-stroked-button [routerLink]="['/board/sprints', board()!.sprint!.key]">
-      <mat-icon>insights</mat-icon>
-      Sprint view
-    </a>
-    <button mat-flat-button (click)="completeSprint()">Complete sprint</button>
+    <button boardActions mat-flat-button (click)="completeSprint()">Complete sprint</button>
   }
-</header>
 
-<mat-tab-nav-panel #panel>
   @if (loading()) {
     <mat-progress-bar mode="indeterminate" />
   } @else if (board(); as b) {
     @if (b.sprint; as sprint) {
-      <mat-card class="sprint" appearance="outlined">
-        <mat-card-content>
-          <div class="sprint-title">
-            <a class="key" [routerLink]="['/board/sprints', sprint.key]">{{ sprint.key }}</a>
-            @if (sprint.name) { <strong>{{ sprint.name }}</strong> }
-            <mat-chip-set>
-              <mat-chip disableRipple highlighted>running</mat-chip>
-            </mat-chip-set>
-            <span class="muted small">{{ when(sprint.startsAtUtc) }} – {{ when(sprint.endsAtUtc) }}</span>
-          </div>
-          <div class="stats">
-            <span><b>{{ sprint.committedPoints ?? sprint.totalPoints }}</b> committed</span>
-            <span><b>{{ sprint.completedPoints }}</b> done</span>
-            @if (sprint.addedPoints > 0) {
-              <span class="warn"><b>+{{ sprint.addedPoints }}</b> added</span>
-            }
-            @if (sprint.removedPoints > 0) {
-              <span class="warn"><b>−{{ sprint.removedPoints }}</b> removed</span>
-            }
-            @if (sprint.unestimatedCount > 0) {
-              <span class="muted">{{ sprint.unestimatedCount }} unestimated</span>
-            }
-            @if (b.velocity !== null) {
-              <span class="muted">velocity {{ b.velocity }}</span>
-            }
-          </div>
-        </mat-card-content>
-      </mat-card>
+      <!-- The sprint in one quiet line, as Jira names it above its board, not a card of its own. -->
+      <p class="sprint-line">
+        <a class="sprint-name" [routerLink]="['/board/sprints', sprint.key]">{{ sprintTitle(sprint) }}</a>
+        <span>{{ when(sprint.startsAtUtc) }} – {{ when(sprint.endsAtUtc) }}</span>
+        <span><b>{{ sprint.committedPoints ?? sprint.totalPoints }}</b> committed</span>
+        <span><b>{{ sprint.completedPoints }}</b> done</span>
+        @if (sprint.addedPoints > 0) {
+          <span class="warn"><b>+{{ sprint.addedPoints }}</b> added</span>
+        }
+        @if (sprint.removedPoints > 0) {
+          <span class="warn"><b>−{{ sprint.removedPoints }}</b> removed</span>
+        }
+        @if (sprint.unestimatedCount > 0) {
+          <span>{{ sprint.unestimatedCount }} unestimated</span>
+        }
+        @if (b.velocity !== null) {
+          <span>velocity {{ b.velocity }}</span>
+        }
+      </p>
 
       <!-- CDK drag and drop, not the HTML5 kind: it works with touch. Each column is its own drop
            list; moving between columns goes through the drop zones in board.ts (onDragMoved). -->
@@ -62,15 +41,17 @@
             <header>
               @if (dropTarget() === column && dragging(); as moving) {
                 <span class="transition" aria-live="polite">
-                  <span class="lozenge">{{ columnTitle(moving.column) }}</span>
+                  <span class="lozenge s-{{ moving.column }}">{{ columnTitle(moving.column) }}</span>
                   <mat-icon inline>arrow_forward</mat-icon>
-                  <span class="lozenge to">{{ column.title }}</span>
+                  <span class="lozenge s-{{ column.id }}">{{ column.title }}</span>
                 </span>
               } @else if (dragging()?.column === column.id) {
                 <span class="move-hint">Move to…</span>
               } @else {
                 <span class="name">{{ column.title }}</span>
-                <span class="count muted small">{{ column.tasks.length }} · {{ columnPoints(column) }} pts</span>
+                <span class="lozenge count" [attr.aria-label]="column.tasks.length + ' tasks'">{{ column.tasks.length }}</span>
+                <span class="spacer"></span>
+                <span class="points" title="Value points in this column">{{ columnPoints(column) }} pts</span>
               }
             </header>
             @if (overWip(column)) {
@@ -84,9 +65,8 @@
               (cdkDropListDropped)="onDrop($event)"
             >
               @for (task of column.tasks; track task.key) {
-                <mat-card
+                <div
                   class="task"
-                  appearance="outlined"
                   cdkDrag
                   [cdkDragData]="task"
                   (cdkDragStarted)="dragging.set(task)"
@@ -108,11 +88,12 @@
                   >
                     <mat-icon>more_horiz</mat-icon>
                   </button>
+                  @if (task.goalKey) {
+                    <span class="goal-chip" [style.--hue]="hue(task.goalKey)">{{ task.goalTitle }}</span>
+                  }
                   <div class="meta">
+                    <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
                     <span class="key">{{ task.key }}</span>
-                    @if (task.goalKey) {
-                      <span class="goal-chip" [style.--hue]="hue(task.goalKey)">{{ task.goalTitle }}</span>
-                    }
                     @if (task.carryOverCount > 0) {
                       <span class="flag" [title]="'Carried over ' + task.carryOverCount + ' times'">
                         <mat-icon inline>replay</mat-icon>{{ task.carryOverCount }}
@@ -130,40 +111,18 @@
                     <span class="spacer"></span>
                     <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
                   </div>
-                </mat-card>
-              } @empty {
-                <p class="empty muted small">Nothing here.</p>
+                </div>
               }
             </div>
 
             @if (addingTo() === column.id) {
-              <mat-card class="draft" appearance="outlined">
-                <textarea
-                  #draftField
-                  name="title"
-                  rows="2"
-                  placeholder="What needs to be done?"
-                  aria-label="New task title"
-                  (input)="draftTitle.set(draftField.value)"
-                  (keydown)="onDraftKey($event, column.id)"
-                ></textarea>
-                <div class="draft-row">
-                  <button
-                    type="button"
-                    class="points-pill"
-                    [class.none]="draftPoints === null"
-                    [matMenuTriggerFor]="draftPointsMenu"
-                    aria-label="Points"
-                  >{{ draftPoints ?? '?' }}</button>
-                  <span class="spacer"></span>
-                  <button mat-button type="button" (click)="addingTo.set(null)">Cancel</button>
-                  <button mat-flat-button type="button" [disabled]="!draftTitle().trim()" (click)="add(column.id)">
-                    Create
-                  </button>
-                </div>
-              </mat-card>
+              <app-inline-create
+                [allowedPoints]="b.allowedPoints"
+                [save]="createTask"
+                (cancelled)="addingTo.set(null)"
+              />
             } @else {
-              <button mat-button class="add-button" (click)="startAdd(column.id)">
+              <button mat-button class="create-trigger" (click)="addingTo.set(column.id)">
                 <mat-icon>add</mat-icon>
                 Create
               </button>
@@ -172,7 +131,7 @@
         }
       </div>
 
-      <!-- One card menu and one points menu for the whole board; the trigger passes the task in. -->
+      <!-- One card menu for the whole board; the trigger passes the task in. -->
       <mat-menu #cardMenu="matMenu">
         <ng-template matMenuContent let-task="task">
           <a mat-menu-item [routerLink]="['/board/tasks', task.key]">
@@ -187,19 +146,10 @@
           }
         </ng-template>
       </mat-menu>
-
-      <mat-menu #draftPointsMenu="matMenu">
-        <button mat-menu-item (click)="draftPoints = null">Not estimated</button>
-        @for (p of b.allowedPoints; track p) {
-          <button mat-menu-item (click)="draftPoints = p">{{ p }}</button>
-        }
-      </mat-menu>
     } @else {
-      <mat-card class="banner" appearance="outlined">
-        <mat-card-content>
-          No sprint is running. Open the <a routerLink="/board/backlog">Backlog</a> to plan one and start it.
-        </mat-card-content>
-      </mat-card>
+      <p class="empty-state">
+        No sprint is running. Open the <a routerLink="/board/backlog">Backlog</a> to plan one and start it.
+      </p>
     }
   }
-</mat-tab-nav-panel>
+</app-board-tabs>
