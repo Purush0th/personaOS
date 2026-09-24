@@ -62,36 +62,6 @@
   }
 }
 
-.chart svg {
-  width: 100%;
-  max-width: 34rem;
-  height: auto;
-
-  .axis {
-    stroke: var(--mat-sys-outline-variant);
-    stroke-width: 1;
-  }
-
-  .burn {
-    fill: none;
-    stroke: var(--mat-sys-primary);
-    stroke-width: 2;
-  }
-
-  .dot {
-    fill: var(--mat-sys-primary);
-  }
-
-  .tick {
-    font: var(--mat-sys-label-small);
-    fill: var(--mat-sys-on-surface-variant);
-
-    &.end {
-      text-anchor: end;
-    }
-  }
-}
-
 .lists {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));

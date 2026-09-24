@@ -31,6 +31,7 @@ import {
 } from '../core/board.service';
 import { BoardTabs } from './board-tabs';
 import { BreakdownBar, BreakdownPart } from './breakdown-bar';
+import { BurndownChart } from './burndown-chart';
 import { openTaskFromQuery } from './task-dialog';
 import { WorkItemTable } from './work-item-table';
 
@@ -43,15 +44,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The board's Reports view, after Jira's: pick any started sprint (the running one by default,
- * finished ones by searching), see it summed up in a few numbers and two bars, and every task in
- * it in a searchable table. The chosen sprint is in the URL (?sprint=), so a report can be linked
- * and Back returns to the previous one. Velocity across sprints closes the page.
+ * finished ones by searching), see it summed up in a few numbers, two bars and its burndown, and
+ * every task in it in a searchable table. The chosen sprint is in the URL (?sprint=), so a report
+ * can be linked and Back returns to the previous one. Velocity across sprints closes the page.
  */
 @Component({
   selector: 'app-reports',
   imports: [
     BoardTabs,
     BreakdownBar,
+    BurndownChart,
     MatAutocompleteModule,
     MatFormFieldModule,
     MatIconModule,

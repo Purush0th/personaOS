@@ -31,22 +31,6 @@
     font: var(--mat-sys-title-large);
     margin: 0;
   }
-
-  .spacer {
-    flex: 1;
-  }
-
-  .burndown {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    color: var(--mat-sys-primary);
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
 }
 
 .tiles {

@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -11,6 +11,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Confirm } from '../core/confirm';
+import { BurndownChart } from './burndown-chart';
 
 import {
   BoardColumn,
@@ -24,18 +25,11 @@ import {
   toLocalInput,
 } from '../core/board.service';
 
-/** One point on the burndown, already placed in the SVG's coordinates. */
-interface Plot {
-  x: number;
-  y: number;
-  label: string;
-  remaining: number;
-}
-
 /** One sprint, full screen, at /board/sprints/SPRINT-2: how it went and what was in it. */
 @Component({
   selector: 'app-sprint-detail',
   imports: [
+    BurndownChart,
     FormsModule,
     RouterLink,
     MatButtonModule,
@@ -67,29 +61,6 @@ export class SprintDetail implements OnInit {
   protected readonly key = signal('');
   protected readonly columnLabels = COLUMN_LABELS;
   protected readonly columnOrder: BoardColumn[] = ['done', 'in_progress', 'todo'];
-
-  /** The chart's drawing area, in the SVG's own units. */
-  private readonly width = 520;
-  private readonly height = 180;
-  private readonly pad = 28;
-
-  protected readonly plots = computed<Plot[]>(() => {
-    const burndown = this.detail()?.burndown ?? [];
-    if (burndown.length === 0) return [];
-
-    const max = Math.max(...burndown.map(p => p.remainingPoints + p.completedPoints), 1);
-    const step = burndown.length === 1 ? 0 : (this.width - this.pad * 2) / (burndown.length - 1);
-    return burndown.map((point, i) => ({
-      x: this.pad + step * i,
-      y: this.height - this.pad - ((this.height - this.pad * 2) * point.remainingPoints) / max,
-      label: new Date(`${point.date}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
-      remaining: point.remainingPoints,
-    }));
-  });
-
-  protected readonly line = computed(() =>
-    this.plots().map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
-  );
 
   async ngOnInit(): Promise<void> {
     this.key.set(this.route.snapshot.paramMap.get('key') ?? '');
@@ -160,10 +131,6 @@ export class SprintDetail implements OnInit {
 
   protected points(tasks: BoardTask[]): number {
     return tasks.reduce((sum, t) => sum + (t.points ?? 0), 0);
-  }
-
-  protected chartSize(): { width: number; height: number; pad: number } {
-    return { width: this.width, height: this.height, pad: this.pad };
   }
 
   protected hue(goalKey: string | null): number {

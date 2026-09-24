@@ -67,25 +67,10 @@
     }
   </section></mat-card-content></mat-card>
 
-  @if (plots().length > 1) {
+  @if (detail.burndown.length > 0) {
     <mat-card class="chart" appearance="outlined"><mat-card-content>
       <h2>Points remaining</h2>
-      <svg [attr.viewBox]="'0 0 ' + chartSize().width + ' ' + chartSize().height" role="img"
-           aria-label="Points remaining, day by day">
-        <line class="axis" [attr.x1]="chartSize().pad" [attr.y1]="chartSize().height - chartSize().pad"
-              [attr.x2]="chartSize().width - chartSize().pad" [attr.y2]="chartSize().height - chartSize().pad" />
-        <line class="axis" [attr.x1]="chartSize().pad" [attr.y1]="chartSize().pad"
-              [attr.x2]="chartSize().pad" [attr.y2]="chartSize().height - chartSize().pad" />
-        <path class="burn" [attr.d]="line()" />
-        @for (p of plots(); track p.x) {
-          <circle class="dot" [attr.cx]="p.x" [attr.cy]="p.y" r="3">
-            <title>{{ p.label }}: {{ p.remaining }} points left</title>
-          </circle>
-        }
-        <text class="tick" [attr.x]="chartSize().pad" [attr.y]="chartSize().height - 8">{{ plots()[0].label }}</text>
-        <text class="tick end" [attr.x]="chartSize().width - chartSize().pad"
-              [attr.y]="chartSize().height - 8">{{ plots()[plots().length - 1].label }}</text>
-      </svg>
+      <app-burndown-chart [points]="detail.burndown" />
     </mat-card-content></mat-card>
   }
 
