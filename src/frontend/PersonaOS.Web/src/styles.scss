@@ -22,6 +22,29 @@
       theme-type: $type,
     ),
   ));
+
+  /* Work surfaces for the board and backlog, after Jira: a lane set off from the page, and items
+     raised on it by a soft shadow instead of an outline. The lane is darker than the page in the
+     dark scheme and greyer in the light one, which no single Material role gives in both. */
+  @if $type == dark {
+    --work-lane: var(--mat-sys-surface-container-lowest);
+    --work-item: var(--mat-sys-surface-container-high);
+    --work-item-hover: var(--mat-sys-surface-container-highest);
+    --work-item-shadow: 0 0 0 1px rgb(255 255 255 / 5%), 0 1px 2px rgb(0 0 0 / 50%);
+    --status-progress-bg: #1c2b41;
+    --status-progress-fg: #85b8ff;
+    --status-done-bg: #1c3329;
+    --status-done-fg: #7ee2b8;
+  } @else {
+    --work-lane: var(--mat-sys-surface-container);
+    --work-item: var(--mat-sys-surface-container-lowest);
+    --work-item-hover: var(--mat-sys-surface-container-low);
+    --work-item-shadow: 0 0 0 1px rgb(0 0 0 / 6%), 0 1px 2px rgb(0 0 0 / 16%);
+    --status-progress-bg: #e9f2ff;
+    --status-progress-fg: #0055cc;
+    --status-done-bg: #dcfff1;
+    --status-done-fg: #216e4e;
+  }
 }
 
 html {
@@ -104,35 +127,114 @@ body {
   text-decoration: none;
 }
 
-/* Value points, shown beside every task. */
+/* Value points, shown beside every task: a small grey lozenge, as Jira shows an estimate. */
 .points-pill {
+  display: inline-block;
   font: var(--mat-sys-label-small);
   font-weight: 700;
-  min-width: 1.4rem;
+  line-height: 1.25rem;
+  min-width: 1.5rem;
   text-align: center;
-  border-radius: var(--mat-sys-corner-full);
-  background: var(--mat-sys-secondary-container);
-  color: var(--mat-sys-on-secondary-container);
-  padding: 0.05rem 0.45rem;
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+  padding: 0 0.3rem;
 
   &.none {
-    background: none;
     color: var(--mat-sys-on-surface-variant);
-    border: 1px dashed var(--mat-sys-outline);
+    font-weight: 400;
   }
 }
 
-/* The same pill as a control that opens a menu. */
+/* The same lozenge as a control that opens a menu. */
 button.points-pill {
-  border: 1px solid transparent;
+  border: none;
   cursor: pointer;
-  line-height: 1.4;
 
   &:hover,
   &:focus-visible {
     outline: 2px solid var(--mat-sys-primary);
     outline-offset: 1px;
   }
+}
+
+/* A task's status (board column), coloured as Jira colours its statuses: grey to do, blue in
+   progress, green done. Also used, with a number, for the points in each status. */
+.lozenge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  font: var(--mat-sys-label-small);
+  font-weight: 700;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  border-radius: var(--mat-sys-corner-extra-small);
+  padding: 0 0.35rem;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface-variant);
+
+  &.s-in_progress {
+    background: var(--status-progress-bg);
+    color: var(--status-progress-fg);
+  }
+
+  &.s-done {
+    background: var(--status-done-bg);
+    color: var(--status-done-fg);
+  }
+}
+
+button.lozenge {
+  border: none;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 1px;
+  }
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+/* The board and backlog use Jira's compact buttons: 32px high with small square corners, so the
+   actions sit level with the rows and lozenges instead of towering over them as 40px pills. */
+app-board,
+app-backlog {
+  --mat-button-filled-container-height: 32px;
+  --mat-button-filled-container-shape: var(--mat-sys-corner-extra-small);
+  --mat-button-outlined-container-height: 32px;
+  --mat-button-outlined-container-shape: var(--mat-sys-corner-extra-small);
+  --mat-button-text-container-height: 32px;
+  --mat-button-text-container-shape: var(--mat-sys-corner-extra-small);
+}
+
+/* A page with nothing to show yet says so in a dashed box, where its content would be. */
+.empty-state {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  border: 1px dashed var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+/* The task dialog (board/task-dialog.ts): Jira's modest corners, not Material's 28px sheet. */
+.task-dialog {
+  --mat-dialog-container-shape: var(--mat-sys-corner-medium);
+}
+
+/* "+ Create" at the foot of a board column or a backlog section: quiet, full width, left aligned,
+   the way Jira shows it, rather than a coloured button competing with the work. */
+.create-trigger.mat-mdc-button {
+  --mat-button-text-label-text-color: var(--mat-sys-on-surface-variant);
+  --mat-button-text-container-shape: var(--mat-sys-corner-small);
+  width: 100%;
+  justify-content: flex-start;
 }
 
 /* Priority colours, shared by rows and the priority menu (which renders in an overlay). */

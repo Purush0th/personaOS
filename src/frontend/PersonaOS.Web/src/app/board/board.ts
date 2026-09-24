@@ -1,28 +1,15 @@
 import { CdkDragDrop, CdkDragMove, DragDropModule } from '@angular/cdk/drag-drop';
 import { DOCUMENT } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  ElementRef,
-  Injector,
-  OnInit,
-  afterNextRender,
-  computed,
-  inject,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTabsModule } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 
 import { Confirm } from '../core/confirm';
 import { DRAG_DEFAULTS } from '../core/drag-defaults';
+import { InlineCreate, NewTask } from '../shared/inline-create';
 
 import {
   BoardColumn,
@@ -36,6 +23,7 @@ import {
   goalHue,
   withScopeConfirmation,
 } from '../core/board.service';
+import { BoardTabs } from './board-tabs';
 import { openTaskFromQuery } from './task-dialog';
 
 interface ColumnDef {
@@ -57,14 +45,13 @@ interface ColumnDef {
   selector: 'app-board',
   imports: [
     RouterLink,
+    BoardTabs,
     DragDropModule,
+    InlineCreate,
     MatButtonModule,
-    MatCardModule,
-    MatChipsModule,
     MatIconModule,
     MatMenuModule,
     MatProgressBarModule,
-    MatTabsModule,
   ],
   providers: [DRAG_DEFAULTS],
   templateUrl: './board.html',
@@ -75,20 +62,12 @@ export class Board implements OnInit {
   private readonly api = inject(BoardService);
   private readonly confirm = inject(Confirm);
   private readonly document = inject(DOCUMENT);
-  private readonly injector = inject(Injector);
 
   protected readonly board = signal<BoardView | null>(null);
   protected readonly loading = signal(true);
 
-  /**
-   * Column being added to, with the draft's title and points. The title is a signal written from
-   * the field, not an ngModel: clearing it after a create is '' to '' as far as ngModel can tell,
-   * so the field would keep the old text.
-   */
+  /** The column whose Create is open. */
   protected readonly addingTo = signal<BoardColumn | null>(null);
-  protected readonly draftTitle = signal('');
-  draftPoints: number | null = null;
-  private readonly draftField = viewChild<ElementRef<HTMLTextAreaElement>>('draftField');
 
   /** The card in the air, and the other column it would move to if dropped now. */
   protected readonly dragging = signal<BoardTask | null>(null);
@@ -145,46 +124,19 @@ export class Board implements OnInit {
 
   // ------------------------------------------------------------------ adding
 
-  protected startAdd(column: BoardColumn): void {
-    this.addingTo.set(column);
-    this.clearDraft();
-  }
-
-  /** Enter creates; Shift+Enter is left alone, and Esc gives up. */
-  protected onDraftKey(event: KeyboardEvent, column: BoardColumn): void {
-    if (event.key === 'Escape') {
-      this.addingTo.set(null);
-    } else if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      void this.add(column);
-    }
-  }
-
-  /** Creates the draft in that column and, like Jira, leaves the field open for the next one. */
-  protected async add(column: BoardColumn): Promise<void> {
+  /** Creates a task in the column whose Create is open; see InlineCreate. */
+  protected readonly createTask = async (task: NewTask): Promise<boolean> => {
     const sprint = this.board()?.sprint;
-    const title = this.draftTitle().trim();
-    if (!sprint || !title) return;
+    const column = this.addingTo();
+    if (!sprint || !column) return false;
 
-    const draft = { title, points: this.draftPoints, sprintKey: sprint.key, column };
+    const draft = { ...task, sprintKey: sprint.key, column };
     const created = await this.run(
       () => withScopeConfirmation(ack => this.api.create(draft, ack)),
       'Could not add that task.'
     );
-    if (created) this.clearDraft();
-  }
-
-  /** Empties the draft and puts the cursor back in it, once the field is on screen. */
-  private clearDraft(): void {
-    this.draftTitle.set('');
-    this.draftPoints = null;
-    afterNextRender(() => {
-      const field = this.draftField()?.nativeElement;
-      if (!field) return;
-      field.value = '';
-      field.focus();
-    }, { injector: this.injector });
-  }
+    return !!created;
+  };
 
   // ------------------------------------------------------------------ moving
 

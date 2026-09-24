@@ -1,0 +1,89 @@
+<app-board-tabs>
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  } @else if (report(); as report) {
+    @if (report.sprints.length === 0) {
+      <p class="empty-state">Reports start with the first sprint. Plan one in the backlog and start it.</p>
+    } @else {
+      <section class="panel velocity" aria-labelledby="velocity-title">
+        <header>
+          <h2 id="velocity-title">Velocity</h2>
+          <span class="average">
+            @if (report.velocity !== null) {
+              <b>{{ report.velocity }}</b> points a sprint, on average over the last three finished
+            } @else {
+              An average appears once a sprint is finished
+            }
+          </span>
+        </header>
+
+        <div class="chart" role="list">
+          @for (sprint of chronological(); track sprint.key) {
+            <a
+              class="sprint"
+              role="listitem"
+              [routerLink]="['/board/sprints', sprint.key]"
+              [attr.aria-label]="title(sprint) + ': ' + committed(sprint) + ' committed, ' + sprint.completedPoints + ' completed'"
+            >
+              <span class="bars">
+                <span class="bar committed" [style.height.%]="height(committed(sprint))">
+                  <span class="value">{{ committed(sprint) }}</span>
+                </span>
+                <span class="bar completed" [style.height.%]="height(sprint.completedPoints)">
+                  <span class="value">{{ sprint.completedPoints }}</span>
+                </span>
+              </span>
+              <span class="label">{{ sprint.key }}</span>
+            </a>
+          }
+        </div>
+
+        <p class="legend">
+          <span><i class="swatch committed"></i>Commitment</span>
+          <span><i class="swatch completed"></i>Completed</span>
+        </p>
+      </section>
+
+      <section class="panel" aria-labelledby="sprints-title">
+        <header>
+          <h2 id="sprints-title">Sprints</h2>
+          <span class="muted">Open one for its burndown</span>
+        </header>
+        <div class="table">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Sprint</th>
+                <th scope="col">Dates</th>
+                <th scope="col">Status</th>
+                <th scope="col" class="num">Committed</th>
+                <th scope="col" class="num">Completed</th>
+                <th scope="col" class="num">Added</th>
+                <th scope="col" class="num">Removed</th>
+                <th scope="col" class="num">Carried over</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (sprint of report.sprints; track sprint.key) {
+                <tr>
+                  <td><a [routerLink]="['/board/sprints', sprint.key]">{{ title(sprint) }}</a></td>
+                  <td class="muted">{{ when(sprint.startsAtUtc) }} – {{ when(sprint.endsAtUtc) }}</td>
+                  <td>
+                    <span class="lozenge" [class.s-in_progress]="sprint.status === 'active'" [class.s-done]="sprint.status === 'closed'">
+                      {{ sprint.status === 'active' ? 'Running' : 'Finished' }}
+                    </span>
+                  </td>
+                  <td class="num">{{ committed(sprint) }}</td>
+                  <td class="num">{{ sprint.completedPoints }}</td>
+                  <td class="num">{{ sprint.addedPoints }}</td>
+                  <td class="num">{{ sprint.removedPoints }}</td>
+                  <td class="num">{{ sprint.carriedOverPoints ?? '–' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  }
+</app-board-tabs>
