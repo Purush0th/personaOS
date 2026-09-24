@@ -190,7 +190,7 @@ export class Reports implements OnInit {
     }
     const days = Math.ceil((new Date(sprint.endsAtUtc).getTime() - now.getTime()) / DAY_MS);
     return days > 0
-      ? { value: `${days} ${days === 1 ? 'day' : 'days'}`, caption: 'left in the sprint' }
+      ? { value: `${days} ${days === 1 ? 'day' : 'days'}`, caption: 'left' }
       : { value: 'Overdue', caption: `ended ${formatWhen(sprint.endsAtUtc)}` };
   }
 

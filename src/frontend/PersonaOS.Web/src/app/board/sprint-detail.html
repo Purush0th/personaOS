@@ -72,7 +72,7 @@
               @if (task.goalKey) {
                 <span class="goal-chip" [style.--hue]="hue(task.goalKey)">{{ task.goalTitle }}</span>
               }
-              <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
+              <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '–' }}</span>
             </li>
           } @empty {
             <li class="muted small">Nothing here.</li>

@@ -31,8 +31,8 @@ interface TaskDialogData {
         mat-icon-button
         [routerLink]="['/board/tasks', data.key]"
         mat-dialog-close
-        aria-label="Open as a full page"
-        title="Open as a full page"
+        aria-label="Open full page"
+        title="Open full page"
       >
         <mat-icon>open_in_full</mat-icon>
       </a>

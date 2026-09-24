@@ -62,7 +62,7 @@
     <mat-card appearance="outlined" class="group">
       <mat-card-header>
         <mat-card-title>AI provider</mat-card-title>
-        <mat-card-subtitle>Where the thinking happens. A local model keeps everything on this machine.</mat-card-subtitle>
+        <mat-card-subtitle>The model that answers. A local one keeps everything on this machine.</mat-card-subtitle>
       </mat-card-header>
       <mat-card-content>
         <mat-form-field>
@@ -90,7 +90,7 @@
             [placeholder]="selected.modelPlaceholder"
           />
           @if (selected.needsBaseUrl) {
-            <mat-hint>The model must support tool calling. 3B parameters and up works well.</mat-hint>
+            <mat-hint>Needs tool calling; 3B and up works well.</mat-hint>
           }
         </mat-form-field>
 
@@ -141,7 +141,7 @@
     <mat-card appearance="outlined" class="group">
       <mat-card-header>
         <mat-card-title>Modules</mat-card-title>
-        <mat-card-subtitle>Switched-off modules disappear from the nav, and the assistant stops offering them.</mat-card-subtitle>
+        <mat-card-subtitle>Modules switched off leave the nav and the assistant.</mat-card-subtitle>
       </mat-card-header>
       <mat-card-content class="modules">
         @for (module of modules; track module) {
@@ -154,7 +154,7 @@
             Let {{ nickname || 'the assistant' }} word the briefs
           </mat-slide-toggle>
           <p class="muted small brief-note">
-            Its version is sent only when every item, time and number from the brief is still in it.
+            Sent only if every item, time and number is kept.
           </p>
         }
       </mat-card-content>

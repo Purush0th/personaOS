@@ -44,7 +44,7 @@ export interface NewTask {
         [class.none]="points() === null"
         [matMenuTriggerFor]="pointsMenu"
         [attr.aria-label]="'Points: ' + (points() ?? 'not estimated')"
-      >{{ points() ?? '?' }}</button>
+      >{{ points() ?? '–' }}</button>
       <span class="spacer"></span>
       <button mat-button type="button" (click)="cancelled.emit()">Cancel</button>
       <button mat-flat-button type="button" [disabled]="!title().trim() || saving()" (click)="submit()">

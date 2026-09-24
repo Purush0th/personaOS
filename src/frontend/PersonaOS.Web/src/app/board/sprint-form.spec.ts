@@ -67,7 +67,7 @@ describe('SprintForm', () => {
 
     expect(start.type).toBe('date');
     expect(page.querySelectorAll('input').length).toBe(2); // name and start; the end is not a field
-    expect(end()).toBe('The Sunday after it starts');
+    expect(end()).toBe('–'); // the hint under the fields says what the end will be
 
     pick('2026-09-25'); // a Friday: runs to the coming Sunday
     expect(end()).toBe(shown(new Date(2026, 8, 27, 18, 0)));

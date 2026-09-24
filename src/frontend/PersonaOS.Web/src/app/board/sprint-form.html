@@ -5,7 +5,7 @@
       <mat-label>Name</mat-label>
       <input
         matInput
-        placeholder="Optional, e.g. Paperwork week"
+        placeholder="Optional"
         [value]="name()"
         (input)="name.set($any($event.target).value)"
       />
@@ -34,10 +34,10 @@
 
     <div class="end" aria-live="polite">
       <span class="label">Ends</span>
-      <span class="value">{{ endsAt() ? formatEnd(endsAt()!) : 'The Sunday after it starts' }}</span>
+      <span class="value">{{ endsAt() ? formatEnd(endsAt()!) : '–' }}</span>
     </div>
   </div>
-  <p class="hint">A sprint ends on the first Sunday after it starts, at 6 PM. Leave the start empty for the next free week.</p>
+  <p class="hint">Ends the first Sunday after the start, 6 PM. No start: the next free week.</p>
   <div class="actions">
     <button mat-button type="button" (click)="cancelled.emit()">Cancel</button>
     <button mat-flat-button type="submit" [disabled]="saving()">Save</button>

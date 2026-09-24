@@ -81,10 +81,11 @@ describe('WorkItemTable', () => {
     expect(header('Key').getAttribute('aria-sort')).toBe('none');
   });
 
-  it('puts unestimated tasks after estimated ones', () => {
-    const { keys, sortBy } = render();
+  it('puts unestimated tasks after estimated ones, shown as a dash', () => {
+    const { page, keys, sortBy } = render();
     sortBy('Points');
     expect(keys()).toEqual(['TASK-3', 'TASK-10', 'TASK-2']);
+    expect([...page.querySelectorAll('tbody .points-pill')].map(p => p.textContent?.trim())).toEqual(['3', '5', '–']);
   });
 
   it('sorts statuses in board order, not alphabetically', () => {

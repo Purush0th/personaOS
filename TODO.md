@@ -1189,3 +1189,11 @@ real Anthropic key).
       "Backlog" lozenge (a sprint row's lozenge stays the menu that moves the task). The API values
       (`backlog`, `todo`, `in_progress`, `done`) are unchanged. The phone shows the new label from the
       next APK.
+- [x] **Shorter wording** (web + mobile, 2026-09-25; owner: "Edit dates and name" -> "Edit", "Delete
+      sprint" -> "Delete", and the same wherever text over-explains). Menus: Edit, Delete, Open (was
+      "Open as a full page"). Unestimated points and an unset sprint end read "–" (was "?" and "The
+      Sunday after it starts"). Shorter hints and empty states on the board, backlog, Reports,
+      burndown, sprint form, task page, attachments, goals, documents, reminders and four Settings
+      notes; on the phone the WIP note, the split hint, the velocity line, the delete confirmations
+      and the planner tooltip. Confirmations for deletes that cannot be undone keep their warning.
+      House style from here: a label names the action in one word where one word is clear.
