@@ -178,8 +178,9 @@ export class BoardService {
     return firstValueFrom(this.http.get<PlanView>('/api/board/plan'));
   }
 
-  report(): Promise<SprintReport> {
-    return firstValueFrom(this.http.get<SprintReport>('/api/board/sprints'));
+  /** Started sprints, newest first; `count` is how many (the server allows up to 104, two years). */
+  report(count = 12): Promise<SprintReport> {
+    return firstValueFrom(this.http.get<SprintReport>('/api/board/sprints', { params: { count } }));
   }
 
   sprint(key: string): Promise<SprintDetail> {

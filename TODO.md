@@ -1142,3 +1142,15 @@ real Anthropic key).
       started sprint. The board's "Sprint view" button is gone; the sprint page's crumbs link to
       Reports. `.empty-state` moved to `styles.scss` (board and reports share it). Spec:
       `reports.spec.ts`, plus a check that an open task (`?task=`) keeps the Sprint tab lit.
+- [x] **Reports: one sprint at a time, with its tasks** (web, 2026-09-24; owner: "report page should
+      show list of work items of that sprint ... search old sprint", after Jira's Reports page).
+      `/board/reports?sprint=SPRINT-3`: a "Find a sprint" search (autocomplete over every started
+      sprint, `report(104)`), then for the chosen one (default: running, else latest) four tiles
+      (tasks done, points completed of committed, points added/removed, days left or finished),
+      "Tasks by status" and "Tasks by priority" as stacked bars (`board/breakdown-bar.ts`, the plain
+      stand-in for Jira's doughnuts), and "Task details" (`board/work-item-table.ts`: search over
+      key/title/goal, headings that sort, rows opening the task dialog). Velocity stays at the
+      bottom; its bars now pick the sprint. The sprint table from the first cut is gone. Loading
+      uses plain signals and an effect, not `resource()`: resource's code sits in @angular/core's
+      shared chunk, and using it here moved 6 kB into every page's first download. Specs:
+      `reports.spec.ts`, `work-item-table.spec.ts`, `breakdown-bar.spec.ts` (web: 64 tests).
