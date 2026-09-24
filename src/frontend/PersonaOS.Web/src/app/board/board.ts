@@ -33,7 +33,7 @@ interface ColumnDef {
 }
 
 /**
- * The board is the running sprint and nothing else: This week, In progress, Done. The backlog and
+ * The board is the running sprint and nothing else: To do, In progress, Done. The backlog and
  * the sprints to come live in the board's other view, so this one stays what you look at daily.
  *
  * It behaves like the owner's Jira board. A card drags from anywhere on it; within its column it

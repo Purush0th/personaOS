@@ -160,14 +160,30 @@ public record MoveTaskRequest(
     bool AcknowledgeScopeChange = false);
 
 /// <param name="StartsAtLocal">Start, in the user's own time zone.</param>
-/// <param name="EndsAtLocal">End, in the user's own time zone.</param>
-public record CreateSprintRequest(string? Name, DateTime? StartsAtLocal = null, DateTime? EndsAtLocal = null);
+/// <param name="EndsAtLocal">
+/// End, in the user's own time zone. Left out, the sprint closes on the first Sunday after it
+/// starts (<see cref="PersonaOS.Domain.Services.SprintCalendar.CloseAfterStart"/>).
+/// </param>
+/// <param name="StartsOn">
+/// The start as a day, which takes the rhythm's start time; what the web form sends, since it asks
+/// for a date and shows the end it implies. Wins over <paramref name="StartsAtLocal"/>.
+/// </param>
+public record CreateSprintRequest(
+    string? Name,
+    DateTime? StartsAtLocal = null,
+    DateTime? EndsAtLocal = null,
+    DateOnly? StartsOn = null);
 
+/// <summary>
+/// Partial update. A new start moves the end to the first Sunday after it unless an end is given
+/// too, the same rule as creating a sprint.
+/// </summary>
 public record UpdateSprintRequest(
     string? Name = null,
     bool ClearName = false,
     DateTime? StartsAtLocal = null,
-    DateTime? EndsAtLocal = null);
+    DateTime? EndsAtLocal = null,
+    DateOnly? StartsOn = null);
 
 /// <param name="MoveUnfinishedToSprintKey">
 /// Where unfinished work goes: a sprint key, or null for the backlog. Defaults to the next

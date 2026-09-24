@@ -4,7 +4,7 @@ import '../api/personaos_api.dart';
 import '../date_utils.dart';
 import 'board_screen.dart';
 
-/// Daily planner day-view: navigate days, add tasks (typed, or picked from this week's sprint),
+/// Daily planner day-view: navigate days, add tasks (typed, or picked from the running sprint),
 /// cycle status, move a task to the next day, delete.
 class PlannerScreen extends StatefulWidget {
   const PlannerScreen({super.key, required this.api, this.boardEnabled = false});
@@ -93,14 +93,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
       builder: (context) => tasks.isEmpty
           ? const Padding(
               padding: EdgeInsets.all(32),
-              child: Text("Nothing left in this week's sprint.", textAlign: TextAlign.center),
+              child: Text('Nothing left in the sprint.', textAlign: TextAlign.center),
             )
           : ListView(
               shrinkWrap: true,
               children: [
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text("From this week's sprint", style: TextStyle(fontWeight: FontWeight.w600)),
+                  child: Text('From the sprint', style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
                 for (final task in tasks)
                   ListTile(

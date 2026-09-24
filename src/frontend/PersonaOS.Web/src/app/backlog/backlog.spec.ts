@@ -93,12 +93,12 @@ describe('Backlog', () => {
   });
 
   it('shows each sprint task its status, and changes it from the lozenge', async () => {
-    const lozenge = section('SPRINT-1').querySelector<HTMLElement>('[aria-label="Status of TASK-1: This week"]')!;
+    const lozenge = section('SPRINT-1').querySelector<HTMLElement>('[aria-label="Status of TASK-1: To do"]')!;
     expect(lozenge.classList).toContain('s-todo');
 
     lozenge.click();
     await settle();
-    expect(menuItems().map(i => text(i))).toEqual(['This week', 'In progress', 'Done']);
+    expect(menuItems().map(i => text(i))).toEqual(['To do', 'In progress', 'Done']);
     menuItems()[1].click();
     await settle();
 
@@ -108,11 +108,13 @@ describe('Backlog', () => {
   it('offers only To do for work in a sprint that has not started', async () => {
     section('SPRINT-2').querySelector<HTMLElement>('.status')!.click();
     await settle();
-    expect(menuItems().map(i => text(i))).toEqual(['This week']);
+    expect(menuItems().map(i => text(i))).toEqual(['To do']);
   });
 
-  it('shows no status in the backlog, where every task is simply in the backlog', () => {
-    expect(section('Backlog').querySelector('.status')).toBeNull();
+  it('labels backlog tasks Backlog, as a plain lozenge rather than a menu', () => {
+    const status = section('Backlog').querySelector('.status')!;
+    expect(text(status)).toBe('Backlog');
+    expect(status.tagName).toBe('SPAN');
   });
 
   it('creates into the backlog from its own Create', async () => {
@@ -133,5 +135,37 @@ describe('Backlog', () => {
     const createSprint = [...section('Backlog').querySelectorAll('header button')]
       .find(b => text(b) === 'Create sprint');
     expect(createSprint).toBeTruthy();
+  });
+});
+
+describe('Backlog, starting a sprint', () => {
+  // Nothing is running, so both planned sprints could start; only one's first day has come.
+  const due = { ...sprint('SPRINT-1', 'planned'), startsAtUtc: '2026-01-01T20:00:00Z' };
+  const later = { ...sprint('SPRINT-2', 'planned'), startsAtUtc: '2099-01-04T20:00:00Z' };
+  const idlePlan: PlanView = { ...plan, sprints: [{ sprint: due, tasks: [] }, { sprint: later, tasks: [] }] };
+
+  it('greys out Start until the sprint\'s first day, and says why', async () => {
+    const api = jasmine.createSpyObj<BoardService>('BoardService', ['plan']);
+    api.plan.and.resolveTo(idlePlan);
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([{ path: 'backlog', component: Backlog }]),
+        { provide: BoardService, useValue: api },
+        { provide: Confirm, useValue: jasmine.createSpyObj('Confirm', ['error', 'ask']) },
+        { provide: GoalsService, useValue: { getAll: () => Promise.resolve([]) } },
+      ],
+    });
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/backlog');
+    await settle();
+    harness.detectChanges();
+
+    const start = (key: string) =>
+      [...(harness.routeNativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(`section[aria-label="${key}"] header button`)]
+        .find(b => b.textContent?.trim() === 'Start sprint')!;
+    expect(start('SPRINT-1').disabled).toBeFalse();
+    expect(start('SPRINT-1').title).toBe('');
+    expect(start('SPRINT-2').disabled).toBeTrue();
+    expect(start('SPRINT-2').title).toContain('Move its start to today to begin it now.');
   });
 });

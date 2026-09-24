@@ -20,21 +20,6 @@
 
 .sprint-form {
   margin-bottom: 1rem;
-
-  .fields {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-
-    .grow {
-      flex: 1;
-      min-width: 12rem;
-    }
-  }
-
-  .row {
-    margin-top: 0.75rem;
-  }
 }
 
 .stats-card,

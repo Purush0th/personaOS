@@ -11,19 +11,12 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 
-import { BoardColumn, BoardService, apiError } from '../core/board.service';
+import { BoardColumn, BoardService, COLUMN_LABELS, apiError } from '../core/board.service';
 import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
 import { Goal, GoalTaskSummary, GoalsService } from '../core/goals.service';
 import { GoalPeriod, defaultGoalEnd, formatGoalRange, goalDays, goalPeriodProblem } from '../core/goal-period';
 import { todayLocal } from '../core/local-date';
-
-const COLUMN_LABELS: Record<BoardColumn, string> = {
-  backlog: 'Backlog',
-  todo: 'This week',
-  in_progress: 'In progress',
-  done: 'Done',
-};
 
 @Component({
   selector: 'app-goals',

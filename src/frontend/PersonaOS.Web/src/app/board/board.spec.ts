@@ -140,7 +140,7 @@ describe('Board', () => {
     await drag(card('TASK-1'), x, y, false);
 
     expect(column('in_progress').classList).toContain('drop-target');
-    expect(column('in_progress').querySelector('header')!.textContent).toContain('This week');
+    expect(column('in_progress').querySelector('header')!.textContent).toContain('To do');
     expect(column('in_progress').querySelector('header')!.textContent).toContain('In progress');
     expect(column('todo').querySelector('.move-hint')?.textContent).toContain('Move to');
     expect(column('todo').querySelector('.cdk-drag-placeholder')).not.toBeNull();

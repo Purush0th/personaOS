@@ -161,7 +161,7 @@ export const PRIORITY_ICONS: Record<Priority, string> = {
 
 export const COLUMN_LABELS: Record<BoardColumn, string> = {
   backlog: 'Backlog',
-  todo: 'This week',
+  todo: 'To do',
   in_progress: 'In progress',
   done: 'Done',
 };
@@ -187,13 +187,15 @@ export class BoardService {
     return firstValueFrom(this.http.get<SprintDetail>(`/api/board/sprints/${key}`));
   }
 
-  createSprint(sprint: { name?: string | null; startsAtLocal?: string | null; endsAtLocal?: string | null }): Promise<Sprint> {
+  /** `startsOn` is a day (2026-09-27); the server adds the start time and works out the end. */
+  createSprint(sprint: { name?: string | null; startsOn?: string | null }): Promise<Sprint> {
     return firstValueFrom(this.http.post<Sprint>('/api/board/sprints', sprint));
   }
 
+  /** A new `startsOn` moves the end to the first Sunday after it, as on creation. */
   updateSprint(
     key: string,
-    changes: { name?: string | null; clearName?: boolean; startsAtLocal?: string; endsAtLocal?: string }
+    changes: { name?: string | null; clearName?: boolean; startsOn?: string }
   ): Promise<Sprint> {
     return firstValueFrom(this.http.put<Sprint>(`/api/board/sprints/${key}`, changes));
   }
@@ -337,8 +339,29 @@ export function formatDay(value: string): string {
 }
 
 /** `yyyy-MM-ddTHH:mm` in local time, for the datetime-local inputs the sprint form uses. */
-export function toLocalInput(value: string): string {
-  const d = parseUtc(value);
+/** A day as the API takes it: 2026-09-27, in the user's own calendar. */
+export function toDateOnly(day: Date): string {
   const pad = (n: number) => `${n}`.padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+}
+
+/** The local day, at midnight, that a UTC timestamp from the API falls on. */
+export function localDay(value: string): Date {
+  const d = parseUtc(value);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/**
+ * When a sprint starting on `startsOn` closes: the first Sunday after it, at 18:00. A sprint
+ * starting on a Sunday runs a full week. The server's rule (SprintCalendar.CloseAfterStart),
+ * repeated here only to show the end before the form is saved.
+ */
+export function sprintEndFor(startsOn: Date): Date {
+  const daysToSunday = 7 - startsOn.getDay(); // Sunday is 0, so a Sunday start gets 7
+  return new Date(startsOn.getFullYear(), startsOn.getMonth(), startsOn.getDate() + daysToSunday, 18, 0);
+}
+
+/** Whether a planned sprint's first day has come; the server refuses to start it before then. */
+export function sprintDayHasCome(sprint: Sprint, now = new Date()): boolean {
+  return localDay(sprint.startsAtUtc) <= new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }

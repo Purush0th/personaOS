@@ -61,7 +61,7 @@ comments and attachments, and "story points" are called **value points**.
 The top navigation has one **Board** entry. Inside it a **Sprint | Backlog** switch moves between
 the two views, at `/board` and `/board/backlog`.
 
-**Sprint** is the sprint that is running, and nothing else: **This week | In progress | Done**.
+**Sprint** is the sprint that is running, and nothing else: **To do | In progress | Done**.
 
 - **In progress** — more than 3 tasks here shows a soft warning (a WIP limit is the single most
   useful Kanban habit for one person; it is a hint, never a block).
@@ -138,7 +138,7 @@ points-remaining chart; there is nothing more elaborate than that.
 
 - The planner stays the **daily** list; the board is the **weekly** list. Reminders stay
   separate and unchanged.
-- When adding to a day, the user can **pick a task from the current sprint** (This week or In
+- When adding to a day, the user can **pick a task from the current sprint** (To do or In
   progress) or type a free-form item as today. A planner item linked to a task shows its key,
   and its goal chip when the task has a goal.
 - Marking a planner item done does not move the task to Done: a day's work often does not
