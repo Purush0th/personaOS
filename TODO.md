@@ -1154,3 +1154,11 @@ real Anthropic key).
       uses plain signals and an effect, not `resource()`: resource's code sits in @angular/core's
       shared chunk, and using it here moved 6 kB into every page's first download. Specs:
       `reports.spec.ts`, `work-item-table.spec.ts`, `breakdown-bar.spec.ts` (web: 64 tests).
+- [x] **Burndown inside Reports** (web, 2026-09-25; owner: include it above the task details and drop
+      the separate Burndown link). The chart moved out of the sprint page into
+      `board/burndown-chart.ts`, used by both. It now stretches to its container at a fixed height:
+      only the line is SVG (percent coordinates, `vector-effect: non-scaling-stroke`), and the dots
+      and labels are HTML at the same percentages, so text stays at reading size at 390px and at
+      1440px (the old scaled SVG blew its labels up on a wide screen and shrank them on a phone).
+      With fewer than two days of data it says the line starts after a day. Spec:
+      `burndown-chart.spec.ts`, plus a Reports check that it sits right above Task details.

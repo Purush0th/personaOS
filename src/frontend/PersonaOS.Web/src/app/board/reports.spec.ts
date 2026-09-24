@@ -37,7 +37,11 @@ const details: Record<string, SprintDetail> = {
   'SPRINT-3': {
     sprint: report.sprints[0],
     tasks: [task(1, 'todo', 'high', 'SPRINT-3'), task(2, 'in_progress', 'medium', 'SPRINT-3'), task(3, 'done', 'medium', 'SPRINT-3')],
-    burndown: [], velocity: 7.5,
+    burndown: [
+      { date: '2026-09-23', remainingPoints: 6, completedPoints: 0 },
+      { date: '2026-09-24', remainingPoints: 3, completedPoints: 3 },
+    ],
+    velocity: 7.5,
   },
   'SPRINT-1': {
     sprint: report.sprints[2],
@@ -127,6 +131,15 @@ describe('Reports', () => {
     expect(TestBed.inject(Router).url).toBe('/board/reports?sprint=SPRINT-1');
     expect(keys(page)).toEqual(['TASK-7']);
     expect(search.value).toBe('');
+  });
+
+  it('shows the burndown above the task details, in place of a link to it', async () => {
+    const page = await render('/board/reports');
+    const headings = [...page.querySelectorAll('.panel h3')].map(h => text(h));
+
+    expect(headings.indexOf('Points remaining')).toBe(headings.indexOf('Task details') - 1);
+    expect(page.querySelectorAll('app-burndown-chart .dot').length).toBe(2);
+    expect(page.querySelector('a[href^="/board/sprints/"]')).toBeNull();
   });
 
   it('counts the tasks by status and by priority', async () => {
