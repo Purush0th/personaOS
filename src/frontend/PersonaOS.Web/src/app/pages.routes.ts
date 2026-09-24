@@ -43,6 +43,11 @@ export const PAGE_ROUTES: Routes = [
       },
       { path: 'backlog', pathMatch: 'full', redirectTo: 'board/backlog' },
       {
+        path: 'board/reports',
+        canActivate: [authGuard],
+        loadComponent: () => import('./board/reports').then(m => m.Reports),
+      },
+      {
         path: 'board/tasks/:key',
         canActivate: [authGuard],
         loadComponent: () => import('./board/task-detail').then(m => m.TaskDetail),

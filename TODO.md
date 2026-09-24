@@ -1119,3 +1119,26 @@ real Anthropic key).
       `CreateTaskRequest` gained an optional `Column` (in progress/done only in a running sprint).
       The card menu shows on hover. `board.spec.ts` drives real CDK drags; synthetic mouse events
       need `detail: 1` (CDK ignores screen-reader clicks) and `view: window` (or pageY skips scroll).
+- [x] **Board and backlog look like Jira, not like a form** (web, 2026-09-24). Measured on the owner's
+      Jira (14px text, 280px lanes 12px apart on a surface darker than the page, raised cards with a
+      shadow and no outline, 40px list rows, grey/blue/green status lozenges, compact buttons) and
+      matched: `--work-lane/--work-item/--work-item-shadow` and `--status-*` tokens per scheme in
+      `styles.scss`, `.lozenge` for statuses and per-status point totals, a quiet `.create-trigger`,
+      and 32px square-cornered buttons scoped to `app-board, app-backlog`. The board's sprint card is
+      now one line; the backlog shows a status lozenge (a menu that moves the task, only To do before
+      a sprint starts), priority as its icon, and Create sprint in the backlog section. Board and
+      backlog share `shared/inline-create.ts` (Enter creates and stays open; the title is read from
+      the field because ngModel cannot see '' -> '' after a create). The task dialog drops the card
+      outlines in its main column (`TaskDetail` gets `.embedded`) and uses 12px corners. Specs:
+      `inline-create.spec.ts`, `backlog.spec.ts`. Checked by headless-Chrome screenshots at 1440 and
+      390px in both schemes, since the Browser pane and Chrome tab did not paint in the background.
+- [x] **Board gets a Reports tab** (web, 2026-09-24; owner, pointing at the "Sprint view" button:
+      "Reports"). The board's views are now tabs as in Jira, Sprint | Backlog | Reports, in one shared
+      frame (`board/board-tabs.ts`: title, tabs, a `boardActions` slot, and the page inside the
+      mat-tab-nav-panel Material requires). `/board/reports` (`board/reports.ts`) uses the report API
+      the web app never called: a velocity chart of commitment (grey) against completed (green) per
+      started sprint, oldest first, each bar linking to that sprint's burndown page; the average
+      velocity (last three finished sprints) or a note that none has finished; and a table of every
+      started sprint. The board's "Sprint view" button is gone; the sprint page's crumbs link to
+      Reports. `.empty-state` moved to `styles.scss` (board and reports share it). Spec:
+      `reports.spec.ts`, plus a check that an open task (`?task=`) keeps the Sprint tab lit.

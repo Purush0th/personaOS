@@ -146,3 +146,11 @@ h2 {
 .danger {
   color: var(--mat-sys-error);
 }
+
+// In the task dialog the main column reads as Jira's does: plain sections rather than a stack of
+// outlined cards. The Details panel keeps its outline, which sets it apart as the side panel.
+:host(.embedded) .main {
+  --mat-card-outlined-outline-color: transparent;
+  --mat-card-outlined-container-color: transparent;
+  gap: 0;
+}

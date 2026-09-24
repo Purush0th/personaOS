@@ -50,6 +50,7 @@ import { Discussion } from '../shared/discussion';
   templateUrl: './task-detail.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './item-page.scss',
+  host: { '[class.embedded]': 'embedded()' },
 })
 export class TaskDetail implements OnInit {
   private readonly api = inject(BoardService);

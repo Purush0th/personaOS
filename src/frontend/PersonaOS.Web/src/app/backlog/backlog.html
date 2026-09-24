@@ -1,17 +1,4 @@
-<header class="page-head">
-  <h1>Board</h1>
-  <nav mat-tab-nav-bar [tabPanel]="panel" class="views">
-    <a mat-tab-link routerLink="/board" [active]="false">Sprint</a>
-    <a mat-tab-link routerLink="/board/backlog" [active]="true">Backlog</a>
-  </nav>
-  <span class="spacer"></span>
-  <button mat-flat-button (click)="newSprint()">
-    <mat-icon>add</mat-icon>
-    Create sprint
-  </button>
-</header>
-
-<mat-tab-nav-panel #panel>
+<app-board-tabs>
   @if (editingSprint(); as editing) {
     <mat-card class="sprint-form" appearance="outlined">
       <mat-card-content>
@@ -46,172 +33,179 @@
   } @else if (plan(); as plan) {
     <div cdkDropListGroup>
       @for (group of groups(); track groupId(group)) {
-        <mat-card class="group" appearance="outlined" [class.backlog]="!group.sprint">
-          <mat-card-content>
-            <header>
-              <button
-                mat-icon-button
-                class="twisty"
-                [attr.aria-expanded]="!isCollapsed(group)"
-                [attr.aria-label]="isCollapsed(group) ? 'Expand' : 'Collapse'"
-                (click)="toggle(group)"
-              >
-                <mat-icon>{{ isCollapsed(group) ? 'chevron_right' : 'expand_more' }}</mat-icon>
-              </button>
+        <section class="group" [attr.aria-label]="title(group)">
+          <header>
+            <button
+              mat-icon-button
+              class="twisty"
+              [attr.aria-expanded]="!isCollapsed(group)"
+              [attr.aria-label]="isCollapsed(group) ? 'Expand' : 'Collapse'"
+              (click)="toggle(group)"
+            >
+              <mat-icon>{{ isCollapsed(group) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+            </button>
 
-              @if (group.sprint) {
-                <a class="name" [routerLink]="['/board/sprints', group.sprint.key]">{{ title(group) }}</a>
-                <mat-chip-set>
-                  <mat-chip disableRipple [highlighted]="group.sprint.status === 'active'">
-                    {{ group.sprint.status === 'active' ? 'running' : 'planned' }}
-                  </mat-chip>
-                </mat-chip-set>
-                <span class="muted small dates">
-                  {{ when(group.sprint.startsAtUtc) }} – {{ when(group.sprint.endsAtUtc) }}
-                </span>
-              } @else {
-                <span class="name">Backlog</span>
-              }
+            @if (group.sprint; as sprint) {
+              <a class="name" [routerLink]="['/board/sprints', sprint.key]">{{ title(group) }}</a>
+              <span class="muted dates">{{ when(sprint.startsAtUtc) }} – {{ when(sprint.endsAtUtc) }}</span>
+            } @else {
+              <span class="name">Backlog</span>
+            }
+            <span class="muted">({{ group.tasks.length }} {{ group.tasks.length === 1 ? 'task' : 'tasks' }})</span>
 
-              <span class="spacer"></span>
-              <!-- Count and actions wrap as one unit, so a narrow window never strands the menu
-                   button on a line of its own. -->
-              <span class="side">
-                <span class="muted small count">
-                  {{ group.tasks.length }} {{ group.tasks.length === 1 ? 'issue' : 'issues' }} ·
-                  {{ points(group.tasks) }} pts
-                </span>
-
-                @if (group.sprint; as sprint) {
-                  @if (canStart(sprint)) {
-                    <button mat-flat-button (click)="startSprint(sprint)">Start sprint</button>
+            <span class="spacer"></span>
+            <!-- Totals and actions wrap as one unit, so a narrow window never strands the menu
+                 button on a line of its own. -->
+            <span class="side">
+              <span class="totals">
+                @if (group.sprint) {
+                  @for (s of statusPoints(group.tasks); track s.column) {
+                    <span class="lozenge s-{{ s.column }}" [title]="columnLabels[s.column] + ': ' + s.points + ' points'">
+                      {{ s.points }}
+                    </span>
                   }
-                  @if (sprint.status === 'active') {
-                    <button mat-flat-button (click)="completeSprint(sprint)">Complete sprint</button>
-                  }
-                  <button mat-icon-button [matMenuTriggerFor]="sprintMenu" [attr.aria-label]="'Actions for ' + sprint.key">
-                    <mat-icon>more_vert</mat-icon>
-                  </button>
-                  <mat-menu #sprintMenu="matMenu">
-                    <button mat-menu-item (click)="editSprint(sprint)">
-                      <mat-icon>edit</mat-icon>
-                      Edit dates and name
-                    </button>
-                    <button mat-menu-item (click)="deleteSprint(sprint)">
-                      <mat-icon class="danger">delete</mat-icon>
-                      Delete sprint
-                    </button>
-                  </mat-menu>
+                } @else {
+                  <span class="lozenge" title="Points in the backlog">{{ points(group.tasks) }}</span>
                 }
               </span>
-            </header>
 
-            @if (!isCollapsed(group)) {
-              <div
-                class="rows"
-                cdkDropList
-                [cdkDropListData]="group"
-                (cdkDropListDropped)="onDrop($event)"
-              >
-                @for (task of group.tasks; track task.key) {
-                  <div class="row" cdkDrag [cdkDragData]="task">
-                    <a class="key" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
-                    <a class="title" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.title }}</a>
+              @if (group.sprint; as sprint) {
+                @if (canStart(sprint)) {
+                  <button mat-stroked-button (click)="startSprint(sprint)">Start sprint</button>
+                }
+                @if (sprint.status === 'active') {
+                  <button mat-stroked-button (click)="completeSprint(sprint)">Complete sprint</button>
+                }
+                <button mat-icon-button [matMenuTriggerFor]="sprintMenu" [attr.aria-label]="'Actions for ' + sprint.key">
+                  <mat-icon>more_horiz</mat-icon>
+                </button>
+                <mat-menu #sprintMenu="matMenu">
+                  <button mat-menu-item (click)="editSprint(sprint)">
+                    <mat-icon>edit</mat-icon>
+                    Edit dates and name
+                  </button>
+                  <button mat-menu-item (click)="deleteSprint(sprint)">
+                    <mat-icon class="danger">delete</mat-icon>
+                    Delete sprint
+                  </button>
+                </mat-menu>
+              } @else {
+                <button mat-stroked-button (click)="newSprint()">Create sprint</button>
+              }
+            </span>
+          </header>
 
-                    @if (task.goalKey) {
-                      <span class="goal-chip" [style.--hue]="hue(task.goalKey)" [title]="task.goalKey">
-                        {{ task.goalTitle }}
-                      </span>
-                    }
-                    @if (task.carryOverCount > 0) {
-                      <span class="flag" title="Carried over from an earlier sprint">
-                        <mat-icon inline>replay</mat-icon>{{ task.carryOverCount }}
-                      </span>
-                    }
-                    @if (task.commentCount > 0) {
-                      <span class="flag"><mat-icon inline>comment</mat-icon>{{ task.commentCount }}</span>
-                    }
-                    @if (task.attachmentCount > 0) {
-                      <span class="flag"><mat-icon inline>attach_file</mat-icon>{{ task.attachmentCount }}</span>
-                    }
+          @if (!isCollapsed(group)) {
+            <div
+              class="rows"
+              cdkDropList
+              [cdkDropListData]="group"
+              (cdkDropListDropped)="onDrop($event)"
+            >
+              @for (task of group.tasks; track task.key) {
+                <div class="row" cdkDrag [cdkDragData]="task">
+                  <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
+                  <a class="key" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
+                  <a class="title" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.title }}</a>
 
-                    <span class="spacer"></span>
-                    <!-- Everything in the backlog group is in the backlog; the column only says
-                         something inside a sprint. -->
-                    @if (group.sprint) {
-                      <span class="status muted small">{{ columnLabels[task.column] }}</span>
-                    }
+                  @if (task.goalKey) {
+                    <span class="goal-chip" [style.--hue]="hue(task.goalKey)" [title]="task.goalKey">
+                      {{ task.goalTitle }}
+                    </span>
+                  }
+                  @if (task.carryOverCount > 0) {
+                    <span class="flag" title="Carried over from an earlier sprint">
+                      <mat-icon inline>replay</mat-icon>{{ task.carryOverCount }}
+                    </span>
+                  }
+                  @if (task.commentCount > 0) {
+                    <span class="flag"><mat-icon inline>comment</mat-icon>{{ task.commentCount }}</span>
+                  }
+                  @if (task.attachmentCount > 0) {
+                    <span class="flag"><mat-icon inline>attach_file</mat-icon>{{ task.attachmentCount }}</span>
+                  }
 
-                    <!-- Priority and points are values you glance at and occasionally change, so
-                         they read as compact chips that open a menu, not as form fields. -->
-                    <button
-                      mat-button
-                      class="priority p-{{ task.priority }}"
-                      [matMenuTriggerFor]="priorityMenu"
-                      [matMenuTriggerData]="{ task }"
-                      [attr.aria-label]="'Priority of ' + task.key + ': ' + priorityLabels[task.priority]"
-                    >
-                      <mat-icon>{{ priorityIcons[task.priority] }}</mat-icon>
-                      {{ priorityLabels[task.priority] }}
-                    </button>
+                  <span class="spacer"></span>
+                  <!-- Status only means something inside a sprint; in the backlog every task is
+                       simply in the backlog. -->
+                  @if (group.sprint; as sprint) {
                     <button
                       type="button"
-                      class="points-pill"
-                      [class.none]="task.points === null"
-                      [matMenuTriggerFor]="pointsMenu"
-                      [matMenuTriggerData]="{ task }"
-                      [attr.aria-label]="'Value points of ' + task.key + ': ' + (task.points ?? 'not set')"
+                      class="lozenge s-{{ task.column }} status"
+                      [matMenuTriggerFor]="statusMenu"
+                      [matMenuTriggerData]="{ task, sprint }"
+                      [attr.aria-label]="'Status of ' + task.key + ': ' + columnLabels[task.column]"
                     >
-                      {{ task.points ?? '?' }}
+                      {{ columnLabels[task.column] }}
+                      <mat-icon>expand_more</mat-icon>
                     </button>
-
-                    <button mat-icon-button [matMenuTriggerFor]="moveMenu" [attr.aria-label]="'Move ' + task.key">
-                      <mat-icon>more_vert</mat-icon>
-                    </button>
-                    <mat-menu #moveMenu="matMenu">
-                      @for (target of moveTargets(task); track target.id) {
-                        <button mat-menu-item (click)="moveToGroup(task, target.id)">{{ target.title }}</button>
-                      }
-                    </mat-menu>
-                  </div>
-                } @empty {
-                  <p class="empty muted small">
-                    {{ group.sprint ? 'Drag work in from the backlog, or add it here.' : 'Nothing in the backlog.' }}
-                  </p>
-                }
-              </div>
-
-              @if (addingTo() === groupId(group)) {
-                <form class="add" (ngSubmit)="add(group)">
-                  <mat-form-field class="grow">
-                    <mat-label>What needs doing?</mat-label>
-                    <input matInput name="title" [(ngModel)]="draftTitle" autofocus />
-                  </mat-form-field>
-                  <mat-form-field class="points">
-                    <mat-label>Points</mat-label>
-                    <mat-select name="points" [(ngModel)]="draftPoints">
-                      <mat-option [value]="null">?</mat-option>
-                      @for (p of plan.allowedPoints; track p) {
-                        <mat-option [value]="p">{{ p }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <button mat-flat-button type="submit">Add</button>
-                  <button mat-button type="button" (click)="addingTo.set(null)">Cancel</button>
-                </form>
-              } @else {
-                <button mat-button class="add-button" (click)="startAdd(group)">
-                  <mat-icon>add</mat-icon>
-                  Create issue
-                </button>
+                  }
+                  <button
+                    type="button"
+                    class="points-pill"
+                    [class.none]="task.points === null"
+                    [matMenuTriggerFor]="pointsMenu"
+                    [matMenuTriggerData]="{ task }"
+                    [attr.aria-label]="'Value points of ' + task.key + ': ' + (task.points ?? 'not set')"
+                  >
+                    {{ task.points ?? '?' }}
+                  </button>
+                  <!-- Priority reads as its icon alone, as in Jira; the label is on hover. -->
+                  <button
+                    mat-icon-button
+                    class="priority p-{{ task.priority }}"
+                    [matMenuTriggerFor]="priorityMenu"
+                    [matMenuTriggerData]="{ task }"
+                    [title]="priorityLabels[task.priority] + ' priority'"
+                    [attr.aria-label]="'Priority of ' + task.key + ': ' + priorityLabels[task.priority]"
+                  >
+                    <mat-icon>{{ priorityIcons[task.priority] }}</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    class="more"
+                    [matMenuTriggerFor]="moveMenu"
+                    [matMenuTriggerData]="{ task }"
+                    [attr.aria-label]="'Move ' + task.key"
+                  >
+                    <mat-icon>more_horiz</mat-icon>
+                  </button>
+                </div>
+              } @empty {
+                <p class="empty">
+                  {{ group.sprint ? 'Plan this sprint by dragging tasks into it, or create them here.' : 'Your backlog is empty.' }}
+                </p>
               }
+            </div>
+
+            @if (addingTo() === groupId(group)) {
+              <app-inline-create
+                layout="row"
+                [allowedPoints]="plan.allowedPoints"
+                [save]="createTask"
+                (cancelled)="addingTo.set(null)"
+              />
+            } @else {
+              <button mat-button class="create-trigger" (click)="addingTo.set(groupId(group))">
+                <mat-icon>add</mat-icon>
+                Create
+              </button>
             }
-          </mat-card-content>
-        </mat-card>
+          }
+        </section>
       }
     </div>
 
-    <!-- One priority menu and one points menu for every row; the row passes itself in. -->
+    <!-- One menu of each kind for every row; the row passes itself in. -->
+    <mat-menu #statusMenu="matMenu">
+      <ng-template matMenuContent let-task="task" let-sprint="sprint">
+        @for (c of statusOptions(sprint); track c) {
+          <button mat-menu-item (click)="setColumn(task, c)">
+            <span class="lozenge s-{{ c }}">{{ columnLabels[c] }}</span>
+          </button>
+        }
+      </ng-template>
+    </mat-menu>
     <mat-menu #priorityMenu="matMenu">
       <ng-template matMenuContent let-task="task">
         @for (p of plan.priorities; track p) {
@@ -230,5 +224,19 @@
         }
       </ng-template>
     </mat-menu>
+    <mat-menu #moveMenu="matMenu">
+      <ng-template matMenuContent let-task="task">
+        <a mat-menu-item [routerLink]="['/board/tasks', task.key]">
+          <mat-icon>open_in_full</mat-icon>
+          Open as a full page
+        </a>
+        @for (target of moveTargets(task); track target.id) {
+          <button mat-menu-item (click)="moveToGroup(task, target.id)">
+            <mat-icon>arrow_forward</mat-icon>
+            Move to {{ target.title }}
+          </button>
+        }
+      </ng-template>
+    </mat-menu>
   }
-</mat-tab-nav-panel>
+</app-board-tabs>
