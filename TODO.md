@@ -1162,3 +1162,30 @@ real Anthropic key).
       1440px (the old scaled SVG blew its labels up on a wide screen and shrank them on a phone).
       With fewer than two days of data it says the line starts after a day. Spec:
       `burndown-chart.spec.ts`, plus a Reports check that it sits right above Task details.
+- [x] **The chart is called Burndown** (web, 2026-09-25; owner: "Points remaining" means nothing for a
+      finished sprint). Heading "Burndown" on Reports and the sprint page; the chart carries the
+      caption "Points left at the end of each day", which reads right for a running sprint and a
+      finished one, and its screen-reader label starts "Burndown:".
+- [x] **Sprint dates: pick a start day, the end follows; no starting a sprint before its day**
+      (2026-09-25; owner started SPRINT-2 on Friday although it starts Sunday, and could not edit the
+      dates in the form). Server: `CreateSprintRequest`/`UpdateSprintRequest` take `StartsOn` (a day;
+      the rhythm's 20:00 is added), and a new start moves the end to `SprintCalendar.CloseAfterStart`
+      unless an end is given (the assistant's tools still can). `StartSprintAsync` refuses before
+      the sprint's first local day ("SPRINT-2 starts on Sun, Sep 27. Move its start to today to begin
+      it now."); on that day any hour works, so the Sunday 18:00-20:00 planning window can start it.
+      Web: one `board/sprint-form.ts` for the backlog (new, edit) and the sprint page (edit) - name,
+      a native date field (opens the calendar on click; Material hides the browser's icon, so the
+      form has its own), and the end shown read-only as it changes. Material's datepicker was tried
+      and dropped: it put 5.5 kB into every page's first download. Start sprint is greyed out with a
+      reason until the day comes (`sprintDayHasCome`). Specs: 4 backend (500 total), web
+      `sprint-form.spec.ts`, `core/sprint-dates.spec.ts`, a backlog Start check (79 total).
+      Live note: SPRINT-2 was already started early and keeps its dates; moving its start to Sep 25
+      now would also move its end to Sun Sep 27, per the rule.
+- [x] **Statuses read Backlog, To do, In progress, Done** (2026-09-25; owner: "This week" should be
+      "To do" once a task is in a sprint). The `todo` column is labelled "To do" everywhere: web
+      `COLUMN_LABELS` (goals.ts had its own copy of the labels; it uses the shared one now), mobile
+      `BoardColumns.label`, the assistant's board prompt and get_board/move_task descriptions, the
+      morning brief ("From the sprint:"), and docs/sprint-board.md. Backlog rows show a plain grey
+      "Backlog" lozenge (a sprint row's lozenge stays the menu that moves the task). The API values
+      (`backlog`, `todo`, `in_progress`, `done`) are unchanged. The phone shows the new label from the
+      next APK.

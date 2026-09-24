@@ -14,7 +14,7 @@ class BoardColumns {
 
   static String label(String column) => switch (column) {
         backlog => 'Backlog',
-        todo => 'This week',
+        todo => 'To do',
         inProgress => 'In progress',
         done => 'Done',
         _ => column,

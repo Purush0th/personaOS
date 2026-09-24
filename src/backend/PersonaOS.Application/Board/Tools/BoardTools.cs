@@ -41,7 +41,7 @@ public class GetBoardTool(IBoardService board, IGoalService goals) : BoardToolBa
     public override bool Mutates => false;
     public override string Description =>
         "Shows the sprint board: the running sprint (key like SPRINT-2, name, dates, committed / " +
-        "completed / added points, whether scope is locked), recent velocity, and its This week " +
+        "completed / added points, whether scope is locked), recent velocity, and its To do " +
         "(todo), In progress and Done columns. Tasks have keys like TASK-7, value points " +
         "(null = unestimated) and a priority. Use get_plan for the backlog and the sprints to come.";
     public override string InputSchemaJson => """{ "type": "object", "properties": {} }""";
@@ -183,7 +183,7 @@ public class MoveTaskTool(IBoardService board, IGoalService goals) : BoardToolBa
 {
     public override string Name => "move_task";
     public override string Description =>
-        "Moves a task to a board column: \"backlog\", \"todo\" (This week), \"in_progress\" or \"done\". " +
+        "Moves a task to a board column: \"backlog\", \"todo\" (To do), \"in_progress\" or \"done\". " +
         "sprintKey moves it into another sprint, e.g. from SPRINT-1 to SPRINT-2; omit it to keep the " +
         "task where it is. Moving work into or out of a sprint that has started is a scope change and " +
         "shows in the sprint report.";

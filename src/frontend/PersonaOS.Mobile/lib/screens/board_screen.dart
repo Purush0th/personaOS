@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 
-/// The sprint board: This week, In progress and Done for the sprint that is running.
+/// The sprint board: To do, In progress and Done for the sprint that is running.
 ///
 /// The backlog and the sprints to come live on the web app's Backlog page; the phone is for
 /// working the current week. A phone cannot show three columns side by side, so columns are pages

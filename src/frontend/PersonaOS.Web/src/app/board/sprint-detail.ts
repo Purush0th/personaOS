@@ -1,28 +1,27 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Confirm } from '../core/confirm';
 import { BurndownChart } from './burndown-chart';
+import { SprintForm } from './sprint-form';
 
 import {
   BoardColumn,
   BoardService,
   BoardTask,
   COLUMN_LABELS,
+  Sprint,
   SprintDetail as SprintDetailView,
   apiError,
   formatWhen,
   goalHue,
-  toLocalInput,
+  sprintDayHasCome,
 } from '../core/board.service';
 
 /** One sprint, full screen, at /board/sprints/SPRINT-2: how it went and what was in it. */
@@ -30,16 +29,14 @@ import {
   selector: 'app-sprint-detail',
   imports: [
     BurndownChart,
-    FormsModule,
     RouterLink,
     MatButtonModule,
     MatCardModule,
     MatChipsModule,
-    MatFormFieldModule,
     MatIconModule,
-    MatInputModule,
     MatListModule,
     MatProgressBarModule,
+    SprintForm,
   ],
   templateUrl: './sprint-detail.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -53,10 +50,6 @@ export class SprintDetail implements OnInit {
   protected readonly detail = signal<SprintDetailView | null>(null);
   protected readonly loading = signal(true);
   protected readonly editing = signal(false);
-
-  name = '';
-  start = '';
-  end = '';
 
   protected readonly key = signal('');
   protected readonly columnLabels = COLUMN_LABELS;
@@ -78,24 +71,23 @@ export class SprintDetail implements OnInit {
   }
 
   protected startEdit(): void {
-    const sprint = this.detail()?.sprint;
-    if (!sprint) return;
-    this.name = sprint.name ?? '';
-    this.start = toLocalInput(sprint.startsAtUtc);
-    this.end = toLocalInput(sprint.endsAtUtc);
     this.editing.set(true);
   }
 
-  protected async save(): Promise<void> {
-    await this.change(() =>
-      this.api.updateSprint(this.key(), {
-        name: this.name.trim() || null,
-        clearName: !this.name.trim(),
-        startsAtLocal: this.start || undefined,
-        endsAtLocal: this.end || undefined,
-      })
-    );
+  protected async sprintSaved(): Promise<void> {
     this.editing.set(false);
+    await this.reload();
+  }
+
+  protected dayHasCome(sprint: Sprint): boolean {
+    return sprintDayHasCome(sprint);
+  }
+
+  /** Why Start is greyed out before a sprint's first day; nothing once it can start. */
+  protected startHint(sprint: Sprint): string {
+    return this.dayHasCome(sprint)
+      ? ''
+      : `Starts ${formatWhen(sprint.startsAtUtc)}. Move its start to today to begin it now.`;
   }
 
   protected async start_(): Promise<void> {

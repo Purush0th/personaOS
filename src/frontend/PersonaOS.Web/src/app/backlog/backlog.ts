@@ -1,11 +1,7 @@
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
@@ -13,6 +9,7 @@ import { RouterLink } from '@angular/router';
 import { Confirm } from '../core/confirm';
 import { DRAG_DEFAULTS } from '../core/drag-defaults';
 import { BoardTabs } from '../board/board-tabs';
+import { SprintForm } from '../board/sprint-form';
 import { openTaskFromQuery } from '../board/task-dialog';
 import { InlineCreate, NewTask } from '../shared/inline-create';
 
@@ -30,7 +27,7 @@ import {
   apiError,
   formatWhen,
   goalHue,
-  toLocalInput,
+  sprintDayHasCome,
   withScopeConfirmation,
 } from '../core/board.service';
 import { Goal, GoalsService } from '../core/goals.service';
@@ -50,18 +47,15 @@ interface Group {
 @Component({
   selector: 'app-backlog',
   imports: [
-    FormsModule,
     RouterLink,
     BoardTabs,
     DragDropModule,
     InlineCreate,
     MatButtonModule,
-    MatCardModule,
-    MatFormFieldModule,
     MatIconModule,
-    MatInputModule,
     MatMenuModule,
     MatProgressBarModule,
+    SprintForm,
   ],
   providers: [DRAG_DEFAULTS],
   templateUrl: './backlog.html',
@@ -81,11 +75,8 @@ export class Backlog implements OnInit {
   /** The section whose Create is open: "backlog" or a sprint key. */
   protected readonly addingTo = signal<string | null>(null);
 
-  /** The sprint being created or edited, as form fields. */
+  /** The sprint being created or edited in the sprint form. */
   protected readonly editingSprint = signal<Sprint | 'new' | null>(null);
-  sprintName = '';
-  sprintStart = '';
-  sprintEnd = '';
 
 
   protected readonly priorityLabels = PRIORITY_LABELS;
@@ -170,39 +161,15 @@ export class Backlog implements OnInit {
 
   protected newSprint(): void {
     this.editingSprint.set('new');
-    this.sprintName = '';
-    this.sprintStart = '';
-    this.sprintEnd = '';
   }
 
   protected editSprint(sprint: Sprint): void {
     this.editingSprint.set(sprint);
-    this.sprintName = sprint.name ?? '';
-    this.sprintStart = toLocalInput(sprint.startsAtUtc);
-    this.sprintEnd = toLocalInput(sprint.endsAtUtc);
   }
 
-  protected async saveSprint(): Promise<void> {
-    const editing = this.editingSprint();
-    if (!editing) return;
-
-    const saved = await this.run(
-      () =>
-        editing === 'new'
-          ? this.api.createSprint({
-              name: this.sprintName.trim() || null,
-              startsAtLocal: this.sprintStart || null,
-              endsAtLocal: this.sprintEnd || null,
-            })
-          : this.api.updateSprint(editing.key, {
-              name: this.sprintName.trim() || null,
-              clearName: !this.sprintName.trim(),
-              startsAtLocal: this.sprintStart || undefined,
-              endsAtLocal: this.sprintEnd || undefined,
-            }),
-      'Could not save that sprint.'
-    );
-    if (saved) this.editingSprint.set(null);
+  protected async sprintSaved(): Promise<void> {
+    this.editingSprint.set(null);
+    await this.reload();
   }
 
   protected async startSprint(sprint: Sprint): Promise<void> {
@@ -315,6 +282,17 @@ export class Backlog implements OnInit {
 
   protected when(value: string): string {
     return formatWhen(value);
+  }
+
+  protected dayHasCome(sprint: Sprint): boolean {
+    return sprintDayHasCome(sprint);
+  }
+
+  /** Why Start is greyed out before a sprint's first day; nothing once it can start. */
+  protected startHint(sprint: Sprint): string {
+    return this.dayHasCome(sprint)
+      ? ''
+      : `Starts ${formatWhen(sprint.startsAtUtc)}. Move its start to today to begin it now.`;
   }
 
   protected canStart(sprint: Sprint): boolean {

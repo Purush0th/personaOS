@@ -1,0 +1,65 @@
+:host {
+  display: block;
+  padding: 1rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--work-lane);
+}
+
+h2 {
+  font: var(--mat-sys-title-medium);
+  margin: 0 0 0.75rem;
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+
+  .name {
+    flex: 1 1 14rem;
+  }
+
+  .start {
+    flex: 0 1 12rem;
+  }
+
+  // The start field opens the calendar on a click, so it reads as a control, not as text. The
+  // browser's own calendar icon is hidden so the form's icon button is the only one.
+  .start input {
+    cursor: pointer;
+  }
+
+  .start input::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+}
+
+// What the start implies, set as read-only text rather than a field that cannot be typed in.
+.end {
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+
+  .label {
+    font: var(--mat-sys-label-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .value {
+    font: var(--mat-sys-body-medium);
+  }
+}
+
+.hint {
+  margin: 0.5rem 0 0;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}

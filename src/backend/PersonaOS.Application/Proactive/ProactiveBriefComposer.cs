@@ -98,7 +98,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
             if (sprintTasks.Count > 0)
             {
                 hasContent = true;
-                sb.Append("\n\nTime to plan your day. From this week's sprint:");
+                sb.Append("\n\nTime to plan your day. From the sprint:");
                 foreach (var task in sprintTasks.Take(5))
                 {
                     sb.Append("\n• ").Append(ItemKeys.Task(task.Number)).Append(' ').Append(task.Title);

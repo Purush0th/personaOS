@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Common;
@@ -161,7 +162,7 @@ public class BoardService(
 
         // The first sprint starts now and runs to the coming Sunday; later ones take the next free
         // week in the Sunday 20:00 → Sunday 18:00 rhythm. All of it is editable afterwards.
-        var startLocal = request.StartsAtLocal
+        var startLocal = RequestedStart(request.StartsOn, request.StartsAtLocal)
             ?? (lastEnd is DateTime end ? SprintCalendar.StartAfterClose(UserClock.ToLocal(end, zone)) : LocalNow(config));
         var endLocal = request.EndsAtLocal ?? SprintCalendar.CloseAfterStart(startLocal);
         if (endLocal <= startLocal)
@@ -192,8 +193,16 @@ public class BoardService(
         if (request.ClearName) sprint.Name = null;
         else if (request.Name is not null) sprint.Name = NormalizeText(request.Name);
 
-        if (request.StartsAtLocal is DateTime start) sprint.StartsAtUtc = UserClock.ToUtc(start, config.TimeZone);
-        if (request.EndsAtLocal is DateTime end) sprint.EndsAtUtc = UserClock.ToUtc(end, config.TimeZone);
+        if (RequestedStart(request.StartsOn, request.StartsAtLocal) is DateTime start)
+        {
+            sprint.StartsAtUtc = UserClock.ToUtc(start, config.TimeZone);
+            // The end follows the start, as on creation, unless the caller names one.
+            sprint.EndsAtUtc = UserClock.ToUtc(request.EndsAtLocal ?? SprintCalendar.CloseAfterStart(start), config.TimeZone);
+        }
+        else if (request.EndsAtLocal is DateTime end)
+        {
+            sprint.EndsAtUtc = UserClock.ToUtc(end, config.TimeZone);
+        }
         if (sprint.EndsAtUtc <= sprint.StartsAtUtc)
             throw new BoardValidationException("A sprint must end after it starts.");
 
@@ -213,6 +222,17 @@ public class BoardService(
         {
             throw new BoardValidationException(
                 $"{ItemKeys.Sprint(running.Number)} is still running. Complete it before starting another.");
+        }
+
+        // A sprint for a later week waits for its week. On its first day it can start at any hour,
+        // so the Sunday planning window (18:00-20:00) can start the next sprint early.
+        var config = await configService.GetOrCreateAsync(ct);
+        var startsOn = DateOnly.FromDateTime(UserClock.ToLocal(sprint.StartsAtUtc, config.TimeZone));
+        if (DateOnly.FromDateTime(LocalNow(config)) < startsOn)
+        {
+            throw new BoardValidationException(
+                $"{ItemKeys.Sprint(sprint.Number)} starts on {startsOn.ToString("ddd, MMM d", CultureInfo.InvariantCulture)}. " +
+                "Move its start to today to begin it now.");
         }
 
         var tasks = await db.BoardTasks.Where(t => t.SprintId == id).ToListAsync(ct);
@@ -630,6 +650,10 @@ public class BoardService(
             .ToListAsync(ct);
         return recent.Count == 0 ? null : Math.Round(recent.Average(), 1);
     }
+
+    /// <summary>A requested start: a day takes the rhythm's start time; otherwise the exact time given.</summary>
+    private static DateTime? RequestedStart(DateOnly? startsOn, DateTime? startsAtLocal) =>
+        startsOn?.ToDateTime(SprintCalendar.StartTime) ?? startsAtLocal;
 
     /// <summary>
     /// The status a new task starts in. Work outside a running sprint can only be to do, the same
