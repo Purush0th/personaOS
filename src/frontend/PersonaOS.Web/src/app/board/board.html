@@ -48,14 +48,30 @@
         </mat-card-content>
       </mat-card>
 
-      <!-- CDK drag and drop, not the HTML5 kind: it works with touch, which is what made the
-           board unusable in a phone browser. -->
-      <div class="columns" cdkDropListGroup>
+      <!-- CDK drag and drop, not the HTML5 kind: it works with touch. Each column is its own drop
+           list; moving between columns goes through the drop zones in board.ts (onDragMoved). -->
+      <div class="columns">
         @for (column of columns(); track column.id) {
-          <section class="column" [attr.aria-label]="column.title">
+          <section
+            class="column"
+            [attr.data-column]="column.id"
+            [attr.aria-label]="column.title"
+            [class.drop-target]="dropTarget() === column"
+            [class.drag-source]="dragging()?.column === column.id"
+          >
             <header>
-              <span class="name">{{ column.title }}</span>
-              <span class="count muted small">{{ column.tasks.length }} · {{ columnPoints(column) }} pts</span>
+              @if (dropTarget() === column && dragging(); as moving) {
+                <span class="transition" aria-live="polite">
+                  <span class="lozenge">{{ columnTitle(moving.column) }}</span>
+                  <mat-icon inline>arrow_forward</mat-icon>
+                  <span class="lozenge to">{{ column.title }}</span>
+                </span>
+              } @else if (dragging()?.column === column.id) {
+                <span class="move-hint">Move to…</span>
+              } @else {
+                <span class="name">{{ column.title }}</span>
+                <span class="count muted small">{{ column.tasks.length }} · {{ columnPoints(column) }} pts</span>
+              }
             </header>
             @if (overWip(column)) {
               <p class="wip">More than {{ b.wipLimit }} in progress. Finishing beats starting.</p>
@@ -68,22 +84,34 @@
               (cdkDropListDropped)="onDrop($event)"
             >
               @for (task of column.tasks; track task.key) {
-                <mat-card class="task" appearance="outlined" cdkDrag [cdkDragData]="task">
-                  <div class="drag-handle" cdkDragHandle aria-label="Drag to move">
-                    <mat-icon>drag_indicator</mat-icon>
-                  </div>
-                  <a class="open" [routerLink]="['/board/tasks', task.key]">
-                    <span class="top">
-                      <span class="key">{{ task.key }}</span>
-                      <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
-                    </span>
-                    <span class="title">{{ task.title }}</span>
-                  </a>
+                <mat-card
+                  class="task"
+                  appearance="outlined"
+                  cdkDrag
+                  [cdkDragData]="task"
+                  (cdkDragStarted)="dragging.set(task)"
+                  (cdkDragMoved)="onDragMoved($event)"
+                >
+                  <!-- The link covers the whole card, so a click anywhere opens the task. -->
+                  <a
+                    class="open"
+                    [routerLink]="[]"
+                    [queryParams]="{ task: task.key }"
+                    queryParamsHandling="merge"
+                  >{{ task.title }}</a>
+                  <button
+                    mat-icon-button
+                    class="more"
+                    [matMenuTriggerFor]="cardMenu"
+                    [matMenuTriggerData]="{ task }"
+                    [attr.aria-label]="'Actions for ' + task.key"
+                  >
+                    <mat-icon>more_horiz</mat-icon>
+                  </button>
                   <div class="meta">
+                    <span class="key">{{ task.key }}</span>
                     @if (task.goalKey) {
-                      <span class="goal-chip" [style.--hue]="hue(task.goalKey)" [title]="task.goalKey + ' ' + task.goalTitle">
-                        {{ task.goalTitle }}
-                      </span>
+                      <span class="goal-chip" [style.--hue]="hue(task.goalKey)">{{ task.goalTitle }}</span>
                     }
                     @if (task.carryOverCount > 0) {
                       <span class="flag" [title]="'Carried over ' + task.carryOverCount + ' times'">
@@ -100,18 +128,7 @@
                       <span class="flag"><mat-icon inline>attach_file</mat-icon>{{ task.attachmentCount }}</span>
                     }
                     <span class="spacer"></span>
-                    <button
-                      mat-icon-button
-                      [matMenuTriggerFor]="moveMenu"
-                      [attr.aria-label]="'Move ' + task.key"
-                    >
-                      <mat-icon>more_vert</mat-icon>
-                    </button>
-                    <mat-menu #moveMenu="matMenu">
-                      @for (target of moveTargets(task); track target.id) {
-                        <button mat-menu-item (click)="moveTo(task, target.id)">{{ target.title }}</button>
-                      }
-                    </mat-menu>
+                    <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '?' }}</span>
                   </div>
                 </mat-card>
               } @empty {
@@ -119,37 +136,64 @@
               }
             </div>
 
-            @if (column.id === 'todo') {
-              @if (addingTo() === column.id) {
-                <form class="add" (ngSubmit)="add()">
-                  <mat-form-field>
-                    <mat-label>Task title</mat-label>
-                    <input matInput name="title" [(ngModel)]="draftTitle" autofocus />
-                  </mat-form-field>
-                  <div class="add-row">
-                    <mat-form-field class="points">
-                      <mat-label>Points</mat-label>
-                      <mat-select name="points" [(ngModel)]="draftPoints">
-                        <mat-option [value]="null">?</mat-option>
-                        @for (p of b.allowedPoints; track p) {
-                          <mat-option [value]="p">{{ p }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
-                    <button mat-flat-button type="submit">Add</button>
-                    <button mat-button type="button" (click)="addingTo.set(null)">Cancel</button>
-                  </div>
-                </form>
-              } @else {
-                <button mat-button class="add-button" (click)="startAdd(column.id)">
-                  <mat-icon>add</mat-icon>
-                  Add task
-                </button>
-              }
+            @if (addingTo() === column.id) {
+              <mat-card class="draft" appearance="outlined">
+                <textarea
+                  #draftField
+                  name="title"
+                  rows="2"
+                  placeholder="What needs to be done?"
+                  aria-label="New task title"
+                  (input)="draftTitle.set(draftField.value)"
+                  (keydown)="onDraftKey($event, column.id)"
+                ></textarea>
+                <div class="draft-row">
+                  <button
+                    type="button"
+                    class="points-pill"
+                    [class.none]="draftPoints === null"
+                    [matMenuTriggerFor]="draftPointsMenu"
+                    aria-label="Points"
+                  >{{ draftPoints ?? '?' }}</button>
+                  <span class="spacer"></span>
+                  <button mat-button type="button" (click)="addingTo.set(null)">Cancel</button>
+                  <button mat-flat-button type="button" [disabled]="!draftTitle().trim()" (click)="add(column.id)">
+                    Create
+                  </button>
+                </div>
+              </mat-card>
+            } @else {
+              <button mat-button class="add-button" (click)="startAdd(column.id)">
+                <mat-icon>add</mat-icon>
+                Create
+              </button>
             }
           </section>
         }
       </div>
+
+      <!-- One card menu and one points menu for the whole board; the trigger passes the task in. -->
+      <mat-menu #cardMenu="matMenu">
+        <ng-template matMenuContent let-task="task">
+          <a mat-menu-item [routerLink]="['/board/tasks', task.key]">
+            <mat-icon>open_in_full</mat-icon>
+            Open as a full page
+          </a>
+          @for (target of moveTargets(task); track target.id) {
+            <button mat-menu-item (click)="moveTo(task, target.id)">
+              <mat-icon>arrow_forward</mat-icon>
+              Move to {{ target.title }}
+            </button>
+          }
+        </ng-template>
+      </mat-menu>
+
+      <mat-menu #draftPointsMenu="matMenu">
+        <button mat-menu-item (click)="draftPoints = null">Not estimated</button>
+        @for (p of b.allowedPoints; track p) {
+          <button mat-menu-item (click)="draftPoints = p">{{ p }}</button>
+        }
+      </mat-menu>
     } @else {
       <mat-card class="banner" appearance="outlined">
         <mat-card-content>

@@ -1,13 +1,15 @@
 @if (loading()) {
   <mat-progress-bar mode="indeterminate" />
 } @else if (task(); as task) {
-  <nav class="crumbs muted small">
-    <a routerLink="/board">Board</a> ·
-    <a routerLink="/board/backlog">Backlog</a>
-    @if (task.sprintKey) {
-      · <a [routerLink]="['/board/sprints', task.sprintKey]">{{ task.sprintKey }}</a>
-    }
-  </nav>
+  @if (!embedded()) {
+    <nav class="crumbs muted small">
+      <a routerLink="/board">Board</a> ·
+      <a routerLink="/board/backlog">Backlog</a>
+      @if (task.sprintKey) {
+        · <a [routerLink]="['/board/sprints', task.sprintKey]">{{ task.sprintKey }}</a>
+      }
+    </nav>
+  }
 
   <header class="item-head">
     <span class="key">{{ task.key }}</span>

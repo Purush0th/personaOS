@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -28,7 +28,10 @@ import { Goal, GoalsService } from '../core/goals.service';
 import { Confirm } from '../core/confirm';
 import { Discussion } from '../shared/discussion';
 
-/** One task, full screen, at /board/tasks/TASK-7 — the link you can paste anywhere. */
+/**
+ * One task: full screen at /board/tasks/TASK-7, the link you can paste anywhere, or embedded in
+ * the dialog the board and backlog open over themselves (see task-dialog.ts).
+ */
 @Component({
   selector: 'app-task-detail',
   imports: [
@@ -56,6 +59,12 @@ export class TaskDetail implements OnInit {
   private readonly branding = inject(BrandingService);
   private readonly confirm = inject(Confirm);
 
+  /** The task to show when embedded; the full page reads it from the route instead. */
+  readonly taskKey = input<string>();
+  /** Embedded in a dialog: no crumbs, and a delete is reported instead of navigating away. */
+  readonly embedded = input(false);
+  readonly deleted = output<void>();
+
   protected readonly task = signal<BoardTask | null>(null);
   protected readonly plan = signal<PlanView | null>(null);
   protected readonly goals = signal<Goal[]>([]);
@@ -71,7 +80,7 @@ export class TaskDetail implements OnInit {
   protected readonly columnLabels = COLUMN_LABELS;
 
   async ngOnInit(): Promise<void> {
-    this.key.set(this.route.snapshot.paramMap.get('key') ?? '');
+    this.key.set(this.taskKey() ?? this.route.snapshot.paramMap.get('key') ?? '');
     await Promise.all([this.reload(), this.loadContext()]);
   }
 
@@ -173,7 +182,8 @@ export class TaskDetail implements OnInit {
 
     try {
       await this.api.delete(task.key);
-      await this.router.navigate(['/board/backlog']);
+      if (this.embedded()) this.deleted.emit();
+      else await this.router.navigate(['/board/backlog']);
     } catch (e: unknown) {
       this.confirm.error(apiError(e).message ?? 'Could not delete that task.');
     }

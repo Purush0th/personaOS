@@ -66,17 +66,58 @@
 .column {
   background: var(--mat-sys-surface-container-low);
   border-radius: var(--mat-sys-corner-large);
+  outline: 2px solid transparent;
   padding: 0.6rem;
+  transition: background-color 120ms, outline-color 120ms;
 
   > header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
+    min-height: 2rem;
     padding: 0 0.25rem 0.5rem;
 
     .name {
       font: var(--mat-sys-title-small);
+    }
+  }
+
+  // While a card is dragged out of this column: the header says where it can go.
+  &.drag-source .move-hint {
+    flex: 1;
+    text-align: center;
+    padding: 0.3rem;
+    border: 2px solid var(--mat-sys-primary);
+    border-radius: var(--mat-sys-corner-small);
+    font: var(--mat-sys-label-large);
+    color: var(--mat-sys-primary);
+  }
+
+  // The column the dragged card would move to: the whole column is the drop zone.
+  &.drop-target {
+    background: color-mix(in srgb, var(--mat-sys-primary) 16%, var(--mat-sys-surface-container-low));
+    outline-color: var(--mat-sys-primary);
+
+    .transition {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      color: var(--mat-sys-on-surface);
+    }
+
+    .lozenge {
+      padding: 0.1rem 0.45rem;
+      border-radius: var(--mat-sys-corner-extra-small);
+      background: var(--mat-sys-surface-container-highest);
+      font: var(--mat-sys-label-medium);
+
+      &.to {
+        background: var(--mat-sys-primary-container);
+        color: var(--mat-sys-on-primary-container);
+      }
     }
   }
 
@@ -103,65 +144,64 @@
 
   .add-button {
     margin-top: 0.5rem;
-  }
-
-  .add {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-
-    .add-row {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .points {
-      width: 6.5rem;
-    }
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 
 .task {
   position: relative;
-  padding: 0.55rem 0.6rem 0.4rem 1.4rem;
+  padding: 0.6rem 0.6rem 0.45rem;
+  // The whole card drags (see DRAG_DEFAULTS) and a plain click opens it.
+  cursor: grab;
 
-  // The handle is a visible grip: dragging anywhere on the card would fight with the link.
-  .drag-handle {
-    position: absolute;
-    left: 0.1rem;
-    top: 0.45rem;
-    color: var(--mat-sys-outline);
-    cursor: grab;
-    touch-action: none;
+  &:hover {
+    background: var(--mat-sys-surface-container-high);
   }
 
+  // The title is the card's link, stretched over the whole card; the menu button sits above it.
   .open {
     display: block;
+    padding-right: 1.75rem;
     color: inherit;
     text-decoration: none;
+    overflow-wrap: anywhere;
+    cursor: inherit;
 
-    .top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
     }
 
-    .key {
-      font: var(--mat-sys-label-small);
-      color: var(--mat-sys-on-surface-variant);
-    }
+    &:focus-visible {
+      outline: none;
 
-    .title {
-      display: block;
-      margin-top: 0.15rem;
+      &::after {
+        outline: 2px solid var(--mat-sys-primary);
+        outline-offset: 2px;
+      }
     }
+  }
 
-    &:hover .title {
-      text-decoration: underline;
+  // Shows on hover or focus, as in Jira; always there where nothing hovers (touch screens).
+  .more {
+    position: absolute;
+    top: 0.1rem;
+    right: 0.1rem;
+    z-index: 1;
+    opacity: 0;
+
+    @media (hover: none) {
+      opacity: 1;
     }
+  }
+
+  &:hover .more,
+  &:focus-within .more,
+  .more[aria-expanded='true'] {
+    opacity: 1;
   }
 
   .meta {
@@ -169,7 +209,12 @@
     align-items: center;
     gap: 0.35rem;
     flex-wrap: wrap;
-    margin-top: 0.35rem;
+    margin-top: 0.4rem;
+
+    .key {
+      font: var(--mat-sys-label-small);
+      color: var(--mat-sys-on-surface-variant);
+    }
 
     .spacer {
       flex: 1;
@@ -189,10 +234,38 @@
   }
 }
 
-// While a card is in the air, and the gap it will drop into.
+// Jira's inline create: a card you type the title into.
+.draft {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  outline: 2px solid var(--mat-sys-primary);
+
+  textarea {
+    width: 100%;
+    resize: none;
+    border: none;
+    outline: none;
+    background: none;
+    color: inherit;
+    font: var(--mat-sys-body-medium);
+  }
+
+  .draft-row {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+
+    .spacer {
+      flex: 1;
+    }
+  }
+}
+
+// While a card is in the air, and the faded card it left behind.
 .cdk-drag-preview {
   box-shadow: var(--mat-sys-level3);
   border-radius: var(--mat-sys-corner-medium);
+  cursor: grabbing;
 }
 
 .cdk-drag-placeholder {
@@ -206,4 +279,3 @@
 .banner {
   margin-top: 1rem;
 }
-

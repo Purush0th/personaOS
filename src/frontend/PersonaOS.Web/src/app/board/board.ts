@@ -1,19 +1,28 @@
-import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
-import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { CdkDragDrop, CdkDragMove, DragDropModule } from '@angular/cdk/drag-drop';
+import { DOCUMENT } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  OnInit,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 
 import { Confirm } from '../core/confirm';
+import { DRAG_DEFAULTS } from '../core/drag-defaults';
 
 import {
   BoardColumn,
@@ -27,6 +36,7 @@ import {
   goalHue,
   withScopeConfirmation,
 } from '../core/board.service';
+import { openTaskFromQuery } from './task-dialog';
 
 interface ColumnDef {
   id: BoardColumn;
@@ -37,24 +47,26 @@ interface ColumnDef {
 /**
  * The board is the running sprint and nothing else: This week, In progress, Done. The backlog and
  * the sprints to come live in the board's other view, so this one stays what you look at daily.
+ *
+ * It behaves like the owner's Jira board. A card drags from anywhere on it; within its column it
+ * reorders, and over another column that whole column lights up as the drop zone while the card
+ * stays, faded, where it was. A click opens the task in a dialog over the board, and every column
+ * has its own Create.
  */
 @Component({
   selector: 'app-board',
   imports: [
-    FormsModule,
     RouterLink,
     DragDropModule,
     MatButtonModule,
     MatCardModule,
     MatChipsModule,
-    MatFormFieldModule,
     MatIconModule,
-    MatInputModule,
     MatMenuModule,
     MatProgressBarModule,
-    MatSelectModule,
     MatTabsModule,
   ],
+  providers: [DRAG_DEFAULTS],
   templateUrl: './board.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './board.scss',
@@ -62,15 +74,25 @@ interface ColumnDef {
 export class Board implements OnInit {
   private readonly api = inject(BoardService);
   private readonly confirm = inject(Confirm);
+  private readonly document = inject(DOCUMENT);
+  private readonly injector = inject(Injector);
 
   protected readonly board = signal<BoardView | null>(null);
   protected readonly loading = signal(true);
 
-  /** Column being added to, with the draft's title. */
+  /**
+   * Column being added to, with the draft's title and points. The title is a signal written from
+   * the field, not an ngModel: clearing it after a create is '' to '' as far as ngModel can tell,
+   * so the field would keep the old text.
+   */
   protected readonly addingTo = signal<BoardColumn | null>(null);
-  draftTitle = '';
+  protected readonly draftTitle = signal('');
   draftPoints: number | null = null;
+  private readonly draftField = viewChild<ElementRef<HTMLTextAreaElement>>('draftField');
 
+  /** The card in the air, and the other column it would move to if dropped now. */
+  protected readonly dragging = signal<BoardTask | null>(null);
+  protected readonly dropTarget = signal<ColumnDef | null>(null);
 
   protected readonly columns = computed<ColumnDef[]>(() => {
     const b = this.board();
@@ -81,6 +103,10 @@ export class Board implements OnInit {
       { id: 'done', title: COLUMN_LABELS.done, tasks: b.done },
     ];
   });
+
+  constructor() {
+    openTaskFromQuery(() => void this.reload());
+  }
 
   async ngOnInit(): Promise<void> {
     await this.reload();
@@ -121,26 +147,43 @@ export class Board implements OnInit {
 
   protected startAdd(column: BoardColumn): void {
     this.addingTo.set(column);
-    this.draftTitle = '';
-    this.draftPoints = null;
+    this.clearDraft();
   }
 
-  protected async add(): Promise<void> {
+  /** Enter creates; Shift+Enter is left alone, and Esc gives up. */
+  protected onDraftKey(event: KeyboardEvent, column: BoardColumn): void {
+    if (event.key === 'Escape') {
+      this.addingTo.set(null);
+    } else if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      void this.add(column);
+    }
+  }
+
+  /** Creates the draft in that column and, like Jira, leaves the field open for the next one. */
+  protected async add(column: BoardColumn): Promise<void> {
     const sprint = this.board()?.sprint;
-    const title = this.draftTitle.trim();
+    const title = this.draftTitle().trim();
     if (!sprint || !title) return;
 
+    const draft = { title, points: this.draftPoints, sprintKey: sprint.key, column };
     const created = await this.run(
-      () =>
-        withScopeConfirmation(ack =>
-          this.api.create({ title, points: this.draftPoints, sprintKey: sprint.key }, ack)
-        ),
+      () => withScopeConfirmation(ack => this.api.create(draft, ack)),
       'Could not add that task.'
     );
-    if (created) {
-      this.draftTitle = '';
-      this.draftPoints = null;
-    }
+    if (created) this.clearDraft();
+  }
+
+  /** Empties the draft and puts the cursor back in it, once the field is on screen. */
+  private clearDraft(): void {
+    this.draftTitle.set('');
+    this.draftPoints = null;
+    afterNextRender(() => {
+      const field = this.draftField()?.nativeElement;
+      if (!field) return;
+      field.value = '';
+      field.focus();
+    }, { injector: this.injector });
   }
 
   // ------------------------------------------------------------------ moving
@@ -154,23 +197,41 @@ export class Board implements OnInit {
   }
 
   /**
-   * A card was dropped. CDK gives the column it landed in and where, which is all the server
-   * needs; the previous hand-rolled HTML5 drag did the same but never fired on a touchscreen.
+   * Tracks which other column the pointer is over. The columns are not connected drop lists, so
+   * the card's placeholder stays in its own column (faded, as Jira shows it) instead of jumping
+   * into whichever column it passes.
    */
-  protected async onDrop(event: CdkDragDrop<ColumnDef>): Promise<void> {
-    const task = event.item.data as BoardTask;
-    const target = event.container.data;
-    const movedWithin = event.previousContainer === event.container;
-    if (movedWithin && event.previousIndex === event.currentIndex) return;
+  protected onDragMoved(event: CdkDragMove<BoardTask>): void {
+    const { x, y } = event.pointerPosition;
+    const id = this.document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-column]')?.dataset['column'];
+    const target = id && id !== event.source.data.column
+      ? this.columns().find(c => c.id === id) ?? null
+      : null;
+    if (target !== this.dropTarget()) this.dropTarget.set(target);
+  }
 
-    // The server places the task among the column's other tasks, so count without it.
-    const others = target.tasks.filter(t => t.key !== task.key);
-    const index = Math.min(event.currentIndex, others.length);
+  /**
+   * A card was let go. Over another column it moves there, to the end, the way Jira moves an issue
+   * dropped on a column; within its own column it takes the place it was dropped in.
+   */
+  protected async onDrop(event: CdkDragDrop<ColumnDef, ColumnDef, BoardTask>): Promise<void> {
+    const task = event.item.data;
+    const target = this.dropTarget();
+    this.dragging.set(null);
+    this.dropTarget.set(null);
 
-    await this.moveTo(task, target.id, index);
+    if (target) {
+      await this.moveTo(task, target.id);
+    } else if (event.isPointerOverContainer && event.previousIndex !== event.currentIndex) {
+      await this.moveTo(task, task.column, event.currentIndex);
+    }
   }
 
   // ------------------------------------------------------------------ display helpers
+
+  protected columnTitle(id: BoardColumn): string {
+    return COLUMN_LABELS[id];
+  }
 
   protected columnPoints(column: ColumnDef): number {
     return column.tasks.reduce((sum, t) => sum + (t.points ?? 0), 0);
@@ -195,7 +256,6 @@ export class Board implements OnInit {
   protected when(value: string): string {
     return formatWhen(value);
   }
-
 
   /**
    * Runs a change and reloads. Resolves to undefined when it failed (the error is shown), and to
