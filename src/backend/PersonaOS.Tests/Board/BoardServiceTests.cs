@@ -185,6 +185,56 @@ public class BoardServiceTests
         Assert.Contains("has not started", ex.Message);
     }
 
+    [Theory]
+    [InlineData(BoardColumns.InProgress)]
+    [InlineData(BoardColumns.Done)]
+    public async Task A_task_can_be_created_straight_into_a_running_sprints_column(string column)
+    {
+        var (rig, sprint, existing) = await RunningSprintAsync();
+
+        var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest(
+            "Already started", SprintKey: sprint.Key, AcknowledgeScopeChange: true, Column: column));
+
+        Assert.Equal(column, task.Column);
+        Assert.True(task.AddedMidSprint);
+        Assert.Equal(column == BoardColumns.Done, task.CompletedAtUtc is not null);
+        var board = await rig.Board.GetBoardAsync();
+        var landed = column == BoardColumns.Done ? board.Done : board.InProgress;
+        Assert.Equal([task.Key], landed.Select(t => t.Key));
+        Assert.Equal([existing.Key], board.Todo.Select(t => t.Key));
+    }
+
+    [Fact]
+    public async Task Creating_without_a_column_still_lands_in_to_do()
+    {
+        var (rig, sprint, _) = await RunningSprintAsync();
+
+        var task = await rig.Board.CreateTaskAsync(
+            new CreateTaskRequest("Next up", SprintKey: sprint.Key, AcknowledgeScopeChange: true));
+
+        Assert.Equal(BoardColumns.Todo, task.Column);
+        Assert.Null(task.CompletedAtUtc);
+    }
+
+    [Fact]
+    public async Task Created_work_is_only_in_progress_inside_a_running_sprint()
+    {
+        var rig = Setup();
+        var planned = await rig.Board.CreateSprintAsync(new CreateSprintRequest(null));
+
+        var inBacklog = await Assert.ThrowsAsync<BoardValidationException>(() =>
+            rig.Board.CreateTaskAsync(new CreateTaskRequest("Loose", Column: BoardColumns.InProgress)));
+        var inPlanned = await Assert.ThrowsAsync<BoardValidationException>(() =>
+            rig.Board.CreateTaskAsync(new CreateTaskRequest("Later", SprintKey: planned.Key, Column: BoardColumns.Done)));
+        var unknown = await Assert.ThrowsAsync<BoardValidationException>(() =>
+            rig.Board.CreateTaskAsync(new CreateTaskRequest("Odd", Column: "blocked")));
+
+        Assert.Contains("in a sprint", inBacklog.Message);
+        Assert.Contains("has not started", inPlanned.Message);
+        Assert.Contains("Column must be one of", unknown.Message);
+        Assert.Empty((await rig.Board.GetPlanAsync()).Backlog);
+    }
+
     [Fact]
     public async Task Completing_a_sprint_freezes_it_and_carries_unfinished_work_to_the_next_one()
     {

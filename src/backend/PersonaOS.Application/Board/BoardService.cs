@@ -324,6 +324,7 @@ public class BoardService(
         var sprint = await FindSprintAsync(request.SprintKey, ct);
         if (sprint?.Status == SprintStatuses.Closed)
             throw new BoardValidationException($"{ItemKeys.Sprint(sprint.Number)} is closed.");
+        var status = CreateStatus(request.Column, sprint);
 
         var addedMidSprint = false;
         if (sprint is not null && IsScopeLocked(sprint))
@@ -346,9 +347,10 @@ public class BoardService(
             Priority = priority,
             GoalId = request.GoalId,
             SprintId = sprint?.Id,
-            Status = BoardTaskStatuses.Todo,
-            SortOrder = await NextSortOrderAsync(sprint?.Id, BoardTaskStatuses.Todo, ct),
+            Status = status,
+            SortOrder = await NextSortOrderAsync(sprint?.Id, status, ct),
             AddedMidSprint = addedMidSprint,
+            CompletedAtUtc = status == BoardTaskStatuses.Done ? UtcNow() : null,
         };
         db.BoardTasks.Add(task);
         await db.SaveChangesAsync(ct);
@@ -627,6 +629,24 @@ public class BoardService(
             .Select(s => s.CompletedPoints ?? 0)
             .ToListAsync(ct);
         return recent.Count == 0 ? null : Math.Round(recent.Average(), 1);
+    }
+
+    /// <summary>
+    /// The status a new task starts in. Work outside a running sprint can only be to do, the same
+    /// rule <see cref="MoveTaskAsync"/> applies.
+    /// </summary>
+    private static string CreateStatus(string? column, Sprint? sprint)
+    {
+        var status = string.IsNullOrWhiteSpace(column) ? BoardTaskStatuses.Todo : column.Trim().ToLowerInvariant();
+        if (!BoardTaskStatuses.All.Contains(status))
+            throw new BoardValidationException($"Column must be one of: {string.Join(", ", BoardTaskStatuses.All)}.");
+        if (status != BoardTaskStatuses.Todo && sprint?.Status != SprintStatuses.Active)
+        {
+            throw new BoardValidationException(sprint is null
+                ? "Only work in a sprint can be in progress or done."
+                : $"{ItemKeys.Sprint(sprint.Number)} has not started yet, so its work cannot be in progress or done.");
+        }
+        return status;
     }
 
     private async Task<int> NextSortOrderAsync(int? sprintId, string status, CancellationToken ct)

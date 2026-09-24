@@ -129,7 +129,12 @@ public record CreateTaskRequest(
     int? GoalId = null,
     /// <summary>Sprint key like "SPRINT-2"; null puts the task in the backlog.</summary>
     string? SprintKey = null,
-    bool AcknowledgeScopeChange = false);
+    bool AcknowledgeScopeChange = false,
+    /// <summary>
+    /// Board column to create it in: todo (the default), in_progress or done. The last two need a
+    /// running sprint, the same rule a move follows.
+    /// </summary>
+    string? Column = null);
 
 /// <summary>Partial update; null fields are left unchanged.</summary>
 public record UpdateTaskRequest(
