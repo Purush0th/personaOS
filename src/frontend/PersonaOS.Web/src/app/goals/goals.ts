@@ -1,17 +1,18 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 
-import { BoardColumn, BoardService, COLUMN_LABELS, apiError } from '../core/board.service';
+import { BoardService, COLUMN_LABELS, apiError, withScopeConfirmation } from '../core/board.service';
+import { openTaskFromQuery } from '../board/task-dialog';
+import { InlineCreate, NewTask } from '../shared/inline-create';
+import { GoalProgress } from './goal-progress';
 import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
 import { Goal, GoalTaskSummary, GoalsService } from '../core/goals.service';
@@ -23,13 +24,13 @@ import { todayLocal } from '../core/local-date';
   imports: [
     FormsModule,
     RouterLink,
+    GoalProgress,
+    InlineCreate,
     MatButtonModule,
-    MatCardModule,
-    MatChipsModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatListModule,
+    MatMenuModule,
     MatProgressBarModule,
     MatSelectModule,
   ],
@@ -48,17 +49,23 @@ export class Goals implements OnInit {
   protected readonly includeDropped = signal(false);
   protected readonly adding = signal(false);
 
-  /** Goal whose inline "add task" form is open. */
+  /** The goal whose Create task is open. */
   protected readonly addingTaskTo = signal<number | null>(null);
 
   draftTitle = '';
   draftPeriod: GoalPeriod = 'month';
   draftStart = todayLocal();
   draftEnd = defaultGoalEnd('month', todayLocal());
-  taskTitle = '';
-  taskPoints: number | null = null;
 
   protected readonly allowedPoints = [1, 2, 3, 5, 8, 13, 21];
+  protected readonly columnLabels = COLUMN_LABELS;
+  protected readonly periodLabels: Record<string, string> = { year: 'Year', quarter: 'Quarter', month: 'Month' };
+  protected readonly statusLabels: Record<string, string> = { active: 'Active', completed: 'Completed', dropped: 'Dropped' };
+
+  constructor() {
+    // A task opened from a goal may have moved or been re-estimated; the goals are read again.
+    openTaskFromQuery(() => void this.reload());
+  }
 
   async ngOnInit(): Promise<void> {
     await this.reload();
@@ -123,24 +130,22 @@ export class Goals implements OnInit {
     }
   }
 
-  protected startAddTask(goal: Goal): void {
-    this.addingTaskTo.set(goal.id);
-    this.taskTitle = '';
-    this.taskPoints = null;
-  }
-
-  /** Tasks added from a goal go to the Backlog; planning pulls them into a sprint. */
-  protected async addTask(goal: Goal): Promise<void> {
-    const title = this.taskTitle.trim();
-    if (!title) return;
+  /**
+   * Creates a task under the goal whose Create task is open; see InlineCreate. It goes to the
+   * backlog, and planning pulls it into a sprint.
+   */
+  protected readonly createTask = async (task: NewTask): Promise<boolean> => {
+    const goalId = this.addingTaskTo();
+    if (goalId === null) return false;
     try {
-      await this.boardApi.create({ title, points: this.taskPoints, goalId: goal.id });
-      this.addingTaskTo.set(null);
+      await withScopeConfirmation(ack => this.boardApi.create({ ...task, goalId }, ack));
       await this.reload();
+      return true;
     } catch (e: unknown) {
       this.confirm.error(apiError(e).message ?? 'Could not add that task.');
+      return false;
     }
-  }
+  };
 
   protected async setStatus(goal: Goal, status: string): Promise<void> {
     try {
@@ -151,9 +156,7 @@ export class Goals implements OnInit {
     }
   }
 
-  protected async setProgress(goal: Goal, value: string): Promise<void> {
-    const progress = Number(value);
-    if (Number.isNaN(progress)) return;
+  protected async setProgress(goal: Goal, progress: number): Promise<void> {
     try {
       await this.goalsApi.updateProgress(goal.id, progress);
       await this.reload();
@@ -185,10 +188,6 @@ export class Goals implements OnInit {
     }
   }
 
-  protected columnLabel(column: BoardColumn): string {
-    return COLUMN_LABELS[column];
-  }
-
   /**
    * Tasks are also managed here, not only on the board: work finished outside a sprint — a
    * completed sub-goal converted to a task — never appears on the board, so this was the only
@@ -206,7 +205,7 @@ export class Goals implements OnInit {
   protected async removeTask(task: GoalTaskSummary): Promise<void> {
     const ok = await this.confirm.ask({
       title: `Delete ${task.key} “${task.title}”?`,
-      message: 'Its number will be reused by the next task.',
+      message: 'This cannot be undone.',
       confirmLabel: 'Delete',
       destructive: true,
     });

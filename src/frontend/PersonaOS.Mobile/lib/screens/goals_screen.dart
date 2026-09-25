@@ -87,28 +87,12 @@ class _GoalsScreenState extends State<GoalsScreen> {
   }
 
   Future<void> _editProgress(Goal goal) async {
-    final controller = TextEditingController(text: goal.progress.toString());
     final value = await showDialog<int>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Set progress'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(suffixText: '%'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, int.tryParse(controller.text.trim())),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      builder: (context) => _ProgressDialog(initial: goal.progress),
     );
-    if (value != null) {
-      await _run(() => widget.api.setGoalProgress(goal.id, value.clamp(0, 100)));
+    if (value != null && value != goal.progress) {
+      await _run(() => widget.api.setGoalProgress(goal.id, value));
     }
   }
 
@@ -313,7 +297,7 @@ class _GoalTile extends StatelessWidget {
         if (goal.status == 'active')
           const PopupMenuItem(value: 'drop', child: Text('Drop'))
         else
-          const PopupMenuItem(value: 'reactivate', child: Text('Reactivate')),
+          const PopupMenuItem(value: 'reactivate', child: Text('Reopen')),
         const PopupMenuItem(value: 'delete', child: Text('Delete')),
       ],
     );
@@ -491,4 +475,43 @@ class _MessageList extends StatelessWidget {
 DateTime _today() {
   final now = DateTime.now();
   return DateTime(now.year, now.month, now.day);
+}
+
+/// Sets a goal's hand-kept progress with a slider in 5% steps, the number shown above it. It
+/// replaced a text field that took typing a number, as the web's progress bar did.
+class _ProgressDialog extends StatefulWidget {
+  const _ProgressDialog({required this.initial});
+
+  final int initial;
+
+  @override
+  State<_ProgressDialog> createState() => _ProgressDialogState();
+}
+
+class _ProgressDialogState extends State<_ProgressDialog> {
+  late double _value = (widget.initial.clamp(0, 100) / 5).round() * 5.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Progress'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('${_value.round()}%', style: Theme.of(context).textTheme.headlineSmall),
+          Slider(
+            value: _value,
+            max: 100,
+            divisions: 20,
+            label: '${_value.round()}%',
+            onChanged: (v) => setState(() => _value = v),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, _value.round()), child: const Text('Save')),
+      ],
+    );
+  }
 }
