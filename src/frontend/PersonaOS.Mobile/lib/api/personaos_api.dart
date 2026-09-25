@@ -102,15 +102,19 @@ class PendingAction {
 /// rather than from anything the model said. Shown under a reply so a claim like
 /// "I set your reminder for 6pm" can be checked against what was stored.
 class ToolReceipt {
-  ToolReceipt({required this.tool, required this.ok, this.summary});
+  ToolReceipt({required this.tool, required this.label, required this.ok, this.summary});
 
   factory ToolReceipt.fromJson(Map<String, dynamic> json) => ToolReceipt(
         tool: json['tool'] as String,
+        label: json['label'] as String? ?? json['tool'] as String,
         ok: json['ok'] as bool? ?? true,
         summary: json['summary'] as String?,
       );
 
   final String tool;
+
+  /// What ran, in the user's words ("Created goal"); the tool name is for the code only.
+  final String label;
   final bool ok;
   final String? summary;
 }

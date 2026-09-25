@@ -43,7 +43,7 @@ public static class ProposedActionSummary
 
     public static string Describe(string toolName, string? inputJson, string? target = null)
     {
-        var action = HumanAction(toolName);
+        var action = ToolLabel.Action(toolName);
 
         JsonElement input;
         try
@@ -107,14 +107,5 @@ public static class ProposedActionSummary
         if (parts.Count > 0) sb.Append(" — ").Append(string.Join(" · ", parts));
 
         return ToolPayloadText.Truncate(sb.ToString(), 500);
-    }
-
-    /// <summary>Tool names are snake_case verbs; "create_goal" reads fine as "Create goal".</summary>
-    private static string HumanAction(string toolName)
-    {
-        var words = toolName.Replace('_', ' ').Trim();
-        if (words.Length == 0) return "Run tool";
-
-        return char.ToUpperInvariant(words[0]) + words[1..];
     }
 }

@@ -13,7 +13,11 @@ namespace PersonaOS.Application.Ai;
 /// "Travel to home — 2026-09-06 18:00". Null when the result has nothing worth showing
 /// (a read that returned a list, say).
 /// </param>
-public record ToolReceipt(string Tool, bool Ok, string? Summary);
+public record ToolReceipt(string Tool, bool Ok, string? Summary)
+{
+    /// <summary>What ran, in the user's words ("Created goal"); worked out, so older stored receipts have it too.</summary>
+    public string Label => ToolLabel.Done(Tool);
+}
 
 /// <summary>
 /// Builds <see cref="ToolReceipt"/>s from raw tool results.

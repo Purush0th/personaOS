@@ -41,9 +41,10 @@ public class GetBoardTool(IBoardService board, IGoalService goals) : BoardToolBa
     public override bool Mutates => false;
     public override string Description =>
         "Shows the sprint board: the running sprint (key like SPRINT-2, name, dates, committed / " +
-        "completed / added points, whether scope is locked), recent velocity, and its To do " +
+        "completed / added points, whether scope is locked), velocity (missing until a sprint has " +
+        "finished), and its To do " +
         "(todo), In progress and Done columns. Tasks have keys like TASK-7, value points " +
-        "(null = unestimated) and a priority. Use get_plan for the backlog and the sprints to come.";
+        "(none = unestimated) and a priority. Use get_plan for the backlog and the sprints to come.";
     public override string InputSchemaJson => """{ "type": "object", "properties": {} }""";
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default) =>
@@ -55,9 +56,9 @@ public class GetPlanTool(IBoardService board, IGoalService goals) : BoardToolBas
     public override string Name => "get_plan";
     public override bool Mutates => false;
     public override string Description =>
-        "Shows the plan: the running sprint, every sprint planned after it, and the backlog " +
-        "underneath — the same view as the Backlog page. Use it when planning a sprint or deciding " +
-        "what to pull in next.";
+        "THE TOOL FOR \"what is in my backlog\" and \"what is planned next\". Shows the backlog " +
+        "(tasks in no sprint), every sprint planned after the running one, and the running sprint - " +
+        "the same view as the Backlog page. Use it when planning a sprint or deciding what to pull in next.";
     public override string InputSchemaJson => """{ "type": "object", "properties": {} }""";
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default) =>
@@ -69,9 +70,11 @@ public class GetSprintReportTool(IBoardService board, IGoalService goals) : Boar
     public override string Name => "get_sprint_report";
     public override bool Mutates => false;
     public override string Description =>
-        "Lists past sprints, newest first, with committed, added, removed, completed and carried-over " +
-        "value points, and the velocity (average completed points of the last three sprints). Use it " +
-        "for a sprint review and to suggest how much to commit to.";
+        "Lists the sprints that have started, newest first; the running one's numbers are so far. Each " +
+        "has committed, added, removed and completed value points, and a finished one its carried-over " +
+        "points. velocity is the average completed points of the last three finished sprints, and is " +
+        "missing until one has finished: then say there is no velocity yet. Use it for a sprint review " +
+        "and to suggest how much to commit to.";
     public override string InputSchemaJson => """
         {
           "type": "object",

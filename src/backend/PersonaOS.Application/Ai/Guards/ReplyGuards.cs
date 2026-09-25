@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using PersonaOS.Application.Common.Interfaces;
@@ -47,6 +48,29 @@ public sealed class LeakedToolCallGuard : IReplyGuard
 }
 
 /// <summary>
+/// Small models tell the user to "call create_goal" or explain which function answered, which
+/// means nothing to them: tool names are internals, and the chat already shows which tools ran.
+/// Any sentence naming one of this turn's tools is dropped. The prompt asks for this too; this is
+/// the backstop for models that do not listen.
+/// </summary>
+public sealed class ToolNameGuard : IReplyGuard
+{
+    public string Name => "tool-name";
+
+    public ValueTask<string?> ReviewAsync(ReplyDraft draft, CancellationToken ct)
+    {
+        if (draft.Turn.ToolNames.Count == 0) return ValueTask.FromResult<string?>(null);
+
+        var names = new Regex(
+            $@"\b({string.Join('|', draft.Turn.ToolNames.Select(Regex.Escape))})\b", RegexOptions.IgnoreCase);
+        if (ReplySentences.Without(draft.Text, names.IsMatch) is not { } text) return ValueTask.FromResult<string?>(null);
+
+        draft.Rewrite(text);
+        return ValueTask.FromResult<string?>("removed a sentence naming a tool");
+    }
+}
+
+/// <summary>
 /// Asked to correct a claim, models answer conversationally, and the user would read "Sure, here is
 /// the corrected message:" above their reply. Only a correction is checked.
 /// </summary>
@@ -84,20 +108,14 @@ public sealed partial class CardInstructionGuard : IReplyGuard
     [GeneratedRegex(@"\b(reply|respond|answer|type|say|write|send)(\s+(with|back))?\s*[""'“‘]?(yes|confirm|ok(ay)?)\b|\(\s*y(es)?\s*/\s*no?\s*\)|\byes\s+or\s+no\b", RegexOptions.IgnoreCase)]
     private static partial Regex AsksForAWord();
 
-    [GeneratedRegex(@"(?<=[.!?])[ \t]+|(?=\n)")]
-    private static partial Regex SentenceBreak();
-
     public string Name => "card-instruction";
 
     public ValueTask<string?> ReviewAsync(ReplyDraft draft, CancellationToken ct)
     {
         if (draft.Turn.Proposals.Count == 0) return ValueTask.FromResult<string?>(null);
 
-        var sentences = SentenceBreak().Split(draft.Text);
-        var kept = sentences.Where(s => !AsksForAWord().IsMatch(s)).ToList();
-        if (kept.Count == sentences.Length) return ValueTask.FromResult<string?>(null);
+        if (ReplySentences.Without(draft.Text, AsksForAWord().IsMatch) is not { } text) return ValueTask.FromResult<string?>(null);
 
-        var text = string.Join(" ", kept.Select(s => s.Trim(' ', '\t')).Where(s => s.Length > 0)).Replace(" \n", "\n").Trim();
         draft.Rewrite(text.Length == 0 ? Pointer : $"{text}\n\n{Pointer}");
         return ValueTask.FromResult<string?>("replaced an instruction to answer the card in words");
     }
@@ -204,5 +222,46 @@ public sealed class EmptyReplyGuard : IReplyGuard
 
         draft.Rewrite(filler);
         return ValueTask.FromResult<string?>($"filled an empty reply after {turn.Receipts.Count} tool results");
+    }
+}
+
+/// <summary>A reply taken apart into sentences, for guards that remove the ones they object to.</summary>
+internal static partial class ReplySentences
+{
+    /// <summary>A sentence ends at ". ", "! " or "? ", and every line starts a new one.</summary>
+    [GeneratedRegex(@"(?<=[.!?])[ \t]+|(?=\n)")]
+    private static partial Regex SentenceBreak();
+
+    [GeneratedRegex(@"\n{3,}")]
+    private static partial Regex ExtraBlankLines();
+
+    /// <summary>
+    /// The reply without the sentences <paramref name="drop"/> matches; null when nothing matched,
+    /// empty when every sentence went. A dropped sentence gives back the line break it started
+    /// with, so the paragraphs around it stay apart instead of running together.
+    /// </summary>
+    public static string? Without(string text, Func<string, bool> drop)
+    {
+        var result = new StringBuilder();
+        var dropped = false;
+        foreach (var sentence in SentenceBreak().Split(text))
+        {
+            string piece;
+            if (drop(sentence))
+            {
+                dropped = true;
+                piece = sentence[..(sentence.Length - sentence.TrimStart('\n').Length)];
+            }
+            else
+            {
+                piece = sentence.Trim(' ', '\t');
+            }
+
+            if (piece.Length == 0) continue;
+            if (result.Length > 0 && result[^1] != '\n' && piece[0] != '\n') result.Append(' ');
+            result.Append(piece);
+        }
+
+        return dropped ? ExtraBlankLines().Replace(result.ToString(), "\n\n").Trim() : null;
     }
 }

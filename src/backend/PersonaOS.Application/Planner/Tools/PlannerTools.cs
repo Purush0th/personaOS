@@ -8,8 +8,6 @@ namespace PersonaOS.Application.Planner.Tools;
 /// <summary>Shared plumbing for the planner tools: JSON options and input helpers.</summary>
 public abstract class PlannerToolBase : IPersonaTool
 {
-    protected static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
-
     public abstract string Name { get; }
     public abstract string Description { get; }
     public abstract string InputSchemaJson { get; }
@@ -85,7 +83,7 @@ public abstract class PlannerToolBase : IPersonaTool
     protected static string RequireString(JsonElement input, string name) =>
         GetString(input, name) ?? throw new PlannerValidationException($"'{name}' is required.");
 
-    protected static string Ok(object payload) => JsonSerializer.Serialize(payload, JsonOpts);
+    protected static string Ok(object payload) => ToolJson.Serialize(payload);
 }
 
 public class GetPlannerTool(IPlannerService planner, IInstanceConfigService configService) : PlannerToolBase
@@ -97,7 +95,8 @@ public class GetPlannerTool(IPlannerService planner, IInstanceConfigService conf
         "Reads the user's daily planner: what they intend to do on a given day. Call it with no " +
         "arguments for today. Pass 'date' for another single day, or 'from'+'to' for a range " +
         "(e.g. a week). Dates are the user's local dates. Each item has a status " +
-        "(planned/done/skipped) and may link to a goal.";
+        "(planned/done/skipped) and may link to a goal. NOT the backlog or the sprint board: for " +
+        "those use get_plan or get_board.";
     public override string InputSchemaJson => """
         {
           "type": "object",

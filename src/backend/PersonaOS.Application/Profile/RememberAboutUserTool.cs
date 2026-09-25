@@ -10,8 +10,6 @@ namespace PersonaOS.Application.Profile;
 /// </summary>
 public class RememberAboutUserTool(IUserProfileService profile) : IPersonaTool
 {
-    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
-
     public string Name => "remember_about_user";
 
     public string Description =>
@@ -39,7 +37,7 @@ public class RememberAboutUserTool(IUserProfileService profile) : IPersonaTool
     public async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var saved = await profile.RememberAsync(Fact(input), ct);
-        return JsonSerializer.Serialize(new { remembered = Fact(input), aboutMe = saved.AboutMe }, JsonOpts);
+        return ToolJson.Serialize(new { remembered = Fact(input), aboutMe = saved.AboutMe });
     }
 
     private static string Fact(JsonElement input) =>

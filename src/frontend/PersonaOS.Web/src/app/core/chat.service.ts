@@ -7,6 +7,8 @@ import { AuthService } from './auth.service';
 /** What a tool actually did in a turn — the app's own record, not the model's claim. */
 export interface ToolReceipt {
   tool: string;
+  /** What ran, in the user's words ("Created goal"); the tool name is for the code only. */
+  label: string;
   ok: boolean;
   summary?: string | null;
 }
@@ -29,6 +31,8 @@ export interface ChatEvent {
   outputTokens?: number;
   error?: string;
   toolName?: string;
+  /** What the running tool is doing, to show: "Reading goals…". */
+  toolLabel?: string;
   actions?: ToolReceipt[];
   pending?: PendingAction[];
   /** True when the reply says a change was made but no tool made one. */

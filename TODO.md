@@ -1197,3 +1197,30 @@ real Anthropic key).
       notes; on the phone the WIP note, the split hint, the velocity line, the delete confirmations
       and the planner tooltip. Confirmations for deletes that cannot be undone keep their warning.
       House style from here: a label names the action in one word where one word is clear.
+- [x] **"What are my goals" answered in 200 words of made-up detail** (backend, 2026-09-25; live
+      qwen2.5:3b-instruct). The reply invented a description for every goal (all three are empty),
+      read out "no comments or attachments", and told the user to "call the create_goal,
+      update_goal_status, or delete_goal functions". Three fixes, none per-reply: (1) every tool
+      writes its result through one `Ai/Tools/ToolJson` (five tool families each had their own
+      copy of the options), which leaves out null fields, empty lists inside an item, zero
+      comment/attachment counts and `sortOrder` (a tool's own top-level list still shows when
+      empty); (2) the prompt asks for short replies, one line per item, never to name a tool, and
+      never to describe a field the tool did not return (identity + tool-rules, full and compact);
+      (3) a `ToolNameGuard` in the reply pipeline drops any sentence naming one of the turn's
+      tools. The sentence helper it shares with `CardInstructionGuard` now keeps paragraph breaks
+      when it drops a sentence (it used to run the paragraphs together). Checked on the same model
+      locally: three runs, one line per goal, no tool names, nothing invented; it still sometimes
+      closes with a question. Tests: `ToolJsonTests`, three `ToolNameGuard` tests (507 total).
+- [x] **Same causes, other places** (2026-09-25; owner: when one bug is reported, check where else it
+      applies). Tool names also reached the user through the chat UI: "Using get_goals…" while a tool
+      ran and `get_goals` in the list of what was done, on web and phone. `Ai/ToolLabel` now words a
+      tool three ways (card "Create goal", running "Reading goals…", done "Created goal"); the stream
+      sends `toolLabel` and every `ToolReceipt` carries `label` (worked out from the name, so receipts
+      stored before this have it too); web and phone show those. The confirmation card's wording
+      moved into the same class. The other read tools were asked their question on the same model:
+      "what is in my backlog" called get_planner, so get_plan now says it is the tool for the backlog
+      and get_planner says it is not; get_board and get_sprint_report said a velocity of 10 with no
+      finished sprint, so both now say velocity is missing until one finishes. Still open, and not a
+      prompt problem: qwen2.5:3b misreads numbers it is given ("10 of 10 points done" with 0 done)
+      and mixes sprint tasks into "the backlog". Re-test on a 7B model once the GPU is in.
+      Tests: `ToolLabelTests` (515 backend total), phone `ToolReceipt` label tests (85).
