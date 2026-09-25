@@ -1224,3 +1224,14 @@ real Anthropic key).
       prompt problem: qwen2.5:3b misreads numbers it is given ("10 of 10 points done" with 0 done)
       and mixes sprint tasks into "the backlog". Re-test on a 7B model once the GPU is in.
       Tests: `ToolLabelTests` (515 backend total), phone `ToolReceipt` label tests (85).
+- [x] **Goals page, and hand-set progress everywhere** (web + phone, 2026-09-25; owner: the goals page
+      is clumsy and the progress box is disliked). The page reads like the backlog: each goal is a
+      lane with key, title, period and status lozenges and dates, its actions (Complete, Drop/Reopen,
+      Delete) in a menu instead of four buttons, its tasks as the backlog's raised rows (now the
+      shared `.work-row` in styles.scss, which the backlog uses too) opening in the task dialog, and
+      "Create task" as the shared inline create. Progress is one `goals/goal-progress.ts`: for a goal
+      kept by hand the bar itself is a slider in 5% steps that saves when let go; with tasks it only
+      reads out ("0 of 8 points · 0 of 2 tasks"). Same cause elsewhere: the goal's own page had the
+      same number field (and a separate bar and line), and the phone's "Set progress…" was a text
+      field in a dialog; both use a slider now, and the goal page's task list and create match the
+      goals page. Specs: `goal-progress.spec.ts` (web 82), phone `goal_progress_test.dart` (87).

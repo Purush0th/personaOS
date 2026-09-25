@@ -11,176 +11,152 @@
   </button>
 </header>
 
-<p class="muted small intro">
-  Goals are your epics. Break one down into tasks with value points
-  @if (boardEnabled()) { and plan them into a sprint on the board}.
-</p>
-
 @if (adding()) {
-  <mat-card class="add-card" appearance="outlined">
-    <mat-card-content>
-      <form (ngSubmit)="add()">
-        <mat-form-field class="grow">
-          <mat-label>What do you want to achieve?</mat-label>
-          <input matInput name="title" [(ngModel)]="draftTitle" autofocus />
-        </mat-form-field>
+  <form class="new-goal" (ngSubmit)="add()">
+    <h2>New goal</h2>
+    <div class="fields">
+      <mat-form-field class="grow">
+        <mat-label>What do you want to achieve?</mat-label>
+        <input matInput name="title" [(ngModel)]="draftTitle" autofocus />
+      </mat-form-field>
 
-        <mat-form-field>
-          <mat-label>Period</mat-label>
-          <mat-select name="period" [(ngModel)]="draftPeriod" (ngModelChange)="resetEnd()">
-            <mat-option value="year">Yearly</mat-option>
-            <mat-option value="quarter">Quarterly</mat-option>
-            <mat-option value="month">Monthly</mat-option>
-          </mat-select>
-        </mat-form-field>
+      <mat-form-field>
+        <mat-label>Period</mat-label>
+        <mat-select name="period" [(ngModel)]="draftPeriod" (ngModelChange)="resetEnd()">
+          <mat-option value="year">Yearly</mat-option>
+          <mat-option value="quarter">Quarterly</mat-option>
+          <mat-option value="month">Monthly</mat-option>
+        </mat-select>
+      </mat-form-field>
 
-        <mat-form-field>
-          <mat-label>Starts</mat-label>
-          <input matInput name="start" type="date" [(ngModel)]="draftStart" (ngModelChange)="resetEnd()" />
-        </mat-form-field>
+      <mat-form-field>
+        <mat-label>Starts</mat-label>
+        <input matInput name="start" type="date" [(ngModel)]="draftStart" (ngModelChange)="resetEnd()" />
+      </mat-form-field>
 
-        <mat-form-field>
-          <mat-label>Ends</mat-label>
-          <!-- A yearly goal always ends on 31 December, so there is nothing to choose. -->
-          <input matInput name="end" type="date" [(ngModel)]="draftEnd" [min]="draftStart"
-                 [readonly]="draftPeriod === 'year'" />
-          @if (draftProblem(); as problem) {
-            <mat-error>{{ problem }}</mat-error>
-          } @else {
-            <mat-hint>{{ draftDays() }} days</mat-hint>
-          }
-        </mat-form-field>
-
-        <div class="form-actions">
-          <button mat-button type="button" (click)="adding.set(false)">Cancel</button>
-          <button mat-flat-button type="submit" [disabled]="!draftTitle.trim() || !!draftProblem()">
-            Add goal
-          </button>
-        </div>
-      </form>
-      @if (draftProblem(); as problem) {
-        <p class="error small problem" role="alert">{{ problem }}</p>
-      }
-    </mat-card-content>
-  </mat-card>
+      <mat-form-field>
+        <mat-label>Ends</mat-label>
+        <!-- A yearly goal always ends on 31 December, so there is nothing to choose. -->
+        <input matInput name="end" type="date" [(ngModel)]="draftEnd" [min]="draftStart"
+               [readonly]="draftPeriod === 'year'" />
+        @if (draftProblem(); as problem) {
+          <mat-error>{{ problem }}</mat-error>
+        } @else {
+          <mat-hint>{{ draftDays() }} days</mat-hint>
+        }
+      </mat-form-field>
+    </div>
+    @if (draftProblem(); as problem) {
+      <p class="error small" role="alert">{{ problem }}</p>
+    }
+    <div class="actions">
+      <button mat-button type="button" (click)="adding.set(false)">Cancel</button>
+      <button mat-flat-button type="submit" [disabled]="!draftTitle.trim() || !!draftProblem()">Add goal</button>
+    </div>
+  </form>
 }
 
 @if (loading()) {
   <mat-progress-bar mode="indeterminate" />
 } @else {
   @for (goal of goals(); track goal.id) {
-    <mat-card class="goal" appearance="outlined" [class.dropped]="goal.status === 'dropped'">
-      <mat-card-content>
-        <div class="head">
-          <a class="key" [routerLink]="['/board/goals', goal.key]">{{ goal.key }}</a>
-          <a class="title" [routerLink]="['/board/goals', goal.key]">{{ goal.title }}</a>
-          <mat-chip-set>
-            <mat-chip disableRipple>{{ goal.periodType }}</mat-chip>
-            @if (overdue(goal)) {
-              <mat-chip disableRipple highlighted class="overdue">overdue</mat-chip>
-            }
-            @if (goal.status !== 'active') {
-              <mat-chip disableRipple>{{ goal.status }}</mat-chip>
-            }
-          </mat-chip-set>
-          <span class="muted small range">{{ range(goal) }}</span>
-        </div>
-
-        <mat-progress-bar mode="determinate" [value]="goal.effectiveProgress" />
-
-        <div class="row">
-          <span class="muted small">{{ goal.effectiveProgress }}%</span>
-
-          @if (goal.taskCount === 0) {
-            <mat-form-field class="progress">
-              <mat-label>Progress</mat-label>
-              <input
-                matInput
-                type="number"
-                min="0"
-                max="100"
-                [value]="goal.progress"
-                (change)="setProgress(goal, $any($event.target).value)"
-              />
-              <span matTextSuffix>%</span>
-            </mat-form-field>
-          } @else {
-            <span class="muted small">
-              {{ goal.donePoints }} of {{ goal.totalPoints }} points ·
-              {{ goal.doneTaskCount }} of {{ goal.taskCount }} tasks done
-            </span>
-          }
-
-          <span class="spacer"></span>
-
+    <section class="goal" [class.dropped]="goal.status === 'dropped'" [attr.aria-label]="goal.key + ' ' + goal.title">
+      <header>
+        <span class="key">{{ goal.key }}</span>
+        <a class="title" [routerLink]="['/board/goals', goal.key]">{{ goal.title }}</a>
+        <span class="lozenge">{{ periodLabels[goal.periodType] }}</span>
+        @if (overdue(goal)) {
+          <span class="lozenge overdue">Overdue</span>
+        }
+        @if (goal.status !== 'active') {
+          <span class="lozenge" [class.s-done]="goal.status === 'completed'">{{ statusLabels[goal.status] }}</span>
+        }
+        <span class="muted range">{{ range(goal) }}</span>
+        <span class="spacer"></span>
+        <button mat-icon-button class="menu" [matMenuTriggerFor]="goalMenu" [attr.aria-label]="'Actions for ' + goal.key">
+          <mat-icon>more_horiz</mat-icon>
+        </button>
+        <mat-menu #goalMenu="matMenu">
           @if (goal.status !== 'completed') {
-            <button mat-button (click)="setStatus(goal, 'completed')">Complete</button>
-          }
-          @if (goal.status === 'active') {
-            <button mat-button (click)="setStatus(goal, 'dropped')">Drop</button>
-          } @else {
-            <button mat-button (click)="setStatus(goal, 'active')">Reactivate</button>
-          }
-          @if (boardEnabled()) {
-            <button mat-button (click)="startAddTask(goal)">
-              <mat-icon>add_task</mat-icon>
-              Task
+            <button mat-menu-item (click)="setStatus(goal, 'completed')">
+              <mat-icon>task_alt</mat-icon>
+              Complete
             </button>
           }
-          <button mat-icon-button [attr.aria-label]="'Delete ' + goal.key" (click)="remove(goal)">
+          @if (goal.status === 'active') {
+            <button mat-menu-item (click)="setStatus(goal, 'dropped')">
+              <mat-icon>do_not_disturb_on</mat-icon>
+              Drop
+            </button>
+          } @else {
+            <button mat-menu-item (click)="setStatus(goal, 'active')">
+              <mat-icon>replay</mat-icon>
+              Reopen
+            </button>
+          }
+          <button mat-menu-item (click)="remove(goal)">
             <mat-icon class="danger">delete</mat-icon>
+            Delete
           </button>
+        </mat-menu>
+      </header>
+
+      <app-goal-progress [goal]="goal" (changed)="setProgress(goal, $event)" />
+
+      @if (goal.tasks.length > 0) {
+        <div class="tasks">
+          @for (task of goal.tasks; track task.id) {
+            <div class="work-row" [class.done]="task.column === 'done'">
+              <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
+              <a class="key" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
+              <a class="title" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.title }}</a>
+              <span class="spacer"></span>
+              @if (task.sprintNumber) {
+                <span class="muted sprint">SPRINT-{{ task.sprintNumber }}</span>
+              }
+              <span class="lozenge s-{{ task.column }}">{{ columnLabels[task.column] }}</span>
+              <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '–' }}</span>
+              <button mat-icon-button class="more" [matMenuTriggerFor]="taskMenu" [matMenuTriggerData]="{ task }"
+                      [attr.aria-label]="'Actions for ' + task.key">
+                <mat-icon>more_horiz</mat-icon>
+              </button>
+            </div>
+          }
         </div>
+      }
 
-        @if (goal.tasks.length > 0) {
-          <mat-list class="tasks">
-            @for (task of goal.tasks; track task.id) {
-              <mat-list-item [class.done]="task.column === 'done'">
-                <a class="key" matListItemLine [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
-                <span matListItemTitle class="task-title">{{ task.title }}</span>
-                <span matListItemMeta class="task-meta">
-                  <span class="muted small">
-                    {{ columnLabel(task.column) }}@if (task.sprintNumber) { · sprint {{ task.sprintNumber }}}
-                  </span>
-                  <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '–' }}</span>
-                  @if (task.column === 'done') {
-                    <button mat-icon-button aria-label="Move back to the backlog" (click)="reopenTask(task)">
-                      <mat-icon>undo</mat-icon>
-                    </button>
-                  }
-                  <button mat-icon-button [attr.aria-label]="'Delete ' + task.key" (click)="removeTask(task)">
-                    <mat-icon>close</mat-icon>
-                  </button>
-                </span>
-              </mat-list-item>
-            }
-          </mat-list>
-        }
-
+      @if (boardEnabled()) {
         @if (addingTaskTo() === goal.id) {
-          <form class="task-form" (ngSubmit)="addTask(goal)">
-            <mat-form-field class="grow">
-              <mat-label>Task under {{ goal.key }}</mat-label>
-              <input matInput name="taskTitle" [(ngModel)]="taskTitle" autofocus />
-            </mat-form-field>
-            <mat-form-field class="points">
-              <mat-label>Value points</mat-label>
-              <mat-select name="taskPoints" [(ngModel)]="taskPoints">
-                <mat-option [value]="null">–</mat-option>
-                @for (p of allowedPoints; track p) {
-                  <mat-option [value]="p">{{ p }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <button mat-flat-button type="submit">Add to backlog</button>
-            <button mat-button type="button" (click)="addingTaskTo.set(null)">Cancel</button>
-          </form>
+          <app-inline-create layout="row" [allowedPoints]="allowedPoints" [save]="createTask" (cancelled)="addingTaskTo.set(null)" />
+        } @else {
+          <button mat-button class="create-trigger" (click)="addingTaskTo.set(goal.id)">
+            <mat-icon>add</mat-icon>
+            Create task
+          </button>
         }
-      </mat-card-content>
-    </mat-card>
+      }
+    </section>
   } @empty {
-    <p class="muted empty">
-      No goals yet. Add one above, or ask in chat.
-    </p>
+    <p class="empty-state">No goals yet. Add one above, or ask in chat.</p>
   }
+
+  <!-- One task menu for the page; the row passes its task in. -->
+  <mat-menu #taskMenu="matMenu">
+    <ng-template matMenuContent let-task="task">
+      <a mat-menu-item [routerLink]="['/board/tasks', task.key]">
+        <mat-icon>open_in_full</mat-icon>
+        Open
+      </a>
+      @if (task.column === 'done') {
+        <button mat-menu-item (click)="reopenTask(task)">
+          <mat-icon>undo</mat-icon>
+          Back to backlog
+        </button>
+      }
+      <button mat-menu-item (click)="removeTask(task)">
+        <mat-icon class="danger">delete</mat-icon>
+        Delete
+      </button>
+    </ng-template>
+  </mat-menu>
 }

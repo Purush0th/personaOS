@@ -1,8 +1,12 @@
+/* Goals read like the backlog: each goal is a lane (the --work-* tokens in styles.scss), its
+   progress one bar, its tasks the shared raised rows (.work-row), its actions in a menu. */
+
 .page-head {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+  margin-bottom: 0.5rem;
 
   h1 {
     font: var(--mat-sys-headline-small);
@@ -14,14 +18,23 @@
   }
 }
 
-.intro {
-  margin: 0.25rem 0 1rem;
+.new-goal,
+.goal {
+  margin-top: 1rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--work-lane);
 }
 
-.add-card {
-  margin-bottom: 1rem;
+.new-goal {
+  padding-top: 1rem;
 
-  form {
+  h2 {
+    font: var(--mat-sys-title-medium);
+    margin: 0 0 0.75rem;
+  }
+
+  .fields {
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
@@ -33,39 +46,32 @@
     min-width: 16rem;
   }
 
-  .form-actions {
+  .actions {
     display: flex;
+    justify-content: flex-end;
     gap: 0.5rem;
-    align-items: center;
-  }
-
-  .problem {
-    margin: 0;
+    margin-top: 0.5rem;
   }
 }
 
 .goal {
-  margin-top: 0.75rem;
-
   &.dropped {
     opacity: 0.6;
   }
 
-  .head {
+  > header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
     flex-wrap: wrap;
-    margin-bottom: 0.6rem;
+    gap: 0.25rem 0.5rem;
+    min-height: 2.5rem;
 
     .key {
-      font: var(--mat-sys-label-small);
       color: var(--mat-sys-on-surface-variant);
-      text-decoration: none;
     }
 
     .title {
-      font: var(--mat-sys-title-medium);
+      font: var(--mat-sys-title-small);
       color: inherit;
       text-decoration: none;
 
@@ -75,75 +81,47 @@
     }
 
     .range {
+      font: var(--mat-sys-body-small);
       white-space: nowrap;
     }
 
     .overdue {
-      --mdc-chip-elevated-container-color: var(--mat-sys-error-container);
-      --mdc-chip-label-text-color: var(--mat-sys-on-error-container);
+      background: var(--mat-sys-error-container);
+      color: var(--mat-sys-on-error-container);
     }
-  }
-
-  .row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin-top: 0.6rem;
 
     .spacer {
       flex: 1;
     }
 
-    .progress {
-      width: 7.5rem;
+    .menu {
+      --mat-icon-button-state-layer-size: 32px;
+      width: 32px;
+      height: 32px;
+      padding: 4px;
     }
+  }
 
-    .danger {
-      color: var(--mat-sys-error);
-    }
+  app-goal-progress {
+    margin: 0.25rem 0 0.75rem;
   }
 
   .tasks {
-    padding: 0;
-
-    .done .task-title {
-      text-decoration: line-through;
-      color: var(--mat-sys-on-surface-variant);
-    }
-
-    .key {
-      font: var(--mat-sys-label-small);
-      color: var(--mat-sys-on-surface-variant);
-      text-decoration: none;
-    }
-
-    .task-meta {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0.25rem;
   }
 
-  .task-form {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: 0.5rem;
+  .done .title {
+    text-decoration: line-through;
+    color: var(--mat-sys-on-surface-variant);
+  }
 
-    .grow {
-      flex: 1;
-      min-width: 12rem;
-    }
-
-    .points {
-      width: 8rem;
-    }
+  .sprint {
+    font: var(--mat-sys-label-small);
   }
 }
 
-
-.empty {
-  margin-top: 1.5rem;
+.danger {
+  color: var(--mat-sys-error);
 }

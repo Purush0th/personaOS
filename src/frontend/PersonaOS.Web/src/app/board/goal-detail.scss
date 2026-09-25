@@ -1,54 +1,15 @@
 .progress-line {
-  margin: 0.5rem 0 1.25rem;
+  margin: 0 0 1.25rem;
 }
 
+// The rows themselves are the shared .work-row (styles.scss).
 .tasks {
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.25rem;
 
   .done .title {
     text-decoration: line-through;
     color: var(--mat-sys-on-surface-variant);
-  }
-
-  .title {
-    color: inherit;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  .key {
-    font: var(--mat-sys-label-small);
-    color: var(--mat-sys-on-surface-variant);
-    margin-right: 0.35rem;
-  }
-
-  .task-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .empty {
-    margin: 0.25rem 0 0.5rem;
-  }
-}
-
-.add {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-top: 0.75rem;
-
-  .grow {
-    flex: 1;
-    min-width: 12rem;
-  }
-
-  .points {
-    width: 7rem;
   }
 }
