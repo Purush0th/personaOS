@@ -89,7 +89,7 @@
               (cdkDropListDropped)="onDrop($event)"
             >
               @for (task of group.tasks; track task.key) {
-                <div class="row" cdkDrag [cdkDragData]="task">
+                <div class="work-row row" cdkDrag [cdkDragData]="task">
                   <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
                   <a class="key" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
                   <a class="title" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.title }}</a>

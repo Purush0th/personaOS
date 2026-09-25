@@ -29,14 +29,7 @@
     <div class="main">
       <mat-card appearance="outlined">
         <mat-card-content>
-          <mat-progress-bar mode="determinate" [value]="goal.effectiveProgress" />
-          <p class="muted small progress-line">
-            {{ goal.effectiveProgress }}%
-            @if (goal.taskCount > 0) {
-              · {{ goal.donePoints }} of {{ goal.totalPoints }} points
-              · {{ goal.doneTaskCount }} of {{ goal.taskCount }} tasks
-            }
-          </p>
+          <app-goal-progress class="progress-line" [goal]="goal" (changed)="setProgress($event)" />
 
           <h2>Description</h2>
           @if (editingDescription()) {
@@ -64,47 +57,31 @@
       <mat-card appearance="outlined" class="tasks-card">
         <mat-card-content>
           <h2>Tasks <span class="muted small">{{ goal.taskCount }}</span></h2>
-          <mat-list class="tasks">
-            @for (task of goal.tasks; track task.id) {
-              <mat-list-item [class.done]="task.column === 'done'">
-                <a matListItemTitle class="title" [routerLink]="['/board/tasks', task.key]">
-                  <span class="key">{{ task.key }}</span>
-                  {{ task.title }}
-                </a>
-                <span matListItemMeta class="task-meta">
-                  <span class="muted small">
-                    {{ columnLabels[task.column] }}@if (task.sprintNumber) { · SPRINT-{{ task.sprintNumber }}}
-                  </span>
+          <!-- The same rows and Create as the goals page. -->
+          @if (goal.tasks.length > 0) {
+            <div class="tasks">
+              @for (task of goal.tasks; track task.id) {
+                <div class="work-row" [class.done]="task.column === 'done'">
+                  <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
+                  <a class="key" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
+                  <a class="title" [routerLink]="['/board/tasks', task.key]">{{ task.title }}</a>
+                  <span class="spacer"></span>
+                  @if (task.sprintNumber) {
+                    <span class="muted small">SPRINT-{{ task.sprintNumber }}</span>
+                  }
+                  <span class="lozenge s-{{ task.column }}">{{ columnLabels[task.column] }}</span>
                   <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '–' }}</span>
-                </span>
-              </mat-list-item>
-            } @empty {
-              <p class="muted small empty">No tasks yet.</p>
-            }
-          </mat-list>
+                </div>
+              }
+            </div>
+          }
 
           @if (addingTask()) {
-            <form class="add" (ngSubmit)="addTask()">
-              <mat-form-field class="grow">
-                <mat-label>Task under {{ goal.key }}</mat-label>
-                <input matInput name="taskTitle" [(ngModel)]="taskTitle" autofocus />
-              </mat-form-field>
-              <mat-form-field class="points">
-                <mat-label>Points</mat-label>
-                <mat-select name="taskPoints" [(ngModel)]="taskPoints">
-                  <mat-option [value]="null">–</mat-option>
-                  @for (p of allowedPoints; track p) {
-                    <mat-option [value]="p">{{ p }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <button mat-flat-button type="submit">Add to backlog</button>
-              <button mat-button type="button" (click)="addingTask.set(false)">Cancel</button>
-            </form>
+            <app-inline-create layout="row" [allowedPoints]="allowedPoints" [save]="createTask" (cancelled)="addingTask.set(false)" />
           } @else {
-            <button mat-button (click)="addingTask.set(true)">
+            <button mat-button class="create-trigger" (click)="addingTask.set(true)">
               <mat-icon>add</mat-icon>
-              Add task
+              Create task
             </button>
           }
         </mat-card-content>
@@ -135,21 +112,6 @@
               }
             </mat-select>
           </mat-form-field>
-
-          @if (goal.taskCount === 0) {
-            <mat-form-field class="full">
-              <mat-label>Progress</mat-label>
-              <input
-                matInput
-                type="number"
-                min="0"
-                max="100"
-                [value]="goal.progress"
-                (change)="setProgress($any($event.target).value)"
-              />
-              <span matTextSuffix>%</span>
-            </mat-form-field>
-          }
 
           <dl class="facts">
             <dt>Period</dt>

@@ -6,7 +6,6 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -24,6 +23,8 @@ import { BrandingService } from '../core/branding.service';
 import { formatGoalRange } from '../core/goal-period';
 import { Goal, GoalsService } from '../core/goals.service';
 import { Confirm } from '../core/confirm';
+import { GoalProgress } from '../goals/goal-progress';
+import { InlineCreate, NewTask } from '../shared/inline-create';
 import { Discussion } from '../shared/discussion';
 
 /** One goal, full screen, at /board/goals/GOAL-3: its tasks, progress and discussion. */
@@ -33,13 +34,14 @@ import { Discussion } from '../shared/discussion';
     FormsModule,
     RouterLink,
     Discussion,
+    GoalProgress,
+    InlineCreate,
     MatButtonModule,
     MatCardModule,
     MatChipsModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatListModule,
     MatProgressBarModule,
     MatSelectModule,
   ],
@@ -63,8 +65,6 @@ export class GoalDetail implements OnInit {
 
   titleDraft = '';
   descriptionDraft = '';
-  taskTitle = '';
-  taskPoints: number | null = null;
 
   protected readonly key = signal('');
   protected readonly priorityLabels = PRIORITY_LABELS;
@@ -124,22 +124,21 @@ export class GoalDetail implements OnInit {
     await this.change(() => this.goalsApi.updateStatus(this.goal()!.id, value));
   }
 
-  protected async setProgress(value: string): Promise<void> {
-    const progress = Number(value);
-    if (Number.isNaN(progress)) return;
+  protected async setProgress(progress: number): Promise<void> {
     await this.change(() => this.goalsApi.updateProgress(this.goal()!.id, progress));
   }
 
-  protected async addTask(): Promise<void> {
-    const title = this.taskTitle.trim();
-    if (!title) return;
-    await this.change(() =>
-      this.boardApi.create({ title, points: this.taskPoints, goalId: this.goal()!.id })
-    );
-    this.taskTitle = '';
-    this.taskPoints = null;
-    this.addingTask.set(false);
-  }
+  /** Creates a task under this goal, in the backlog; see InlineCreate, which stays open for the next. */
+  protected readonly createTask = async (task: NewTask): Promise<boolean> => {
+    try {
+      await this.boardApi.create({ ...task, goalId: this.goal()!.id });
+      await this.reload();
+      return true;
+    } catch (e: unknown) {
+      this.confirm.error(apiError(e).message ?? 'Could not add that task.');
+      return false;
+    }
+  };
 
   protected async remove(): Promise<void> {
     const goal = this.goal();
