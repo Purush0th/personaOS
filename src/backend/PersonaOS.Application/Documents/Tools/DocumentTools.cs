@@ -7,8 +7,6 @@ namespace PersonaOS.Application.Documents.Tools;
 /// <summary>Shared plumbing for the document tools.</summary>
 public abstract class DocumentToolBase : IPersonaTool
 {
-    protected static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
-
     public abstract string Name { get; }
     public abstract string Description { get; }
     public abstract string InputSchemaJson { get; }
@@ -28,7 +26,7 @@ public abstract class DocumentToolBase : IPersonaTool
             ? value.GetInt32()
             : null;
 
-    protected static string Ok(object payload) => JsonSerializer.Serialize(payload, JsonOpts);
+    protected static string Ok(object payload) => ToolJson.Serialize(payload);
 }
 
 public class ListDocumentsTool(IDocumentService documents) : DocumentToolBase

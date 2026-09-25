@@ -7,8 +7,6 @@ namespace PersonaOS.Application.Reminders.Tools;
 /// <summary>Shared plumbing for the reminder tools.</summary>
 public abstract class ReminderToolBase : IPersonaTool
 {
-    protected static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
-
     public abstract string Name { get; }
     public abstract string Description { get; }
     public abstract string InputSchemaJson { get; }
@@ -46,7 +44,7 @@ public abstract class ReminderToolBase : IPersonaTool
     protected static int RequireInt(JsonElement input, string name) =>
         GetInt(input, name) ?? throw new ReminderValidationException($"'{name}' is required.");
 
-    protected static string Ok(object payload) => JsonSerializer.Serialize(payload, JsonOpts);
+    protected static string Ok(object payload) => ToolJson.Serialize(payload);
 }
 
 public class GetRemindersTool(IReminderService reminders) : ReminderToolBase

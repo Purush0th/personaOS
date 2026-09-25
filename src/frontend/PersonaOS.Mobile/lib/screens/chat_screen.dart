@@ -887,8 +887,8 @@ class _ReceiptList extends StatelessWidget {
                   Flexible(
                     child: Text(
                       action.summary == null
-                          ? action.tool
-                          : '${action.tool}  ${action.summary}',
+                          ? action.label
+                          : '${action.label}  ${action.summary}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: action.ok
                             ? const Color(0xFF3D6B45)

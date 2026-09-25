@@ -205,4 +205,47 @@ public class ReplyGuardTests
         Assert.Equal(EmptyReplyGuard.NoAnswer, draft.Text);
         Assert.True(draft.Rewritten);
     }
+
+    private static ChatTurnState GoalTurn() =>
+        new("test-model", new HashSet<string>(), ["get_goals", "create_goal", "update_goal_status", "delete_goal"]);
+
+    [Fact]
+    public async Task Tool_name_guard_drops_sentences_telling_the_user_to_call_a_function()
+    {
+        // The live reply that prompted the guard, cut down: the list stays, the function talk goes.
+        var text = "Here are your current goals:\n* GOAL-2 Create a nutrition plan (month)\n* GOAL-3 Finish 2 books (quarter)\n\n"
+            + "If you need to add, update, or delete a goal, you can do so by calling the `create_goal`, "
+            + "`update_goal_status`, or `delete_goal` functions respectively. Let me know if you would like to change anything.";
+
+        var draft = await Review(new ToolNameGuard(), Draft(text, GoalTurn()));
+
+        Assert.Equal(
+            "Here are your current goals:\n* GOAL-2 Create a nutrition plan (month)\n* GOAL-3 Finish 2 books (quarter)\n\n"
+            + "Let me know if you would like to change anything.",
+            draft.Text);
+        Assert.True(draft.Rewritten);
+    }
+
+    [Theory]
+    [InlineData("I used get_goals to look.")]
+    [InlineData("I checked with GET_GOALS.")]
+    public async Task Tool_name_guard_matches_a_name_bare_or_in_any_case(string sentence)
+    {
+        var draft = await Review(new ToolNameGuard(), Draft($"You have two goals. {sentence}", GoalTurn()));
+        Assert.Equal("You have two goals.", draft.Text);
+    }
+
+    [Fact]
+    public async Task Tool_name_guard_leaves_ordinary_words_and_other_turns_alone()
+    {
+        // "goals" and "delete" are words, not tool names; a turn without tools has nothing to match.
+        var text = "Your goals are on track. Delete the old one when you are ready.";
+
+        var withTools = await Review(new ToolNameGuard(), Draft(text, GoalTurn()));
+        var withoutTools = await Review(new ToolNameGuard(), Draft(text, new ChatTurnState("test-model", new HashSet<string>(), [])));
+
+        Assert.Equal(text, withTools.Text);
+        Assert.False(withTools.Rewritten);
+        Assert.False(withoutTools.Rewritten);
+    }
 }

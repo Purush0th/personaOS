@@ -8,8 +8,6 @@ namespace PersonaOS.Application.Goals.Tools;
 /// <summary>Shared plumbing for the goal tools: JSON options and input helpers.</summary>
 public abstract class GoalToolBase : IPersonaTool
 {
-    protected static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
-
     public abstract string Name { get; }
     public abstract string Description { get; }
     public abstract string InputSchemaJson { get; }
@@ -79,7 +77,7 @@ public abstract class GoalToolBase : IPersonaTool
                 $"There is no goal {key}. Use the goalKey values from get_goals (like \"GOAL-3\"), not list positions.");
     }
 
-    protected static string Ok(object payload) => JsonSerializer.Serialize(payload, JsonOpts);
+    protected static string Ok(object payload) => ToolJson.Serialize(payload);
 }
 
 public class GetGoalsTool(IGoalService goals) : GoalToolBase
