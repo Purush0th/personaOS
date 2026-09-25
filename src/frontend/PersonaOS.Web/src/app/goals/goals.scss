@@ -94,7 +94,9 @@
       flex: 1;
     }
 
+    // Stays at the right end even when a narrow screen wraps the header onto a second line.
     .menu {
+      margin-left: auto;
       --mat-icon-button-state-layer-size: 32px;
       width: 32px;
       height: 32px;
