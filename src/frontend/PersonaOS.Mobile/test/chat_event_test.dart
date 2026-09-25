@@ -180,4 +180,16 @@ void main() {
       expect(ChatMessageDto.fromJson({'role': 'user', 'content': 'hi'}).unknownItems, isEmpty);
     });
   });
+
+  group('ToolReceipt', () {
+    test("shows what ran in the user's words, not the tool name", () {
+      final receipt = ToolReceipt.fromJson({'tool': 'create_goal', 'label': 'Created goal', 'ok': true});
+      expect(receipt.label, 'Created goal');
+    });
+
+    test('falls back to the tool name when an older server sends no label', () {
+      final receipt = ToolReceipt.fromJson({'tool': 'create_goal', 'ok': true});
+      expect(receipt.label, 'create_goal');
+    });
+  });
 }

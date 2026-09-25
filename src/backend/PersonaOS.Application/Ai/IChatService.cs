@@ -3,7 +3,7 @@ namespace PersonaOS.Application.Ai;
 /// <summary>
 /// One event in the chat SSE stream.
 /// Types: "start" (carries ConversationId), "delta" (carries Text),
-/// "tool" (carries ToolName while a tool runs),
+/// "tool" (carries ToolName, and ToolLabel to show, while a tool runs),
 /// "done" (carries token usage, and Text only when the stored reply differs from the
 /// streamed deltas — e.g. a leaked tool call was stripped — so clients replace the bubble),
 /// "error" (carries Error).
@@ -16,6 +16,7 @@ public record ChatStreamEvent(
     long? OutputTokens = null,
     string? Error = null,
     string? ToolName = null,
+    string? ToolLabel = null,
     IReadOnlyList<ToolReceipt>? Actions = null,
     IReadOnlyList<PendingActionDto>? Pending = null,
     bool? UnverifiedClaim = null,

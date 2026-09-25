@@ -5,7 +5,7 @@
         @if (bubble.tool) {
           <span class="tool">
             <mat-icon inline>build</mat-icon>
-            Using {{ bubble.tool }}…
+            {{ bubble.tool }}
           </span>
         } @else if (bubble.text) {
           @if (bubble.role === 'assistant' && !bubble.isError) {
@@ -69,7 +69,7 @@
             @for (action of bubble.actions; track $index) {
               <li [class.failed]="!action.ok">
                 <mat-icon inline>{{ action.ok ? 'check' : 'close' }}</mat-icon>
-                <code>{{ action.tool }}</code>
+                <span class="what">{{ action.label }}</span>
                 @if (action.summary) {
                   <span class="detail">{{ action.summary }}</span>
                 }

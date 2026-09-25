@@ -17,7 +17,7 @@ interface Bubble {
   role: 'user' | 'assistant';
   text: string;
   isError?: boolean;
-  /** Tool currently running, shown while the assistant works. */
+  /** What the running tool is doing ("Reading goals…"), shown while the assistant works. */
   tool?: string | null;
   /** Data-changing actions awaiting the user's confirmation. */
   pending?: PendingAction[] | null;
@@ -158,7 +158,7 @@ export class Chat implements OnInit {
             this.conversationId.set(event.conversationId ?? null);
             break;
           case 'tool':
-            patch({ tool: event.toolName ?? null });
+            patch({ tool: event.toolLabel ?? null });
             break;
           case 'delta':
             patch({ tool: null, text: this.bubbles()[replyIndex].text + (event.text ?? '') });

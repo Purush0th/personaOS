@@ -324,7 +324,9 @@ public class ChatService(
                     continue;
                 }
 
-                yield return new ChatStreamEvent("tool", ToolName: decision.Call.Name, ConversationId: request.ConversationId);
+                yield return new ChatStreamEvent(
+                    "tool", ToolName: decision.Call.Name, ToolLabel: Ai.ToolLabel.Running(decision.Call.Name),
+                    ConversationId: request.ConversationId);
                 var result = await toolRegistry.ExecuteAsync(decision.Call, ct);
                 turn.RecordExecution(decision.Call, result);
                 results.Add(result);
