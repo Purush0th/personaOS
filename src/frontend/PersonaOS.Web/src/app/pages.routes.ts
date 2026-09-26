@@ -31,6 +31,12 @@ export const PAGE_ROUTES: Routes = [
         loadComponent: () => import('./goals/goals').then(m => m.Goals),
       },
       {
+        // Goals stand apart from the board (which holds sprints, tasks and reports).
+        path: 'goals/:key',
+        canActivate: [authGuard],
+        loadComponent: () => import('./goals/goal-detail').then(m => m.GoalDetail),
+      },
+      {
         path: 'board',
         canActivate: [authGuard],
         loadComponent: () => import('./board/board').then(m => m.Board),
@@ -57,11 +63,8 @@ export const PAGE_ROUTES: Routes = [
         canActivate: [authGuard],
         loadComponent: () => import('./board/sprint-detail').then(m => m.SprintDetail),
       },
-      {
-        path: 'board/goals/:key',
-        canActivate: [authGuard],
-        loadComponent: () => import('./board/goal-detail').then(m => m.GoalDetail),
-      },
+      // Where a goal's page used to be; links from before the move still arrive.
+      { path: 'board/goals/:key', redirectTo: 'goals/:key' },
       {
         path: 'planner',
         canActivate: [authGuard],

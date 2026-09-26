@@ -24,12 +24,16 @@ import { BrandingService } from '../core/branding.service';
 import { formatGoalRange } from '../core/goal-period';
 import { Goal, GoalsService } from '../core/goals.service';
 import { Confirm } from '../core/confirm';
-import { GoalProgress } from '../goals/goal-progress';
-import { askGoalProgress } from '../goals/goal-progress-dialog';
+import { GoalProgress } from './goal-progress';
+import { askGoalProgress } from './goal-progress-dialog';
 import { InlineCreate, NewTask } from '../shared/inline-create';
 import { Discussion } from '../shared/discussion';
 
-/** One goal, full screen, at /board/goals/GOAL-3: its tasks, progress and discussion. */
+/**
+ * One goal, full screen, at /goals/GOAL-3: its tasks, progress and discussion. Goals are their own
+ * section, beside the board rather than in it, so the page lives under /goals (it was
+ * /board/goals, which still redirects here).
+ */
 @Component({
   selector: 'app-goal-detail',
   imports: [
@@ -49,7 +53,7 @@ import { Discussion } from '../shared/discussion';
   ],
   templateUrl: './goal-detail.html',
   changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrls: ['./item-page.scss', './goal-detail.scss'],
+  styleUrls: ['../board/item-page.scss', './goal-detail.scss'],
 })
 export class GoalDetail implements OnInit {
   private readonly goalsApi = inject(GoalsService);
