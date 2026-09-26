@@ -1253,3 +1253,23 @@ real Anthropic key).
       so neither offers it. Phone: the menu item and dialog title say Update progress too (was
       "Set progress…" / "Progress"). A spec caught Cancel closing with '' rather than undefined,
       which would have saved an empty value; askGoalProgress only accepts a number. Web 86 tests.
+- [x] **Update progress dialog scrolled** (web, 2026-09-26; owner saw a scrollbar in it). The
+      slider's 18px handle sat on a 6px input and stuck out 6px, so `mat-dialog-content` (92px of
+      content in 86px) scrolled. The input is now as tall as the handle and draws the 6px bar
+      across its middle. The spec checks the content does not scroll (fails on the old style).
+      Missed at first because the screenshot script hid scrollbars; it no longer does.
+- [x] **A goal's page is /goals/GOAL-1, not /board/goals/GOAL-1** (web, 2026-09-26; owner: the
+      board holds sprints, tasks and reports; goals stand alone). Route `goals/:key`, the page
+      moved to goals/goal-detail.*, and `board/goals/:key` redirects so old links still work. Links
+      from the goals list and a task's goal chip use the new address, and the page's crumb is just
+      Goals. The sidebar now highlights Goals on a goal's page (it lit Board). The phone and the
+      backend had no page links to change. Spec: pages.routes.spec.ts (web 88).
+- [x] **PRD brought up to date** (docs, 2026-09-26; owner asked for the latest PRD to review). It
+      last changed on 2026-09-01 and still described nested goals, no board, Anthropic plus one
+      adapter and phases only. Now: product principles (confirmation cards, receipts, one contract
+      for every provider, keys, short wording, manual plan), each module's rules, the chat guards
+      and tools, architecture with the Ollama adapter, model profiles and prompt files, clients
+      and their addresses, data and the release gate, the board and AI phases, what is deferred,
+      and open product questions. docs/sprint-board.md aligned too (Reports tab, statuses, "–",
+      sprint start day and end, Burndown, key links); its out-of-scope list no longer excludes
+      charts that now exist.
