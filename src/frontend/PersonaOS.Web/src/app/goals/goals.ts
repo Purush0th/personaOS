@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -13,6 +14,7 @@ import { BoardService, COLUMN_LABELS, apiError, withScopeConfirmation } from '..
 import { openTaskFromQuery } from '../board/task-dialog';
 import { InlineCreate, NewTask } from '../shared/inline-create';
 import { GoalProgress } from './goal-progress';
+import { askGoalProgress } from './goal-progress-dialog';
 import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
 import { Goal, GoalTaskSummary, GoalsService } from '../core/goals.service';
@@ -43,6 +45,7 @@ export class Goals implements OnInit {
   private readonly boardApi = inject(BoardService);
   private readonly branding = inject(BrandingService);
   private readonly confirm = inject(Confirm);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly goals = signal<Goal[]>([]);
   protected readonly loading = signal(true);
@@ -156,7 +159,9 @@ export class Goals implements OnInit {
     }
   }
 
-  protected async setProgress(goal: Goal, progress: number): Promise<void> {
+  protected async updateProgress(goal: Goal): Promise<void> {
+    const progress = await askGoalProgress(this.dialog, goal);
+    if (progress === null) return;
     try {
       await this.goalsApi.updateProgress(goal.id, progress);
       await this.reload();

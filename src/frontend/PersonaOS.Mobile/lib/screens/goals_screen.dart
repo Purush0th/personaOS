@@ -292,7 +292,7 @@ class _GoalTile extends StatelessWidget {
       },
       itemBuilder: (context) => [
         if (boardEnabled) const PopupMenuItem(value: 'task', child: Text('Add task…')),
-        if (goal.taskCount == 0) const PopupMenuItem(value: 'progress', child: Text('Set progress…')),
+        if (goal.taskCount == 0) const PopupMenuItem(value: 'progress', child: Text('Update progress')),
         if (goal.status != 'completed') const PopupMenuItem(value: 'complete', child: Text('Complete')),
         if (goal.status == 'active')
           const PopupMenuItem(value: 'drop', child: Text('Drop'))
@@ -478,7 +478,7 @@ DateTime _today() {
 }
 
 /// Sets a goal's hand-kept progress with a slider in 5% steps, the number shown above it. It
-/// replaced a text field that took typing a number, as the web's progress bar did.
+/// replaced a text field that took typing a number. The web opens the same dialog from Update progress.
 class _ProgressDialog extends StatefulWidget {
   const _ProgressDialog({required this.initial});
 
@@ -494,7 +494,7 @@ class _ProgressDialogState extends State<_ProgressDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Progress'),
+      title: const Text('Update progress'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
