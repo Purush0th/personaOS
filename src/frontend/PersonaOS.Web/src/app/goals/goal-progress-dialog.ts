@@ -55,24 +55,27 @@ import { Goal } from '../core/goals.service';
       text-align: center;
     }
 
-    // One bar filled to the value, with a round handle on it.
+    // One 6px bar filled to the value, with a round handle on it. The input is as tall as the
+    // handle and draws the bar across its middle: a 6px input let the handle stick out, which
+    // made the dialog content scroll.
     input {
       display: block;
       width: 100%;
-      height: 6px;
-      margin: 0.75rem 0;
+      height: 18px;
+      margin: 0.5rem 0;
       appearance: none;
-      border-radius: var(--mat-sys-corner-full);
       cursor: pointer;
-      background: linear-gradient(
-        to right,
-        var(--mat-sys-primary) var(--fill),
-        var(--mat-sys-surface-container-highest) var(--fill)
-      );
+      background:
+        linear-gradient(
+          to right,
+          var(--mat-sys-primary) var(--fill),
+          var(--mat-sys-surface-container-highest) var(--fill)
+        )
+        center / 100% 6px no-repeat;
 
       &:focus-visible {
         outline: 2px solid var(--mat-sys-primary);
-        outline-offset: 6px;
+        outline-offset: 2px;
       }
 
       &::-webkit-slider-thumb {

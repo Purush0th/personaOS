@@ -77,6 +77,10 @@ describe('Update progress', () => {
     expect(dialog.querySelector('.value')?.textContent).toBe('40%');
     expect(save.disabled).toBeTrue(); // nothing to save yet
 
+    // The slider's handle once stuck out below it and made the content scroll.
+    const content = dialog.querySelector<HTMLElement>('mat-dialog-content')!;
+    expect(content.scrollHeight).toBeLessThanOrEqual(content.clientHeight);
+
     move(75);
     expect(dialog.querySelector('.value')?.textContent).toBe('75%');
     expect(save.disabled).toBeFalse();

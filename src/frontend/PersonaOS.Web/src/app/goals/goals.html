@@ -62,7 +62,7 @@
   @for (goal of goals(); track goal.id) {
     <section class="goal" [class.dropped]="goal.status === 'dropped'" [attr.aria-label]="goal.key + ' ' + goal.title">
       <header>
-        <a class="key key-link" [routerLink]="['/board/goals', goal.key]">{{ goal.key }}</a>
+        <a class="key key-link" [routerLink]="['/goals', goal.key]">{{ goal.key }}</a>
         <span class="title">{{ goal.title }}</span>
         <span class="lozenge">{{ periodLabels[goal.periodType] }}</span>
         @if (overdue(goal)) {
