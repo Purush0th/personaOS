@@ -29,7 +29,13 @@
     <div class="main">
       <mat-card appearance="outlined">
         <mat-card-content>
-          <app-goal-progress class="progress-line" [goal]="goal" (changed)="setProgress($event)" />
+          <div class="progress-line">
+            <app-goal-progress [goal]="goal" />
+            <!-- As on the goals page: only a goal without tasks has its progress set by hand. -->
+            @if (goal.taskCount === 0) {
+              <button mat-button (click)="updateProgress()">Update progress</button>
+            }
+          </div>
 
           <h2>Description</h2>
           @if (editingDescription()) {
