@@ -1,6 +1,7 @@
 # Sprint board — requirements
 
-Status: agreed with the owner on 2026-09-15, being built. Progress lives in `TODO.md`.
+Status: agreed with the owner on 2026-09-15 and built; revised to match the product on
+2026-09-26. Progress lives in `TODO.md`; the product overview is [PRD.md](PRD.md).
 
 PersonaOS brings a light version of Scrum to one person's life: work is broken down under
 goals, estimated in value points, pulled into a one-week sprint on Sunday evening, and moved
@@ -49,19 +50,24 @@ comments and attachments, and "story points" are called **value points**.
 
 ## 3. Value points
 
-- Fibonacci only: **1, 2, 3, 5, 8, 13, 21**, or unestimated (`?`).
+- Fibonacci only: **1, 2, 3, 5, 8, 13, 21**, or unestimated (shown as "–").
 - Points express size: effort, complexity and uncertainty together — not hours.
 - 13 and 21 show a "consider splitting" hint. Research on personal Scrum is consistent that
   large items are where one-person sprints fail.
 - A task can be committed to a sprint while still unestimated, but the sprint header shows how
   many unestimated tasks it holds, because they make "committed points" understate the plan.
 
-## 4. Two views of the board: Sprint and Backlog
+## 4. Views of the board: Sprint, Backlog and Reports
 
-The top navigation has one **Board** entry. Inside it a **Sprint | Backlog** switch moves between
-the two views, at `/board` and `/board/backlog`.
+The top navigation has one **Board** entry. Inside it, tabs as in Jira — **Sprint | Backlog |
+Reports** — move between the views, at `/board`, `/board/backlog` and `/board/reports`.
+
+A task's status reads **Backlog** when it is in no sprint, then **To do**, **In progress** and
+**Done** (API values `backlog`, `todo`, `in_progress`, `done`).
 
 **Sprint** is the sprint that is running, and nothing else: **To do | In progress | Done**.
+Cards drag from anywhere (a short press on touch), and a click opens the task in a dialog over
+the board.
 
 - **In progress** — more than 3 tasks here shows a soft warning (a WIP limit is the single most
   useful Kanban habit for one person; it is a hint, never a block).
@@ -87,8 +93,8 @@ week that went sideways should not be closed out by a clock.
 
 | Action | What happens |
 |---|---|
-| **Create sprint** | Gets the next key (`SPRINT-n`), an optional name, and dates. The dates default to the next free Sunday 20:00 → Sunday 18:00 week; the first sprint starts now and runs to the coming Sunday. |
-| **Start sprint** | Freezes committed points (the sum of what it holds). Only one sprint runs at a time. |
+| **Create sprint** | Gets the next key (`SPRINT-n`), an optional name, and a start day the user picks (20:00 that day). The end is not chosen: it is always the first Sunday 18:00 after the start, shown read-only, and moves when the start moves. |
+| **Start sprint** | Only on or after its start day (any hour that day, so the Sunday 18:00–20:00 planning window works). Freezes committed points (the sum of what it holds). Only one sprint runs at a time. |
 | **Complete sprint** | Freezes completed, added and carried-over points. Unfinished work moves to the next planned sprint — or the backlog when there is none — and its carried-over counter goes up. |
 | **Delete sprint** | Only before it starts; its tasks go back to the backlog. |
 | **Sunday 19:00** | A push nudge: how the running sprint stands, or that nothing is running. It never changes anything by itself. A nudge more than 3 hours late is skipped. |
@@ -102,10 +108,14 @@ week that went sideways should not be closed out by a clock.
 Every goal, task and sprint has its own page, addressable by key:
 
 - `/board/tasks/TASK-7` — title, description, status, sprint, points, priority, goal, comments
-  and attachments.
-- `/board/goals/GOAL-3` — the same, plus its tasks and derived progress.
-- `/board/sprints/SPRINT-2` — dates and name, the frozen or live totals, a points-remaining
-  chart drawn from when each task was finished, and the work split by column.
+  and attachments. From the board, backlog or reports a task opens in a dialog instead
+  (`?task=TASK-7`).
+- `/goals/GOAL-3` — the same, plus its tasks and derived progress. Goals are their own section,
+  beside the board (`/board/goals/…` redirects there).
+- `/board/sprints/SPRINT-2` — dates and name, the frozen or live totals, the Burndown, and the
+  work split by column.
+
+The key is the link everywhere (`TASK-7`, not the task's title).
 
 **Comments** are plain text, kept in order, and marked as written by the user or the assistant
 (the assistant writes them with `add_comment`). **Attachments** — PDFs, images, documents — are
@@ -124,15 +134,20 @@ stored beside documents under a server-generated name, at most 25 MB each.
 - The API enforces this, not only the UI: a scope change without acknowledgement is refused,
   so the assistant's tools cannot skip it either.
 
-## 7. Sprint report
+## 7. Reports
 
-A simple list, newest first, one row per sprint:
+`/board/reports?sprint=SPRINT-12`, after Jira's Reports page, one sprint at a time:
 
-`Sprint 12 · 13–20 Sep · committed 21 · added 3 · removed 2 · completed 18 · carried over 5`
-
-Plus the average completed points of the last three closed sprints ("velocity"), which the
-assistant uses as the default capacity when planning. A sprint's own page adds a
-points-remaining chart; there is nothing more elaborate than that.
+- **Find a sprint** searches every started sprint; the default is the running one, else the
+  latest.
+- Tiles: tasks done, points completed of committed, points added and removed, days left (or
+  finished).
+- **Tasks by status** and **Tasks by priority** as stacked bars.
+- **Burndown**: points left at the end of each day.
+- **Task details**: a searchable, sortable table; rows open the task.
+- **Velocity**: committed against completed per sprint, and the average completed points of the
+  last three finished sprints, which the assistant uses as the default capacity when planning.
+  Until a sprint finishes there is no velocity, and the assistant is told so.
 
 ## 8. Daily planner integration
 
@@ -181,8 +196,8 @@ Planning conversation guidance in the system prompt:
 
 ## 11. Out of scope for this version
 
-Burndown or velocity charts, sub-tasks under tasks, multiple boards, custom columns or sprint
-lengths, time tracking, and labels other than the goal chip.
+Sub-tasks under tasks, multiple boards, custom columns or sprint lengths, time tracking, and
+labels other than the goal chip. Charts stay simple (the Burndown and the velocity bars).
 
 ## Research notes
 
