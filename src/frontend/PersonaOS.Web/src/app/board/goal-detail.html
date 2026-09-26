@@ -63,8 +63,8 @@
               @for (task of goal.tasks; track task.id) {
                 <div class="work-row" [class.done]="task.column === 'done'">
                   <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
-                  <a class="key" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
-                  <a class="title" [routerLink]="['/board/tasks', task.key]">{{ task.title }}</a>
+                  <a class="key key-link" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
+                  <span class="title">{{ task.title }}</span>
                   <span class="spacer"></span>
                   @if (task.sprintNumber) {
                     <span class="muted small">SPRINT-{{ task.sprintNumber }}</span>

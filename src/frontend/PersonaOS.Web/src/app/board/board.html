@@ -9,7 +9,10 @@
     @if (b.sprint; as sprint) {
       <!-- The sprint in one quiet line, as Jira names it above its board, not a card of its own. -->
       <p class="sprint-line">
-        <a class="sprint-name" [routerLink]="['/board/sprints', sprint.key]">{{ sprintTitle(sprint) }}</a>
+        <span class="sprint-name">
+          <a class="key-link" [routerLink]="['/board/sprints', sprint.key]">{{ sprint.key }}</a>
+          @if (sprint.name) { {{ sprint.name }} }
+        </span>
         <span>{{ when(sprint.startsAtUtc) }} – {{ when(sprint.endsAtUtc) }}</span>
         <span><b>{{ sprint.committedPoints ?? sprint.totalPoints }}</b> committed</span>
         <span><b>{{ sprint.completedPoints }}</b> done</span>
@@ -72,13 +75,7 @@
                   (cdkDragStarted)="dragging.set(task)"
                   (cdkDragMoved)="onDragMoved($event)"
                 >
-                  <!-- The link covers the whole card, so a click anywhere opens the task. -->
-                  <a
-                    class="open"
-                    [routerLink]="[]"
-                    [queryParams]="{ task: task.key }"
-                    queryParamsHandling="merge"
-                  >{{ task.title }}</a>
+                  <span class="title">{{ task.title }}</span>
                   <button
                     mat-icon-button
                     class="more"
@@ -93,7 +90,8 @@
                   }
                   <div class="meta">
                     <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
-                    <span class="key">{{ task.key }}</span>
+                    <!-- The key is the link; it covers the whole card, so a click anywhere opens the task. -->
+                    <a class="key key-link open" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
                     @if (task.carryOverCount > 0) {
                       <span class="flag" [title]="'Carried over ' + task.carryOverCount + ' times'">
                         <mat-icon inline>replay</mat-icon>{{ task.carryOverCount }}

@@ -105,6 +105,13 @@ describe('Backlog', () => {
     expect(api.move).toHaveBeenCalledOnceWith('TASK-1', 'in_progress', 'SPRINT-1', null, false);
   });
 
+  it('links each task and sprint by its key; titles and names are plain text', () => {
+    const row = section('SPRINT-1').querySelector('.work-row')!;
+    expect(text(row.querySelector('a.key-link'))).toBe('TASK-1');
+    expect(row.querySelector('.title')!.closest('a')).toBeNull();
+    expect(text(section('SPRINT-1').querySelector('header a.key-link'))).toBe('SPRINT-1');
+  });
+
   it('offers only To do for work in a sprint that has not started', async () => {
     section('SPRINT-2').querySelector<HTMLElement>('.status')!.click();
     await settle();
