@@ -26,7 +26,10 @@
             </button>
 
             @if (group.sprint; as sprint) {
-              <a class="name" [routerLink]="['/board/sprints', sprint.key]">{{ title(group) }}</a>
+              <a class="name key-link" [routerLink]="['/board/sprints', sprint.key]">{{ sprint.key }}</a>
+              @if (sprint.name) {
+                <span class="name">{{ sprint.name }}</span>
+              }
               <span class="muted dates">{{ when(sprint.startsAtUtc) }} – {{ when(sprint.endsAtUtc) }}</span>
             } @else {
               <span class="name">Backlog</span>
@@ -91,8 +94,8 @@
               @for (task of group.tasks; track task.key) {
                 <div class="work-row row" cdkDrag [cdkDragData]="task">
                   <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
-                  <a class="key" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
-                  <a class="title" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.title }}</a>
+                  <a class="key key-link" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
+                  <span class="title">{{ task.title }}</span>
 
                   @if (task.goalKey) {
                     <span class="goal-chip" [style.--hue]="hue(task.goalKey)" [title]="task.goalKey">

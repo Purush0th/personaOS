@@ -1235,3 +1235,12 @@ real Anthropic key).
       same number field (and a separate bar and line), and the phone's "Set progress…" was a text
       field in a dialog; both use a slider now, and the goal page's task list and create match the
       goals page. Specs: `goal-progress.spec.ts` (web 82), phone `goal_progress_test.dart` (87).
+- [x] **The key is the link, not the title** (web, 2026-09-26; owner: task text should not be the
+      hyperlink, the task id should, everywhere). One style, `a.key-link` in styles.scss (primary
+      colour, underline on hover). Tasks: backlog rows, goals page and goal page rows, sprint page
+      lists, the Reports task table, and board cards, where the key is now the stretched link (a
+      click anywhere on the card still opens it; the card still shows the drag cursor away from
+      the key). Same pattern elsewhere: goal titles on the goals page and sprint names in the
+      backlog and the board's sprint line had been the links; their keys (GOAL-2, SPRINT-1) are
+      now. The planner already linked the key only. The phone has no links (rows are tapped), so
+      nothing changed there. Specs: board, backlog and task-table checks (web 85).

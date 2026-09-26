@@ -30,11 +30,9 @@
         <tr>
           <td class="key">
             <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
-            <a [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
+            <a class="key-link" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
           </td>
-          <td class="summary">
-            <a [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.title }}</a>
-          </td>
+          <td class="summary">{{ task.title }}</td>
           <td><span class="lozenge s-{{ task.column }}">{{ columnLabels[task.column] }}</span></td>
           <td class="priority p-{{ task.priority }}">
             <mat-icon aria-hidden="true">{{ priorityIcons[task.priority] }}</mat-icon>
