@@ -1244,3 +1244,12 @@ real Anthropic key).
       backlog and the board's sprint line had been the links; their keys (GOAL-2, SPRINT-1) are
       now. The planner already linked the key only. The phone has no links (rows are tapped), so
       nothing changed there. Specs: board, backlog and task-table checks (web 85).
+- [x] **Update progress from the goal's menu** (web + phone, 2026-09-26; owner: the menu should
+      offer changing progress, in a popup). Goals page: the ⋯ menu of a goal without tasks has
+      Update progress, which opens `GoalProgressDialog` (goals/goal-progress-dialog.ts: slider in
+      5% steps, the number above it, Save off until the value moves). The bar on the page only reads
+      out now (`GoalProgress` lost its slider and `changed` output). Goal page: an Update progress
+      button beside the bar opens the same dialog. Goals with tasks still take progress from them,
+      so neither offers it. Phone: the menu item and dialog title say Update progress too (was
+      "Set progress…" / "Progress"). A spec caught Cancel closing with '' rather than undefined,
+      which would have saved an empty value; askGoalProgress only accepts a number. Web 86 tests.

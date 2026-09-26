@@ -77,6 +77,13 @@
           <mat-icon>more_horiz</mat-icon>
         </button>
         <mat-menu #goalMenu="matMenu">
+          <!-- A goal with tasks takes its progress from them, so only one kept by hand offers it. -->
+          @if (goal.taskCount === 0) {
+            <button mat-menu-item (click)="updateProgress(goal)">
+              <mat-icon>percent</mat-icon>
+              Update progress
+            </button>
+          }
           @if (goal.status !== 'completed') {
             <button mat-menu-item (click)="setStatus(goal, 'completed')">
               <mat-icon>task_alt</mat-icon>
@@ -101,7 +108,7 @@
         </mat-menu>
       </header>
 
-      <app-goal-progress [goal]="goal" (changed)="setProgress(goal, $event)" />
+      <app-goal-progress [goal]="goal" />
 
       @if (goal.tasks.length > 0) {
         <div class="tasks">

@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -24,6 +25,7 @@ import { formatGoalRange } from '../core/goal-period';
 import { Goal, GoalsService } from '../core/goals.service';
 import { Confirm } from '../core/confirm';
 import { GoalProgress } from '../goals/goal-progress';
+import { askGoalProgress } from '../goals/goal-progress-dialog';
 import { InlineCreate, NewTask } from '../shared/inline-create';
 import { Discussion } from '../shared/discussion';
 
@@ -56,6 +58,7 @@ export class GoalDetail implements OnInit {
   private readonly router = inject(Router);
   private readonly branding = inject(BrandingService);
   private readonly confirm = inject(Confirm);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly goal = signal<Goal | null>(null);
   protected readonly loading = signal(true);
@@ -124,8 +127,10 @@ export class GoalDetail implements OnInit {
     await this.change(() => this.goalsApi.updateStatus(this.goal()!.id, value));
   }
 
-  protected async setProgress(progress: number): Promise<void> {
-    await this.change(() => this.goalsApi.updateProgress(this.goal()!.id, progress));
+  protected async updateProgress(): Promise<void> {
+    const goal = this.goal()!;
+    const progress = await askGoalProgress(this.dialog, goal);
+    if (progress !== null) await this.change(() => this.goalsApi.updateProgress(goal.id, progress));
   }
 
   /** Creates a task under this goal, in the backlog; see InlineCreate, which stays open for the next. */

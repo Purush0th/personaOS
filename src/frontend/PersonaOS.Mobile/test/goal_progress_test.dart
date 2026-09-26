@@ -34,7 +34,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(PopupMenuButton<String>).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Set progress…'));
+    await tester.tap(find.text('Update progress'));
     await tester.pumpAndSettle();
     return api;
   }
