@@ -99,6 +99,12 @@ describe('WorkItemTable', () => {
     expect(page.querySelector('tbody td.key a')?.getAttribute('href')).toBe('/?task=TASK-2');
   });
 
+  it('links a task by its key; the summary is plain text', () => {
+    const { page } = render();
+    expect(page.querySelector('tbody td.summary a')).toBeNull();
+    expect(page.querySelector('tbody td.key a.key-link')?.textContent?.trim()).toBe('TASK-2');
+  });
+
   it('says when a sprint has no tasks at all', () => {
     const { fixture, page } = render();
     fixture.componentInstance.tasks.set([]);

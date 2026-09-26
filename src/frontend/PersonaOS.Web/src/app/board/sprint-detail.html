@@ -67,8 +67,8 @@
         <ul>
           @for (task of tasksIn(column); track task.key) {
             <li>
-              <a class="key" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
-              <a class="title" [routerLink]="['/board/tasks', task.key]">{{ task.title }}</a>
+              <a class="key key-link" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
+              <span class="title">{{ task.title }}</span>
               @if (task.goalKey) {
                 <span class="goal-chip" [style.--hue]="hue(task.goalKey)">{{ task.goalTitle }}</span>
               }

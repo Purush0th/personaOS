@@ -14,11 +14,6 @@
   .sprint-name {
     font: var(--mat-sys-title-small);
     color: var(--mat-sys-on-surface);
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 
   b {
@@ -132,20 +127,21 @@
     background: var(--work-item-hover);
   }
 
-  // The title is the card's link, stretched over the whole card; the menu button sits above it.
-  .open {
+  .title {
     display: block;
     padding-right: 1.5rem;
-    color: inherit;
-    text-decoration: none;
     overflow-wrap: anywhere;
-    cursor: inherit;
+  }
 
+  // The key is the card's link, stretched over the whole card so a click anywhere opens the
+  // task; the menu button sits above it. Away from the key the card still shows it can be dragged.
+  .open {
     &::after {
       content: '';
       position: absolute;
       inset: 0;
       border-radius: inherit;
+      cursor: grab;
     }
 
     &:focus-visible {
@@ -201,7 +197,6 @@
 
     .key {
       font: var(--mat-sys-label-medium);
-      color: var(--mat-sys-on-surface-variant);
     }
 
     .spacer {

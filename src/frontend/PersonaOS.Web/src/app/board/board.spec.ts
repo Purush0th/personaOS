@@ -130,6 +130,15 @@ describe('Board', () => {
     expect(nativeDrag.defaultPrevented).toBeTrue();
   });
 
+  it('links a card by its key, not its title, and still opens from anywhere on the card', () => {
+    const first = card('TASK-1');
+    const link = first.querySelector('a.open')!;
+
+    expect(link.textContent?.trim()).toBe('TASK-1');
+    expect(first.querySelector('.title')!.closest('a')).toBeNull();
+    expect(getComputedStyle(link, '::after').position).toBe('absolute'); // stretched over the card
+  });
+
   it('waits for a short press on touch, so a swipe across the board still scrolls it', () => {
     const drag = harness.fixture.debugElement.query(By.directive(CdkDrag)).injector.get(CdkDrag);
     expect(drag.dragStartDelay).toEqual({ touch: 250, mouse: 0 });

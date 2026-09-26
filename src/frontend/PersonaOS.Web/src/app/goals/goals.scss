@@ -66,18 +66,8 @@
     gap: 0.25rem 0.5rem;
     min-height: 2.5rem;
 
-    .key {
-      color: var(--mat-sys-on-surface-variant);
-    }
-
     .title {
       font: var(--mat-sys-title-small);
-      color: inherit;
-      text-decoration: none;
-
-      &:hover {
-        text-decoration: underline;
-      }
     }
 
     .range {

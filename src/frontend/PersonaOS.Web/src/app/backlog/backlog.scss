@@ -28,13 +28,8 @@
 
     .name {
       font: var(--mat-sys-title-small);
-      color: inherit;
-      text-decoration: none;
     }
 
-    a.name:hover {
-      text-decoration: underline;
-    }
 
     .dates {
       white-space: nowrap;
