@@ -56,22 +56,60 @@ class GoalTaskSummary {
 }
 
 /// A goal is the epic of the sprint board: goals do not nest, and their tasks carry the work.
+/// A child goal, as listed with its parent: a year's quarter or a quarter's month.
+class GoalChildSummary {
+  GoalChildSummary({
+    required this.id,
+    required this.key,
+    required this.title,
+    required this.periodType,
+    required this.slot,
+    required this.status,
+    required this.effectiveProgress,
+  });
+
+  factory GoalChildSummary.fromJson(Map<String, dynamic> json) => GoalChildSummary(
+        id: json['id'] as int,
+        key: json['key'] as String,
+        title: json['title'] as String,
+        periodType: json['periodType'] as String,
+        slot: json['slot'] as String? ?? '',
+        status: json['status'] as String,
+        effectiveProgress: json['effectiveProgress'] as int? ?? 0,
+      );
+
+  final int id;
+  final String key;
+  final String title;
+  final String periodType;
+  final String slot;
+  final String status;
+  final int effectiveProgress;
+}
+
+/// A goal: year, quarter or month, nested year > quarter > month or standalone. Only monthly
+/// goals hold tasks. Its dates follow its calendar slot.
 class Goal {
   Goal({
     required this.id,
     required this.key,
     required this.title,
     required this.periodType,
+    this.slot = '',
     this.periodStart,
     this.periodEnd,
+    this.parentId,
+    this.parentKey,
     required this.status,
     required this.progress,
     required this.effectiveProgress,
     required this.taskCount,
     required this.doneTaskCount,
-    required this.totalPoints,
-    required this.donePoints,
+    this.childCount = 0,
+    this.completedChildCount = 0,
+    this.completeProblem,
     required this.tasks,
+    this.children = const [],
   });
 
   factory Goal.fromJson(Map<String, dynamic> json) => Goal(
@@ -79,17 +117,24 @@ class Goal {
         key: json['key'] as String? ?? '',
         title: json['title'] as String,
         periodType: json['periodType'] as String,
+        slot: json['slot'] as String? ?? '',
         periodStart: DateTime.tryParse(json['periodStart'] as String? ?? ''),
         periodEnd: DateTime.tryParse(json['periodEnd'] as String? ?? ''),
+        parentId: json['parentId'] as int?,
+        parentKey: json['parentKey'] as String?,
         status: json['status'] as String,
         progress: json['progress'] as int,
         effectiveProgress: json['effectiveProgress'] as int,
         taskCount: json['taskCount'] as int? ?? 0,
         doneTaskCount: json['doneTaskCount'] as int? ?? 0,
-        totalPoints: json['totalPoints'] as int? ?? 0,
-        donePoints: json['donePoints'] as int? ?? 0,
+        childCount: json['childCount'] as int? ?? 0,
+        completedChildCount: json['completedChildCount'] as int? ?? 0,
+        completeProblem: json['completeProblem'] as String?,
         tasks: (json['tasks'] as List<dynamic>? ?? const [])
             .map((e) => GoalTaskSummary.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        children: (json['children'] as List<dynamic>? ?? const [])
+            .map((e) => GoalChildSummary.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 
@@ -98,22 +143,36 @@ class Goal {
   final String title;
   final String periodType; // year | quarter | month
 
-  /// First and last day of the goal. Null only from a server older than goal end dates.
+  /// "2026", "Q4 2026" or "Oct 2026".
+  final String slot;
+
+  /// First and last day of the goal; the last is its due date.
   final DateTime? periodStart;
   final DateTime? periodEnd;
 
-  final String status; // active | completed | dropped
+  /// The year a quarter sits under, or the quarter a month sits under; null when standalone.
+  final int? parentId;
+  final String? parentKey;
 
-  /// Manually tracked; used only while the goal has no tasks.
+  final String status; // active | completed
+
+  /// Manually tracked; used only while the goal has no tasks and no child goals.
   final int progress;
 
-  /// From the goal's tasks: done points over estimated points.
+  /// Completed 100; else the average of its child goals; else done tasks over tasks; else manual.
   final int effectiveProgress;
   final int taskCount;
   final int doneTaskCount;
-  final int totalPoints;
-  final int donePoints;
+  final int childCount;
+  final int completedChildCount;
+
+  /// Why it cannot be completed yet (open tasks, active child goals), or null.
+  final String? completeProblem;
   final List<GoalTaskSummary> tasks;
+  final List<GoalChildSummary> children;
+
+  /// Progress set by hand: an open goal with no tasks and no child goals.
+  bool get setsProgressByHand => status == 'active' && taskCount == 0 && childCount == 0;
 }
 
 class BoardTask {

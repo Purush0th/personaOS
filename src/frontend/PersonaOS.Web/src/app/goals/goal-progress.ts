@@ -3,10 +3,9 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { Goal } from '../core/goals.service';
 
 /**
- * A goal's progress as one bar that only reads out. With tasks the bar is theirs ("2 of 5 points
- * · 1 of 2 tasks"); without, it is set by hand with Update progress, which opens
- * GoalProgressDialog. The bar was a slider for a while, but a drag on a card was too easy to make
- * by accident, and the owner wanted the change behind the goal's menu, in a popup.
+ * A goal's progress as one bar that only reads out. A goal with child goals averages them ("1 of
+ * 3 months done"); a month with tasks counts them ("1 of 2 tasks done"; value points never
+ * count); anything else is set by hand with Update progress, which opens GoalProgressDialog.
  *
  * Shown on the goals page and on a goal's own page.
  */
@@ -18,10 +17,10 @@ import { Goal } from '../core/goals.service';
       <span class="fill" [style.width.%]="goal().effectiveProgress"></span>
     </span>
     <span class="value">{{ goal().effectiveProgress }}%</span>
-    @if (goal().taskCount > 0) {
-      <span class="detail">
-        {{ goal().donePoints }} of {{ goal().totalPoints }} points · {{ goal().doneTaskCount }} of {{ goal().taskCount }} tasks
-      </span>
+    @if (goal().childCount > 0) {
+      <span class="detail">{{ goal().completedChildCount }} of {{ goal().childCount }} {{ childWord() }} done</span>
+    } @else if (goal().taskCount > 0) {
+      <span class="detail">{{ goal().doneTaskCount }} of {{ goal().taskCount }} {{ goal().taskCount === 1 ? 'task' : 'tasks' }} done</span>
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -58,4 +57,9 @@ import { Goal } from '../core/goals.service';
 })
 export class GoalProgress {
   readonly goal = input.required<Goal>();
+
+  protected childWord(): string {
+    const plural = this.goal().childCount !== 1;
+    return this.goal().periodType === 'year' ? (plural ? 'quarters' : 'quarter') : (plural ? 'months' : 'month');
+  }
 }

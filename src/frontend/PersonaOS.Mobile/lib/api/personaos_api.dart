@@ -410,24 +410,41 @@ class PersonaOsApi {
 
   // --- Goals ---------------------------------------------------------------
 
-  Future<List<Goal>> getGoals({bool includeDropped = false}) async {
-    final data = await _get('/api/goals?includeDropped=$includeDropped') as List<dynamic>;
+  Future<List<Goal>> getGoals() async {
+    final data = await _get('/api/goals') as List<dynamic>;
     return data.map((e) => Goal.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// A goal by its calendar slot: [quarter] (1-4) or [month] (1-12) of [year], or for a year
+  /// goal its start day ([periodStart], today when null). [parentId] nests it.
   Future<void> createGoal({
     required String title,
     required String periodType,
-    required String periodStart, // yyyy-MM-dd
-    String? periodEnd, // yyyy-MM-dd; the server defaults it from the period type when null
+    required int year,
+    int? quarter,
+    int? month,
+    String? periodStart, // yyyy-MM-dd
+    int? parentId,
   }) async {
     await _post('/api/goals', {
       'title': title,
       'periodType': periodType,
-      'periodStart': periodStart,
-      'periodEnd': ?periodEnd,
+      'year': year,
+      'quarter': ?quarter,
+      'month': ?month,
+      'periodStart': ?periodStart,
+      'parentId': ?parentId,
     });
   }
+
+  /// Under [parentId] in the slot given (its dates follow), or detached when [parentId] is null.
+  Future<void> moveGoal(int id, {int? parentId, int? year, int? quarter, int? month}) =>
+      _put('/api/goals/$id/parent', {
+        'parentId': parentId,
+        'year': ?year,
+        'quarter': ?quarter,
+        'month': ?month,
+      });
 
   Future<void> setGoalProgress(int id, int progress) =>
       _put('/api/goals/$id', {'progress': progress});
@@ -435,7 +452,10 @@ class PersonaOsApi {
   Future<void> setGoalStatus(int id, String status) =>
       _put('/api/goals/$id/status', {'status': status});
 
-  Future<void> deleteGoal(int id) => _delete('/api/goals/$id');
+  /// Deletes a goal; its tasks are kept ('keep'), deleted ('delete'), or reassigned
+  /// ('reassign', with [reassign] mapping each task key to a monthly goal key or null).
+  Future<void> deleteGoal(int id, {String taskAction = 'keep', Map<String, String?>? reassign}) =>
+      _delete('/api/goals/$id', {'taskAction': taskAction, 'reassign': reassign});
 
   // --- Planner -------------------------------------------------------------
 
@@ -712,8 +732,10 @@ class PersonaOsApi {
       headers: _headers,
       body: jsonEncode(body)));
 
-  Future<dynamic> _delete(String path) => _send(
-      () => http.delete(Uri.parse('$serverUrl$path'), headers: _headers));
+  Future<dynamic> _delete(String path, [Object? body]) => _send(() => http.delete(
+      Uri.parse('$serverUrl$path'),
+      headers: _headers,
+      body: body == null ? null : jsonEncode(body)));
 
   /// Runs a request, maps 401 to a cleared session, and turns any non-2xx into
   /// an [ApiException] carrying the server's `error` message when present.

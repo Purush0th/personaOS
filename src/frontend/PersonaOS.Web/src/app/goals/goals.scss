@@ -1,5 +1,6 @@
 /* Goals read like the backlog: each goal is a lane (the --work-* tokens in styles.scss), its
-   progress one bar, its tasks the shared raised rows (.work-row), its actions in a menu. */
+   progress one bar, its tasks the shared raised rows (.work-row), its actions in a menu. A child
+   goal's lane is indented under its parent's, one step per level. */
 
 .page-head {
   display: flex;
@@ -18,45 +19,27 @@
   }
 }
 
-.new-goal,
 .goal {
+  --indent: 1.5rem;
   margin-top: 1rem;
+  margin-left: calc(var(--depth, 0) * var(--indent));
   padding: 0.5rem 0.75rem 0.75rem;
   border-radius: var(--mat-sys-corner-medium);
   background: var(--work-lane);
-}
 
-.new-goal {
-  padding-top: 1rem;
-
-  h2 {
-    font: var(--mat-sys-title-medium);
-    margin: 0 0 0.75rem;
-  }
-
-  .fields {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-
-  .grow {
-    flex: 1;
-    min-width: 16rem;
-  }
-
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
+  // A child sits close under its parent, joined by a line down its left edge.
+  &[style*='--depth: 1'],
+  &[style*='--depth: 2'] {
     margin-top: 0.5rem;
+    border-left: 3px solid var(--mat-sys-outline-variant);
   }
-}
 
-.goal {
-  &.dropped {
-    opacity: 0.6;
+  @media (max-width: 600px) {
+    --indent: 0.75rem;
+  }
+
+  &.completed {
+    opacity: 0.75;
   }
 
   > header {
@@ -112,6 +95,20 @@
   .sprint {
     font: var(--mat-sys-label-small);
   }
+}
+
+// A menu item that cannot be used yet says why under its label.
+.item {
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem 0;
+}
+
+.reason {
+  max-width: 16rem;
+  white-space: normal;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
 }
 
 .danger {

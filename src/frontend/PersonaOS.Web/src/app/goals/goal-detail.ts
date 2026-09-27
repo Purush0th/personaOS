@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Injector, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -21,16 +21,20 @@ import {
   goalHue,
 } from '../core/board.service';
 import { BrandingService } from '../core/branding.service';
-import { formatGoalRange } from '../core/goal-period';
-import { Goal, GoalsService } from '../core/goals.service';
+import { PERIOD_LABELS, childTypeOf, formatGoalRange } from '../core/goal-calendar';
+import { Goal, GoalsService, setsProgressByHand } from '../core/goals.service';
 import { Confirm } from '../core/confirm';
 import { GoalProgress } from './goal-progress';
 import { askGoalProgress } from './goal-progress-dialog';
+import { askNewGoal } from './goal-form-dialog';
+import { askMoveGoal } from './goal-move-dialog';
+import { askDeleteGoal } from './goal-delete-dialog';
 import { InlineCreate, NewTask } from '../shared/inline-create';
 import { Discussion } from '../shared/discussion';
 
 /**
- * One goal, full screen, at /goals/GOAL-3: its tasks, progress and discussion. Goals are their own
+ * One goal, full screen, at /goals/GOAL-3: its child goals (a year's quarters, a quarter's months)
+ * or its tasks (a month's), its progress and its discussion. Goals are their own
  * section, beside the board rather than in it, so the page lives under /goals (it was
  * /board/goals, which still redirects here).
  */
@@ -63,6 +67,7 @@ export class GoalDetail implements OnInit {
   private readonly branding = inject(BrandingService);
   private readonly confirm = inject(Confirm);
   private readonly dialog = inject(MatDialog);
+  private readonly injector = inject(Injector);
 
   protected readonly goal = signal<Goal | null>(null);
   protected readonly loading = signal(true);
@@ -78,6 +83,8 @@ export class GoalDetail implements OnInit {
   protected readonly columnLabels = COLUMN_LABELS;
   protected readonly allowedPoints = [1, 2, 3, 5, 8, 13, 21];
   protected readonly priorities: Priority[] = ['highest', 'high', 'medium', 'low', 'lowest'];
+  protected readonly periodLabels = PERIOD_LABELS;
+  protected readonly setsProgressByHand = setsProgressByHand;
 
   async ngOnInit(): Promise<void> {
     this.key.set(this.route.snapshot.paramMap.get('key') ?? '');
@@ -127,7 +134,7 @@ export class GoalDetail implements OnInit {
     await this.change(() => this.goalsApi.update(this.goal()!.id, { priority }));
   }
 
-  protected async setStatus(value: string): Promise<void> {
+  protected async setStatus(value: 'active' | 'completed'): Promise<void> {
     await this.change(() => this.goalsApi.updateStatus(this.goal()!.id, value));
   }
 
@@ -149,24 +156,35 @@ export class GoalDetail implements OnInit {
     }
   };
 
+  /** A year takes up to four quarters and a quarter three months, while it is open. */
+  protected canAddChild(goal: Goal): boolean {
+    return goal.status === 'active' && goal.childCount < (goal.periodType === 'year' ? 4 : 3);
+  }
+
+  protected childWord(goal: Goal): string {
+    return goal.periodType === 'year' ? 'quarters' : 'months';
+  }
+
+  protected async addChild(): Promise<void> {
+    const goal = this.goal();
+    if (!goal || !childTypeOf(goal.periodType)) return;
+    const goals = await this.goalsApi.getAll();
+    if (await askNewGoal(this.dialog, this.injector, { goals, parent: goals.find(g => g.id === goal.id) ?? goal })) {
+      await this.reload();
+    }
+  }
+
+  protected async move(): Promise<void> {
+    const goal = this.goal();
+    if (!goal) return;
+    if (await askMoveGoal(this.dialog, this.injector, { goal, goals: await this.goalsApi.getAll() })) await this.reload();
+  }
+
   protected async remove(): Promise<void> {
     const goal = this.goal();
     if (!goal) return;
-    const ok = await this.confirm.ask({
-      title: `Delete ${goal.key} “${goal.title}”?`,
-      message: goal.taskCount > 0
-        ? `Its ${goal.taskCount} tasks stay on the board without a goal. This cannot be undone.`
-        : 'This cannot be undone.',
-      confirmLabel: 'Delete',
-      destructive: true,
-    });
-    if (!ok) return;
-
-    try {
-      await this.goalsApi.delete(goal.id);
+    if (await askDeleteGoal(this.dialog, this.injector, { goal, goals: await this.goalsApi.getAll() })) {
       await this.router.navigate(['/goals']);
-    } catch (e: unknown) {
-      this.confirm.error(apiError(e).message ?? 'Could not delete that goal.');
     }
   }
 
