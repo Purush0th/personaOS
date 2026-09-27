@@ -118,7 +118,18 @@ it is not under a parent.
       existing phone test caught `setState(() => _goals = …)` handing setState a Future. Tests: web
       99 (goal-calendar, goals page, form/delete dialogs, progress read-out), phone 86
       (goal_calendar_test, goals_tree_test), backend 521.
-      **Not deployed yet**: P1 + P2 ship together, with the live wipe (confirm first).
+      **Deployed 2026-09-27 with P1 and the live wipe** (owner: "commit, deploy and wipe"): the API
+      was stopped and the whole data volume copied to `data/backups/pre-goal-pivot-2026-09-27/`
+      (now in .gitignore: it holds the Data Protection keys; integrity ok; 4 goals, 7 tasks, 2
+      reminders, 10 conversations). The wipe ran on a copy first (integrity and foreign keys clean),
+      then replaced the live DB, owned by the API's uid 1654: goals, tasks, sprints, comments,
+      attachments, planner items, conversations and cards, documents and brief history deleted;
+      reminders (links to goals and planner items cleared), settings, admin, devices and About you
+      kept. There were no document or attachment files. `GoalHierarchy` applied on start. Live
+      checks: goals and conversations empty, settings intact, a Q3 goal on 27 Sep refused with the
+      reason, new web pages served. The volume's own nightly `backups/`, `pre-chat-wipe/` and
+      `pre-publicid/` folders still hold older copies; delete them when the owner wants. Release
+      arm64 APK built and sent to the owner.
 - [ ] **P3. Timeline (web + phone).** `/timeline` and a phone screen: Gantt-style bars on a date
       axis labelled with key and title, status and progress, year / quarter / month expand and
       collapse, current year by default with a year dropdown, bars open the goal.
