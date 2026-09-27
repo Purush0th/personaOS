@@ -31,7 +31,7 @@ public class BoardServiceTests
         db.DeviceTokens.Add(new DeviceToken { Token = "phone", Platform = "android" });
         db.SaveChanges();
         var board = new BoardService(db, new FakeInstanceConfigService(db), push, clock, NullLogger<BoardService>.Instance);
-        return new Rig(db, board, new GoalService(db), clock, push);
+        return new Rig(db, board, TestGoals.Service(db, clock), clock, push);
     }
 
     /// <summary>A rig with SPRINT-1 running and one committed 3-point task in it.</summary>
@@ -453,7 +453,7 @@ public class BoardServiceTests
         // How a completed sub-goal arrives after the migration: done, but in no sprint. Calling it
         // "Backlog" made finished work look unstarted, and it is not on the board to correct there.
         var rig = Setup();
-        var goal = await rig.Goals.CreateAsync(new CreateGoalRequest("Read books", null, GoalPeriods.Month, new DateOnly(2026, 9, 1)));
+        var goal = await rig.Goals.CreateAsync(TestGoals.Month("Read books"));
         var task = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Buy a book", GoalId: goal.Id));
         rig.Db.BoardTasks.Single(t => t.Id == task.Id).Status = BoardTaskStatuses.Done;
         await rig.Db.SaveChangesAsync();
@@ -471,7 +471,7 @@ public class BoardServiceTests
     public async Task Goal_progress_follows_its_tasks_and_deleting_the_goal_keeps_them()
     {
         var rig = Setup();
-        var goal = await rig.Goals.CreateAsync(new CreateGoalRequest("Learn Rust", null, GoalPeriods.Month, new DateOnly(2026, 9, 1)));
+        var goal = await rig.Goals.CreateAsync(TestGoals.Month("Learn Rust"));
         var done = await rig.Board.CreateTaskAsync(new CreateTaskRequest("Ownership", Points: 3, GoalId: goal.Id));
         await rig.Board.CreateTaskAsync(new CreateTaskRequest("Lifetimes", Points: 5, GoalId: goal.Id));
         rig.Db.BoardTasks.Single(t => t.Id == done.Id).Status = BoardTaskStatuses.Done;
@@ -479,10 +479,10 @@ public class BoardServiceTests
 
         var dto = (await rig.Goals.GetAsync(goal.Id))!;
         Assert.Equal("GOAL-1", dto.Key);
-        Assert.Equal(38, dto.EffectiveProgress); // 3 of 8 points
+        Assert.Equal(50, dto.EffectiveProgress); // 1 of 2 tasks; value points never count
         Assert.Equal(["TASK-1", "TASK-2"], dto.Tasks.Select(t => t.Key));
 
-        await rig.Goals.DeleteAsync(goal.Id);
+        await rig.Goals.DeleteAsync(goal.Id, new DeleteGoalRequest());
 
         Assert.Equal(2, await rig.Db.BoardTasks.CountAsync());
         Assert.Null((await rig.Board.GetTaskAsync(done.Id))!.Task.GoalId);

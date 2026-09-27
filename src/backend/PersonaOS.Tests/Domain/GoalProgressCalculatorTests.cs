@@ -5,46 +5,49 @@ namespace PersonaOS.Tests.Domain;
 
 public class GoalProgressCalculatorTests
 {
-    private static BoardTask Task(int? points, bool done = false) => new()
+    private static BoardTask Task(bool done = false, int? points = null) => new()
     {
         Points = points,
         Status = done ? BoardTaskStatuses.Done : BoardTaskStatuses.Todo,
     };
 
     [Fact]
-    public void A_goal_without_tasks_uses_its_manual_progress()
+    public void A_goal_with_nothing_under_it_uses_its_manual_progress()
     {
-        Assert.Equal(40, GoalProgressCalculator.Compute(40, []));
+        Assert.Equal(40, GoalProgressCalculator.Compute(GoalStatuses.Active, 40, [], []));
     }
 
     [Fact]
-    public void Progress_is_done_points_over_estimated_points()
+    public void A_completed_goal_is_100_whatever_is_under_it()
     {
-        // 5 of 8 points done.
-        var tasks = new[] { Task(5, done: true), Task(3) };
-
-        Assert.Equal(63, GoalProgressCalculator.Compute(0, tasks));
+        Assert.Equal(100, GoalProgressCalculator.Compute(GoalStatuses.Completed, 0, [Task()], []));
     }
 
     [Fact]
-    public void Unestimated_tasks_do_not_drag_the_points_ratio_down()
+    public void Tasks_count_equally_and_points_do_not_matter()
     {
-        var tasks = new[] { Task(3, done: true), Task(null), Task(null) };
-
-        Assert.Equal(100, GoalProgressCalculator.Compute(0, tasks));
+        Assert.Equal(50, GoalProgressCalculator.Compute(GoalStatuses.Active, 0, [Task(true, 1), Task(false, 21)], []));
     }
 
     [Fact]
-    public void With_nothing_estimated_it_counts_tasks()
+    public void Child_goals_are_averaged_and_win_over_manual_progress()
     {
-        var tasks = new[] { Task(null, done: true), Task(null), Task(null), Task(null) };
-
-        Assert.Equal(25, GoalProgressCalculator.Compute(90, tasks));
+        Assert.Equal(67, GoalProgressCalculator.Compute(GoalStatuses.Active, 10, [], [100, 0, 100]));
     }
 
     [Fact]
-    public void Manual_progress_is_ignored_once_tasks_exist()
+    public void Progress_rolls_up_from_months_through_quarters_to_the_year()
     {
-        Assert.Equal(0, GoalProgressCalculator.Compute(80, [Task(2)]));
+        var year = new Goal { Id = 1, Status = GoalStatuses.Active };
+        var quarter = new Goal { Id = 2, ParentGoalId = 1, Status = GoalStatuses.Active };
+        var october = new Goal { Id = 3, ParentGoalId = 2, Status = GoalStatuses.Active, Tasks = [Task(true), Task()] };
+        var november = new Goal { Id = 4, ParentGoalId = 2, Status = GoalStatuses.Active, Progress = 30 };
+
+        var all = GoalProgressCalculator.ComputeAll([year, quarter, october, november]);
+
+        Assert.Equal(50, all[3]);
+        Assert.Equal(30, all[4]);
+        Assert.Equal(40, all[2]);
+        Assert.Equal(40, all[1]);
     }
 }

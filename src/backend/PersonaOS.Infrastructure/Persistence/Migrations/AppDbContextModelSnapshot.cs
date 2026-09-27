@@ -287,6 +287,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<int>("Number")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("ParentGoalId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateOnly>("PeriodEnd")
                         .HasColumnType("TEXT");
 
@@ -323,6 +326,8 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Number")
                         .IsUnique();
+
+                    b.HasIndex("ParentGoalId");
 
                     b.HasIndex("Status", "PeriodStart");
 
@@ -790,6 +795,16 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Navigation("Conversation");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.Goal", b =>
+                {
+                    b.HasOne("PersonaOS.Domain.Entities.Goal", "ParentGoal")
+                        .WithMany("ChildGoals")
+                        .HasForeignKey("ParentGoalId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ParentGoal");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.PendingAction", b =>
                 {
                     b.HasOne("PersonaOS.Domain.Entities.ChatMessage", "ChatMessage")
@@ -850,6 +865,8 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PersonaOS.Domain.Entities.Goal", b =>
                 {
+                    b.Navigation("ChildGoals");
+
                     b.Navigation("Tasks");
                 });
 #pragma warning restore 612, 618

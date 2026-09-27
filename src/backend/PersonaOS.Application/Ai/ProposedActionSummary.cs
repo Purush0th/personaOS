@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 
 namespace PersonaOS.Application.Ai;
@@ -30,8 +30,8 @@ public static class ProposedActionSummary
         ("date", ""),
         ("scheduledTime", ""),
         ("periodType", ""),
-        ("periodStart", ""),
-        ("periodEnd", "until "),
+        ("periodStart", "from "),
+        ("parentKey", "under "),
         ("status", ""),
         ("progress", "progress "),
         ("column", "to "),
@@ -81,14 +81,24 @@ public static class ProposedActionSummary
             }
         }
 
-        // A goal with no end given still gets one, so the card says which: the due date is what
-        // the user is agreeing to, and "month · 2026-09-22" alone does not say it.
-        if (toolName is "create_goal"
-            && ToolPayloadText.FirstValue(input, ["periodEnd"]) is null
-            && ToolPayloadText.FirstValue(input, ["periodType"]) is { } type
-            && DateOnly.TryParse(ToolPayloadText.FirstValue(input, ["periodStart"]), out var start))
+        // A goal's calendar slot is what the user is agreeing to: "Q4 2026", "Oct 2026".
+        if (toolName is "create_goal" or "move_goal" && Slot(input) is { } slot) parts.Add(slot);
+
+        // A goal leaving its parent says so; "Move goal GOAL-5" alone would not.
+        if (toolName is "move_goal" && ToolPayloadText.FirstValue(input, ["parentKey"]) is null)
         {
-            parts.Add($"until {Domain.Services.GoalPeriodCalculator.DefaultEnd(type, start):yyyy-MM-dd}");
+            parts.Add("detached, standalone");
+        }
+
+        // What happens to a deleted goal's tasks is the part the user must not miss.
+        if (toolName is "delete_goal")
+        {
+            parts.Add(ToolPayloadText.FirstValue(input, ["taskAction"])?.ToLowerInvariant() switch
+            {
+                "delete" => "its tasks are deleted too",
+                "reassign" => "its tasks move to other goals",
+                _ => "its tasks are kept without a goal",
+            });
         }
 
         // Which goal a task lands under is the detail a model has actually got wrong, so state it
@@ -107,5 +117,31 @@ public static class ProposedActionSummary
         if (parts.Count > 0) sb.Append(" — ").Append(string.Join(" · ", parts));
 
         return ToolPayloadText.Truncate(sb.ToString(), 500);
+    }
+
+    /// <summary>"Q4 2026" or "Oct 2026" from a goal call's quarter or month and year; null when absent.</summary>
+    private static string? Slot(JsonElement input)
+    {
+        var year = ToolPayloadText.FirstValue(input, ["year"]);
+        if (int.TryParse(ToolPayloadText.FirstValue(input, ["quarter"])?.TrimStart('Q', 'q'), out var quarter) && quarter is >= 1 and <= 4)
+            return $"Q{quarter} {year}".Trim();
+        if (MonthOf(ToolPayloadText.FirstValue(input, ["month"])) is int month)
+            return $"{Months.GetAbbreviatedMonthName(month)} {year}".Trim();
+        // A model that gave a start day instead of a slot still picked one: that day's.
+        if (ToolPayloadText.FirstValue(input, ["periodType"]) is "quarter" or "month"
+            && DateOnly.TryParse(ToolPayloadText.FirstValue(input, ["periodStart"]), out var day))
+            return Domain.Services.GoalCalendar.Label(ToolPayloadText.FirstValue(input, ["periodType"])!, day);
+        return year;
+    }
+
+    private static System.Globalization.DateTimeFormatInfo Months => System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat;
+
+    /// <summary>1-12 from "11", "November" or "Nov"; the goal tools read it the same way.</summary>
+    private static int? MonthOf(string? text)
+    {
+        if (int.TryParse(text, out var number)) return number is >= 1 and <= 12 ? number : null;
+        if (text is null || text.Trim().Length < 3) return null;
+        var index = Array.FindIndex(Months.MonthNames, m => m.StartsWith(text.Trim()[..3], StringComparison.OrdinalIgnoreCase));
+        return index is >= 0 and < 12 ? index + 1 : null;
     }
 }

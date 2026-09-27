@@ -45,14 +45,15 @@ public class ProposalTargetTests
     public async Task A_goal_card_names_the_goal_behind_the_key()
     {
         var db = TestDbContext.Create();
-        var goals = new GoalService(db);
-        await goals.CreateAsync(new CreateGoalRequest("Learn Rust", null, GoalPeriods.Month, new DateOnly(2026, 9, 1)));
+        var goals = TestGoals.Service(db);
+        await goals.CreateAsync(TestGoals.Month("Learn Rust"));
         var tool = new DeleteGoalTool(goals);
 
         var target = await tool.DescribeTargetAsync(System.Text.Json.JsonDocument.Parse("""{"goalKey":"GOAL-1"}""").RootElement);
 
         Assert.Equal("GOAL-1 “Learn Rust”", target);
-        Assert.Equal("Delete goal GOAL-1 “Learn Rust”", ProposedActionSummary.Describe("delete_goal", """{"goalKey":"GOAL-1"}""", target));
+        Assert.Equal("Delete goal GOAL-1 “Learn Rust” — its tasks are kept without a goal",
+            ProposedActionSummary.Describe("delete_goal", """{"goalKey":"GOAL-1"}""", target));
     }
 
     [Fact]
@@ -62,7 +63,7 @@ public class ProposalTargetTests
         var board = new BoardService(db, new FakeInstanceConfigService(db), new FakePushSender(), TimeProvider.System,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<BoardService>.Instance);
         await board.CreateTaskAsync(new CreateTaskRequest("File taxes"));
-        var tool = new MoveTaskTool(board, new GoalService(db));
+        var tool = new MoveTaskTool(board, TestGoals.Service(db));
         const string input = """{"taskKey":"TASK-1","column":"done"}""";
 
         var target = await tool.DescribeTargetAsync(System.Text.Json.JsonDocument.Parse(input).RootElement);
@@ -74,7 +75,7 @@ public class ProposalTargetTests
     public async Task A_key_that_names_nothing_gives_no_target_and_the_card_falls_back_to_the_fields()
     {
         var db = TestDbContext.Create();
-        var target = await new DeleteGoalTool(new GoalService(db))
+        var target = await new DeleteGoalTool(TestGoals.Service(db))
             .DescribeTargetAsync(System.Text.Json.JsonDocument.Parse("""{"goalKey":"GOAL-9"}""").RootElement);
 
         Assert.Null(target);

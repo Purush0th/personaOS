@@ -414,8 +414,17 @@ public class BoardService(
         if (!BoardColumns.All.Contains(column))
             throw new BoardValidationException($"Column must be one of: {string.Join(", ", BoardColumns.All)}.");
 
-        var task = await db.BoardTasks.Include(t => t.Sprint).FirstOrDefaultAsync(t => t.Id == id, ct);
+        var task = await db.BoardTasks.Include(t => t.Sprint).Include(t => t.Goal).FirstOrDefaultAsync(t => t.Id == id, ct);
         if (task is null) return null;
+
+        // A completed monthly goal has no open tasks, so one of its tasks cannot be reopened
+        // until the goal is.
+        if (task.Status == BoardTaskStatuses.Done && column != BoardColumns.Done
+            && task.Goal is { Status: GoalStatuses.Completed } goal)
+        {
+            throw new BoardValidationException(
+                $"{ItemKeys.Goal(goal.Number)} is completed; reopen it before reopening {ItemKeys.Task(task.Number)}.");
+        }
 
         var from = task.Sprint;
         if (from?.Status == SprintStatuses.Closed)
@@ -681,10 +690,13 @@ public class BoardService(
         return (max ?? -1) + 1;
     }
 
+    /// <summary>A task's goal must exist, be a monthly goal and still be open (GoalService.TaskGoalProblem).</summary>
     private async Task RequireGoalAsync(int? goalId, CancellationToken ct)
     {
-        if (goalId is int id && !await db.Goals.AnyAsync(g => g.Id == id, ct))
-            throw new BoardValidationException($"Goal {id} does not exist.");
+        if (goalId is not int id) return;
+        var goal = await db.Goals.AsNoTracking().FirstOrDefaultAsync(g => g.Id == id, ct)
+            ?? throw new BoardValidationException($"Goal {id} does not exist.");
+        if (Goals.GoalService.TaskGoalProblem(goal) is { } problem) throw new BoardValidationException(problem);
     }
 
     /// <summary>How many comments and attachments each task has, for the card badges.</summary>

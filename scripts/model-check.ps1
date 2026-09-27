@@ -102,8 +102,10 @@ $today = (Get-Date).ToString('yyyy-MM-dd')
 $goals = Invoke-Api -Method Get -Path '/api/goals' -Token $token
 $goal = $goals | Where-Object { $_.title -eq 'Learn Rust' } | Select-Object -First 1
 if ($null -eq $goal) {
+    # Next month: goals follow the calendar and need 15 days left, which this month may not have.
+    $next = (Get-Date).AddMonths(1)
     $goal = Invoke-Api -Method Post -Path '/api/goals' -Token $token `
-        -Body @{ title = 'Learn Rust'; periodType = 'month'; periodStart = $today }
+        -Body @{ title = 'Learn Rust'; periodType = 'month'; year = $next.Year; month = $next.Month }
 }
 $day = Invoke-Api -Method Get -Path "/api/planner?date=$today" -Token $token
 $plannerItem = 'Read a book today'

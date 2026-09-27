@@ -50,16 +50,16 @@ public class ToolReceiptBuilderTests
         // moment the model got the period wrong and skipped the parent link.
         const string result = """
             {"created":{"id":2,"title":"Learn C# for AI applications","description":null,
-             "parentGoalId":null,"periodType":"month","periodStart":"2026-10-01",
+             "parentId":null,"periodType":"month","slot":"Oct 2026","periodStart":"2026-10-01",
              "status":"active","progress":0}}
             """;
 
         var receipt = ToolReceiptBuilder.Build("create_goal", result, isError: false);
 
         Assert.Contains("Learn C# for AI applications", receipt.Summary);
-        // The period must be visible: seeing "2026-10-01" is what reveals a goal filed
-        // under the wrong month.
-        Assert.Contains("2026-10-01", receipt.Summary);
+        // The period must be visible: seeing "Oct 2026" is what reveals a goal filed under the
+        // wrong month.
+        Assert.Contains("Oct 2026", receipt.Summary);
         Assert.Contains("month", receipt.Summary);
     }
 
