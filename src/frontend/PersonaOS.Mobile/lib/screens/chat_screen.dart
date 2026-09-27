@@ -675,10 +675,7 @@ class _BubbleView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (bubble.text.isEmpty && !bubble.isUser)
-              const SizedBox(
-                width: 32,
-                child: Text('…', textAlign: TextAlign.center),
-              )
+              TypingDots(color: foreground)
             else if (bubble.isUser || bubble.isError)
               // Your own words and server errors are literal — rendering them
               // as Markdown would silently eat characters you actually typed.
@@ -900,6 +897,78 @@ class _ReceiptList extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Three dots that rise and brighten one after another while a reply is on its way. It was a
+/// still "…", which looked the same as a reply that had stopped. With animations turned off in
+/// the phone's settings the dots stay still.
+class TypingDots extends StatefulWidget {
+  const TypingDots({super.key, required this.color});
+
+  final Color color;
+
+  @override
+  State<TypingDots> createState() => _TypingDotsState();
+}
+
+class _TypingDotsState extends State<TypingDots> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.of(context).disableAnimations) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Thinking',
+      child: SizedBox(
+        height: 20,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < 3; i++) _dot(i),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Each dot peaks an eighth of the cycle after the one before it, and rests half the cycle.
+  Widget _dot(int index) {
+    final phase = (_controller.value - index * 0.125) % 1;
+    final lift = phase < 0.5 ? (phase < 0.25 ? phase / 0.25 : (0.5 - phase) / 0.25) : 0.0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Transform.translate(
+        offset: Offset(0, -3 * lift),
+        child: Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: widget.color.withValues(alpha: 0.3 + 0.7 * lift),
+            shape: BoxShape.circle,
+          ),
+        ),
       ),
     );
   }

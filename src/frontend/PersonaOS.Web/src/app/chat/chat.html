@@ -3,9 +3,10 @@
     @for (bubble of bubbles(); track $index) {
       <div class="bubble" [class.user]="bubble.role === 'user'" [class.failed]="bubble.isError">
         @if (bubble.tool) {
-          <span class="tool">
+          <span class="tool" role="status">
             <mat-icon inline>build</mat-icon>
             {{ bubble.tool }}
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
           </span>
         } @else if (bubble.text) {
           @if (bubble.role === 'assistant' && !bubble.isError) {
@@ -14,7 +15,8 @@
             <span class="plain">{{ bubble.text }}</span>
           }
         } @else {
-          <span class="thinking">…</span>
+          <!-- Three dots that pulse in turn while the reply is on its way (it was a still "…"). -->
+          <span class="thinking dots" role="status" aria-label="Thinking"><i></i><i></i><i></i></span>
         }
 
         <!-- Changes the assistant proposed. Nothing has been saved until Confirm: the
@@ -97,8 +99,13 @@
       ></textarea>
       <mat-hint class="small">Enter sends · Shift+Enter for a new line</mat-hint>
     </mat-form-field>
-    <button mat-fab aria-label="Send" type="submit" [disabled]="streaming() || !draft.trim()">
-      <mat-icon>{{ streaming() ? 'hourglass_empty' : 'send' }}</mat-icon>
+    <!-- While a reply streams the button spins; a still hourglass looked like nothing was happening. -->
+    <button mat-fab [attr.aria-label]="streaming() ? 'Waiting for the reply' : 'Send'" type="submit" [disabled]="streaming() || !draft.trim()">
+      @if (streaming()) {
+        <mat-progress-spinner mode="indeterminate" diameter="22" strokeWidth="3" />
+      } @else {
+        <mat-icon>send</mat-icon>
+      }
     </button>
   </form>
 </section>

@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
+import { goalsOfType } from '../core/goal-calendar';
 import { Goal } from '../core/goals.service';
 
 /**
  * A goal's progress as one bar that only reads out. A goal with child goals averages them ("1 of
- * 3 months done"); a month with tasks counts them ("1 of 2 tasks done"; value points never
+ * 3 monthly goals done"); a month with tasks counts them ("1 of 2 tasks done"; value points never
  * count); anything else is set by hand with Update progress, which opens GoalProgressDialog.
  *
  * Shown on the goals page and on a goal's own page.
@@ -59,7 +60,6 @@ export class GoalProgress {
   readonly goal = input.required<Goal>();
 
   protected childWord(): string {
-    const plural = this.goal().childCount !== 1;
-    return this.goal().periodType === 'year' ? (plural ? 'quarters' : 'quarter') : (plural ? 'months' : 'month');
+    return goalsOfType(this.goal().periodType === 'year' ? 'quarter' : 'month', this.goal().childCount);
   }
 }

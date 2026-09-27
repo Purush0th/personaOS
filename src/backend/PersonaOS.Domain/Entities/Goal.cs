@@ -61,6 +61,15 @@ public static class GoalPeriods
     public const string Month = "month";
 
     public static readonly IReadOnlyList<string> All = [Year, Quarter, Month];
+
+    /// <summary>"Monthly", "Quarterly", "Yearly": the type as the user reads it (owner, 2026-09-27).</summary>
+    public static string Label(string type) => type switch
+    {
+        Year => "Yearly",
+        Quarter => "Quarterly",
+        Month => "Monthly",
+        _ => type,
+    };
 }
 
 /// <summary>

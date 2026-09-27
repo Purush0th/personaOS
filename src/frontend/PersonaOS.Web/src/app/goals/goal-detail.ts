@@ -21,7 +21,7 @@ import {
   goalHue,
 } from '../core/board.service';
 import { BrandingService } from '../core/branding.service';
-import { PERIOD_LABELS, childTypeOf, formatGoalRange } from '../core/goal-calendar';
+import { PERIOD_LABELS, childTypeOf, formatGoalRange, goalsOfType } from '../core/goal-calendar';
 import { Goal, GoalsService, setsProgressByHand } from '../core/goals.service';
 import { Confirm } from '../core/confirm';
 import { GoalProgress } from './goal-progress';
@@ -161,8 +161,9 @@ export class GoalDetail implements OnInit {
     return goal.status === 'active' && goal.childCount < (goal.periodType === 'year' ? 4 : 3);
   }
 
-  protected childWord(goal: Goal): string {
-    return goal.periodType === 'year' ? 'quarters' : 'months';
+  /** "quarterly goals" or "monthly goals": what sits under this goal. */
+  protected childWord(goal: Goal, count = 2): string {
+    return goalsOfType(goal.periodType === 'year' ? 'quarter' : 'month', count);
   }
 
   protected async addChild(): Promise<void> {

@@ -75,7 +75,7 @@
         <!-- A year holds quarters and a quarter months; tasks sit only under months. -->
         <mat-card appearance="outlined" class="tasks-card">
           <mat-card-content>
-            <h2>{{ goal.periodType === 'year' ? 'Quarters' : 'Months' }} <span class="muted small">{{ goal.childCount }}</span></h2>
+            <h2>{{ goal.periodType === 'year' ? 'Quarterly goals' : 'Monthly goals' }} <span class="muted small">{{ goal.childCount }}</span></h2>
             @if (goal.children.length > 0) {
               <div class="tasks">
                 @for (child of goal.children; track child.id) {
@@ -96,7 +96,7 @@
             @if (canAddChild(goal)) {
               <button mat-button class="create-trigger" (click)="addChild()">
                 <mat-icon>add</mat-icon>
-                Add {{ goal.periodType === 'year' ? 'quarter' : 'month' }}
+                Add {{ childWord(goal, 1) }}
               </button>
             }
           </mat-card-content>

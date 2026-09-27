@@ -11,7 +11,12 @@ library;
 
 const minDays = {'year': 90, 'quarter': 45, 'month': 15};
 
-const periodLabels = {'year': 'Year', 'quarter': 'Quarter', 'month': 'Month'};
+/// The goal types as the user reads them, in the order they are offered (owner, 2026-09-27).
+const periodLabels = {'month': 'Monthly', 'quarter': 'Quarterly', 'year': 'Yearly'};
+
+/// "monthly goal", "quarterly goals": goals of a type, counted.
+String goalsOfType(String type, [int count = 1]) =>
+    '${periodLabels[type]!.toLowerCase()} ${count == 1 ? 'goal' : 'goals'}';
 
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 

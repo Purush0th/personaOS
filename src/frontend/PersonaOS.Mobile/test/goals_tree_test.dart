@@ -91,7 +91,7 @@ void main() {
 
     Finder inCard(String key, String text) => find.descendant(of: find.byKey(Key('goal-$key')), matching: find.text(text));
     expect(inCard('GOAL-3', 'Create task'), findsOneWidget);
-    expect(inCard('GOAL-1', 'Add quarter'), findsOneWidget);
+    expect(inCard('GOAL-1', 'Add quarterly goal'), findsOneWidget);
     expect(inCard('GOAL-1', 'Create task'), findsNothing);
     expect(inCard('GOAL-2', 'Create task'), findsNothing);
   });
@@ -107,7 +107,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('goal-menu-GOAL-1')));
     await tester.pumpAndSettle();
-    expect(find.text('Delete its quarters first.'), findsOneWidget);
+    expect(find.text('Delete its quarterly goals first.'), findsOneWidget);
     expect(find.text('Update progress'), findsNothing);
   });
 

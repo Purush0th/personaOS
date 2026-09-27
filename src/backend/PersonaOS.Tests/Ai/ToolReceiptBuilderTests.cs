@@ -60,7 +60,7 @@ public class ToolReceiptBuilderTests
         // The period must be visible: seeing "Oct 2026" is what reveals a goal filed under the
         // wrong month.
         Assert.Contains("Oct 2026", receipt.Summary);
-        Assert.Contains("month", receipt.Summary);
+        Assert.Contains("Monthly", receipt.Summary);
     }
 
     [Fact]

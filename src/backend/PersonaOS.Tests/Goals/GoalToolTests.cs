@@ -65,8 +65,8 @@ public class GoalToolTests
     }
 
     [Theory]
-    [InlineData("""{"title":"Run 10k","periodType":"month","month":"November","year":2026,"parentKey":"GOAL-2"}""", "Create goal “Run 10k” — month · under GOAL-2 · Nov 2026")]
-    [InlineData("""{"title":"Run 10k","periodType":"month","periodStart":"2026-11-01","year":2026}""", "Create goal “Run 10k” — month · from 2026-11-01 · Nov 2026")]
+    [InlineData("""{"title":"Run 10k","periodType":"month","month":"November","year":2026,"parentKey":"GOAL-2"}""", "Create goal “Run 10k” — Monthly · under GOAL-2 · Nov 2026")]
+    [InlineData("""{"title":"Run 10k","periodType":"month","periodStart":"2026-11-01","year":2026}""", "Create goal “Run 10k” — Monthly · from 2026-11-01 · Nov 2026")]
     public void A_goal_card_names_the_calendar_slot(string input, string card)
     {
         Assert.Equal(card, PersonaOS.Application.Ai.ProposedActionSummary.Describe("create_goal", input));

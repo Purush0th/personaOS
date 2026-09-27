@@ -88,7 +88,7 @@ describe('Goals', () => {
 
   it('offers tasks only on monthly goals, and the next level down on the others', () => {
     expect(text(lane('GOAL-3'))).toContain('Create task');
-    expect(text(lane('GOAL-1'))).toContain('Add quarter');
+    expect(text(lane('GOAL-1'))).toContain('Add quarterly goal');
     expect(text(lane('GOAL-1'))).not.toContain('Create task');
     expect(text(lane('GOAL-2'))).not.toContain('Create task');
   });
@@ -105,7 +105,7 @@ describe('Goals', () => {
     const yearItems = await openMenu('GOAL-1');
     const remove = yearItems.find(i => text(i).includes('Delete'))!;
     expect(remove.getAttribute('aria-disabled') === 'true' || remove.hasAttribute('disabled')).toBeTrue();
-    expect(text(remove)).toContain('Delete its quarters first.');
+    expect(text(remove)).toContain('Delete its quarterly goals first.');
     expect(yearItems.some(i => text(i).includes('Update progress'))).toBeFalse();
   });
 });

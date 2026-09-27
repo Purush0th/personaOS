@@ -242,9 +242,7 @@ class _GoalTile extends StatelessWidget {
 
   String get _detail {
     if (goal.childCount > 0) {
-      final word = goal.periodType == 'year'
-          ? (goal.childCount == 1 ? 'quarter' : 'quarters')
-          : (goal.childCount == 1 ? 'month' : 'months');
+      final word = goalsOfType(goal.periodType == 'year' ? 'quarter' : 'month', goal.childCount);
       return '${goal.effectiveProgress}% · ${goal.completedChildCount} of ${goal.childCount} $word done';
     }
     if (goal.taskCount > 0) {
@@ -306,7 +304,8 @@ class _GoalTile extends StatelessWidget {
             if (_isMonth && !completed && boardEnabled)
               TextButton.icon(onPressed: onAddTask, icon: const Icon(Icons.add, size: 18), label: const Text('Create task'))
             else if (addChild != null)
-              TextButton.icon(onPressed: onAddChild, icon: const Icon(Icons.add, size: 18), label: Text('Add $addChild')),
+              TextButton.icon(
+                  onPressed: onAddChild, icon: const Icon(Icons.add, size: 18), label: Text('Add ${goalsOfType(addChild)}')),
           ],
         ),
       ),
@@ -406,7 +405,7 @@ class _GoalTile extends StatelessWidget {
       itemBuilder: (context) => [
         if (goal.setsProgressByHand) const PopupMenuItem(value: 'progress', child: Text('Update progress')),
         if (_isMonth && boardEnabled && goal.status == 'active') const PopupMenuItem(value: 'task', child: Text('Add task…')),
-        if (addChild != null) PopupMenuItem(value: 'child', child: Text('Add $addChild')),
+        if (addChild != null) PopupMenuItem(value: 'child', child: Text('Add ${goalsOfType(addChild)}')),
         if (goal.periodType != 'year') const PopupMenuItem(value: 'move', child: Text('Move')),
         if (goal.status == 'active')
           goal.completeProblem == null
@@ -415,7 +414,8 @@ class _GoalTile extends StatelessWidget {
         else
           const PopupMenuItem(value: 'reopen', child: Text('Reopen')),
         goal.childCount > 0
-            ? _blocked(context, 'Delete', 'Delete its ${goal.periodType == 'year' ? 'quarters' : 'months'} first.')
+            ? _blocked(context, 'Delete',
+                'Delete its ${goalsOfType(goal.periodType == 'year' ? 'quarter' : 'month', 2)} first.')
             : const PopupMenuItem(value: 'delete', child: Text('Delete')),
       ],
     );
@@ -559,7 +559,7 @@ class _GoalSheetState extends State<GoalSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(parent == null ? 'New goal' : 'Add $_type',
+            Text(parent == null ? 'New goal' : 'Add ${goalsOfType(_type)}',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             if (parent != null)
               Padding(
@@ -576,10 +576,8 @@ class _GoalSheetState extends State<GoalSheet> {
             if (parent == null) ...[
               const SizedBox(height: 12),
               SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'year', label: Text('Year')),
-                  ButtonSegment(value: 'quarter', label: Text('Quarter')),
-                  ButtonSegment(value: 'month', label: Text('Month')),
+                segments: [
+                  for (final type in periodLabels.keys) ButtonSegment(value: type, label: Text(periodLabels[type]!)),
                 ],
                 selected: {_type},
                 onSelectionChanged: (s) => setState(() {

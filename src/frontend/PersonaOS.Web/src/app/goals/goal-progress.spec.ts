@@ -51,8 +51,8 @@ describe('GoalProgress', () => {
     const quarter = render(goal({ periodType: 'quarter', childCount: 3, completedChildCount: 1, effectiveProgress: 67 }));
     const year = render(goal({ periodType: 'year', childCount: 1, completedChildCount: 0, effectiveProgress: 20 }));
 
-    expect(quarter.querySelector('.detail')?.textContent?.trim()).toBe('1 of 3 months done');
-    expect(year.querySelector('.detail')?.textContent?.trim()).toBe('0 of 1 quarter done');
+    expect(quarter.querySelector('.detail')?.textContent?.trim()).toBe('1 of 3 monthly goals done');
+    expect(year.querySelector('.detail')?.textContent?.trim()).toBe('0 of 1 quarterly goal done');
   });
 });
 
