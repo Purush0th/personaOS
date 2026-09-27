@@ -115,7 +115,7 @@
             <mat-select [ngModel]="task.goalId" (ngModelChange)="setGoal($event)">
               <mat-option [value]="null">No goal</mat-option>
               @for (g of goals(); track g.id) {
-                <mat-option [value]="g.id">{{ g.key }} {{ g.title }}</mat-option>
+                <mat-option [value]="g.id">{{ g.key }} {{ g.title }} · {{ g.slot }}</mat-option>
               }
             </mat-select>
           </mat-form-field>

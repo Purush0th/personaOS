@@ -30,7 +30,6 @@ import {
   sprintDayHasCome,
   withScopeConfirmation,
 } from '../core/board.service';
-import { Goal, GoalsService } from '../core/goals.service';
 
 /** A section of the page: a sprint, or the backlog at the bottom. */
 interface Group {
@@ -64,11 +63,9 @@ interface Group {
 })
 export class Backlog implements OnInit {
   private readonly api = inject(BoardService);
-  private readonly goalsApi = inject(GoalsService);
   private readonly confirm = inject(Confirm);
 
   protected readonly plan = signal<PlanView | null>(null);
-  protected readonly goals = signal<Goal[]>([]);
   protected readonly loading = signal(true);
   protected readonly collapsed = signal<Set<string>>(new Set());
 
@@ -88,7 +85,7 @@ export class Backlog implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.reload(), this.loadGoals()]);
+    await this.reload();
   }
 
   protected async reload(): Promise<void> {
@@ -98,15 +95,6 @@ export class Backlog implements OnInit {
       this.confirm.error(apiError(e).message ?? 'Could not load the plan.');
     } finally {
       this.loading.set(false);
-    }
-  }
-
-  private async loadGoals(): Promise<void> {
-    try {
-      this.goals.set((await this.goalsApi.getAll()).filter(g => g.status === 'active'));
-    } catch {
-      // The goals module may be switched off; tasks then simply have no goal to pick.
-      this.goals.set([]);
     }
   }
 

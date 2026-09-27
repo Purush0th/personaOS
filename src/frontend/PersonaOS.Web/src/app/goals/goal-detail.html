@@ -3,6 +3,9 @@
 } @else if (goal(); as goal) {
   <nav class="crumbs muted small">
     <a routerLink="/goals">Goals</a>
+    @if (goal.parentKey) {
+      · <a [routerLink]="['/goals', goal.parentKey]">{{ goal.parentKey }} {{ goal.parentTitle }}</a>
+    }
   </nav>
 
   <header class="item-head">
@@ -19,7 +22,15 @@
     } @else {
       <h1 class="editable" (click)="startTitle()" title="Click to edit">{{ goal.title }}</h1>
       <span class="spacer"></span>
-      <button mat-icon-button aria-label="Delete goal" (click)="remove()">
+      @if (goal.periodType !== 'year') {
+        <button mat-icon-button aria-label="Move goal" title="Move" (click)="move()">
+          <mat-icon>drive_file_move</mat-icon>
+        </button>
+      }
+      <button mat-icon-button aria-label="Delete goal"
+              [disabled]="goal.childCount > 0"
+              [title]="goal.childCount > 0 ? 'Delete its ' + childWord(goal) + ' first.' : 'Delete'"
+              (click)="remove()">
         <mat-icon class="danger">delete</mat-icon>
       </button>
     }
@@ -31,8 +42,8 @@
         <mat-card-content>
           <div class="progress-line">
             <app-goal-progress [goal]="goal" />
-            <!-- As on the goals page: only a goal without tasks has its progress set by hand. -->
-            @if (goal.taskCount === 0) {
+            <!-- As on the goals page: only a goal with no tasks and no child goals is set by hand. -->
+            @if (setsProgressByHand(goal)) {
               <button mat-button (click)="updateProgress()">Update progress</button>
             }
           </div>
@@ -60,38 +71,72 @@
         </mat-card-content>
       </mat-card>
 
-      <mat-card appearance="outlined" class="tasks-card">
-        <mat-card-content>
-          <h2>Tasks <span class="muted small">{{ goal.taskCount }}</span></h2>
-          <!-- The same rows and Create as the goals page. -->
-          @if (goal.tasks.length > 0) {
-            <div class="tasks">
-              @for (task of goal.tasks; track task.id) {
-                <div class="work-row" [class.done]="task.column === 'done'">
-                  <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
-                  <a class="key key-link" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
-                  <span class="title">{{ task.title }}</span>
-                  <span class="spacer"></span>
-                  @if (task.sprintNumber) {
-                    <span class="muted small">SPRINT-{{ task.sprintNumber }}</span>
-                  }
-                  <span class="lozenge s-{{ task.column }}">{{ columnLabels[task.column] }}</span>
-                  <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '–' }}</span>
-                </div>
-              }
-            </div>
-          }
+      @if (goal.periodType !== 'month') {
+        <!-- A year holds quarters and a quarter months; tasks sit only under months. -->
+        <mat-card appearance="outlined" class="tasks-card">
+          <mat-card-content>
+            <h2>{{ goal.periodType === 'year' ? 'Quarters' : 'Months' }} <span class="muted small">{{ goal.childCount }}</span></h2>
+            @if (goal.children.length > 0) {
+              <div class="tasks">
+                @for (child of goal.children; track child.id) {
+                  <div class="work-row" [class.done]="child.status === 'completed'">
+                    <mat-icon class="type" aria-hidden="true">flag</mat-icon>
+                    <a class="key key-link" [routerLink]="['/goals', child.key]">{{ child.key }}</a>
+                    <span class="title">{{ child.title }}</span>
+                    <span class="spacer"></span>
+                    <span class="lozenge">{{ child.slot }}</span>
+                    @if (child.status === 'completed') {
+                      <span class="lozenge s-done">Completed</span>
+                    }
+                    <span class="points-pill">{{ child.effectiveProgress }}%</span>
+                  </div>
+                }
+              </div>
+            }
+            @if (canAddChild(goal)) {
+              <button mat-button class="create-trigger" (click)="addChild()">
+                <mat-icon>add</mat-icon>
+                Add {{ goal.periodType === 'year' ? 'quarter' : 'month' }}
+              </button>
+            }
+          </mat-card-content>
+        </mat-card>
+      } @else {
+        <mat-card appearance="outlined" class="tasks-card">
+          <mat-card-content>
+            <h2>Tasks <span class="muted small">{{ goal.taskCount }}</span></h2>
+            <!-- The same rows and Create as the goals page. -->
+            @if (goal.tasks.length > 0) {
+              <div class="tasks">
+                @for (task of goal.tasks; track task.id) {
+                  <div class="work-row" [class.done]="task.column === 'done'">
+                    <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
+                    <a class="key key-link" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
+                    <span class="title">{{ task.title }}</span>
+                    <span class="spacer"></span>
+                    @if (task.sprintNumber) {
+                      <span class="muted small">SPRINT-{{ task.sprintNumber }}</span>
+                    }
+                    <span class="lozenge s-{{ task.column }}">{{ columnLabels[task.column] }}</span>
+                    <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '–' }}</span>
+                  </div>
+                }
+              </div>
+            }
 
-          @if (addingTask()) {
-            <app-inline-create layout="row" [allowedPoints]="allowedPoints" [save]="createTask" (cancelled)="addingTask.set(false)" />
-          } @else {
-            <button mat-button class="create-trigger" (click)="addingTask.set(true)">
-              <mat-icon>add</mat-icon>
-              Create task
-            </button>
-          }
-        </mat-card-content>
-      </mat-card>
+            @if (goal.status === 'active') {
+              @if (addingTask()) {
+                <app-inline-create layout="row" [allowedPoints]="allowedPoints" [save]="createTask" (cancelled)="addingTask.set(false)" />
+              } @else {
+                <button mat-button class="create-trigger" (click)="addingTask.set(true)">
+                  <mat-icon>add</mat-icon>
+                  Create task
+                </button>
+              }
+            }
+          </mat-card-content>
+        </mat-card>
+      }
 
       <app-discussion itemType="goal" [itemKey]="key()" [assistantName]="assistantName()" />
     </div>
@@ -101,14 +146,24 @@
         <mat-card-content>
           <h2>Details</h2>
 
-          <mat-form-field class="full">
-            <mat-label>Status</mat-label>
-            <mat-select [ngModel]="goal.status" (ngModelChange)="setStatus($event)">
-              <mat-option value="active">Active</mat-option>
-              <mat-option value="completed">Completed</mat-option>
-              <mat-option value="dropped">Dropped</mat-option>
-            </mat-select>
-          </mat-form-field>
+          <div class="status">
+            @if (goal.status === 'active') {
+              <span class="lozenge">Active</span>
+              <button mat-stroked-button [disabled]="!!goal.completeProblem" (click)="setStatus('completed')">
+                <mat-icon>task_alt</mat-icon>
+                Complete
+              </button>
+            } @else {
+              <span class="lozenge s-done">Completed</span>
+              <button mat-stroked-button (click)="setStatus('active')">
+                <mat-icon>replay</mat-icon>
+                Reopen
+              </button>
+            }
+          </div>
+          @if (goal.status === 'active' && goal.completeProblem) {
+            <p class="reason">{{ goal.completeProblem }}</p>
+          }
 
           <mat-form-field class="full">
             <mat-label>Priority</mat-label>
@@ -120,8 +175,18 @@
           </mat-form-field>
 
           <dl class="facts">
-            <dt>Period</dt>
-            <dd>{{ goal.periodType }} · {{ range(goal) }}</dd>
+            <dt>Type</dt>
+            <dd>{{ periodLabels[goal.periodType] }} · {{ goal.slot }}</dd>
+            <dt>Dates</dt>
+            <dd>{{ range(goal) }}</dd>
+            <dt>Under</dt>
+            <dd>
+              @if (goal.parentKey) {
+                <a class="key-link" [routerLink]="['/goals', goal.parentKey]">{{ goal.parentKey }}</a> {{ goal.parentTitle }}
+              } @else {
+                –
+              }
+            </dd>
             <dt>Created</dt>
             <dd>{{ when(goal.createdAtUtc) }}</dd>
           </dl>

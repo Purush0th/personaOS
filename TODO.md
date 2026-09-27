@@ -17,6 +17,124 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ---
 
+## Pivot: goal roadmap, memory, modes, speech (owner, 2026-09-26/27)
+
+The owner revised the PRD (docs/PRD.md, revision of 2026-09-27) and answered the open questions.
+Order agreed: P0 -> P1 -> P2 -> P3 -> P4 -> P5 -> P6. Requirements live in the PRD; this list is
+the work and its status. Decisions not written in the PRD:
+
+- **Live data wipe at P1 go-live:** keep reminders and settings (instance config, admin login,
+  AI provider and its key, push config, registered devices); delete everything else — goals,
+  tasks, sprints, comments, attachments, planner items, conversations and pending cards,
+  documents, brief history. The owner says the current data is not real. Take a full backup of
+  the `personaos_api-data` volume first, and confirm with the owner right before running it.
+
+Settled 2026-09-27 (in the PRD too): only **active** child goals block completing a parent; the
+**dropped** status is removed entirely (goals are active or completed; a goal that no longer
+matters is deleted); a goal **with child goals cannot be deleted** until they are; the wipe
+**keeps About you** (the owner accepts losing it only if a migration needs that); the web's
+memory list is a **Settings section**.
+
+Dates, decided 2026-09-27 after P0 (supersedes "standalone goals keep today's due-date rules"):
+**every goal follows the calendar.** The user picks the type and the slot and the dates follow;
+a goal never starts in the past. Year: starts today or a later day picked, ends 31 December, at
+least 90 days ("3 months or 1 quarter"). Quarter: Q1–Q4 of the current or a later year, starts
+on the later of today and the quarter's first day, ends on its last day, at least 45 days. Month:
+a calendar month, same way, at least 15 days. The end date is the due date; the start never
+changes on edit. Moving a goal shifts its dates to the new slot; a goal's type changes only when
+it is not under a parent.
+
+- [x] **P0. Docs** (2026-09-27). PRD adopted from the owner's revision with its broken table rows
+      fixed and the 2026-09-27 answers written in: memory auto-save is the one exception to
+      "nothing writes without confirmation" (receipt after saving; edit and delete always), goal
+      progress averages child goals with equal weight, nested goals follow calendar quarters and
+      months while standalone goals keep today's due-date rules, completion is manual and blocked
+      by open tasks or active child goals, delete offers keep / delete / reassign with a per-task
+      mapping, moves ask for the calendar slot, Timeline is Gantt-style on web and phone with a
+      year dropdown, modes are picked in the chat box with no write tools in Brainstorm and
+      Reflect, speech goes phone -> API -> OpenAI-style audio service, no web voice.
+      docs/sprint-board.md: goal nesting and task-count progress.
+- [x] **P1. Goal hierarchy (backend)** (2026-09-27). `Goal.ParentGoalId` (migration `GoalHierarchy`:
+      deletes dropped goals the way a delete would, then adds the column with its foreign key in
+      place — an `ALTER TABLE … REFERENCES`, not EF's table rebuild, which runs outside the
+      migration's transaction; checked on a copy of the dev DB: integrity and foreign keys clean).
+      `Domain/Services/GoalCalendar` replaces `GoalPeriodCalculator`: every goal follows the
+      calendar (see the dates decision above), labels "2026" / "Q4 2026" / "Oct 2026". `GoalService`
+      (now with config, board and clock): nesting by type pair, slot inside the parent and free
+      (so at most 4 quarters / 3 months), progress by `GoalProgressCalculator.ComputeAll`
+      (completed 100, else average of child goals, else done tasks ÷ tasks, else manual), manual
+      progress refused on a goal with tasks or children, completion refused with open tasks or
+      active children (`CompleteProblem` on the DTO says why), reopening refused under a completed
+      parent, move with the slot chosen and child months keeping their position, detach keeps
+      dates, type/slot change only for a standalone goal without children, delete refused with
+      child goals and otherwise keep / delete / per-task reassign. Every change has a Validate twin
+      the tools call, so a card that would fail is never shown. `dropped` is gone everywhere
+      (status, `includeDropped`). Board: a task links only to an open monthly goal, and a done
+      task under a completed goal cannot be reopened. API: `GET /api/goals` flat with `parentId`,
+      `slot`, `children`, `completeProblem`; `PUT /api/goals/{id}/parent` moves; `DELETE` takes an
+      optional body `{taskAction, reassign}`. Tools: `create_goal` (year / quarter / month /
+      parentKey; month names and "Q4" accepted; a slot without a year is the next one),
+      `update_goal_status` (active/completed), new `move_goal`, `delete_goal` with taskAction and
+      reassign; `create_task`/`update_task` check the monthly rule before the card. Cards name the
+      slot and what happens to a deleted goal's tasks; receipts show the slot. Prompts: `goals`
+      explains nesting and lists goals parents-first with "under GOAL-n"; `board` says tasks sit
+      under monthly goals and points never set progress. `get_goals` is a flat list with `under`
+      and `childGoals`: a nested tree was tried first and qwen2.5:3b put a month under the wrong
+      quarter. Tests: 521 backend (GoalCalendarTests, GoalServiceTests rewritten, GoalToolTests,
+      TaskGoalRuleTests, GoalProgressCalculatorTests). Live on the dev API with qwen2.5:3b: API
+      rules refuse Q3/September on 27 Sep and a task under a quarter; chat proposes a month with a
+      "Nov 2026" card, refuses a task under a quarter and says to pick a month, refuses completing
+      a month with open tasks and deleting a goal with children; `scripts/model-check.ps1` 8/8
+      (its seed goal is now next month). Still true of the 3B model: it sometimes says a goal has
+      no child goals when `childGoals` lists one.
+      **Not deployed:** the web and phone still send and show the old goal shape (free dates,
+      dropped, points in progress), so P1 ships together with P2. The live wipe runs then.
+- [x] **P2. Goals UI (web + phone)** (2026-09-27). Web: the goals page is a tree — each child
+      goal's lane indented under its parent with a line down its edge, standalone goals at their own
+      level; lanes show key, title, slot ("Q4 2026"), dates, Overdue/Completed and progress read as
+      "1 of 3 months done" or "1 of 2 tasks done" (never points). Monthly goals carry tasks and
+      Create task; years and quarters offer "Add quarter" / "Add month". The menu has Update progress
+      (only a goal with no tasks or children), Add quarter/month, Move, Complete, Reopen, Delete;
+      Complete and Delete are shown disabled with the reason when they cannot be used (open tasks,
+      active children, child goals to delete first). Show dropped and Drop are gone. Three dialogs in
+      goals/: `goal-form-dialog` (New goal and Add quarter/month: type, year, start day for a year or
+      quarter/month picker, Under; slots over, too short or taken are shown but disabled; the dates
+      and day count preview live), `goal-move-dialog` (Under and slot, "–" detaches), and
+      `goal-delete-dialog` (keep / move to other goals with a monthly-goal picker per task / delete).
+      The goal page shows its quarters or months (with Add) or its tasks, Complete/Reopen with the
+      reason, Type · slot, Dates and Under in Details, Move and Delete in the header, and a crumb to
+      its parent. `core/goal-calendar.ts` mirrors the server's GoalCalendar (replaces goal-period.ts);
+      `core/goals.service.ts` has the new shape, `move`, delete with task action, `inTreeOrder`. The
+      task page's goal picker lists open monthly goals only; the backlog's unused goal fetch is gone.
+      Phone: the same — tree with indent, slot chips, the same menu with disabled items that say why,
+      `GoalSheet` (New goal / Add quarter / Add month), `MoveGoalDialog`, `DeleteGoalDialog`,
+      `lib/goal_calendar.dart` (replaces goal_period.dart), API `createGoal` by slot, `moveGoal`,
+      `deleteGoal` with task action (the phone's `_delete` now sends a body); the task sheet's goal
+      picker lists open monthly goals. Selects never show a real choice as blank: "–" and "No goal"
+      use a stand-in value, since a select shows null as empty. Checked in headless Chrome (desktop
+      and 390 px, light and dark; dialogs measured, no overflow) and end to end against the dev API:
+      Add month (Nov) under a quarter, then delete the October goal moving its task to November. The
+      phone screens were rendered with real fonts in a throwaway widget test and looked at. An
+      existing phone test caught `setState(() => _goals = …)` handing setState a Future. Tests: web
+      99 (goal-calendar, goals page, form/delete dialogs, progress read-out), phone 86
+      (goal_calendar_test, goals_tree_test), backend 521.
+      **Not deployed yet**: P1 + P2 ship together, with the live wipe (confirm first).
+- [ ] **P3. Timeline (web + phone).** `/timeline` and a phone screen: Gantt-style bars on a date
+      axis labelled with key and title, status and progress, year / quarter / month expand and
+      collapse, current year by default with a year dropdown, bars open the goal.
+- [ ] **P4. Memory.** `memory` module (on by default); memory entity with category and source
+      conversation; API; Memories screen (web + phone) to view, edit, delete; auto-save setting
+      (on by default) with receipts, off = card; tools `search_memories`, `create_memory`,
+      `update_memory`, `delete_memory`; bounded keyword retrieval into the prompt. About you stays
+      separate.
+- [ ] **P5. Interaction modes.** A mode switch in the chat box (web + phone): Chat, Brainstorm,
+      Plan, Act, Reflect; per-mode prompt fragment and tool set (no write tools in Brainstorm and
+      Reflect); Plan may propose several cards at once.
+- [ ] **P6. Speech services.** STT and TTS ports in Application, adapters for the OpenAI-style
+      audio API (`/v1/audio/transcriptions`, `/v1/audio/speech`), phone sends audio to the API and
+      plays audio from it, Settings and Setup Wizard step 6; device speech stays available; no
+      web voice.
+
 ## AI layer refactor (raised by the owner 2026-09-21)
 
 Six guardrails landed this week as incident responses — each a real bug, each the smallest fix

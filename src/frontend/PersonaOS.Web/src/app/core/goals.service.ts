@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { BoardColumn } from './board.service';
+import { GoalPeriod } from './goal-calendar';
 
 export interface GoalTaskSummary {
   id: number;
@@ -13,32 +14,69 @@ export interface GoalTaskSummary {
   sprintNumber: number | null;
 }
 
-/** A goal is the epic of the sprint board: it does not nest, and its tasks carry the work. */
+export interface GoalChildSummary {
+  id: number;
+  key: string;
+  title: string;
+  periodType: GoalPeriod;
+  slot: string;
+  periodStart: string;
+  periodEnd: string;
+  status: 'active' | 'completed';
+  effectiveProgress: number;
+}
+
+/**
+ * A goal: year, quarter or month, nested year → quarter → month or standalone. Only monthly
+ * goals hold tasks. Its dates follow its calendar slot.
+ */
 export interface Goal {
   id: number;
   key: string;
   title: string;
   description: string | null;
-  periodType: 'year' | 'quarter' | 'month';
+  periodType: GoalPeriod;
+  /** "2026", "Q4 2026" or "Oct 2026". */
+  slot: string;
   periodStart: string;
-  /** The day the goal is due, inclusive. */
+  /** The day the goal is due, inclusive: the end of its slot. */
   periodEnd: string;
-  status: 'active' | 'completed' | 'dropped';
+  parentId: number | null;
+  parentKey: string | null;
+  parentTitle: string | null;
+  status: 'active' | 'completed';
   priority: 'highest' | 'high' | 'medium' | 'low' | 'lowest';
   commentCount: number;
   attachmentCount: number;
-  /** Manually tracked; used only while the goal has no tasks. */
+  /** Manually tracked; used only while the goal has no tasks and no child goals. */
   progress: number;
-  /** From the goal's tasks: done points over estimated points. */
+  /** Completed 100; else the average of its child goals; else done tasks ÷ tasks; else manual. */
   effectiveProgress: number;
   taskCount: number;
   doneTaskCount: number;
-  totalPoints: number;
-  donePoints: number;
+  childCount: number;
+  completedChildCount: number;
+  /** Why it cannot be completed yet (open tasks, active child goals), or null. */
+  completeProblem: string | null;
   createdAtUtc: string;
   updatedAtUtc: string;
   tasks: GoalTaskSummary[];
+  children: GoalChildSummary[];
 }
+
+export interface NewGoal {
+  title: string;
+  periodType: GoalPeriod;
+  year: number;
+  quarter?: number | null;
+  month?: number | null;
+  /** A year goal's start; today when omitted. */
+  periodStart?: string | null;
+  parentId?: number | null;
+  description?: string | null;
+}
+
+export type GoalTaskAction = 'keep' | 'delete' | 'reassign';
 
 @Injectable({ providedIn: 'root' })
 export class GoalsService {
@@ -47,6 +85,14 @@ export class GoalsService {
   /** By its key, e.g. GOAL-3 — what the goal's own page loads from the URL. */
   getByKey(key: string): Promise<Goal> {
     return firstValueFrom(this.http.get<Goal>(`/api/goals/${key}`));
+  }
+
+  getAll(): Promise<Goal[]> {
+    return firstValueFrom(this.http.get<Goal[]>('/api/goals'));
+  }
+
+  create(goal: NewGoal): Promise<Goal> {
+    return firstValueFrom(this.http.post<Goal>('/api/goals', goal));
   }
 
   update(id: number, changes: {
@@ -58,21 +104,7 @@ export class GoalsService {
     return firstValueFrom(this.http.put<Goal>(`/api/goals/${id}`, changes));
   }
 
-  getAll(includeDropped = false): Promise<Goal[]> {
-    return firstValueFrom(this.http.get<Goal[]>(`/api/goals?includeDropped=${includeDropped}`));
-  }
-
-  create(goal: {
-    title: string;
-    periodType: string;
-    periodStart: string;
-    periodEnd?: string | null;
-    description?: string | null;
-  }): Promise<Goal> {
-    return firstValueFrom(this.http.post<Goal>('/api/goals', goal));
-  }
-
-  updateStatus(id: number, status: string): Promise<Goal> {
+  updateStatus(id: number, status: 'active' | 'completed'): Promise<Goal> {
     return firstValueFrom(this.http.put<Goal>(`/api/goals/${id}/status`, { status }));
   }
 
@@ -80,7 +112,36 @@ export class GoalsService {
     return firstValueFrom(this.http.put<Goal>(`/api/goals/${id}`, { progress }));
   }
 
-  delete(id: number): Promise<void> {
-    return firstValueFrom(this.http.delete<void>(`/api/goals/${id}`));
+  /** Under another parent in the slot given, or detached (`parentId` null) keeping its dates. */
+  move(id: number, move: { parentId: number | null; year?: number | null; quarter?: number | null; month?: number | null }): Promise<Goal> {
+    return firstValueFrom(this.http.put<Goal>(`/api/goals/${id}/parent`, move));
   }
+
+  /** Deletes a goal; its tasks are kept, deleted, or each reassigned (task key → goal key or null). */
+  delete(id: number, taskAction: GoalTaskAction = 'keep', reassign: Record<string, string | null> | null = null): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`/api/goals/${id}`, { body: { taskAction, reassign } }));
+  }
+}
+
+/** Parents before their children, each child after its parent: the order the goals page shows. */
+export function inTreeOrder(goals: Goal[]): { goal: Goal; depth: number }[] {
+  const ids = new Set(goals.map(g => g.id));
+  const children = new Map<number, Goal[]>();
+  for (const goal of goals) {
+    if (goal.parentId !== null && ids.has(goal.parentId)) {
+      children.set(goal.parentId, [...(children.get(goal.parentId) ?? []), goal]);
+    }
+  }
+  const out: { goal: Goal; depth: number }[] = [];
+  const add = (goal: Goal, depth: number) => {
+    out.push({ goal, depth });
+    for (const child of children.get(goal.id) ?? []) add(child, depth + 1);
+  };
+  for (const goal of goals) if (goal.parentId === null || !ids.has(goal.parentId)) add(goal, 0);
+  return out;
+}
+
+/** A goal whose progress is set by hand: open, with no tasks and no child goals. */
+export function setsProgressByHand(goal: Goal): boolean {
+  return goal.status === 'active' && goal.taskCount === 0 && goal.childCount === 0;
 }
