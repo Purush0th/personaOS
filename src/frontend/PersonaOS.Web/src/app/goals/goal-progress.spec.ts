@@ -10,8 +10,8 @@ import { askGoalProgress } from './goal-progress-dialog';
 function goal(overrides: Partial<Goal>): Goal {
   return {
     id: 2, key: 'GOAL-2', title: 'Create a nutrition plan', periodType: 'month', status: 'active',
-    progress: 40, effectiveProgress: 40, taskCount: 0, doneTaskCount: 0, totalPoints: 0, donePoints: 0,
-    tasks: [], ...overrides,
+    progress: 40, effectiveProgress: 40, taskCount: 0, doneTaskCount: 0, childCount: 0, completedChildCount: 0,
+    tasks: [], children: [], ...overrides,
   } as Goal;
 }
 
@@ -39,11 +39,20 @@ describe('GoalProgress', () => {
     expect(page.querySelector('.value')?.textContent).toBe('40%');
   });
 
-  it('reads out a goal whose tasks set its progress, with their points and count', () => {
-    const page = render(goal({ taskCount: 2, doneTaskCount: 1, totalPoints: 8, donePoints: 3, effectiveProgress: 38 }));
+  it('reads out a month by its tasks, never by points', () => {
+    const page = render(goal({ taskCount: 2, doneTaskCount: 1, effectiveProgress: 50 }));
 
-    expect(page.querySelector<HTMLElement>('.fill')!.style.width).toBe('38%');
-    expect(page.textContent?.replace(/\s+/g, ' ')).toContain('38% 3 of 8 points · 1 of 2 tasks');
+    expect(page.querySelector<HTMLElement>('.fill')!.style.width).toBe('50%');
+    expect(page.querySelector('.detail')?.textContent?.trim()).toBe('1 of 2 tasks done');
+    expect(page.textContent).not.toContain('points');
+  });
+
+  it('reads out a quarter or year by its child goals', () => {
+    const quarter = render(goal({ periodType: 'quarter', childCount: 3, completedChildCount: 1, effectiveProgress: 67 }));
+    const year = render(goal({ periodType: 'year', childCount: 1, completedChildCount: 0, effectiveProgress: 20 }));
+
+    expect(quarter.querySelector('.detail')?.textContent?.trim()).toBe('1 of 3 months done');
+    expect(year.querySelector('.detail')?.textContent?.trim()).toBe('0 of 1 quarter done');
   });
 });
 

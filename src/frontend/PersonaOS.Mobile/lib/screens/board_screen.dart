@@ -71,7 +71,10 @@ class _BoardScreenState extends State<BoardScreen> {
   Future<void> _loadContext() async {
     try {
       final goals = await widget.api.getGoals();
-      if (mounted) setState(() => _goals = goals.where((g) => g.status == 'active').toList());
+      // Tasks sit only under open monthly goals.
+      if (mounted) {
+        setState(() => _goals = goals.where((g) => g.periodType == 'month' && g.status == 'active').toList());
+      }
     } catch (_) {
       // Goals may be switched off; tasks then simply have no goal to pick.
     }
@@ -818,7 +821,7 @@ class _TaskSheetState extends State<TaskSheet> {
                   for (final g in widget.goals)
                     DropdownMenuItem<int?>(
                       value: g.id,
-                      child: Text('${g.key} ${g.title}', overflow: TextOverflow.ellipsis),
+                      child: Text('${g.key} ${g.title} · ${g.slot}', overflow: TextOverflow.ellipsis),
                     ),
                 ],
                 onChanged: (v) => setState(() => _goalId = v),

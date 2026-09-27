@@ -1,75 +1,28 @@
 <header class="page-head">
   <h1>Goals</h1>
   <span class="spacer"></span>
-  <button mat-button (click)="toggleDropped()">
-    <mat-icon>{{ includeDropped() ? 'visibility_off' : 'visibility' }}</mat-icon>
-    {{ includeDropped() ? 'Hide dropped' : 'Show dropped' }}
-  </button>
-  <button mat-flat-button (click)="adding.set(true)">
+  <button mat-flat-button (click)="newGoal()">
     <mat-icon>add</mat-icon>
     New goal
   </button>
 </header>
 
-@if (adding()) {
-  <form class="new-goal" (ngSubmit)="add()">
-    <h2>New goal</h2>
-    <div class="fields">
-      <mat-form-field class="grow">
-        <mat-label>What do you want to achieve?</mat-label>
-        <input matInput name="title" [(ngModel)]="draftTitle" autofocus />
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Period</mat-label>
-        <mat-select name="period" [(ngModel)]="draftPeriod" (ngModelChange)="resetEnd()">
-          <mat-option value="year">Yearly</mat-option>
-          <mat-option value="quarter">Quarterly</mat-option>
-          <mat-option value="month">Monthly</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Starts</mat-label>
-        <input matInput name="start" type="date" [(ngModel)]="draftStart" (ngModelChange)="resetEnd()" />
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Ends</mat-label>
-        <!-- A yearly goal always ends on 31 December, so there is nothing to choose. -->
-        <input matInput name="end" type="date" [(ngModel)]="draftEnd" [min]="draftStart"
-               [readonly]="draftPeriod === 'year'" />
-        @if (draftProblem(); as problem) {
-          <mat-error>{{ problem }}</mat-error>
-        } @else {
-          <mat-hint>{{ draftDays() }} days</mat-hint>
-        }
-      </mat-form-field>
-    </div>
-    @if (draftProblem(); as problem) {
-      <p class="error small" role="alert">{{ problem }}</p>
-    }
-    <div class="actions">
-      <button mat-button type="button" (click)="adding.set(false)">Cancel</button>
-      <button mat-flat-button type="submit" [disabled]="!draftTitle.trim() || !!draftProblem()">Add goal</button>
-    </div>
-  </form>
-}
-
 @if (loading()) {
   <mat-progress-bar mode="indeterminate" />
 } @else {
-  @for (goal of goals(); track goal.id) {
-    <section class="goal" [class.dropped]="goal.status === 'dropped'" [attr.aria-label]="goal.key + ' ' + goal.title">
+  @for (row of tree(); track row.goal.id) {
+    @let goal = row.goal;
+    <section class="goal" [class.completed]="goal.status === 'completed'" [style.--depth]="row.depth"
+             [attr.aria-label]="goal.key + ' ' + goal.title">
       <header>
         <a class="key key-link" [routerLink]="['/goals', goal.key]">{{ goal.key }}</a>
         <span class="title">{{ goal.title }}</span>
-        <span class="lozenge">{{ periodLabels[goal.periodType] }}</span>
+        <span class="lozenge">{{ goal.slot }}</span>
         @if (overdue(goal)) {
           <span class="lozenge overdue">Overdue</span>
         }
-        @if (goal.status !== 'active') {
-          <span class="lozenge" [class.s-done]="goal.status === 'completed'">{{ statusLabels[goal.status] }}</span>
+        @if (goal.status === 'completed') {
+          <span class="lozenge s-done">Completed</span>
         }
         <span class="muted range">{{ range(goal) }}</span>
         <span class="spacer"></span>
@@ -77,23 +30,34 @@
           <mat-icon>more_horiz</mat-icon>
         </button>
         <mat-menu #goalMenu="matMenu">
-          <!-- A goal with tasks takes its progress from them, so only one kept by hand offers it. -->
-          @if (goal.taskCount === 0) {
+          @if (setsProgressByHand(goal)) {
             <button mat-menu-item (click)="updateProgress(goal)">
               <mat-icon>percent</mat-icon>
               Update progress
             </button>
           }
-          @if (goal.status !== 'completed') {
-            <button mat-menu-item (click)="setStatus(goal, 'completed')">
-              <mat-icon>task_alt</mat-icon>
-              Complete
+          @if (childType(goal); as type) {
+            <button mat-menu-item (click)="newGoal(goal)">
+              <mat-icon>add</mat-icon>
+              Add {{ type }}
+            </button>
+          }
+          @if (goal.periodType !== 'year') {
+            <button mat-menu-item (click)="move(goal)">
+              <mat-icon>drive_file_move</mat-icon>
+              Move
             </button>
           }
           @if (goal.status === 'active') {
-            <button mat-menu-item (click)="setStatus(goal, 'dropped')">
-              <mat-icon>do_not_disturb_on</mat-icon>
-              Drop
+            <!-- Completion is the user's call, but not while work under the goal is open. -->
+            <button mat-menu-item [disabled]="!!goal.completeProblem" (click)="setStatus(goal, 'completed')">
+              <mat-icon>task_alt</mat-icon>
+              <span class="item">
+                Complete
+                @if (goal.completeProblem) {
+                  <span class="reason">{{ goal.completeProblem }}</span>
+                }
+              </span>
             </button>
           } @else {
             <button mat-menu-item (click)="setStatus(goal, 'active')">
@@ -101,9 +65,14 @@
               Reopen
             </button>
           }
-          <button mat-menu-item (click)="remove(goal)">
+          <button mat-menu-item [disabled]="goal.childCount > 0" (click)="remove(goal)">
             <mat-icon class="danger">delete</mat-icon>
-            Delete
+            <span class="item">
+              Delete
+              @if (goal.childCount > 0) {
+                <span class="reason">Delete its {{ goal.periodType === 'year' ? 'quarters' : 'months' }} first.</span>
+              }
+            </span>
           </button>
         </mat-menu>
       </header>
@@ -132,7 +101,8 @@
         </div>
       }
 
-      @if (boardEnabled()) {
+      <!-- Tasks sit only under monthly goals; a year or quarter is broken into goals below it. -->
+      @if (goal.periodType === 'month' && goal.status === 'active' && boardEnabled()) {
         @if (addingTaskTo() === goal.id) {
           <app-inline-create layout="row" [allowedPoints]="allowedPoints" [save]="createTask" (cancelled)="addingTaskTo.set(null)" />
         } @else {
@@ -141,6 +111,11 @@
             Create task
           </button>
         }
+      } @else if (childType(goal); as type) {
+        <button mat-button class="create-trigger" (click)="newGoal(goal)">
+          <mat-icon>add</mat-icon>
+          Add {{ type }}
+        </button>
       }
     </section>
   } @empty {

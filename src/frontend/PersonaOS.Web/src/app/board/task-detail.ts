@@ -107,7 +107,8 @@ export class TaskDetail implements OnInit {
       this.plan.set(null);
     }
     try {
-      this.goals.set((await this.goalsApi.getAll()).filter(g => g.status === 'active'));
+      // Tasks sit only under open monthly goals.
+      this.goals.set((await this.goalsApi.getAll()).filter(g => g.periodType === 'month' && g.status === 'active'));
     } catch {
       this.goals.set([]);
     }
