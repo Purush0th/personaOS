@@ -110,12 +110,12 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
 
         if (config.IsEnabled(InstanceConfig.Modules.Goals))
         {
-            var active = await db.Goals.AsNoTracking()
-                .Include(g => g.Tasks)
+            // Progress rolls up from child goals, so every goal is loaded, not only the active ones.
+            var all = await db.Goals.AsNoTracking().Include(g => g.Tasks).ToListAsync(ct);
+            var progress = GoalProgressCalculator.ComputeAll(all);
+            var stalled = all
                 .Where(g => g.Status == GoalStatuses.Active)
-                .ToListAsync(ct);
-            var stalled = active
-                .Select(g => new { g.Title, Progress = GoalProgressCalculator.Compute(g.Progress, g.Tasks.ToList()) })
+                .Select(g => new { g.Title, Progress = progress[g.Id] })
                 .Where(g => g.Progress < 100)
                 .OrderBy(g => g.Progress)
                 .Take(2)

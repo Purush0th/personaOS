@@ -183,6 +183,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.Priority).HasMaxLength(20).IsRequired();
             cfg.HasIndex(x => x.Number).IsUnique();
             cfg.HasIndex(x => new { x.Status, x.PeriodStart });
+            // Year > quarter > month. A goal with child goals cannot be deleted (GoalService says
+            // so first); the database refuses too, rather than orphaning or cascading.
+            cfg.HasOne(x => x.ParentGoal)
+                .WithMany(x => x.ChildGoals)
+                .HasForeignKey(x => x.ParentGoalId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<BoardTask>(cfg =>

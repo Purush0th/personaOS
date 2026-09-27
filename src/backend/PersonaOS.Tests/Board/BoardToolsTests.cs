@@ -23,17 +23,17 @@ public class BoardToolsTests
     private static (TestDbContext Db, BoardService Board, GoalService Goals) Setup()
     {
         var db = TestDbContext.Create();
-        var board = new BoardService(db, new FakeInstanceConfigService(db), new FakePushSender(),
-            new FixedTimeProvider(new DateTimeOffset(2026, 9, 15, 9, 0, 0, TimeSpan.Zero)), NullLogger<BoardService>.Instance);
-        return (db, board, new GoalService(db));
+        var clock = new FixedTimeProvider(new DateTimeOffset(2026, 9, 15, 9, 0, 0, TimeSpan.Zero));
+        var board = new BoardService(db, new FakeInstanceConfigService(db), new FakePushSender(), clock, NullLogger<BoardService>.Instance);
+        return (db, board, TestGoals.Service(db, clock));
     }
 
     [Fact]
     public async Task Goal_tools_find_the_goal_by_key_not_by_position()
     {
         var (_, _, goals) = Setup();
-        await goals.CreateAsync(new CreateGoalRequest("Get masters", null, GoalPeriods.Year, new DateOnly(2026, 1, 1)));
-        await goals.CreateAsync(new CreateGoalRequest("Read books", null, GoalPeriods.Month, new DateOnly(2026, 9, 1)));
+        await goals.CreateAsync(TestGoals.Year("Get masters"));
+        await goals.CreateAsync(TestGoals.Month("Read books"));
 
         var result = await new UpdateGoalStatusTool(goals).ExecuteAsync(Json("""{"goalKey":"GOAL-2","progress":20}"""));
 
@@ -48,7 +48,7 @@ public class BoardToolsTests
         var (_, _, goals) = Setup();
 
         var ex = await Assert.ThrowsAsync<GoalValidationException>(() =>
-            new UpdateGoalStatusTool(goals).ExecuteAsync(Json("""{"goalKey":"GOAL-3","status":"dropped"}""")));
+            new UpdateGoalStatusTool(goals).ExecuteAsync(Json("""{"goalKey":"GOAL-3","status":"completed"}""")));
 
         Assert.Contains("not list positions", ex.Message);
     }
@@ -57,7 +57,7 @@ public class BoardToolsTests
     public async Task Create_task_puts_it_under_the_goal_with_points()
     {
         var (_, board, goals) = Setup();
-        await goals.CreateAsync(new CreateGoalRequest("Learn Rust", null, GoalPeriods.Month, new DateOnly(2026, 9, 1)));
+        await goals.CreateAsync(TestGoals.Month("Learn Rust"));
 
         var result = await new CreateTaskTool(board, goals).ExecuteAsync(
             Json("""{"title":"Borrow checker","goalKey":"GOAL-1","points":5,"priority":"high"}"""));
@@ -91,7 +91,7 @@ public class BoardToolsTests
     public async Task A_day_plan_can_be_picked_from_a_board_task_and_shows_its_goal()
     {
         var (db, board, goals) = Setup();
-        await goals.CreateAsync(new CreateGoalRequest("Learn Rust", null, GoalPeriods.Month, new DateOnly(2026, 9, 1)));
+        await goals.CreateAsync(TestGoals.Month("Learn Rust"));
         await board.CreateTaskAsync(new CreateTaskRequest("Borrow checker", GoalId: 1));
         var planner = new PlannerService(db);
 

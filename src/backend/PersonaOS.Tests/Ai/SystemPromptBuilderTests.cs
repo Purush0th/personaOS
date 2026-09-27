@@ -1,4 +1,4 @@
-﻿using PersonaOS.Application.Ai;
+using PersonaOS.Application.Ai;
 using PersonaOS.Application.Ai.Prompts;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Tests.TestSupport;
@@ -207,7 +207,7 @@ public class SystemPromptBuilderTests
         var prompt = await BuildAsync(seed: SeedEverything);
 
         Assert.Contains("Always refer to a goal by its key", prompt);
-        Assert.Contains("\n- GOAL-1 Ship PersonaOS (year)", prompt);
+        Assert.Contains("\n- GOAL-1 Ship PersonaOS (year 2026)", prompt);
     }
 
     [Fact]

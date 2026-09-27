@@ -20,16 +20,14 @@ comments and attachments, and "story points" are called **value points**.
 | Task | Story / task | `TASK-n` | Yes |
 | Sprint | Sprint | `Sprint n` | The board shows one sprint at a time |
 
-- **Goals stop nesting.** A goal is top level only and keeps its period (year / quarter /
-  month). What used to be a sub-goal is now a task under that goal. Since 2026-09-22 a goal
-  also has a start and an end date: any start, future included; a month goal runs at most 31
-  days, a quarter at most 90, and a year ends on 31 December of its start year. Existing sub-goals are
-  converted to tasks under their top-level goal. This also removes the period picker from the
-  old "New sub-goal" form (phone testing issue #2).
-- **A task may have no goal.** "Renew car insurance" is still a task.
-- **Goal progress comes from its tasks:** done points ÷ estimated points. When none of its
-  tasks are estimated it uses done tasks ÷ tasks; with no tasks it falls back to the manually
-  set progress, as today.
+- **Goals nest year → quarter → month** (revised 2026-09-27; between 2026-09-15 and then goals
+  did not nest). Nesting, dates, progress, completion and delete rules are in
+  [PRD §3.2](PRD.md#32-goals-and-roadmap); the board-relevant parts are below.
+- **A task belongs to a monthly goal or to none.** Tasks are never linked directly to a year or
+  quarter goal. "Renew car insurance" with no goal is still a task.
+- **Goal progress counts tasks, not points:** a month is done tasks ÷ tasks (each task equal;
+  value points never count), and quarters and years average their child goals. Value points
+  measure sprint workload and velocity only.
 
 ## 2. Keys
 
@@ -176,7 +174,8 @@ Tools (all changes go through the existing confirmation card):
   proposal card, and confirming the card is the acknowledgement.
 - `delete_task`, `delete_goal`.
 - `add_comment` — a note on a task or goal, recorded as written by the assistant.
-- Goal tools switch to `GOAL-n` keys and lose the parent / link parameters.
+- Goal tools use `GOAL-n` keys. With the goal hierarchy (PRD §3.2) they gain a parent goal
+  again, and task tools accept only a monthly goal.
 
 Planning conversation guidance in the system prompt:
 

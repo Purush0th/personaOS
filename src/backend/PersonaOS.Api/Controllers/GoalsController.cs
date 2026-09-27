@@ -14,10 +14,9 @@ public class GoalsController(IGoalService goals) : ControllerBase
 {
     public record UpdateStatusRequest(string Status);
 
-    /// <summary>All goals with their tasks and derived progress.</summary>
+    /// <summary>All goals, flat, each with its parent id, children, tasks and derived progress.</summary>
     [HttpGet]
-    public async Task<IActionResult> GetTree([FromQuery] bool includeDropped, CancellationToken ct) =>
-        Ok(await goals.GetAllAsync(includeDropped, ct));
+    public async Task<IActionResult> GetAll(CancellationToken ct) => Ok(await goals.GetAllAsync(ct));
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Get(int id, CancellationToken ct)
@@ -57,8 +56,19 @@ public class GoalsController(IGoalService goals) : ControllerBase
         return goal is null ? NotFound() : Ok(goal);
     }
 
-    /// <summary>Deletes a goal; its tasks stay, without a goal.</summary>
+    /// <summary>Moves a goal under another parent (dates follow the new slot), or detaches it.</summary>
+    [HttpPut("{id:int}/parent")]
+    public async Task<IActionResult> Move(int id, [FromBody] MoveGoalRequest request, CancellationToken ct)
+    {
+        var goal = await goals.MoveAsync(id, request, ct);
+        return goal is null ? NotFound() : Ok(goal);
+    }
+
+    /// <summary>
+    /// Deletes a goal that has no child goals. The body says what happens to its tasks: kept
+    /// without a goal (the default, also when there is no body), deleted, or reassigned.
+    /// </summary>
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id, CancellationToken ct) =>
-        await goals.DeleteAsync(id, ct) ? NoContent() : NotFound();
+    public async Task<IActionResult> Delete(int id, [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] DeleteGoalRequest? request, CancellationToken ct) =>
+        await goals.DeleteAsync(id, request ?? new DeleteGoalRequest(), ct) ? NoContent() : NotFound();
 }

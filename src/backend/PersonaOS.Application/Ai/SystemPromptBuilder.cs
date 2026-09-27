@@ -82,12 +82,25 @@ public class SystemPromptBuilder(
         var goals = await db.Goals.AsNoTracking()
             .Where(g => g.Status == GoalStatuses.Active)
             .OrderBy(g => g.PeriodStart).ThenBy(g => g.Number)
-            .Select(g => new { g.Number, g.Title, g.PeriodType })
+            .Select(g => new { g.Id, g.Number, g.Title, g.PeriodType, g.PeriodEnd, g.ParentGoalId })
             .ToListAsync(ct);
+        if (goals.Count == 0) return string.Empty;
 
-        return goals.Count == 0
-            ? string.Empty
-            : fragments.Render("goals", ("goals", goals.Select(g => $"{ItemKeys.Goal(g.Number)} {g.Title} ({g.PeriodType})").ToList()));
+        // Parents first, each followed by its children, so the nesting reads off the list:
+        // "GOAL-1 Get fit (year 2026)", "GOAL-2 Build a base (quarter Q4 2026, under GOAL-1)".
+        var keys = goals.ToDictionary(g => g.Id, g => ItemKeys.Goal(g.Number));
+        var children = goals.Where(g => g.ParentGoalId is int p && keys.ContainsKey(p)).ToLookup(g => g.ParentGoalId!.Value);
+        var lines = new List<string>();
+        void Add(int id)
+        {
+            var g = goals.First(x => x.Id == id);
+            var under = g.ParentGoalId is int parent && keys.TryGetValue(parent, out var parentKey) ? $", under {parentKey}" : string.Empty;
+            lines.Add($"{keys[g.Id]} {g.Title} ({g.PeriodType} {GoalCalendar.Label(g.PeriodType, g.PeriodEnd)}{under})");
+            foreach (var child in children[g.Id]) Add(child.Id);
+        }
+        foreach (var root in goals.Where(g => g.ParentGoalId is not int p || !keys.ContainsKey(p))) Add(root.Id);
+
+        return fragments.Render("goals", ("goals", lines));
     }
 
     /// <summary>
