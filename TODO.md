@@ -1402,3 +1402,16 @@ real Anthropic key).
       and open product questions. docs/sprint-board.md aligned too (Reports tab, statuses, "–",
       sprint start day and end, Burndown, key links); its out-of-scope list no longer excludes
       charts that now exist.
+- [x] **Goal types read Monthly, Quarterly, Yearly; the chat's waiting signs move** (web + phone +
+      backend, 2026-09-27; owner's corrections). Types: `PERIOD_LABELS` / `periodLabels` are
+      Monthly, Quarterly, Yearly in that order (the pickers offer them so, Monthly first), and one
+      helper words goals of a type ("Add quarterly goal", "1 of 3 monthly goals done", "Delete its
+      quarterly goals first.", the goal page's "Quarterly goals" list and Type line). The assistant's
+      cards and receipts show the type the same way (`GoalPeriods.Label`), not the raw "month". The
+      slot pickers keep "Quarter" / "Month" (they pick Q1-Q4 or a month). Chat: the reply bubble
+      showed a still "…" on web and phone, and the web's send button a still hourglass; now three
+      dots brighten and rise in turn (web CSS, fading only under reduced motion; phone `TypingDots`,
+      still when the phone turns animations off) and the send button spins while a reply streams.
+      Checked mid-reply in headless Chrome (dot opacity changing between samples, spinner present),
+      phone `typing_dots_test.dart`. Tests: backend 521, web 99, phone 88.
+

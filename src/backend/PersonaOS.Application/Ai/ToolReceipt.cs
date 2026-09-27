@@ -96,7 +96,9 @@ public static class ToolReceiptBuilder
 
             var label = ToolPayloadText.FirstValue(root, ToolPayloadText.LabelFields);
             var details = DetailFields
-                .Select(f => ToolPayloadText.FirstValue(root, [f]))
+                .Select(f => f == "periodType" && ToolPayloadText.FirstValue(root, [f]) is { } type
+                    ? Domain.Entities.GoalPeriods.Label(type)
+                    : ToolPayloadText.FirstValue(root, [f]))
                 .Where(v => !string.IsNullOrWhiteSpace(v))
                 .ToList();
 

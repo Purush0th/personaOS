@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { BrandingService } from '../core/branding.service';
 import { ChatService, PendingAction, ToolReceipt, unknownItemsNote } from '../core/chat.service';
@@ -37,6 +38,7 @@ interface Bubble {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatProgressSpinnerModule,
     MarkdownPipe,
   ],
   templateUrl: './chat.html',

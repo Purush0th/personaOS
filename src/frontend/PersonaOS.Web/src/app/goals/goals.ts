@@ -17,7 +17,7 @@ import { askDeleteGoal } from './goal-delete-dialog';
 import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
 import { Goal, GoalTaskSummary, GoalsService, inTreeOrder, setsProgressByHand } from '../core/goals.service';
-import { PERIOD_LABELS, childTypeOf, formatGoalRange } from '../core/goal-calendar';
+import { GoalPeriod, PERIOD_LABELS, childTypeOf, formatGoalRange, goalsOfType } from '../core/goal-calendar';
 import { todayLocal } from '../core/local-date';
 
 /**
@@ -92,10 +92,15 @@ export class Goals implements OnInit {
     return goal.status === 'active' && goal.periodEnd < todayLocal();
   }
 
-  /** "quarter" or "month": what can be added under this goal, or null. */
+  /** "quarterly goal" or "monthly goal": what can be added under this goal, or null. */
   protected childType(goal: Goal): string | null {
     const type = childTypeOf(goal.periodType);
-    return type && goal.status === 'active' && goal.childCount < (type === 'quarter' ? 4 : 3) ? type : null;
+    return type && goal.status === 'active' && goal.childCount < (type === 'quarter' ? 4 : 3) ? goalsOfType(type) : null;
+  }
+
+  /** "quarterly goals" or "monthly goals": what sits under this goal. */
+  protected childrenWord(goal: Goal): string {
+    return goalsOfType((childTypeOf(goal.periodType) ?? 'month') as GoalPeriod, 2);
   }
 
   protected async newGoal(parent: Goal | null = null): Promise<void> {

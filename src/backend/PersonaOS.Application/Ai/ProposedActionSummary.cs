@@ -74,6 +74,7 @@ public static class ProposedActionSummary
         foreach (var (field, prefix) in Details)
         {
             var value = ToolPayloadText.FirstValue(input, [field]);
+            if (field == "periodType" && value is not null) value = Domain.Entities.GoalPeriods.Label(value);
             // A key the target already names ("TASK-7 “File taxes”") is not repeated.
             if (!string.IsNullOrWhiteSpace(value) && target?.Contains(value, StringComparison.OrdinalIgnoreCase) != true)
             {
