@@ -16,7 +16,13 @@ export type GoalPeriod = 'year' | 'quarter' | 'month';
 
 export const MIN_DAYS: Record<GoalPeriod, number> = { year: 90, quarter: 45, month: 15 };
 
-export const PERIOD_LABELS: Record<GoalPeriod, string> = { year: 'Year', quarter: 'Quarter', month: 'Month' };
+/** The goal types as the user reads them, in the order they are offered (owner, 2026-09-27). */
+export const PERIOD_LABELS: Record<GoalPeriod, string> = { month: 'Monthly', quarter: 'Quarterly', year: 'Yearly' };
+
+/** "monthly goal", "quarterly goals": goals of a type, counted. */
+export function goalsOfType(type: GoalPeriod, count = 1): string {
+  return `${PERIOD_LABELS[type].toLowerCase()} ${count === 1 ? 'goal' : 'goals'}`;
+}
 
 /** The type a goal's parent must have; null for a year, which never nests. */
 export function parentTypeOf(type: GoalPeriod): GoalPeriod | null {

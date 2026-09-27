@@ -70,7 +70,7 @@
             <span class="item">
               Delete
               @if (goal.childCount > 0) {
-                <span class="reason">Delete its {{ goal.periodType === 'year' ? 'quarters' : 'months' }} first.</span>
+                <span class="reason">Delete its {{ childrenWord(goal) }} first.</span>
               }
             </span>
           </button>

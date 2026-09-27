@@ -39,7 +39,7 @@ interface SlotOption {
   selector: 'app-goal-form-dialog',
   imports: [FormsModule, MatButtonModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule],
   template: `
-    <h2 mat-dialog-title>{{ data.parent ? 'Add ' + type().toLowerCase() : 'New goal' }}</h2>
+    <h2 mat-dialog-title>{{ data.parent ? 'Add ' + type().toLowerCase() + ' goal' : 'New goal' }}</h2>
     <mat-dialog-content>
       @if (data.parent; as parent) {
         <p class="under">Under <b>{{ parent.key }}</b> {{ parent.title }} · {{ parent.slot }}</p>
@@ -175,7 +175,7 @@ export class GoalFormDialog {
   protected readonly today = todayLocal();
   private readonly thisYear = Number(this.today.slice(0, 4));
   protected readonly years = Array.from({ length: 6 }, (_, i) => this.thisYear + i);
-  protected readonly types: GoalPeriod[] = ['year', 'quarter', 'month'];
+  protected readonly types: GoalPeriod[] = ['month', 'quarter', 'year'];
   protected readonly periodLabels = PERIOD_LABELS;
 
   protected readonly title = signal('');

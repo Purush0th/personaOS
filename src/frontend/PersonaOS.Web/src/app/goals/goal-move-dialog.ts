@@ -60,7 +60,7 @@ export interface GoalMoveData {
         <p class="problem" role="alert">{{ problem }}</p>
       } @else if (resolved()?.dates; as dates) {
         <p class="note">
-          {{ range(dates.start, dates.end) }}@if (data.goal.childCount > 0) {; its {{ data.goal.childCount }} months move with it}
+          {{ range(dates.start, dates.end) }}@if (data.goal.childCount > 0) {; its {{ data.goal.childCount }} monthly {{ data.goal.childCount === 1 ? 'goal moves' : 'goals move' }} with it}
         </p>
       }
       @if (error()) {
