@@ -145,3 +145,43 @@ export function inTreeOrder(goals: Goal[]): { goal: Goal; depth: number }[] {
 export function setsProgressByHand(goal: Goal): boolean {
   return goal.status === 'active' && goal.taskCount === 0 && goal.childCount === 0;
 }
+
+/** A goal in the tree: how deep it sits, which goals are above it, and its swim lane. */
+export interface TreeRow {
+  goal: Goal;
+  depth: number;
+  /** Its parent, its parent's parent, …: folding any of them hides it. */
+  ancestors: number[];
+  /** A top-level goal and everything under it share a lane. */
+  lane: number;
+  /** Whether any goal in the list sits under it, i.e. whether it folds. */
+  hasChildren: boolean;
+}
+
+/** Every goal in tree order, with what the goals page and the timeline need to draw lanes and fold. */
+export function treeRows(goals: Goal[]): TreeRow[] {
+  const byId = new Map(goals.map(g => [g.id, g]));
+  const parents = new Set(goals.map(g => g.parentId).filter((id): id is number => id !== null && byId.has(id)));
+  let lane = -1;
+  return inTreeOrder(goals).map(({ goal, depth }) => {
+    const ancestors: number[] = [];
+    for (let p = goal.parentId; p !== null && byId.has(p); p = byId.get(p)!.parentId) ancestors.push(p);
+    if (ancestors.length === 0) lane++;
+    return { goal, depth, ancestors, lane, hasChildren: parents.has(goal.id) };
+  });
+}
+
+/** The rows still shown when the goals in `collapsed` are folded shut. */
+export function unfolded<T extends TreeRow>(rows: T[], collapsed: ReadonlySet<number>): T[] {
+  return rows.filter(r => !r.ancestors.some(id => collapsed.has(id)));
+}
+
+/** Consecutive rows grouped by lane. */
+export function byLane<T extends TreeRow>(rows: T[]): T[][] {
+  const lanes: T[][] = [];
+  for (const row of rows) {
+    if (lanes.length === 0 || lanes[lanes.length - 1][0].lane !== row.lane) lanes.push([]);
+    lanes[lanes.length - 1].push(row);
+  }
+  return lanes;
+}

@@ -180,7 +180,7 @@ describe('Reports', () => {
 
   it('lights the Reports tab and only that one', async () => {
     const page = await render('/board/reports');
-    const active = [...page.querySelectorAll('app-board-tabs a.mdc-tab--active')].map(a => text(a));
+    const active = [...page.querySelectorAll('app-page-tabs a.mdc-tab--active')].map(a => text(a));
     expect(active).toEqual(['Reports']);
   });
 });

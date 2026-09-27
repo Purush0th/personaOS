@@ -1,20 +1,33 @@
-<header class="page-head">
-  <h1>Goals</h1>
-  <span class="spacer"></span>
-  <button mat-flat-button (click)="newGoal()">
+<app-page-tabs section="goals">
+  @if (canFold()) {
+    <button pageActions mat-button (click)="toggleAll()">
+      <mat-icon>{{ anyCollapsed() ? 'unfold_more' : 'unfold_less' }}</mat-icon>
+      {{ anyCollapsed() ? 'Expand all' : 'Collapse all' }}
+    </button>
+  }
+  <button pageActions mat-flat-button (click)="newGoal()">
     <mat-icon>add</mat-icon>
     New goal
   </button>
-</header>
 
 @if (loading()) {
   <mat-progress-bar mode="indeterminate" />
 } @else {
-  @for (row of tree(); track row.goal.id) {
+  <!-- A swim lane per top-level goal: it and everything under it on one band. -->
+  @for (lane of lanes(); track lane[0].goal.id) {
+  <div class="lane">
+  @for (row of lane; track row.goal.id) {
     @let goal = row.goal;
     <section class="goal" [class.completed]="goal.status === 'completed'" [style.--depth]="row.depth"
              [attr.aria-label]="goal.key + ' ' + goal.title">
       <header>
+        @if (row.hasChildren) {
+          <button mat-icon-button class="fold" (click)="toggle(row)"
+                  [attr.aria-expanded]="!collapsed().has(goal.id)"
+                  [attr.aria-label]="(collapsed().has(goal.id) ? 'Expand ' : 'Collapse ') + goal.key">
+            <mat-icon>{{ collapsed().has(goal.id) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+          </button>
+        }
         <a class="key key-link" [routerLink]="['/goals', goal.key]">{{ goal.key }}</a>
         <span class="title">{{ goal.title }}</span>
         <span class="lozenge">{{ goal.slot }}</span>
@@ -118,6 +131,8 @@
         </button>
       }
     </section>
+  }
+  </div>
   } @empty {
     <p class="empty-state">No goals yet. Add one above, or ask in chat.</p>
   }
@@ -142,3 +157,4 @@
     </ng-template>
   </mat-menu>
 }
+</app-page-tabs>

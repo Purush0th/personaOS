@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
 import '../goal_calendar.dart';
+import '../goal_tree.dart';
 import 'board_screen.dart';
+import 'timeline_screen.dart';
 
-/// Goals as a roadmap: years, their quarters and those quarters' months, each card indented under
-/// its parent, standalone goals at their own level. Monthly goals carry the tasks. Every action is
-/// in the goal's menu; one that cannot be taken yet says why instead of failing.
+/// Goals, with two tabs as on the web: Goals and Timeline. On Goals the years, their quarters and
+/// those quarters' months are cards, each indented under its parent; a top-level goal and
+/// everything under it share a swim lane, and a goal with child goals folds. Monthly goals carry
+/// the tasks. Every action is in the goal's menu; one that cannot be taken yet says why instead of
+/// failing. Timeline draws the same goals on the year.
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key, required this.api, this.boardEnabled = true, this.today});
 
@@ -25,6 +29,9 @@ class GoalsScreen extends StatefulWidget {
 
 class _GoalsScreenState extends State<GoalsScreen> {
   late Future<List<Goal>> _goals;
+
+  /// Goals folded shut: their child goals are hidden.
+  final Set<int> _collapsed = {};
 
   DateTime get _today {
     final now = widget.today ?? DateTime.now();
@@ -124,81 +131,113 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Goals')),
-      floatingActionButton: FutureBuilder<List<Goal>>(
-        future: _goals,
-        builder: (context, snapshot) => FloatingActionButton.extended(
-          onPressed: () => _newGoal(snapshot.data ?? const []),
-          icon: const Icon(Icons.add),
-          label: const Text('New goal'),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Goals'),
+          bottom: const TabBar(tabs: [Tab(text: 'Goals'), Tab(text: 'Timeline')]),
         ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async => _reload(),
-        child: FutureBuilder<List<Goal>>(
+        floatingActionButton: FutureBuilder<List<Goal>>(
           future: _goals,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return const _MessageList(message: 'Could not load goals.', error: true);
-            }
-            final goals = snapshot.data!;
-            if (goals.isEmpty) {
-              return const _MessageList(message: 'No goals yet. Add one, or ask your assistant in chat.');
-            }
-            final rows = inTreeOrder(goals);
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
-              itemCount: rows.length,
-              itemBuilder: (context, i) {
-                final (goal, depth) = rows[i];
-                return _GoalTile(
-                  key: Key('goal-${goal.key}'),
-                  goal: goal,
-                  depth: depth,
-                  today: _today,
-                  boardEnabled: widget.boardEnabled,
-                  onAddTask: () => _addTask(goal),
-                  onAddChild: () => _newGoal(goals, parent: goal),
-                  onTaskAction: _taskAction,
-                  onProgress: () => _editProgress(goal),
-                  onStatus: (status) => _run(() => widget.api.setGoalStatus(goal.id, status)),
-                  onMove: () => _move(goal, goals),
-                  onDelete: () => _delete(goal, goals),
-                );
-              },
-            );
-          },
+          builder: (context, snapshot) => FloatingActionButton.extended(
+            onPressed: () => _newGoal(snapshot.data ?? const []),
+            icon: const Icon(Icons.add),
+            label: const Text('New goal'),
+          ),
+        ),
+        // Tabs change by tapping: the Timeline scrolls sideways, and a swipe there must move the
+        // year, not the tab.
+        body: TabBarView(
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _goalsTab(),
+            TimelineView(goals: _goals, today: _today),
+          ],
         ),
       ),
     );
   }
-}
 
-/// Parents before their children, each child right after its parent, with its depth.
-List<(Goal, int)> inTreeOrder(List<Goal> goals) {
-  final ids = goals.map((g) => g.id).toSet();
-  final children = <int, List<Goal>>{};
-  for (final goal in goals) {
-    if (goal.parentId != null && ids.contains(goal.parentId)) {
-      children.putIfAbsent(goal.parentId!, () => []).add(goal);
-    }
-  }
-  final out = <(Goal, int)>[];
-  void add(Goal goal, int depth) {
-    out.add((goal, depth));
-    for (final child in children[goal.id] ?? const <Goal>[]) {
-      add(child, depth + 1);
-    }
-  }
+  Widget _goalsTab() {
+    return RefreshIndicator(
+      onRefresh: () async => _reload(),
+      child: FutureBuilder<List<Goal>>(
+        future: _goals,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return const _MessageList(message: 'Could not load goals.', error: true);
+          }
+          final goals = snapshot.data!;
+          if (goals.isEmpty) {
+            return const _MessageList(message: 'No goals yet. Add one, or ask your assistant in chat.');
+          }
+          final rows = treeRows(goals);
+          final lanes = byLane(unfolded(rows, _collapsed));
+          final canFold = rows.any((r) => r.hasChildren);
+          final anyCollapsed = _collapsed.isNotEmpty;
+          final band = Theme.of(context).colorScheme.surfaceContainerHigh;
 
-  for (final goal in goals) {
-    if (goal.parentId == null || !ids.contains(goal.parentId)) add(goal, 0);
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 88),
+            children: [
+              if (canFold)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    key: const Key('goals-fold-all'),
+                    icon: Icon(anyCollapsed ? Icons.unfold_more : Icons.unfold_less, size: 18),
+                    label: Text(anyCollapsed ? 'Expand all' : 'Collapse all'),
+                    onPressed: () => setState(() {
+                      if (anyCollapsed) {
+                        _collapsed.clear();
+                      } else {
+                        _collapsed.addAll(rows.where((r) => r.hasChildren).map((r) => r.goal.id));
+                      }
+                    }),
+                  ),
+                ),
+              // A swim lane per top-level goal: it and everything under it on one band.
+              for (final lane in lanes)
+                Container(
+                  key: Key('lane-${lane.first.goal.key}'),
+                  margin: const EdgeInsets.only(top: 10),
+                  padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
+                  decoration: BoxDecoration(color: band, borderRadius: BorderRadius.circular(16)),
+                  child: Column(
+                    children: [
+                      for (final row in lane)
+                        _GoalTile(
+                          key: Key('goal-${row.goal.key}'),
+                          goal: row.goal,
+                          depth: row.depth,
+                          today: _today,
+                          boardEnabled: widget.boardEnabled,
+                          folds: row.hasChildren,
+                          collapsed: _collapsed.contains(row.goal.id),
+                          onFold: () => setState(() {
+                            if (!_collapsed.remove(row.goal.id)) _collapsed.add(row.goal.id);
+                          }),
+                          onAddTask: () => _addTask(row.goal),
+                          onAddChild: () => _newGoal(goals, parent: row.goal),
+                          onTaskAction: _taskAction,
+                          onProgress: () => _editProgress(row.goal),
+                          onStatus: (status) => _run(() => widget.api.setGoalStatus(row.goal.id, status)),
+                          onMove: () => _move(row.goal, goals),
+                          onDelete: () => _delete(row.goal, goals),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
   }
-  return out;
 }
 
 /// "quarter" or "month": what can still be added under this goal, or null.
@@ -215,6 +254,9 @@ class _GoalTile extends StatelessWidget {
     required this.depth,
     required this.today,
     required this.boardEnabled,
+    required this.folds,
+    required this.collapsed,
+    required this.onFold,
     required this.onAddTask,
     required this.onAddChild,
     required this.onTaskAction,
@@ -228,6 +270,11 @@ class _GoalTile extends StatelessWidget {
   final int depth;
   final DateTime today;
   final bool boardEnabled;
+
+  /// Whether the goal has child goals here, which a chevron folds away.
+  final bool folds;
+  final bool collapsed;
+  final VoidCallback onFold;
   final VoidCallback onAddTask;
   final VoidCallback onAddChild;
 
@@ -266,6 +313,16 @@ class _GoalTile extends StatelessWidget {
           children: [
             Row(
               children: [
+                if (folds)
+                  InkWell(
+                    key: Key('fold-${goal.key}'),
+                    onTap: onFold,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Icon(collapsed ? Icons.chevron_right : Icons.expand_more,
+                          size: 20, semanticLabel: '${collapsed ? 'Expand' : 'Collapse'} ${goal.key}'),
+                    ),
+                  ),
                 Text(goal.key, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
                 const SizedBox(width: 8),
                 Expanded(child: Text(goal.title, style: const TextStyle(fontWeight: FontWeight.w600))),

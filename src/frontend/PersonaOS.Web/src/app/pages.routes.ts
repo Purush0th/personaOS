@@ -31,6 +31,14 @@ export const PAGE_ROUTES: Routes = [
         loadComponent: () => import('./goals/goals').then(m => m.Goals),
       },
       {
+        // The same goals drawn on a year's calendar (PRD 3.2): a tab of Goals, so it sits under
+        // /goals — before goals/:key, which would otherwise read "timeline" as a goal's key.
+        path: 'goals/timeline',
+        canActivate: [authGuard],
+        loadComponent: () => import('./timeline/timeline').then(m => m.Timeline),
+      },
+      { path: 'timeline', pathMatch: 'full', redirectTo: 'goals/timeline' },
+      {
         // Goals stand apart from the board (which holds sprints, tasks and reports).
         path: 'goals/:key',
         canActivate: [authGuard],

@@ -69,12 +69,12 @@ describe('Goals', () => {
 
   afterEach(() => TestBed.inject(MatDialog).closeAll());
 
-  const lanes = () => [...harness.routeNativeElement!.querySelectorAll<HTMLElement>('section.goal')];
-  const lane = (key: string) => lanes().find(l => l.getAttribute('aria-label')?.startsWith(key + ' '))!;
+  const cards = () => [...harness.routeNativeElement!.querySelectorAll<HTMLElement>('section.goal')];
+  const card = (key: string) => cards().find(l => l.getAttribute('aria-label')?.startsWith(key + ' '))!;
   const text = (el: Element | null | undefined) => el?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
   async function openMenu(key: string): Promise<HTMLElement[]> {
-    lane(key).querySelector<HTMLButtonElement>('button.menu')!.click();
+    card(key).querySelector<HTMLButtonElement>('button.menu')!.click();
     harness.detectChanges();
     await settle();
     const panels = document.querySelectorAll<HTMLElement>('.mat-mdc-menu-panel');
@@ -82,15 +82,43 @@ describe('Goals', () => {
   }
 
   it('shows each child under its parent, one step in per level', () => {
-    expect(lanes().map(l => l.getAttribute('aria-label')!.split(' ')[0])).toEqual(['GOAL-4', 'GOAL-1', 'GOAL-2', 'GOAL-3']);
-    expect(lanes().map(l => l.style.getPropertyValue('--depth'))).toEqual(['0', '0', '1', '2']);
+    expect(cards().map(l => l.getAttribute('aria-label')!.split(' ')[0])).toEqual(['GOAL-4', 'GOAL-1', 'GOAL-2', 'GOAL-3']);
+    expect(cards().map(l => l.style.getPropertyValue('--depth'))).toEqual(['0', '0', '1', '2']);
+  });
+
+  it('gives each top-level goal and everything under it its own swim lane', () => {
+    const lanes = [...harness.routeNativeElement!.querySelectorAll<HTMLElement>('.lane')];
+    const keys = (lane: HTMLElement) => [...lane.querySelectorAll('section.goal')].map(s => s.getAttribute('aria-label')!.split(' ')[0]);
+
+    expect(lanes.map(keys)).toEqual([['GOAL-4'], ['GOAL-1', 'GOAL-2', 'GOAL-3']]);
+  });
+
+  it('folds child goals away and back, one goal or all', () => {
+    const fold = (key: string) => card(key).querySelector<HTMLButtonElement>('button.fold')!;
+
+    fold('GOAL-2').click();
+    harness.detectChanges();
+    expect(cards().map(l => l.getAttribute('aria-label')!.split(' ')[0])).toEqual(['GOAL-4', 'GOAL-1', 'GOAL-2']);
+    expect(fold('GOAL-2').getAttribute('aria-expanded')).toBe('false');
+
+    const all = [...harness.routeNativeElement!.querySelectorAll<HTMLButtonElement>('button')].find(b => text(b).includes('Expand all'))!;
+    all.click();
+    harness.detectChanges();
+    expect(cards().length).toBe(4);
+    expect(card('GOAL-4').querySelector('button.fold')).toBeNull(); // nothing under it, nothing to fold
+  });
+
+  it('sits in the Goals tabs, with Timeline beside it', () => {
+    const tabs = [...harness.routeNativeElement!.querySelectorAll('app-page-tabs a[mat-tab-link]')];
+    expect(tabs.map(t => text(t))).toEqual(['Goals', 'Timeline']);
+    expect(tabs[1].getAttribute('href')).toBe('/goals/timeline');
   });
 
   it('offers tasks only on monthly goals, and the next level down on the others', () => {
-    expect(text(lane('GOAL-3'))).toContain('Create task');
-    expect(text(lane('GOAL-1'))).toContain('Add quarterly goal');
-    expect(text(lane('GOAL-1'))).not.toContain('Create task');
-    expect(text(lane('GOAL-2'))).not.toContain('Create task');
+    expect(text(card('GOAL-3'))).toContain('Create task');
+    expect(text(card('GOAL-1'))).toContain('Add quarterly goal');
+    expect(text(card('GOAL-1'))).not.toContain('Create task');
+    expect(text(card('GOAL-2'))).not.toContain('Create task');
   });
 
   it('says why a goal cannot be completed or deleted yet instead of failing', async () => {

@@ -182,7 +182,7 @@ describe('Board', () => {
     const dialog = TestBed.inject(MatDialog);
     expect(router.url).toBe('/board?task=TASK-1');
     // An open task does not change which view the tabs show.
-    const active = [...root().querySelectorAll('app-board-tabs a.mdc-tab--active')].map(a => a.textContent?.trim());
+    const active = [...root().querySelectorAll('app-page-tabs a.mdc-tab--active')].map(a => a.textContent?.trim());
     expect(active).toEqual(['Sprint']);
     expect(dialog.openDialogs.length).toBe(1);
     expect(api.task).toHaveBeenCalledWith('TASK-1');

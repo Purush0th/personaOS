@@ -1,6 +1,6 @@
-<app-board-tabs>
+<app-page-tabs section="board">
   @if (board()?.sprint) {
-    <button boardActions mat-flat-button (click)="completeSprint()">Complete sprint</button>
+    <button pageActions mat-flat-button (click)="completeSprint()">Complete sprint</button>
   }
 
   @if (loading()) {
@@ -150,4 +150,4 @@
       </p>
     }
   }
-</app-board-tabs>
+</app-page-tabs>
