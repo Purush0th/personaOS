@@ -25,7 +25,7 @@ public class WorkItemServiceTests
             db, new FakeInstanceConfigService(db), new FakePushSender(),
             new FixedTimeProvider(new DateTimeOffset(2026, 9, 15, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<BoardService>.Instance);
-        return new Rig(db, new WorkItemService(db, storage), board, new GoalService(db), storage);
+        return new Rig(db, new WorkItemService(db, storage), board, TestGoals.Service(db), storage);
     }
 
     private static AddAttachmentRequest File(string name, string text, string contentType = "text/plain") =>
@@ -36,7 +36,7 @@ public class WorkItemServiceTests
     {
         var rig = Setup();
         await rig.Board.CreateTaskAsync(new CreateTaskRequest("Write the letter"));
-        await rig.Goals.CreateAsync(new CreateGoalRequest("Get masters", null, GoalPeriods.Year, new DateOnly(2026, 1, 1)));
+        await rig.Goals.CreateAsync(TestGoals.Year("Get masters"));
 
         var task = (await rig.Items.ResolveAsync(WorkItemTypes.Task, "TASK-1"))!;
         var goal = (await rig.Items.ResolveAsync(WorkItemTypes.Goal, "GOAL-1"))!;

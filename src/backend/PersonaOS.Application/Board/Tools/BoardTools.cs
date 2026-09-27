@@ -31,8 +31,21 @@ public abstract class BoardToolBase(IBoardService board, IGoalService goals) : G
     public override Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
         GetKey(input, "taskKey") is { } key ? DescribeTaskAsync(key, ct) : Task.FromResult<string?>(null);
 
-    protected async Task<int?> OptionalGoalAsync(string? key, CancellationToken ct) =>
-        string.IsNullOrWhiteSpace(key) ? null : await RequireGoalAsync(goals, key, ct);
+    /// <summary>
+    /// The goal a task should sit under, checked by the board's own rule (an open monthly goal)
+    /// before the card is shown, so a card that would fail on Confirm is never offered.
+    /// </summary>
+    protected async Task<int?> OptionalGoalAsync(string? key, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        var id = await RequireGoalAsync(goals, key, ct);
+        if (await goals.GetAsync(id, ct) is { } goal
+            && GoalService.TaskGoalProblem(goal.Key, goal.PeriodType, goal.Status) is { } problem)
+        {
+            throw new BoardValidationException(problem);
+        }
+        return id;
+    }
 }
 
 public class GetBoardTool(IBoardService board, IGoalService goals) : BoardToolBase(board, goals)
@@ -102,7 +115,7 @@ public class CreateTaskTool(IBoardService board, IGoalService goals) : BoardTool
           "properties": {
             "title": { "type": "string" },
             "description": { "type": "string" },
-            "goalKey": { "type": "string", "description": "Goal key like \"GOAL-3\". Omit for a task with no goal." },
+            "goalKey": { "type": "string", "description": "A monthly goal's key, like \"GOAL-3\". Tasks go only under monthly goals. Omit for a task with no goal." },
             "points": { "type": "integer", "enum": [1, 2, 3, 5, 8, 13, 21] },
             "priority": { "type": "string", "enum": ["highest", "high", "medium", "low", "lowest"] },
             "sprintKey": { "type": "string", "description": "Sprint key like \"SPRINT-2\". Omit for the backlog." }
@@ -151,7 +164,7 @@ public class UpdateTaskTool(IBoardService board, IGoalService goals) : BoardTool
             "points": { "type": "integer", "enum": [1, 2, 3, 5, 8, 13, 21] },
             "clearPoints": { "type": "boolean", "description": "Mark the task unestimated again." },
             "priority": { "type": "string", "enum": ["highest", "high", "medium", "low", "lowest"] },
-            "goalKey": { "type": "string", "description": "Move the task under this goal." },
+            "goalKey": { "type": "string", "description": "Move the task under this monthly goal." },
             "clearGoal": { "type": "boolean", "description": "Detach the task from its goal." }
           },
           "required": ["taskKey"]
