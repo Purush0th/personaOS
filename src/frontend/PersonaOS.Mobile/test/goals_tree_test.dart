@@ -136,6 +136,38 @@ void main() {
     expect(api.deleted.single.reassign, {'TASK-9': 'GOAL-4'});
   });
 
+  testWidgets('gives each top-level goal and everything under it its own swim lane', (tester) async {
+    await open(tester);
+
+    List<String> inLane(String key) => [
+          for (final g in ['GOAL-1', 'GOAL-2', 'GOAL-3', 'GOAL-4'])
+            if (find.descendant(of: find.byKey(Key('lane-$key')), matching: find.byKey(Key('goal-$g'))).evaluate().isNotEmpty) g,
+        ];
+    expect(inLane('GOAL-4'), ['GOAL-4']);
+    expect(inLane('GOAL-1'), ['GOAL-1', 'GOAL-2', 'GOAL-3']);
+  });
+
+  testWidgets('folds child goals away and back, one goal or all', (tester) async {
+    await open(tester);
+
+    await tester.tap(find.byKey(const Key('fold-GOAL-2')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('goal-GOAL-3')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('goals-fold-all'))); // Expand all
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('goal-GOAL-3')), findsOneWidget);
+    expect(find.byKey(const Key('fold-GOAL-4')), findsNothing); // nothing under it, nothing to fold
+  });
+
+  testWidgets('has a Timeline tab beside Goals', (tester) async {
+    await open(tester);
+
+    await tester.tap(find.widgetWithText(Tab, 'Timeline'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('timeline-year')), findsOneWidget);
+  });
+
   test('slots that are over, too short or taken cannot be picked', () {
     final quarter = Goal.fromJson(_quarter);
 

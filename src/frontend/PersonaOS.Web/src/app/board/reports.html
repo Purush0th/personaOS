@@ -1,4 +1,4 @@
-<app-board-tabs>
+<app-page-tabs section="board">
   @if (reportError(); as error) {
     <p class="empty-state">{{ error }}</p>
   } @else if (!report()) {
@@ -133,4 +133,4 @@
       </p>
     </section>
   }
-</app-board-tabs>
+</app-page-tabs>

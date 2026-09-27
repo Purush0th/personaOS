@@ -7,6 +7,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { AuthService } from './core/auth.service';
 import { GoalDetail } from './goals/goal-detail';
 import { PAGE_ROUTES } from './pages.routes';
+import { Timeline } from './timeline/timeline';
 
 describe('PAGE_ROUTES', () => {
   beforeEach(() => {
@@ -26,6 +27,14 @@ describe('PAGE_ROUTES', () => {
 
     expect(page).toBeInstanceOf(GoalDetail);
     expect(TestBed.inject(Router).url).toBe('/goals/GOAL-2');
+  });
+
+  it('keeps the Timeline as a tab of Goals, not a goal called "timeline"', async () => {
+    const harness = await RouterTestingHarness.create();
+    const page = await harness.navigateByUrl('/timeline', Timeline);
+
+    expect(page).toBeInstanceOf(Timeline);
+    expect(TestBed.inject(Router).url).toBe('/goals/timeline');
   });
 
   it('sends the old /board/goals address to the new one', async () => {

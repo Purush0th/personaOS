@@ -23,7 +23,7 @@ import {
   goalHue,
   withScopeConfirmation,
 } from '../core/board.service';
-import { BoardTabs } from './board-tabs';
+import { PageTabs } from '../shared/page-tabs';
 import { openTaskFromQuery } from './task-dialog';
 
 interface ColumnDef {
@@ -45,7 +45,7 @@ interface ColumnDef {
   selector: 'app-board',
   imports: [
     RouterLink,
-    BoardTabs,
+    PageTabs,
     DragDropModule,
     InlineCreate,
     MatButtonModule,

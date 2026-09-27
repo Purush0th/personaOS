@@ -1,0 +1,83 @@
+<app-page-tabs section="goals">
+  @if (rows().length > 0) {
+    <button pageActions mat-button (click)="toggleAll()">
+      <mat-icon>{{ anyCollapsed() ? 'unfold_more' : 'unfold_less' }}</mat-icon>
+      {{ anyCollapsed() ? 'Expand all' : 'Collapse all' }}
+    </button>
+  }
+  <mat-form-field pageActions class="year" subscriptSizing="dynamic">
+    <mat-select [value]="year()" (selectionChange)="setYear($event.value)" aria-label="Year">
+      @for (y of years(); track y) {
+        <mat-option [value]="y">{{ y }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+} @else if (rows().length === 0) {
+  <p class="empty-state">No goals in {{ year() }}. Add one on the <a routerLink="/goals">Goals</a> page.</p>
+} @else {
+  <!-- On a narrow screen the year keeps a readable width and scrolls sideways; the labels stay put. -->
+  <div class="scroller" #scroller>
+  <div class="chart" [attr.aria-label]="'Goals in ' + year()">
+    <!-- The axis: quarters over months, each placed at its share of the year. -->
+    <div class="corner" aria-hidden="true"></div>
+    <div class="axis" aria-hidden="true" style="grid-row: 1">
+      <div class="band">
+        @for (q of quarters; track q) {
+          <span [style.left.%]="months()[(q - 1) * 3].left"
+                [style.width.%]="months()[(q - 1) * 3].width + months()[(q - 1) * 3 + 1].width + months()[(q - 1) * 3 + 2].width">Q{{ q }}</span>
+        }
+      </div>
+      <div class="band months">
+        @for (m of months(); track m.name) {
+          <span [style.left.%]="m.left" [style.width.%]="m.width"><b>{{ m.name }}</b></span>
+        }
+      </div>
+    </div>
+
+    <!-- Month lines and today's line behind the bars, down the whole chart. -->
+    <div class="lines" aria-hidden="true" [style.grid-row]="'1 / ' + (visibleRows().length + 2)">
+      @for (m of months(); track m.name) {
+        <span class="month-line" [style.left.%]="m.left"></span>
+      }
+      @if (todayAt() !== null) {
+        <span class="today" [style.left.%]="todayAt()"></span>
+      }
+    </div>
+
+    <!-- Rows are placed by number: the line layer spans every row, and grid auto-placement
+         would otherwise push each bar below it. -->
+    @for (row of visibleRows(); track row.goal.id; let i = $index) {
+      @let goal = row.goal;
+      <div class="label" [style.--level]="row.level" [style.grid-row]="i + 2"
+           [class.lane-first]="row.laneFirst" [class.lane-last]="row.laneLast">
+        @if (row.hasChildren) {
+          <button mat-icon-button class="fold" (click)="toggle(row)"
+                  [attr.aria-expanded]="!collapsed().has(goal.id)"
+                  [attr.aria-label]="(collapsed().has(goal.id) ? 'Expand ' : 'Collapse ') + goal.key">
+            <mat-icon>{{ collapsed().has(goal.id) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+          </button>
+        } @else {
+          <span class="fold" aria-hidden="true"></span>
+        }
+        <a class="key key-link" [routerLink]="['/goals', goal.key]">{{ goal.key }}</a>
+        <span class="title" [title]="goal.title">{{ goal.title }}</span>
+      </div>
+      <div class="track" [style.grid-row]="i + 2" [class.lane-first]="row.laneFirst" [class.lane-last]="row.laneLast">
+        <a class="bar" [routerLink]="['/goals', goal.key]"
+           [class.completed]="goal.status === 'completed'" [class.overdue]="overdue(goal)"
+           [attr.data-type]="goal.periodType"
+           [style.left.%]="row.left" [style.width.%]="row.width"
+           [attr.aria-label]="describe(goal)" [title]="describe(goal)">
+          <span class="fill" [style.width.%]="goal.effectiveProgress"></span>
+          <!-- A month's bar sits under its month already; there is room only for the number. -->
+          <span class="text">@if (goal.periodType !== 'month') {{{ goal.slot }} · }{{ goal.effectiveProgress }}%</span>
+        </a>
+      </div>
+    }
+  </div>
+  </div>
+}
+</app-page-tabs>

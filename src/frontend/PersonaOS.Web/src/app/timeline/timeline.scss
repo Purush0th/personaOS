@@ -1,0 +1,250 @@
+/* A Gantt chart of one year: a label column and a track per goal, the month axis on top, month
+   lines and today's line drawn once behind every row. Positions are percentages of the year. */
+
+// Header actions, in the Goals tabs' header.
+.year {
+  width: 7rem;
+}
+
+// The year stays readable on a phone: at least ~44rem wide, scrolled sideways.
+.scroller {
+  margin-top: 0.75rem;
+  overflow-x: auto;
+  border-radius: var(--mat-sys-corner-medium);
+}
+
+.chart {
+  --label: minmax(9rem, 18rem);
+  min-width: 44rem;
+  display: grid;
+  grid-template-columns: var(--label) 1fr;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--work-lane);
+
+  @media (max-width: 600px) {
+    --label: 8rem;
+    padding: 0.5rem 0;
+  }
+}
+
+.axis,
+.track,
+.lines {
+  grid-column: 2;
+  position: relative;
+}
+
+.axis {
+  height: 2.75rem;
+  font: var(--mat-sys-label-small);
+  color: var(--mat-sys-on-surface-variant);
+
+  .band {
+    position: relative;
+    height: 1.375rem;
+
+    span {
+      position: absolute;
+      top: 0;
+      padding-left: 0.3rem;
+      overflow: hidden;
+      white-space: nowrap;
+      line-height: 1.375rem;
+    }
+  }
+
+  .band:first-child span {
+    font-weight: 700;
+    color: var(--mat-sys-on-surface);
+    border-left: 1px solid var(--mat-sys-outline);
+  }
+
+  b {
+    font-weight: inherit;
+  }
+}
+
+// The top-left cell stays over the pinned labels too.
+.corner {
+  grid-column: 1;
+  grid-row: 1;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--work-lane);
+}
+
+// Swim lanes: a top-level goal and everything under it on one band, a gap between bands. The
+// fill is opaque so the pinned labels hide the year scrolling under them.
+.label,
+.track {
+  --lane: color-mix(in srgb, var(--mat-sys-on-surface) 6%, var(--work-lane));
+  background: var(--lane);
+
+  &.lane-first {
+    margin-top: 0.75rem;
+    padding-top: 0.25rem;
+  }
+
+  &.lane-last {
+    padding-bottom: 0.25rem;
+  }
+}
+
+.label.lane-first {
+  border-top-left-radius: var(--mat-sys-corner-small);
+  // The gap above a lane is margin, which is see-through; paint it with the chart's own colour
+  // so the year scrolling under the pinned labels does not show there.
+  box-shadow: 0 -0.75rem 0 var(--work-lane);
+}
+
+.label.lane-last {
+  border-bottom-left-radius: var(--mat-sys-corner-small);
+}
+
+.track.lane-first {
+  border-top-right-radius: var(--mat-sys-corner-small);
+}
+
+.track.lane-last {
+  border-bottom-right-radius: var(--mat-sys-corner-small);
+}
+
+.lines {
+  grid-row: 1 / -1;
+  pointer-events: none;
+  // Over the lanes' fill, under the bars and the pinned labels.
+  z-index: 1;
+
+  span {
+    position: absolute;
+    top: 1.375rem;
+    bottom: 0;
+    width: 1px;
+    background: var(--mat-sys-outline-variant);
+  }
+
+  .today {
+    top: 0;
+    width: 2px;
+    background: var(--mat-sys-error);
+  }
+}
+
+.label {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  min-height: 2.25rem;
+  padding-left: calc(var(--level) * 1rem);
+  padding-right: 0.5rem;
+  font: var(--mat-sys-body-medium);
+  // Pinned while the year scrolls under it, above the month lines and bars.
+  position: sticky;
+  left: 0;
+  z-index: 3;
+
+  .fold {
+    flex: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    --mat-icon-button-state-layer-size: 28px;
+  }
+
+  .key {
+    flex: none;
+    font: var(--mat-sys-label-medium);
+  }
+
+  @media (max-width: 600px) {
+    .key {
+      display: none;
+    }
+  }
+
+  .title {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  // A phone's narrow label column gives the title two lines rather than a few letters.
+  @media (max-width: 600px) {
+    padding-left: calc(0.5rem + var(--level) * 0.5rem);
+
+    .title {
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      font: var(--mat-sys-body-small);
+      line-height: 1.2;
+    }
+  }
+}
+
+.track {
+  min-height: 2.25rem;
+}
+
+// The bar: the goal's span, filled to its progress. Years are tallest, months slimmest.
+.bar {
+  position: absolute;
+  z-index: 2;
+  // Centred in its row, which a lane's first and last rows make taller.
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1.5rem;
+  min-width: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  text-decoration: none;
+  box-shadow: var(--work-item-shadow);
+
+  &[data-type='quarter'] {
+    height: 1.25rem;
+  }
+
+  &[data-type='month'] {
+    height: 1rem;
+  }
+
+  &:hover,
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 1px;
+  }
+
+  .fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--mat-sys-primary);
+    opacity: 0.35;
+  }
+
+  .text {
+    position: relative;
+    padding: 0 0.4rem;
+    overflow: hidden;
+    white-space: nowrap;
+    font: var(--mat-sys-label-small);
+  }
+
+  &.completed {
+    background: var(--status-done-bg);
+    color: var(--status-done-fg);
+  }
+
+  &.overdue {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+}

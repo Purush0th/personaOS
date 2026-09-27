@@ -130,9 +130,44 @@ it is not under a parent.
       reason, new web pages served. The volume's own nightly `backups/`, `pre-chat-wipe/` and
       `pre-publicid/` folders still hold older copies; delete them when the owner wants. Release
       arm64 APK built and sent to the owner.
-- [ ] **P3. Timeline (web + phone).** `/timeline` and a phone screen: Gantt-style bars on a date
-      axis labelled with key and title, status and progress, year / quarter / month expand and
-      collapse, current year by default with a year dropdown, bars open the goal.
+- [x] **P3. Timeline (web + phone)** (2026-09-27). Web `/timeline` (nav: after Goals, gated by
+      the goals module; `timeline/timeline.*`): one year as a Gantt chart — quarter and month axis
+      (months at their true share of the year), month lines and today's red line behind every row,
+      a label column (fold chevron, key link, title) and a bar per goal placed by its dates, filled
+      to its progress, reading "Q4 2026 · 40%" (months just "40%": the bar sits under its month),
+      completed green and overdue red, years tallest and months slimmest. Levels are by type (a
+      standalone month sits at month level); parents come before their children; a goal with child
+      goals folds, and Expand all / Collapse all does every one. The year dropdown offers the
+      current year and every year with a goal. A bar opens the goal's page. Narrow screens keep
+      the year at least 44rem wide and scroll it sideways under a pinned label column (titles on
+      two lines, keys hidden there), starting a month before today; rows are placed by number
+      because the line layer spans all of them. Phone `TimelineScreen` (Goals menu: Timeline): the
+      same chart — pinned labels, 64 px months scrolled to a month before today, fold, year
+      dropdown, a bar opens a sheet with the goal's type, slot, dates, progress, child goals and
+      tasks (the phone has no goal pages). Checked in headless Chrome at 1280 and 390 px in both
+      schemes and rendered on the phone with real fonts. Tests: web 104 (`timeline.spec.ts`), phone
+      93 (`timeline_test.dart`). Deployed (web + APK) uncommitted, at the owner's word.
+      **Swim lanes** (2026-09-27, owner: "each group should have a distinct swim lane; it looks
+      jammed"): a top-level goal and everything under it now share one rounded band, with a gap
+      between bands. The cause of the jam: levels are by type, so a standalone quarter ("Read 6
+      books") sat indented right under a year's rows and read as part of it. Web: lane fill on the
+      label and track cells (opaque, so the pinned labels still hide the scrolled year), month lines
+      above the fill and under the bars, bars centred in their rows, and the see-through gap above
+      a lane painted over in the pinned column. Phone: the same bands in both columns (see-through
+      on the year side so the month lines show). Tests: web 105, phone 94.
+      **Timeline becomes a tab of Goals; goals get lanes and folding** (2026-09-27, owner). Web: the
+      board's tab frame is now a shared `shared/page-tabs.ts` (`section="board"` or `"goals"`,
+      actions in `[pageActions]`); Goals has tabs Goals | Timeline, the Timeline lives at
+      `/goals/timeline` (declared before `goals/:key`; `/timeline` redirects), and its menu item is
+      gone. The goals page groups each top-level goal and everything under it in a swim lane (a
+      grey band, goal cards on the page's surface so progress tracks and slot labels keep their
+      contrast), and a goal with child goals folds, with Expand all / Collapse all. Tree, fold and
+      lane logic is one set of helpers for both tabs (`treeRows`, `unfolded`, `byLane` in
+      goals.service.ts). Phone: Goals has the same two tabs (`TimelineView` shares the Goals tab's
+      load; tabs change by tapping so a sideways drag moves the year), the Timeline menu entry is
+      gone, and the Goals tab has the same lanes and folding (`lib/goal_tree.dart`). Checked in
+      headless Chrome (desktop and 390 px, both schemes) and rendered on the phone. Tests: web 109,
+      phone 97.
 - [ ] **P4. Memory.** `memory` module (on by default); memory entity with category and source
       conversation; API; Memories screen (web + phone) to view, edit, delete; auto-save setting
       (on by default) with receipts, off = card; tools `search_memories`, `create_memory`,

@@ -1,36 +1,36 @@
-/* Goals read like the backlog: each goal is a lane (the --work-* tokens in styles.scss), its
-   progress one bar, its tasks the shared raised rows (.work-row), its actions in a menu. A child
-   goal's lane is indented under its parent's, one step per level. */
+/* Goals read like the backlog: each goal a card (its progress one bar, its tasks the shared
+   raised rows, .work-row), its actions in a menu. A top-level goal and everything under it share
+   a swim lane, the band the Timeline tab draws too; a child's card is indented under its parent's,
+   one step per level, joined by a line down its left edge. */
 
-.page-head {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.5rem;
+// A swim lane: the band holding one top-level goal and the goals under it.
+.lane {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--work-lane);
 
-  h1 {
-    font: var(--mat-sys-headline-small);
-    margin: 0;
-  }
-
-  .spacer {
-    flex: 1;
+  @media (max-width: 600px) {
+    padding: 0.375rem;
   }
 }
 
 .goal {
   --indent: 1.5rem;
-  margin-top: 1rem;
   margin-left: calc(var(--depth, 0) * var(--indent));
   padding: 0.5rem 0.75rem 0.75rem;
   border-radius: var(--mat-sys-corner-medium);
-  background: var(--work-lane);
+  // The page's own surface on the grey lane: each goal reads as its own card, and its progress
+  // track and slot label keep their contrast (a tinted card made both vanish in light mode).
+  background: var(--mat-sys-surface);
 
-  // A child sits close under its parent, joined by a line down its left edge.
+  & + .goal {
+    margin-top: 0.5rem;
+  }
+
+  // A child is joined to its parent by a line down its left edge.
   &[style*='--depth: 1'],
   &[style*='--depth: 2'] {
-    margin-top: 0.5rem;
     border-left: 3px solid var(--mat-sys-outline-variant);
   }
 
@@ -65,6 +65,15 @@
 
     .spacer {
       flex: 1;
+    }
+
+    .fold {
+      flex: none;
+      margin-left: -0.5rem;
+      --mat-icon-button-state-layer-size: 32px;
+      width: 32px;
+      height: 32px;
+      padding: 4px;
     }
 
     // Stays at the right end even when a narrow screen wraps the header onto a second line.

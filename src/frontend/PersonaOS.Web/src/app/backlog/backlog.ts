@@ -8,7 +8,7 @@ import { RouterLink } from '@angular/router';
 
 import { Confirm } from '../core/confirm';
 import { DRAG_DEFAULTS } from '../core/drag-defaults';
-import { BoardTabs } from '../board/board-tabs';
+import { PageTabs } from '../shared/page-tabs';
 import { SprintForm } from '../board/sprint-form';
 import { openTaskFromQuery } from '../board/task-dialog';
 import { InlineCreate, NewTask } from '../shared/inline-create';
@@ -47,7 +47,7 @@ interface Group {
   selector: 'app-backlog',
   imports: [
     RouterLink,
-    BoardTabs,
+    PageTabs,
     DragDropModule,
     InlineCreate,
     MatButtonModule,
