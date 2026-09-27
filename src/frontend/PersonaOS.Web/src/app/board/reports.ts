@@ -29,7 +29,7 @@ import {
   apiError,
   formatWhen,
 } from '../core/board.service';
-import { BoardTabs } from './board-tabs';
+import { PageTabs } from '../shared/page-tabs';
 import { BreakdownBar, BreakdownPart } from './breakdown-bar';
 import { BurndownChart } from './burndown-chart';
 import { openTaskFromQuery } from './task-dialog';
@@ -51,7 +51,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 @Component({
   selector: 'app-reports',
   imports: [
-    BoardTabs,
+    PageTabs,
     BreakdownBar,
     BurndownChart,
     MatAutocompleteModule,

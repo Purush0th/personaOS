@@ -16,19 +16,22 @@ import { askMoveGoal } from './goal-move-dialog';
 import { askDeleteGoal } from './goal-delete-dialog';
 import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
-import { Goal, GoalTaskSummary, GoalsService, inTreeOrder, setsProgressByHand } from '../core/goals.service';
+import { Goal, GoalTaskSummary, GoalsService, TreeRow, byLane, setsProgressByHand, treeRows, unfolded } from '../core/goals.service';
+import { PageTabs } from '../shared/page-tabs';
 import { GoalPeriod, PERIOD_LABELS, childTypeOf, formatGoalRange, goalsOfType } from '../core/goal-calendar';
 import { todayLocal } from '../core/local-date';
 
 /**
- * Goals as a roadmap: years, their quarters and those quarters' months, each lane indented under
- * its parent, standalone goals at their own level. Monthly goals carry the tasks. Every action is
- * in the goal's menu; the ones that cannot be taken yet say why instead of failing.
+ * Goals as a roadmap: years, their quarters and those quarters' months, each child indented under
+ * its parent. A top-level goal and everything under it share a swim lane, as on the Timeline tab,
+ * and a goal with child goals folds. Monthly goals carry the tasks. Every action is in the goal's
+ * menu; the ones that cannot be taken yet say why instead of failing.
  */
 @Component({
   selector: 'app-goals',
   imports: [
     RouterLink,
+    PageTabs,
     GoalProgress,
     InlineCreate,
     MatButtonModule,
@@ -50,7 +53,12 @@ export class Goals implements OnInit {
 
   protected readonly goals = signal<Goal[]>([]);
   protected readonly loading = signal(true);
-  protected readonly tree = computed(() => inTreeOrder(this.goals()));
+  /** Goals folded shut: their child goals are hidden. */
+  protected readonly collapsed = signal<ReadonlySet<number>>(new Set());
+  private readonly rows = computed(() => treeRows(this.goals()));
+  protected readonly lanes = computed(() => byLane(unfolded(this.rows(), this.collapsed())));
+  protected readonly canFold = computed(() => this.rows().some(r => r.hasChildren));
+  protected readonly anyCollapsed = computed(() => this.collapsed().size > 0);
 
   /** The monthly goal whose Create task is open. */
   protected readonly addingTaskTo = signal<number | null>(null);
@@ -81,6 +89,18 @@ export class Goals implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected toggle(row: TreeRow): void {
+    this.collapsed.update(set => {
+      const next = new Set(set);
+      if (!next.delete(row.goal.id)) next.add(row.goal.id);
+      return next;
+    });
+  }
+
+  protected toggleAll(): void {
+    this.collapsed.set(this.anyCollapsed() ? new Set() : new Set(this.rows().filter(r => r.hasChildren).map(r => r.goal.id)));
   }
 
   protected range(goal: Goal): string {
