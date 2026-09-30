@@ -144,7 +144,7 @@ public class ToolCallGuardTests
         listener.Start();
 
         await Pipeline(new FakeTool("create_goal", mutates: true))
-            .DecideAsync(new AiToolCall("1", "create_goal", "{}"), new ChatTurnState(model, new HashSet<string> { "create_goal" }, []), default);
+            .DecideAsync(new AiToolCall("1", "create_goal", "{}"), new ChatTurnState(model, new HashSet<string> { "create_goal" }, ["create_goal"]), default);
 
         Assert.Contains((1L, "confirmation-gate", model), fired);
     }

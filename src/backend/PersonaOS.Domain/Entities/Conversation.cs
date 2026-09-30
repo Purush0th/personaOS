@@ -22,6 +22,9 @@ public class Conversation
     /// <summary>The newest message <see cref="Summary"/> covers.</summary>
     public long? SummarizedThroughMessageId { get; set; }
 
+    /// <summary>The mode the user last chose here (<see cref="ChatModes"/>), so every client reopens it in that mode.</summary>
+    public string Mode { get; set; } = ChatModes.Chat;
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 

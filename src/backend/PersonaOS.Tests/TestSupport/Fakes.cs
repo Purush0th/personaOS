@@ -163,7 +163,7 @@ public class FakeAiMessageStreamerFactory(IAiMessageStreamer streamer) : IAiMess
 /// <summary>Returns a fixed system prompt so prompt content doesn't couple chat tests.</summary>
 public class FakeSystemPromptBuilder(string prompt = "You are a test assistant.") : ISystemPromptBuilder
 {
-    public Task<string> BuildAsync(CancellationToken ct = default) => Task.FromResult(prompt);
+    public Task<string> BuildAsync(PromptRequest? request = null, CancellationToken ct = default) => Task.FromResult(prompt);
 }
 
 /// <summary>Minimal config service over the in-memory context.</summary>
@@ -376,7 +376,15 @@ public static class TestChat
         Create(db, config, streamer, TimeProvider.System, tools);
 
     public static ChatService Create(
-        TestDbContext db, IInstanceConfigService config, IAiMessageStreamer streamer, TimeProvider time, params IPersonaTool[] tools)
+        TestDbContext db, IInstanceConfigService config, IAiMessageStreamer streamer, TimeProvider time, params IPersonaTool[] tools) =>
+        Create(db, config, streamer, time, new ChatContext(), tools);
+
+    public static ChatService Create(
+        TestDbContext db, IInstanceConfigService config, IAiMessageStreamer streamer, IChatContext chat, params IPersonaTool[] tools) =>
+        Create(db, config, streamer, TimeProvider.System, chat, tools);
+
+    public static ChatService Create(
+        TestDbContext db, IInstanceConfigService config, IAiMessageStreamer streamer, TimeProvider time, IChatContext chat, params IPersonaTool[] tools)
     {
         var registry = new PersonaToolRegistry(tools, config, NullLogger<PersonaToolRegistry>.Instance);
         return new ChatService(
@@ -386,6 +394,7 @@ public static class TestChat
             new PersonaOS.Application.Ai.History.ConversationSummarizer(
                 TestPrompts.Library(), NullLogger<PersonaOS.Application.Ai.History.ConversationSummarizer>.Instance),
             time,
+            chat,
             NullLogger<ChatService>.Instance);
     }
 }

@@ -24,7 +24,7 @@ public class PromptLibraryTests
     {
         Assert.Equal(
             [
-                "board", "board.compact", "brief-phrasing", "clock", "conversation-summary", "goals", "identity", "modules", "planner",
+                "board", "board.compact", "brief-phrasing", "clock", "conversation-summary", "goals", "identity", "memory", "mode", "modules", "planner",
                 "product", "product.compact", "reminders", "summarize", "summarize-input", "tool-rules", "tool-rules.compact",
             ],
             PromptLibrary.DefaultNames());

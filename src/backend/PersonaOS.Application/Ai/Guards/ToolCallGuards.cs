@@ -53,6 +53,28 @@ public sealed class RepeatedCallGuard : IToolCallGuard
 /// The call is validated first: a proposal naming something that does not exist used to fail only
 /// after the user tapped Confirm, and handing the model the reason now lets it fix the call this turn.
 /// </summary>
+/// <summary>
+/// Only the tools offered this turn may run. Models call tools they remember from earlier in the
+/// conversation or from their training; in Brainstorm and Reflect a write tool is not offered at
+/// all, and a call to one must not slip through as a card anyway.
+/// </summary>
+public sealed class OfferedToolGuard : IToolCallGuard
+{
+    public string Name => "offered-tool";
+
+    public Task<ToolCallVerdict?> CheckAsync(AiToolCall call, ChatTurnState turn, CancellationToken ct)
+    {
+        if (turn.ToolNames.Contains(call.Name)) return Task.FromResult<ToolCallVerdict?>(null);
+
+        var why = PersonaOS.Domain.Entities.ChatModes.Writes(turn.Mode)
+            ? $"'{call.Name}' is not available."
+            : $"'{call.Name}' is not available in {PersonaOS.Domain.Entities.ChatModes.Label(turn.Mode)} mode, which changes "
+                + "nothing. Suggest the change in words; the user can switch mode to make it.";
+        return Task.FromResult<ToolCallVerdict?>(new ToolCallVerdict.Answer(
+            JsonSerializer.Serialize(new { error = why }), IsError: true, "refused a tool not offered"));
+    }
+}
+
 public sealed class ConfirmationGate(IPersonaToolRegistry registry) : IToolCallGuard
 {
     /// <summary>

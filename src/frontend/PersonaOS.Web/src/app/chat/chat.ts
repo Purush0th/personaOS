@@ -3,13 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { MatButtonModule } from '@angular/material/button';
+import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { BrandingService } from '../core/branding.service';
-import { ChatService, PendingAction, ToolReceipt, unknownItemsNote } from '../core/chat.service';
+import { CHAT_MODES, ChatMode, ChatService, PendingAction, ToolReceipt, unknownItemsNote } from '../core/chat.service';
 import { ConversationsStore } from '../core/conversations.store';
 import { conversationRefFromSlug, conversationSlug } from '../core/conversation-slug';
 import { MarkdownPipe } from '../shared/markdown.pipe';
@@ -35,6 +36,7 @@ interface Bubble {
   imports: [
     FormsModule,
     MatButtonModule,
+    MatChipsModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -60,6 +62,10 @@ export class Chat implements OnInit {
   /** Public id of the open conversation; what appears in the URL. */
   private readonly conversationPublicId = signal<string | null>(null);
   protected readonly streaming = signal(false);
+  /** How the assistant works here; sent with each message and kept with the conversation. */
+  protected readonly mode = signal<ChatMode>('chat');
+  protected readonly modes = CHAT_MODES;
+  protected readonly modeHint = () => CHAT_MODES.find(m => m.id === this.mode())?.hint ?? '';
   /** Action ids with a confirm/discard in flight, so the buttons can't be double-tapped. */
   private readonly resolving = signal(new Set<string>());
 
@@ -104,6 +110,12 @@ export class Chat implements OnInit {
     this.conversationId.set(null);
     this.conversationPublicId.set(null);
     this.bubbles.set([]);
+    this.mode.set('chat');
+  }
+
+  /** A chip click; the listbox also reports "nothing selected" when the chosen chip is clicked again. */
+  protected pickMode(value: ChatMode | null | undefined): void {
+    if (value) this.mode.set(value);
   }
 
   private async load(ref: string): Promise<void> {
@@ -111,6 +123,7 @@ export class Chat implements OnInit {
       const detail = await this.chat.getConversation(ref);
       this.conversationId.set(detail.id);
       this.conversationPublicId.set(detail.publicId);
+      this.mode.set(detail.mode ?? 'chat');
       this.bubbles.set(
         detail.messages.map(m => ({
           role: m.role,
@@ -154,7 +167,7 @@ export class Chat implements OnInit {
       );
 
     try {
-      for await (const event of this.chat.streamChat(message, this.conversationId())) {
+      for await (const event of this.chat.streamChat(message, this.conversationId(), undefined, this.mode())) {
         switch (event.type) {
           case 'start':
             this.conversationId.set(event.conversationId ?? null);

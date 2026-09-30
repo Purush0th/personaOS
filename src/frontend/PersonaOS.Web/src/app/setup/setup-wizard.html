@@ -116,6 +116,44 @@
         </mat-card-content>
       </mat-card>
 
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Speech service (optional)</h2>
+          <p class="muted small">
+            The phone can use its own speech engine. To use a speech server instead (faster-whisper,
+            Kokoro, OpenAI…), give its OpenAI-style address. Leave it blank to skip; you can add it later
+            in Settings.
+          </p>
+          <mat-form-field>
+            <mat-label>Address</mat-label>
+            <input matInput name="speechBaseUrl" [(ngModel)]="speechBaseUrl" placeholder="http://localhost:8000/v1" />
+          </mat-form-field>
+          @if (speechBaseUrl.trim()) {
+            <div class="pair">
+              <mat-form-field>
+                <mat-label>Speech-to-text model</mat-label>
+                <input matInput name="speechSttModel" [(ngModel)]="speechSttModel" placeholder="whisper-1" />
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Text-to-speech model</mat-label>
+                <input matInput name="speechTtsModel" [(ngModel)]="speechTtsModel" placeholder="tts-1" />
+              </mat-form-field>
+            </div>
+            <div class="pair">
+              <mat-form-field>
+                <mat-label>Voice</mat-label>
+                <input matInput name="speechTtsVoice" [(ngModel)]="speechTtsVoice" placeholder="alloy" />
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>API key</mat-label>
+                <input matInput name="speechApiKey" type="password" [(ngModel)]="speechApiKey" autocomplete="off" />
+                <mat-hint>Blank for keyless local servers.</mat-hint>
+              </mat-form-field>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+
       @if (error(); as err) {
         <p class="error" role="alert">{{ err }}</p>
       }

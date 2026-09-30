@@ -41,6 +41,17 @@ export interface ChatEvent {
   unknownItems?: string[] | null;
 }
 
+/** How the assistant works in a conversation, picked with the switch in the chat box. */
+export type ChatMode = 'chat' | 'brainstorm' | 'plan' | 'act' | 'reflect';
+
+export const CHAT_MODES: readonly { id: ChatMode; label: string; hint: string }[] = [
+  { id: 'chat', label: 'Chat', hint: 'Answer and discuss; changes come as cards.' },
+  { id: 'brainstorm', label: 'Brainstorm', hint: 'Explore options. Nothing is changed.' },
+  { id: 'plan', label: 'Plan', hint: 'Turn an intent into goals and tasks, proposed as cards.' },
+  { id: 'act', label: 'Act', hint: 'Get it done: changes come as cards straight away.' },
+  { id: 'reflect', label: 'Reflect', hint: 'Look back at progress and patterns. Nothing is changed.' },
+];
+
 export interface ConversationSummary {
   id: number;
   /** Opaque 8-char id used in URLs. */
@@ -48,6 +59,7 @@ export interface ConversationSummary {
   title: string;
   createdAtUtc: string;
   updatedAtUtc: string;
+  mode?: ChatMode;
 }
 
 export interface ChatMessageDto {
@@ -69,6 +81,8 @@ export interface ConversationDetail {
   title: string;
   createdAtUtc: string;
   messages: ChatMessageDto[];
+  /** The mode last used in this conversation. */
+  mode?: ChatMode;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -113,7 +127,8 @@ export class ChatService {
   async *streamChat(
     message: string,
     conversationId: number | null,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    mode?: ChatMode
   ): AsyncGenerator<ChatEvent> {
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -121,7 +136,7 @@ export class ChatService {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.auth.accessToken}`,
       },
-      body: JSON.stringify({ message, conversationId }),
+      body: JSON.stringify({ message, conversationId, mode }),
       signal,
     });
 

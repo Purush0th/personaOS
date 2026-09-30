@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+
+import 'server_speech.dart';
 
 /// Strips Markdown so a reply can be spoken rather than recited.
 ///
@@ -47,7 +50,18 @@ class VoiceService {
   bool _ttsAwaits = false;
   String? _localeId;
 
-  bool get isListening => _stt.isListening;
+  /// The server's speech service, when the user chose it and the server has it.
+  /// Each direction falls back to the phone's own engine when it is off.
+  ServerSpeech? server;
+  bool useServerStt = false;
+  bool useServerTts = false;
+
+  bool get _serverStt => useServerStt && server != null;
+  bool get _serverTts => useServerTts && server != null;
+
+  void Function(String error)? _onError;
+
+  bool get isListening => _serverStt ? server!.isRecording : _stt.isListening;
 
   /// Initializes STT once; returns whether the device can transcribe (and the
   /// user granted mic + recognition permission). Safe to call repeatedly.
@@ -61,6 +75,8 @@ class VoiceService {
     void Function(String status)? onStatus,
     void Function(String error)? onError,
   }) async {
+    _onError = onError;
+    if (_serverStt) return server!.ensureMic();
     if (_sttReady) return true;
     _sttReady = await _stt.initialize(
       onStatus: (s) => onStatus?.call(s),
@@ -77,6 +93,19 @@ class VoiceService {
     Duration? pauseFor,
     Duration? listenFor,
   }) async {
+    if (_serverStt) {
+      // No partial words from a recording: the transcript arrives once, at the end.
+      await server!.listen(
+        onFinal: (text) {
+          onResult(text);
+          onFinal(text);
+        },
+        onError: (error) => _onError?.call(error),
+        pauseFor: pauseFor ?? const Duration(seconds: 2),
+        listenFor: listenFor ?? const Duration(seconds: 30),
+      );
+      return;
+    }
     await _stt.listen(
       onResult: (result) {
         onResult(result.recognizedWords);
@@ -93,7 +122,8 @@ class VoiceService {
     );
   }
 
-  Future<void> stopListening() => _stt.stop();
+  /// Ends listening. With the server's speech-to-text this sends what was recorded.
+  Future<void> stopListening() => _serverStt ? server!.finish() : _stt.stop();
 
   /// The locale to dictate in: the device's own if the recognizer supports it,
   /// otherwise the first one it does support.
@@ -123,6 +153,20 @@ class VoiceService {
   Future<void> speak(String text) async {
     text = speakableText(text);
     if (text.trim().isEmpty) return;
+    if (_serverTts) {
+      try {
+        await server!.speak(text);
+        return;
+      } catch (_) {
+        // The server's voice is unavailable: read it with the phone's own instead.
+      }
+    }
+    await speakOnDevice(text);
+  }
+
+  /// Speaks already-cleaned [text] with the phone's own engine, until it ends.
+  @protected
+  Future<void> speakOnDevice(String text) async {
     if (!_ttsAwaits) {
       await _tts.awaitSpeakCompletion(true);
       _ttsAwaits = true;
@@ -131,10 +175,14 @@ class VoiceService {
     await _tts.speak(text);
   }
 
-  Future<void> stopSpeaking() => _tts.stop();
+  Future<void> stopSpeaking() async {
+    await server?.stopSpeaking();
+    await _tts.stop();
+  }
 
   void dispose() {
     _stt.cancel();
     _tts.stop();
+    server?.dispose();
   }
 }

@@ -15,7 +15,8 @@ public class ChatController(IChatService chatService) : ControllerBase
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public record SendMessageRequest(string Message, int? ConversationId);
+    /// <param name="Mode">chat, brainstorm, plan, act or reflect; omitted keeps the conversation's mode.</param>
+    public record SendMessageRequest(string Message, int? ConversationId, string? Mode = null);
 
     /// <summary>
     /// Sends a message and streams the assistant's reply as Server-Sent Events:
@@ -36,7 +37,7 @@ public class ChatController(IChatService chatService) : ControllerBase
             return;
         }
 
-        await foreach (var evt in chatService.StreamChatAsync(request.ConversationId, request.Message.Trim(), ct))
+        await foreach (var evt in chatService.StreamChatAsync(request.ConversationId, request.Message.Trim(), request.Mode, ct))
         {
             await WriteEventAsync(evt, ct);
         }

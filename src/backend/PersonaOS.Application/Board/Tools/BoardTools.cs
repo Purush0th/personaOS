@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using PersonaOS.Application.Goals;
 using PersonaOS.Application.Goals.Tools;
 using PersonaOS.Application.WorkItems;
@@ -35,6 +35,31 @@ public abstract class BoardToolBase(IBoardService board, IGoalService goals) : G
     /// The goal a task should sit under, checked by the board's own rule (an open monthly goal)
     /// before the card is shown, so a card that would fail on Confirm is never offered.
     /// </summary>
+    /// <summary>
+    /// A sprint as the model reads it: its counts said in words. qwen2.5:3b read
+    /// "taskCount": 1, "unestimatedCount": 0 as "1 task, which is unestimated" (2026-09-27), so
+    /// the counters a model has to combine are written out, and ids and flags it does not need
+    /// are left out.
+    /// </summary>
+    protected static object? SprintForModel(SprintDto? sprint) => sprint is null ? null : new
+    {
+        key = sprint.Key,
+        name = sprint.Name,
+        status = sprint.Status,
+        startsAtUtc = sprint.StartsAtUtc,
+        endsAtUtc = sprint.EndsAtUtc,
+        committedPoints = sprint.CommittedPoints,
+        addedPoints = sprint.AddedPoints,
+        removedPoints = sprint.RemovedPoints,
+        completedPoints = sprint.CompletedPoints,
+        carriedOverPoints = sprint.CarriedOverPoints,
+        totalPoints = sprint.TotalPoints,
+        tasks = $"{sprint.TaskCount} {(sprint.TaskCount == 1 ? "task" : "tasks")}, {sprint.DoneTaskCount} done",
+        unestimated = sprint.UnestimatedCount == 0
+            ? "none: every task has value points"
+            : $"{sprint.UnestimatedCount} of {sprint.TaskCount} tasks have no value points",
+    };
+
     protected async Task<int?> OptionalGoalAsync(string? key, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(key)) return null;
@@ -60,8 +85,22 @@ public class GetBoardTool(IBoardService board, IGoalService goals) : BoardToolBa
         "(none = unestimated) and a priority. Use get_plan for the backlog and the sprints to come.";
     public override string InputSchemaJson => """{ "type": "object", "properties": {} }""";
 
-    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default) =>
-        Ok(new { board = await Board.GetBoardAsync(ct) });
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var view = await Board.GetBoardAsync(ct);
+        return Ok(new
+        {
+            board = new
+            {
+                sprint = SprintForModel(view.Sprint),
+                velocity = view.Velocity,
+                wipLimit = view.WipLimit,
+                todo = view.Todo,
+                inProgress = view.InProgress,
+                done = view.Done,
+            },
+        });
+    }
 }
 
 public class GetPlanTool(IBoardService board, IGoalService goals) : BoardToolBase(board, goals)
@@ -74,8 +113,19 @@ public class GetPlanTool(IBoardService board, IGoalService goals) : BoardToolBas
         "the same view as the Backlog page. Use it when planning a sprint or deciding what to pull in next.";
     public override string InputSchemaJson => """{ "type": "object", "properties": {} }""";
 
-    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default) =>
-        Ok(new { plan = await Board.GetPlanAsync(ct) });
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var plan = await Board.GetPlanAsync(ct);
+        return Ok(new
+        {
+            plan = new
+            {
+                sprints = plan.Sprints.Select(p => new { sprint = SprintForModel(p.Sprint), tasks = p.Tasks }).ToList(),
+                backlog = plan.Backlog,
+                velocity = plan.Velocity,
+            },
+        });
+    }
 }
 
 public class GetSprintReportTool(IBoardService board, IGoalService goals) : BoardToolBase(board, goals)
@@ -87,7 +137,7 @@ public class GetSprintReportTool(IBoardService board, IGoalService goals) : Boar
         "has committed, added, removed and completed value points, and a finished one its carried-over " +
         "points. velocity is the average completed points of the last three finished sprints, and is " +
         "missing until one has finished: then say there is no velocity yet. Use it for a sprint review " +
-        "and to suggest how much to commit to.";
+        "and to suggest how much to commit to. It lists no tasks: for which task is which, use get_board.";
     public override string InputSchemaJson => """
         {
           "type": "object",
@@ -97,8 +147,14 @@ public class GetSprintReportTool(IBoardService board, IGoalService goals) : Boar
         }
         """;
 
-    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default) =>
-        Ok(new { report = await Board.GetReportAsync(GetInt(input, "count") ?? 6, ct) });
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var report = await Board.GetReportAsync(GetInt(input, "count") ?? 6, ct);
+        return Ok(new
+        {
+            report = new { velocity = report.Velocity, sprints = report.Sprints.Select(SprintForModel).ToList() },
+        });
+    }
 }
 
 public class CreateTaskTool(IBoardService board, IGoalService goals) : BoardToolBase(board, goals)

@@ -34,7 +34,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
   Future<void> _refresh() async {
     final reloaded = widget.api.getConversations();
-    setState(() => _conversations = reloaded);
+    setState(() { _conversations = reloaded; });
     await reloaded;
   }
 

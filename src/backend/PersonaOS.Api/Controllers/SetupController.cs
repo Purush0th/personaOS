@@ -5,6 +5,7 @@ using PersonaOS.Application.Ai.Models;
 using PersonaOS.Application.Auth;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
+using PersonaOS.Application.Speech;
 
 namespace PersonaOS.Api.Controllers;
 
@@ -18,7 +19,8 @@ namespace PersonaOS.Api.Controllers;
 public class SetupController(
     IInstanceConfigService configService,
     IAuthService authService,
-    IAiMessageStreamerFactory streamerFactory) : ControllerBase
+    IAiMessageStreamerFactory streamerFactory,
+    ISpeechService speech) : ControllerBase
 {
     public record SetupStatusResponse(bool IsConfigured);
 
@@ -33,7 +35,8 @@ public class SetupController(
         string? AiBaseUrl,
         string? TimeZone,
         Dictionary<string, bool>? Features,
-        int? AiContextTokens = null);
+        int? AiContextTokens = null,
+        SpeechSettings? Speech = null);
 
     /// <summary>Current settings minus any secret. <c>HasAnthropicApiKey</c> stands in for the key itself.</summary>
     public record CurrentSettingsResponse(
@@ -105,6 +108,19 @@ public class SetupController(
         var providerError = ValidateProvider(request.AiProvider, request.AiBaseUrl) ?? ValidateContext(request.AiContextTokens);
         if (providerError is not null)
             return BadRequest(new { error = providerError });
+
+        // Step 6, optional: a speech service. Saved first, so a bad address stops setup before the admin exists.
+        if (request.Speech is { BaseUrl: { Length: > 0 } })
+        {
+            try
+            {
+                await speech.UpdateAsync(request.Speech, ct);
+            }
+            catch (SpeechValidationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
 
         await authService.CreateAdminAsync(request.AdminUsername, request.AdminPassword, ct);
         if (!string.IsNullOrWhiteSpace(request.AnthropicApiKey))

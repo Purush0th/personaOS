@@ -1,0 +1,84 @@
+// Sits below the settings cards with the same spacing as the cards above it.
+:host {
+  display: block;
+  margin-top: 1rem;
+}
+
+mat-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+}
+
+.note {
+  margin: -0.25rem 0 0;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+
+  .search {
+    flex: 1 1 14rem;
+  }
+}
+
+.empty {
+  margin: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.memory {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  .text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .content {
+    overflow-wrap: anywhere;
+  }
+
+  .row-actions {
+    display: flex;
+    flex-shrink: 0;
+  }
+}
+
+.editor {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+
+  .content-field {
+    flex: 1 1 18rem;
+  }
+
+  .category-field {
+    flex: 0 1 10rem;
+  }
+
+  .editor-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-self: center;
+  }
+}

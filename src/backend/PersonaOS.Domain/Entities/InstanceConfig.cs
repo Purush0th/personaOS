@@ -90,6 +90,30 @@ public class InstanceConfig
     /// </summary>
     public bool PhraseBriefs { get; set; }
 
+    /// <summary>
+    /// Let the assistant save memories without asking. On by default: it saves one when the
+    /// conversation gives one and shows a receipt. Off: every memory is proposed on a card first.
+    /// </summary>
+    public bool MemoryAutoSave { get; set; } = true;
+
+    /// <summary>
+    /// Optional speech service (OpenAI-style audio API, e.g. "http://localhost:8000/v1"). Null
+    /// means none: the phone uses its own speech engine. The API calls it for the phone.
+    /// </summary>
+    public string? SpeechBaseUrl { get; set; }
+
+    /// <summary>Speech-to-text model, e.g. "whisper-1" or "Systran/faster-whisper-small". Null turns speech-to-text off.</summary>
+    public string? SpeechSttModel { get; set; }
+
+    /// <summary>Text-to-speech model, e.g. "tts-1" or "kokoro". Null turns text-to-speech off.</summary>
+    public string? SpeechTtsModel { get; set; }
+
+    /// <summary>The voice to read replies in, e.g. "alloy" or "af_heart".</summary>
+    public string? SpeechTtsVoice { get; set; }
+
+    /// <summary>The speech service's key, encrypted under its own Data Protection purpose. Null for keyless servers.</summary>
+    public string? SpeechApiKeyEncrypted { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 
@@ -124,6 +148,7 @@ public class InstanceConfig
         public const string Voice = "voice";
         public const string Proactive = "proactive";
         public const string Board = "board";
+        public const string Memory = "memory";
     }
 
     /// <summary>Sensible defaults applied when a fresh instance is created.</summary>
@@ -135,6 +160,7 @@ public class InstanceConfig
         [Modules.Docs] = true,
         [Modules.Voice] = true,
         [Modules.Board] = true,
+        [Modules.Memory] = true,
         [Modules.Proactive] = false,
     };
 }

@@ -16,7 +16,7 @@ class _FakeChatApi extends PersonaOsApi {
   );
 
   @override
-  Stream<ChatEvent> streamChat(String message, {int? conversationId}) async* {
+  Stream<ChatEvent> streamChat(String message, {int? conversationId, String? mode}) async* {
     yield ChatEvent(type: 'start', conversationId: 1);
     yield ChatEvent(type: 'delta', text: 'I can add that goal.');
     yield ChatEvent(type: 'done', pending: [pending]);

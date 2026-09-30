@@ -31,6 +31,18 @@ public sealed class ReplyDraft(string text, ChatTurnState turn, bool isCorrectio
     /// <summary>Item keys the reply names that do not exist, found by <see cref="ItemReferenceGuard"/>.</summary>
     public IReadOnlyList<string> UnknownItems { get; set; } = [];
 
+    /// <summary>
+    /// The true facts about tasks the reply got wrong ("TASK-1 has 3 value points and is In progress"),
+    /// found by <see cref="ItemFactGuard"/>; empty when it got them right or said nothing checkable.
+    /// </summary>
+    public IReadOnlyList<string> WrongFacts { get; set; } = [];
+
+    /// <summary>The sentences <see cref="WrongFacts"/> correct, so they can be taken out.</summary>
+    public IReadOnlyList<string> WrongSentences { get; set; } = [];
+
+    /// <summary>A sentence promising a lookup no tool made, found by <see cref="PromisedLookupGuard"/>.</summary>
+    public string? PromisedLookup { get; set; }
+
     public void Rewrite(string text)
     {
         if (text == Text) return;
@@ -57,7 +69,9 @@ public interface IReplyGuard
 /// <item><see cref="CorrectionPreambleGuard"/> removes "Sure, here is the corrected message:".</item>
 /// <item><see cref="CardInstructionGuard"/> removes "reply yes to confirm" above a card with buttons.</item>
 /// <item><see cref="ClaimCheckGuard"/> finds a claimed change that did not happen.</item>
+/// <item><see cref="PromisedLookupGuard"/> finds "let me check" with nothing checked.</item>
 /// <item><see cref="ItemReferenceGuard"/> finds item keys that do not exist.</item>
+/// <item><see cref="ItemFactGuard"/> finds what the reply says about a task's points or status that the data contradicts.</item>
 /// <item><see cref="EmptyReplyGuard"/> says what happened when nothing is left to show.</item>
 /// </list>
 /// Cleaning comes before the checks so they read only what the user would, and the empty check
@@ -73,7 +87,9 @@ public sealed class ReplyPipeline(IAppDbContext db, ILogger<ReplyPipeline> logge
         new CorrectionPreambleGuard(),
         new CardInstructionGuard(),
         new ClaimCheckGuard(),
+        new PromisedLookupGuard(),
         new ItemReferenceGuard(db),
+        new ItemFactGuard(db),
         new EmptyReplyGuard(),
     ];
 

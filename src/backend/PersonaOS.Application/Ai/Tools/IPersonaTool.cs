@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using PersonaOS.Application.Common.Interfaces;
+using PersonaOS.Domain.Entities;
 
 namespace PersonaOS.Application.Ai.Tools;
 
@@ -21,12 +22,26 @@ public interface IPersonaTool
     string? RequiredFeature { get; }
 
     /// <summary>
+    /// Whether the tool is offered on this install. By default, when its module is on; a tool that
+    /// another one replaces while a module is on (remember_about_user, when memory is on) says so here.
+    /// </summary>
+    bool IsOffered(InstanceConfig config) => RequiredFeature is null || config.IsEnabled(RequiredFeature);
+
+    /// <summary>
     /// True when running this tool changes the user's data. Those are never executed straight
     /// from a model's request: they are proposed to the user and only run once confirmed.
     /// Declared per tool rather than guessed from the name, so a new tool cannot quietly slip
     /// past the gate by being called something unexpected. Defaults to the safe answer.
     /// </summary>
     bool Mutates => true;
+
+    /// <summary>
+    /// Whether a call waits on a card for the user's confirmation. Every tool that changes data
+    /// does, except where the user chose otherwise: memories are saved straight away while memory
+    /// auto-save is on. <see cref="Mutates"/> still says the tool writes, which is what decides
+    /// whether it is offered in a mode that must not change anything.
+    /// </summary>
+    bool NeedsConfirmation(InstanceConfig config) => Mutates;
 
     /// <summary>Executes the tool and returns a JSON string result for the model.</summary>
     Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default);
@@ -57,6 +72,12 @@ public interface IPersonaToolRegistry
 {
     /// <summary>Definitions of every tool whose feature toggle is enabled.</summary>
     Task<IReadOnlyList<AiToolDefinition>> GetEnabledToolDefinitionsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Definitions of every enabled tool; without <paramref name="includeWrites"/>, only those that
+    /// change nothing (a mode that must not write is not offered a single write tool).
+    /// </summary>
+    Task<IReadOnlyList<AiToolDefinition>> GetEnabledToolDefinitionsAsync(bool includeWrites, CancellationToken ct = default);
 
     /// <summary>
     /// Executes a tool call from the model. Never throws: unknown tools, disabled

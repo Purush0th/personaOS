@@ -1,0 +1,118 @@
+<mat-card appearance="outlined">
+  <mat-card-header>
+    <mat-card-title>Memories</mat-card-title>
+    <mat-card-subtitle>
+      What the assistant remembers from your conversations. Only those that fit a message go with it.
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <mat-slide-toggle [checked]="autoSave()" (change)="toggleAutoSave($event.checked)" class="auto-save">
+      Save memories without asking
+    </mat-slide-toggle>
+    <p class="muted small note">
+      @if (autoSave()) {
+        On: the assistant saves a memory when you tell it something worth keeping, and says so under its reply.
+      } @else {
+        Off: each memory comes as a card to confirm first.
+      }
+    </p>
+
+    <div class="filters">
+      <mat-form-field class="search" subscriptSizing="dynamic">
+        <mat-label>Search</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" name="memorySearch" />
+      </mat-form-field>
+
+      <mat-chip-listbox
+        aria-label="Category"
+        [value]="category()"
+        (change)="category.set($event.value ?? null)"
+      >
+        @for (c of categories; track c) {
+          <mat-chip-option [value]="c">{{ label(c) }}</mat-chip-option>
+        }
+      </mat-chip-listbox>
+
+      <button mat-stroked-button type="button" (click)="startAdd()" [disabled]="editing() !== null">
+        <mat-icon>add</mat-icon>
+        Add
+      </button>
+    </div>
+
+    @if (editing() === 'new') {
+      <ng-container *ngTemplateOutlet="editor" />
+    }
+
+    @if (!loaded()) {
+      <p class="muted small">Loading…</p>
+    } @else if (items().length === 0) {
+      <p class="muted small empty">
+        Nothing yet. Tell the assistant something worth keeping ("I prefer morning workouts"), or add one here.
+      </p>
+    } @else if (shown().length === 0) {
+      <p class="muted small empty">No memory matches.</p>
+    }
+
+    <ul class="list">
+      @for (memory of shown(); track memory.id) {
+        <li class="memory">
+          @if (editing() === memory.id) {
+            <ng-container *ngTemplateOutlet="editor" />
+          } @else {
+            <div class="text">
+              <span class="content">{{ memory.content }}</span>
+              <span class="meta muted small">
+                {{ label(memory.category) }}
+                @if (memory.sourceConversationId) {
+                  ·
+                  <a [routerLink]="['/chat', memory.sourceConversationId]">
+                    {{ memory.sourceConversationTitle || 'From chat' }}
+                  </a>
+                }
+              </span>
+            </div>
+            <div class="row-actions">
+              <button mat-icon-button type="button" (click)="startEdit(memory)" aria-label="Edit" [disabled]="editing() !== null">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button type="button" (click)="remove(memory)" aria-label="Delete">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  </mat-card-content>
+</mat-card>
+
+<ng-template #editor>
+  <form class="editor" (ngSubmit)="saveDraft()">
+    <mat-form-field class="content-field" subscriptSizing="dynamic">
+      <mat-label>Memory</mat-label>
+      <textarea
+        matInput
+        name="draftContent"
+        [(ngModel)]="draftContent"
+        rows="2"
+        [maxlength]="max"
+        placeholder="e.g. Prefers morning workouts"
+        cdkFocusInitial
+      ></textarea>
+    </mat-form-field>
+    <mat-form-field class="category-field" subscriptSizing="dynamic">
+      <mat-label>Category</mat-label>
+      <mat-select name="draftCategory" [(ngModel)]="draftCategory">
+        @for (c of categories; track c) {
+          <mat-option [value]="c">{{ label(c) }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <div class="editor-actions">
+      <button mat-button type="button" (click)="cancel()">Cancel</button>
+      <button mat-flat-button type="submit" [disabled]="!draftContent.trim()">Save</button>
+    </div>
+  </form>
+</ng-template>

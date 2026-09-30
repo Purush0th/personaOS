@@ -6,7 +6,8 @@ namespace PersonaOS.Application.Ai.Guards;
 /// What one user message has produced so far, shared by the guards and the chat loop: which calls
 /// were already answered, what was proposed, and what actually ran.
 /// </summary>
-public sealed class ChatTurnState(string model, IReadOnlySet<string> mutatingTools, IReadOnlyList<string> toolNames)
+public sealed class ChatTurnState(
+    string model, IReadOnlySet<string> mutatingTools, IReadOnlyList<string> toolNames, string mode = PersonaOS.Domain.Entities.ChatModes.Chat)
 {
     /// <summary>After this many repeated calls the model is stuck, and more rounds only cost time.</summary>
     private const int StuckAfterRepeats = 2;
@@ -14,6 +15,9 @@ public sealed class ChatTurnState(string model, IReadOnlySet<string> mutatingToo
     private readonly Dictionary<string, string> _answered = new(StringComparer.Ordinal);
 
     public string Model { get; } = model;
+
+    /// <summary>The conversation's mode this turn (<see cref="PersonaOS.Domain.Entities.ChatModes"/>).</summary>
+    public string Mode { get; } = mode;
 
     /// <summary>Tools that change the user's data, so a call becomes a card instead of running.</summary>
     public IReadOnlySet<string> MutatingTools { get; } = mutatingTools;

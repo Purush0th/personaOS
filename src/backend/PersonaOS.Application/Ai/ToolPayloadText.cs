@@ -14,7 +14,7 @@ namespace PersonaOS.Application.Ai;
 internal static class ToolPayloadText
 {
     /// <summary>Fields that name the thing being acted on, in order of preference.</summary>
-    internal static readonly string[] LabelFields = ["title", "message", "task", "fileName", "name"];
+    internal static readonly string[] LabelFields = ["title", "message", "task", "fileName", "name", "content"];
 
     /// <summary>
     /// The first of <paramref name="names"/> present on <paramref name="element"/> as readable

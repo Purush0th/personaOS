@@ -167,6 +167,13 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("chat");
+
                     b.Property<string>("PublicId")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -387,6 +394,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsConfigured")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("MemoryAutoSave")
+                        .HasColumnType("INTEGER");
+
                     b.Property<TimeOnly?>("MorningBriefTime")
                         .HasColumnType("TEXT");
 
@@ -397,6 +407,26 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("PhraseBriefs")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("SpeechApiKeyEncrypted")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SpeechBaseUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SpeechSttModel")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SpeechTtsModel")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SpeechTtsVoice")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("TimeZone")
                         .IsRequired()
@@ -409,6 +439,40 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("InstanceConfig");
+                });
+
+            modelBuilder.Entity("PersonaOS.Domain.Entities.Memory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SourceConversationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceConversationId");
+
+                    b.HasIndex("UpdatedAtUtc");
+
+                    b.ToTable("Memories");
                 });
 
             modelBuilder.Entity("PersonaOS.Domain.Entities.PendingAction", b =>
@@ -803,6 +867,16 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ParentGoal");
+                });
+
+            modelBuilder.Entity("PersonaOS.Domain.Entities.Memory", b =>
+                {
+                    b.HasOne("PersonaOS.Domain.Entities.Conversation", "SourceConversation")
+                        .WithMany()
+                        .HasForeignKey("SourceConversationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("SourceConversation");
                 });
 
             modelBuilder.Entity("PersonaOS.Domain.Entities.PendingAction", b =>
