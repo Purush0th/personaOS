@@ -13,9 +13,9 @@ public class RememberAboutUserTool(IUserProfileService profile) : IPersonaTool
     public string Name => "remember_about_user";
 
     public string Description =>
-        "Saves one lasting fact or preference about the user, in their words, so every future " +
-        "conversation knows it (e.g. \"is vegetarian\", \"prefers short answers\", \"lives in Lisbon\"). " +
-        "Only for things the user said about themselves and wants kept; not for tasks, goals or reminders.";
+        "Adds one line to the user's About you profile, which goes with every message. Only when the " +
+        "user asks to add something to their profile or About you (e.g. \"add to my profile that I am " +
+        "vegetarian\"). Anything else worth remembering goes to create_memory when that tool is offered.";
 
     public string InputSchemaJson => """
         {
@@ -28,6 +28,14 @@ public class RememberAboutUserTool(IUserProfileService profile) : IPersonaTool
         """;
 
     public string? RequiredFeature => null;
+
+    /// <summary>
+    /// Only while the memory module is off. With both offered, qwen2.5:3b put "prefers morning
+    /// workouts" into About you instead of saving a memory (2026-09-29): two tools for one job is
+    /// one too many for a small model. About you stays editable by hand in Settings.
+    /// </summary>
+    public bool IsOffered(PersonaOS.Domain.Entities.InstanceConfig config) =>
+        !config.IsEnabled(PersonaOS.Domain.Entities.InstanceConfig.Modules.Memory);
 
     public Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
         Fact(input).Length == 0

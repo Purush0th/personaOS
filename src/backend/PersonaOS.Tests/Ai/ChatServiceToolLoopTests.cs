@@ -200,17 +200,22 @@ public class ChatServiceToolLoopTests
         // JSON must not reach the transcript: the next turn would read it back from
         // history and copy the mistake.
         var (db, chat, streamer) = Setup(new FakeTool("get_goals"));
-        streamer.EnqueueText("""I will check. {"name": "get_goals", "arguments": {}}""");
+        streamer
+            .EnqueueText("""I will check. {"name": "get_goals", "arguments": {}}""")
+            // "I will check." with nothing checked is then a promised lookup: the model gets one
+            // round to make the call for real (PromisedLookupGuard).
+            .EnqueueToolCall("toolu_1", "get_goals", "{}")
+            .EnqueueText("You have no goals yet.");
 
         var events = await CollectAsync(chat.StreamChatAsync(null, "What are my goals?"));
 
         var stored = await db.ChatMessages.OrderBy(m => m.Id).LastAsync();
-        Assert.Equal("I will check.", stored.Content);
+        Assert.Equal("You have no goals yet.", stored.Content);
         Assert.DoesNotContain("get_goals", stored.Content);
 
         // 'done' carries the corrected text so the client can replace what it streamed.
         var done = Assert.Single(events, e => e.Type == "done");
-        Assert.Equal("I will check.", done.Text);
+        Assert.Equal("You have no goals yet.", done.Text);
     }
 
     [Fact]

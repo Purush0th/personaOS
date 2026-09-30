@@ -37,7 +37,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _reload() {
-    setState(() => _items = widget.api.getPlannerDay(localYmd(_day)));
+    setState(() { _items = widget.api.getPlannerDay(localYmd(_day)); });
   }
 
   void _shiftDay(int days) {

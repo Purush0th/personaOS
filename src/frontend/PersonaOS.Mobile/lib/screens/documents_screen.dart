@@ -37,7 +37,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   Future<void> _refresh() async {
     final reloaded = widget.api.getDocuments(search: _search.text.trim());
-    setState(() => _documents = reloaded);
+    setState(() { _documents = reloaded; });
     await reloaded;
   }
 

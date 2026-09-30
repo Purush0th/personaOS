@@ -47,9 +47,14 @@ public static class DependencyInjection
         services.AddScoped<IBriefPhraser, BriefPhraser>();
         services.AddScoped<IProactiveService, ProactiveService>();
 
+        services.AddScoped<IChatContext, ChatContext>();
+        services.AddScoped<PersonaOS.Application.Speech.ISpeechService, PersonaOS.Application.Speech.SpeechService>();
+        services.AddScoped<PersonaOS.Application.Memories.IMemoryService, PersonaOS.Application.Memories.MemoryService>();
+
         services.AddScoped<IPersonaToolRegistry, PersonaToolRegistry>();
         services.AddScoped<IPersonaTool, GetGoalsTool>();
         services.AddScoped<IPersonaTool, CreateGoalTool>();
+        services.AddScoped<IPersonaTool, CreatePlanTool>();
         services.AddScoped<IPersonaTool, UpdateGoalStatusTool>();
         services.AddScoped<IPersonaTool, MoveGoalTool>();
         services.AddScoped<IPersonaTool, DeleteGoalTool>();
@@ -74,6 +79,10 @@ public static class DependencyInjection
         services.AddScoped<IPersonaTool, ListDocumentsTool>();
         services.AddScoped<IPersonaTool, ReadDocumentTool>();
         services.AddScoped<IPersonaTool, PersonaOS.Application.Profile.RememberAboutUserTool>();
+        services.AddScoped<IPersonaTool, PersonaOS.Application.Memories.Tools.SearchMemoriesTool>();
+        services.AddScoped<IPersonaTool, PersonaOS.Application.Memories.Tools.CreateMemoryTool>();
+        services.AddScoped<IPersonaTool, PersonaOS.Application.Memories.Tools.UpdateMemoryTool>();
+        services.AddScoped<IPersonaTool, PersonaOS.Application.Memories.Tools.DeleteMemoryTool>();
 
         return services;
     }

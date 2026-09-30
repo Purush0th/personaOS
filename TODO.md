@@ -168,18 +168,50 @@ it is not under a parent.
       gone, and the Goals tab has the same lanes and folding (`lib/goal_tree.dart`). Checked in
       headless Chrome (desktop and 390 px, both schemes) and rendered on the phone. Tests: web 109,
       phone 97.
-- [ ] **P4. Memory.** `memory` module (on by default); memory entity with category and source
-      conversation; API; Memories screen (web + phone) to view, edit, delete; auto-save setting
-      (on by default) with receipts, off = card; tools `search_memories`, `create_memory`,
-      `update_memory`, `delete_memory`; bounded keyword retrieval into the prompt. About you stays
-      separate.
-- [ ] **P5. Interaction modes.** A mode switch in the chat box (web + phone): Chat, Brainstorm,
-      Plan, Act, Reflect; per-mode prompt fragment and tool set (no write tools in Brainstorm and
-      Reflect); Plan may propose several cards at once.
-- [ ] **P6. Speech services.** STT and TTS ports in Application, adapters for the OpenAI-style
-      audio API (`/v1/audio/transcriptions`, `/v1/audio/speech`), phone sends audio to the API and
-      plays audio from it, Settings and Setup Wizard step 6; device speech stays available; no
-      web voice.
+- [x] **P4. Memory** (2026-09-29, **not committed or deployed**; migration `Memories` backfills
+      the module on). `Memory` entity (content ≤500, category fact/preference/project/decision,
+      source conversation, SetNull on delete); `MemoryService` (dedups the same sentence, keyword
+      search with crude stemming, `RelevantAsync`: word matches first, then the latest 3
+      preferences, 8 max); `/api/memories` CRUD + `/settings` (auto-save); `IChatContext` gives
+      tools the conversation (chat turn and confirmed card). Tools `search_memories`,
+      `create_memory`, `update_memory`, `delete_memory`; `IPersonaTool.NeedsConfirmation(config)`
+      lets create/update skip the card while auto-save is on (receipt "Remembered — …"); delete
+      always carded. `memory.prompty` carries the rules and the relevant memories.
+      **Decision to confirm:** `remember_about_user` is now offered only while memory is off
+      (`IPersonaTool.IsOffered`) — with both, qwen2.5:3b put preferences into About you. The PRD
+      still lists both tools side by side. "I'll remember that" with nothing saved is a claim:
+      `ActionClaimDetector.FindMemoryClaim` + a correction naming create_memory. Live (qwen2.5:3b):
+      "please remember…" saves every time and `search_memories` answers "what do you remember";
+      an implicit "I prefer…" saved 2 of 4 runs, and a saved preference was used in the next chat.
+      Web: Memories card in Settings (search, category chips, add/edit/delete, auto-save toggle).
+      Phone: Memories screen (module card), same features. Also fixed on the phone: four
+      `setState(() => _x = future)` returned a Future, which asserts in debug builds.
+- [x] **P5. Interaction modes** (2026-09-29, **not committed or deployed**; migration
+      `ConversationMode`). `ChatModes` in Domain; `Conversation.Mode` kept per conversation and
+      returned in list/detail; `POST /api/chat` takes `mode` (unknown = keep). Brainstorm/Reflect
+      are offered no tool with `Mutates` (memory writes included); `OfferedToolGuard` refuses any
+      tool not offered this turn (a write in Brainstorm no longer slips through as a card).
+      `mode.prompty` (one section per mode, after the data). Plan: new `create_plan` tool — one
+      card creates a goal tree with its tasks (`GoalService.ValidatePlanAsync` checks children
+      against stand-ins with the dates they will get; max 16 goals / 40 tasks); several cards per
+      reply already worked. Live: Brainstorm and Reflect change nothing; Act proposes at once;
+      Plan used create_plan once in 4 runs, otherwise several create_goal/create_task cards
+      (3B quality; one card had points 7, see below). Web: mode chips above the composer with a
+      one-line hint. Phone: ChoiceChips above the composer. **Found, not fixed:** create_task
+      accepted points 7 on a card (not Fibonacci) — check its ValidateAsync.
+- [x] **P6. Speech services** (2026-09-29, **not committed or deployed**; migration
+      `SpeechService`). Ports `ISpeechToText` / `ITextToSpeech`; adapter
+      `OpenAiSpeechClient` (buffered bodies with Content-Length: a chunked upload read as empty on
+      a simple server). Config on `InstanceConfig` (base URL, STT model, TTS model, voice, key
+      under Data Protection purpose `PersonaOS.SpeechApiKey.v1`). `SpeechService` + `/api/speech`
+      (status, admin PUT, admin test with a silent WAV, `transcribe` multipart ≤25 MB, `speak` →
+      mp3; 409 when not set up, 502 with the service's reason). Setup Wizard step 6 (also adds
+      the board and memory toggles it lacked). Web: Speech service card in Settings. Phone:
+      `record` + `audioplayers` + `path_provider`; `ServerSpeech` records AAC 16 kHz mono, ends on
+      a 2 s pause after speech (3 s hands-free), uploads, plays the reply; "Voice on this phone"
+      switches in Settings; falls back to device speech when the server cannot. Verified end to end
+      against a mock OpenAI-style server (test, speak, transcribe, bad key); **not yet tried with
+      a real faster-whisper/Kokoro server or on a real phone**.
 
 ## AI layer refactor (raised by the owner 2026-09-21)
 
@@ -475,6 +507,30 @@ stops being code. Estimates assume one focused session each, tests kept green th
         "[Automatic check]" turn as if talking to it. Strip that preamble, or reword the request so
         the model writes only the reply to the user. (It also means a correction round ran on a
         reply the user never saw as wrong; confirm what the first draft said, from the API logs.)
+- [x] **Wrong task facts defended for turns (chat `xc498w5s`, 2026-09-27).** Built and tested
+      2026-09-28, **not yet committed or deployed** (owner to say). qwen2.5:3b read
+      `unestimatedCount: 0` in the sprint report as one unestimated task, pinned it on TASK-1
+      (3 pts), then defended that from its own earlier replies without calling a tool.
+      - `ItemFactGuard` checks each reply's claims against the DB: a task named by key or by a
+        running-sprint title (points, unestimated, done / in progress / backlog), a sprint by key,
+        and keyless task claims against the running sprint ("all tasks are unestimated", "none are
+        estimated", "all 3 tasks have been completed", "Value: None"). Sprint sentences are read
+        clause by clause; clauses with a modal or condition ("not allowed", "once all are done")
+        are skipped. `ChatService` gives one correction round with the true facts; if still wrong,
+        the wrong sentences are removed and "To be exact: …" appended.
+      - `PromisedLookupGuard`: "let me check", "hold tight", "I don't have the details", "please
+        give me the task key" with no tool run get one round to call the tool; the instruction
+        names it (`ChatService.LookupToolFor`). That round's reply is used only if it ran a tool,
+        or answers without another dodge and names no unknown items. A promise followed by a list
+        is an introduction, not a promise.
+      - `BoardTools.SprintForModel` says counts in words; two prompt rules: never ask for what a
+        tool can tell you, and re-check when the user questions an earlier reply.
+      - Replays of the owner's five messages (4 runs, local Ollama): every wrong estimate claim
+        corrected. `model-check.ps1`: 7/8, 8/8, 7/8, then 8/8 three times in a row (2026-09-28);
+        the one named failure was "reads today" (answered "- None"), which passed on every rerun.
+      - Still open: sprint-level column claims ("the tasks are in the backlog, not pulled into
+        the sprint") are not checked; the model sometimes asks for a task key even when told
+        which tool to call (the first reply then stands). 602 backend tests, 0 warnings.
 
 ---
 

@@ -59,6 +59,13 @@ export class SetupWizard {
   aiBaseUrl = '';
   timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
 
+  /** Step 6, optional: a speech service the server calls for the phone. Blank address = none. */
+  speechBaseUrl = '';
+  speechSttModel = '';
+  speechTtsModel = '';
+  speechTtsVoice = '';
+  speechApiKey = '';
+
   readonly providers = AI_PROVIDERS;
 
   get selected() {
@@ -67,9 +74,11 @@ export class SetupWizard {
 
   readonly features: FeatureOption[] = [
     { key: 'goals', label: 'Goals (yearly / quarterly / monthly)', enabled: true },
+    { key: 'board', label: 'Sprint board', enabled: true },
     { key: 'planner', label: 'Daily planner', enabled: true },
     { key: 'reminders', label: 'Reminders & notifications', enabled: true },
     { key: 'docs', label: 'Document storage', enabled: true },
+    { key: 'memory', label: 'Memory across conversations', enabled: true },
     { key: 'voice', label: 'Voice assistant (push-to-talk)', enabled: true },
     { key: 'proactive', label: 'Proactive scheduler (morning brief)', enabled: false },
   ];
@@ -87,6 +96,11 @@ export class SetupWizard {
       return;
     }
     if (!this.aiModel.trim()) { this.error.set('Enter a model id.'); return; }
+    const speech = this.speechBaseUrl.trim();
+    if (speech && !this.speechSttModel.trim() && !this.speechTtsModel.trim()) {
+      this.error.set('Give the speech service a speech-to-text model, a text-to-speech model, or both.');
+      return;
+    }
 
     this.submitting.set(true);
     try {
@@ -101,6 +115,15 @@ export class SetupWizard {
         aiBaseUrl: this.selected.needsBaseUrl ? this.aiBaseUrl.trim() : null,
         timeZone: this.timeZone,
         features: Object.fromEntries(this.features.map(f => [f.key, f.enabled])),
+        speech: speech
+          ? {
+              baseUrl: speech,
+              sttModel: this.speechSttModel.trim(),
+              ttsModel: this.speechTtsModel.trim(),
+              ttsVoice: this.speechTtsVoice.trim(),
+              apiKey: this.speechApiKey.trim(),
+            }
+          : null,
       }));
       this.completed.emit();
     } catch (err: unknown) {

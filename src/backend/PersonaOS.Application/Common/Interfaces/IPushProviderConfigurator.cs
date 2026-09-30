@@ -22,4 +22,7 @@ public static class SecretPurposes
 {
     /// <summary>Keyed-service name for the protector that guards the Firebase service account.</summary>
     public const string PushCredentials = "PersonaOS.FcmServiceAccount.v1";
+
+    /// <summary>Keyed-service name for the protector that guards the speech service's key.</summary>
+    public const string SpeechApiKey = "PersonaOS.SpeechApiKey.v1";
 }

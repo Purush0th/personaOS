@@ -14,16 +14,20 @@ import { AI_PROVIDERS, aiProvider } from '../core/ai-providers';
 import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
 import { ABOUT_ME_MAX_LENGTH, SettingsService, SettingsUpdate } from '../core/settings.service';
+import { Memories } from './memories';
 import { PushConfig } from './push-config';
+import { SpeechConfig } from './speech-config';
 
 /** Module keys the server accepts; unknown keys are ignored server-side. */
-const MODULES = ['goals', 'board', 'planner', 'reminders', 'docs', 'voice', 'proactive'] as const;
+const MODULES = ['goals', 'board', 'planner', 'reminders', 'docs', 'memory', 'voice', 'proactive'] as const;
 
 @Component({
   selector: 'app-settings',
   imports: [
     FormsModule,
+    Memories,
     PushConfig,
+    SpeechConfig,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
@@ -39,7 +43,7 @@ const MODULES = ['goals', 'board', 'planner', 'reminders', 'docs', 'voice', 'pro
 })
 export class Settings implements OnInit {
   private readonly settings = inject(SettingsService);
-  private readonly branding = inject(BrandingService);
+  protected readonly branding = inject(BrandingService);
   private readonly confirm = inject(Confirm);
 
   protected readonly modules = MODULES;

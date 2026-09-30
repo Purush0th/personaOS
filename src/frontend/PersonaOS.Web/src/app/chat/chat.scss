@@ -274,3 +274,21 @@
     flex: 1;
   }
 }
+
+// The mode switch sits just above the composer: small chips that wrap on a phone, with a line
+// under them saying what the chosen mode does.
+.modes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding-top: 0.5rem;
+
+  mat-chip-listbox {
+    --mat-chip-container-height: 28px;
+  }
+
+  .hint {
+    flex: 1 1 12rem;
+  }
+}

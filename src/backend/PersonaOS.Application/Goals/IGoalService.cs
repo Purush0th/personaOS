@@ -144,6 +144,12 @@ public interface IGoalService
 
     Task ValidateCreateAsync(CreateGoalRequest request, CancellationToken ct = default);
 
+    /// <summary>
+    /// Checks a whole proposed tree the way creating each goal would, with the goals the plan itself
+    /// adds standing in for parents that do not exist yet. Throws on the first problem.
+    /// </summary>
+    Task ValidatePlanAsync(GoalPlan plan, CancellationToken ct = default);
+
     Task<GoalDto> CreateAsync(CreateGoalRequest request, CancellationToken ct = default);
 
     Task<GoalDto?> UpdateAsync(int id, UpdateGoalRequest request, CancellationToken ct = default);

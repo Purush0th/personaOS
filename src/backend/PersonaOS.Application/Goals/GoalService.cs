@@ -55,6 +55,51 @@ public class GoalService(
     public async Task ValidateCreateAsync(CreateGoalRequest request, CancellationToken ct = default) =>
         await PlanCreateAsync(request, ct);
 
+    public async Task ValidatePlanAsync(GoalPlan plan, CancellationToken ct = default)
+    {
+        var (_, dates) = await PlanCreateAsync(plan.ToRequest(plan.ParentId), ct);
+        CheckPlanNode(plan, dates, await TodayAsync(ct));
+    }
+
+    /// <summary>
+    /// The goals and tasks under one goal of a plan. Its children are checked against a stand-in
+    /// for it with the dates it will get, the same calendar rules a real parent applies.
+    /// </summary>
+    private static void CheckPlanNode(GoalPlan node, GoalDates dates, DateOnly today)
+    {
+        if (node.PlanTasks.Count > 0 && node.PeriodType != GoalPeriods.Month)
+            throw new GoalValidationException(
+                $"Tasks sit only under monthly goals, and “{node.Title}” is a {PeriodWord(node.PeriodType)} goal. Put them under its months.");
+        foreach (var task in node.PlanTasks)
+        {
+            if (string.IsNullOrWhiteSpace(task.Title))
+                throw new GoalValidationException($"A task under “{node.Title}” has no title.");
+            if (task.Points is int points && !ValuePoints.Allowed.Contains(points))
+                throw new GoalValidationException(
+                    $"“{task.Title}” has {points} points; value points are one of {string.Join(", ", ValuePoints.Allowed)}, or left out.");
+        }
+
+        var standIn = new Goal { Title = node.Title, PeriodType = node.PeriodType, PeriodStart = dates.Start, PeriodEnd = dates.End };
+        var slots = new HashSet<int?>();
+        foreach (var child in node.ChildGoals)
+        {
+            if (string.IsNullOrWhiteSpace(child.Title))
+                throw new GoalValidationException($"A goal under “{node.Title}” has no title.");
+            ValidatePeriodType(child.PeriodType);
+            if (GoalCalendar.ParentTypeOf(child.PeriodType) != node.PeriodType)
+                throw new GoalValidationException(
+                    $"“{child.Title}” is a {PeriodWord(child.PeriodType)} goal and cannot go under “{node.Title}”, a {PeriodWord(node.PeriodType)} goal. "
+                    + "Goals nest year > quarter > month.");
+
+            var childDates = Resolve(child.PeriodType, child.Year, SlotOf(child.PeriodType, child.Quarter, child.Month),
+                child.PeriodStart, today, standIn);
+            if (!slots.Add(GoalCalendar.SlotOf(child.PeriodType, childDates.End)))
+                throw new GoalValidationException(
+                    $"The plan has two goals for {GoalCalendar.Label(child.PeriodType, childDates.End)} under “{node.Title}”.");
+            CheckPlanNode(child, childDates, today);
+        }
+    }
+
     public async Task<GoalDto> CreateAsync(CreateGoalRequest request, CancellationToken ct = default)
     {
         var (title, dates) = await PlanCreateAsync(request, ct);

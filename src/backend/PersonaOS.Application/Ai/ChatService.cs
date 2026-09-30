@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +28,7 @@ public class ChatService(
     ReplyPipeline replyGuards,
     ConversationSummarizer summarizer,
     TimeProvider time,
+    IChatContext chatContext,
     ILogger<ChatService> logger) : IChatService
 {
     /// <summary>Stored messages considered for the history window; far more than any context holds.</summary>
@@ -36,6 +37,7 @@ public class ChatService(
     public async IAsyncEnumerable<ChatStreamEvent> StreamChatAsync(
         int? conversationId,
         string userMessage,
+        string? mode = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         var config = await configService.GetOrCreateAsync(ct);
@@ -62,28 +64,31 @@ public class ChatService(
             yield break;
         }
         conversation ??= CreateConversation(userMessage);
-        if (conversation.Id == 0)
-        {
-            db.Conversations.Add(conversation);
-            await db.SaveChangesAsync(ct);
-        }
+        // The mode sent with the message wins and is kept for the conversation; an unknown or
+        // missing one (an older client) keeps what the conversation had.
+        if (ChatModes.Parse(mode) is { } chosen) conversation.Mode = chosen;
+        if (conversation.Id == 0) db.Conversations.Add(conversation);
+        await db.SaveChangesAsync(ct);
+        var activeMode = ChatModes.Parse(conversation.Mode) ?? ChatModes.Chat;
 
+        chatContext.ConversationId = conversation.Id;
         yield return new ChatStreamEvent("start", ConversationId: conversation.Id);
 
         var profile = ModelProfiles.For(config);
-        var tools = await toolRegistry.GetEnabledToolDefinitionsAsync(ct);
+        // Brainstorm and Reflect change nothing, so they are not offered a single write tool.
+        var tools = await toolRegistry.GetEnabledToolDefinitionsAsync(ChatModes.Writes(activeMode), ct);
         var streamer = streamerFactory.ForProvider(config.AiProvider);
         var model = new AiRequest(apiKey ?? string.Empty, config.AiModel, config.AiBaseUrl, string.Empty, [], tools,
             profile.OptionsFor(config.AiProvider));
         var (systemPrompt, turns) = await PrepareContextAsync(
-            conversation, userMessage, await promptBuilder.BuildAsync(ct), streamer, model, profile, ct);
+            conversation, userMessage, await promptBuilder.BuildAsync(new PromptRequest(userMessage, activeMode), ct), streamer, model, profile, ct);
         var request = new ModelRequest(
             streamer,
             model with { SystemPrompt = systemPrompt },
             profile,
             turns,
             // Which tools need confirmation is fixed for the turn, so it is resolved once.
-            new ChatTurnState(config.AiModel, await toolRegistry.GetMutatingToolNamesAsync(ct), tools.Select(t => t.Name).ToList()),
+            new ChatTurnState(config.AiModel, await toolRegistry.GetMutatingToolNamesAsync(ct), tools.Select(t => t.Name).ToList(), activeMode),
             conversation.Id);
 
         // The reply, streamed as it is written.
@@ -110,7 +115,9 @@ public class ChatService(
             request.Turns.Add(new AiChatTurn(ChatRoles.Assistant, reply.Text));
             request.Turns.Add(new AiChatTurn(ChatRoles.User, reply.ClaimAwaitsConfirmation
                 ? AwaitingCardInstruction(claim)
-                : ClaimCheckInstruction(claim)));
+                : ActionClaimDetector.FindMemoryClaim(claim) is not null
+                    ? MemoryClaimInstruction(claim)
+                    : ClaimCheckInstruction(claim)));
 
             var correction = new ModelRound();
             await foreach (var evt in RunToolLoopAsync(request, correction, streamText: false, ct)) yield return evt;
@@ -131,6 +138,61 @@ public class ChatService(
             // The "nothing was saved" note is for a claim nothing backs. Above a card it would be
             // wrong (the card is right there, waiting), so a claim that survives is left to it.
             unverifiedClaim = request.Turn.Proposals.Count == 0 && (final == reply || final.UnbackedClaim is not null);
+        }
+
+        // The reply promised to look something up and called nothing: one chance to make the call.
+        // The second round replaces the first when it looked something up, or at least answered
+        // without another promise: qwen2.5:3b once swapped a right list of tasks that began "let's
+        // look at the tasks" for "I do not have the detailed information. Please call the tools".
+        // The fact check below then reads whichever reply stands.
+        if (first.Error is null && final.UnbackedClaim is null && final.PromisedLookup is { } promise)
+        {
+            logger.LogWarning("Model {Model} promised a lookup it never made; asking it to make it.", config.AiModel);
+            request.Turns.Add(new AiChatTurn(ChatRoles.Assistant, final.Text));
+            request.Turns.Add(new AiChatTurn(ChatRoles.User,
+                LookupInstruction(promise, LookupToolFor($"{userMessage} {final.Text}", request.Model.Tools.Select(t => t.Name)))));
+
+            var lookup = new ModelRound();
+            await foreach (var evt in RunToolLoopAsync(request, lookup, streamText: false, ct)) yield return evt;
+
+            var answered = lookup.Error is null
+                ? await replyGuards.ReviewAsync(new ReplyDraft(lookup.Text.ToString(), request.Turn, isCorrection: true), ct)
+                : null;
+            // Without a lookup, an answer that asks again or names items that do not exist (it
+            // made up TASK-7) is no better than the promise.
+            if (answered is { Text.Length: > 0 }
+                && (lookup.ToolRuns > 0 || (PromisedLookupGuard.Find(answered.Text) is null && answered.UnknownItems.Count == 0)))
+                final = answered;
+        }
+
+        // The reply got a task's points or status wrong (ItemFactGuard): one chance to put it right
+        // with the facts in hand. If the model still gets them wrong, the facts are said anyway:
+        // a wrong number must not be the last word, and qwen2.5:3b defended one for three turns.
+        if (first.Error is null && final.WrongFacts.Count > 0)
+        {
+            var facts = final.WrongFacts;
+            logger.LogWarning("Model {Model} got task facts wrong; asking it to correct.", config.AiModel);
+            request.Turns.Add(new AiChatTurn(ChatRoles.Assistant, final.Text));
+            request.Turns.Add(new AiChatTurn(ChatRoles.User, FactCheckInstruction(facts)));
+
+            var correction = new ModelRound();
+            await foreach (var evt in RunToolLoopAsync(request, correction, streamText: false, ct)) yield return evt;
+
+            var corrected = correction.Error is null
+                ? await replyGuards.ReviewAsync(new ReplyDraft(correction.Text.ToString(), request.Turn, isCorrection: true), ct)
+                : null;
+            if (corrected is { Text.Length: > 0 }) final = corrected;
+
+            // Still wrong, or no usable correction: take the wrong sentences out and say the facts,
+            // those the model was given and any its correction got wrong in turn. Left in, the
+            // wrong sentence sat right above its own correction ("unestimated with 3 value points").
+            if (final.WrongFacts.Count > 0)
+            {
+                var wrong = final.WrongSentences.ToHashSet();
+                var rest = ReplySentences.Without(final.Text, s => wrong.Contains(s.Trim())) ?? final.Text;
+                var all = string.Join(" ", facts.Concat(final.WrongFacts).Distinct());
+                final.Rewrite(rest.Trim().Length == 0 ? all : $"{rest.TrimEnd()}\n\nTo be exact: {all}");
+            }
         }
 
         // What the user watched stream in is no longer the reply when a guard rewrote it or a
@@ -168,6 +230,49 @@ public class ChatService(
         + "If the user asked for that change, call the right tool now. If they did not, "
         + "rewrite your reply so it does not say anything was done. "
         + CorrectionStyle;
+
+    /// <summary>
+    /// Sent when the reply promised to remember something and saved nothing. Names the tool: told
+    /// only to "call the right tool", qwen2.5:3b answered "I have noted this preference" again.
+    /// </summary>
+    private static string MemoryClaimInstruction(string claim) =>
+        "[Automatic check, not from the user] Your last reply says \"" + claim + "\", but you did not "
+        + "call create_memory, so nothing was remembered. Call create_memory now, with arguments like "
+        + "{\"content\": \"<what the user told you, as one short sentence>\", \"category\": \"preference\"} "
+        + "(category: fact, preference, project or decision). If there is nothing worth remembering, "
+        + "rewrite your reply without saying you will remember it. " + CorrectionStyle;
+
+    /// <summary>Sent when the reply promised to look something up and called no tool.</summary>
+    private static string LookupInstruction(string promise, string? tool) =>
+        "[Automatic check, not from the user] Your last reply says \"" + promise + "\", but you did "
+        + "not call any tool, so nothing was looked up and the user is still waiting. "
+        + (tool is null ? "Call the tool" : $"Call {tool}") + " now and answer the user's question "
+        + "from its result. Do not ask the user for keys or details a tool can give you. " + CorrectionStyle;
+
+    /// <summary>
+    /// The read tool a promised lookup most likely needs, going by what the user and the reply
+    /// talk about; null when nothing points at one of the enabled tools. qwen2.5:3b asked for a task
+    /// key three times when told only to "call the tool", so the instruction names it.
+    /// </summary>
+    public static string? LookupToolFor(string text, IEnumerable<string> enabled)
+    {
+        var names = enabled.ToHashSet();
+        (string Tool, string[] Words)[] byTopic =
+        [
+            ("get_board", ["task", "sprint", "point", "estimat", "board", "backlog"]),
+            ("get_goals", ["goal"]),
+            ("get_reminders", ["remind"]),
+            ("get_planner", ["plan", "today", "schedule", "calendar"]),
+        ];
+        return byTopic.FirstOrDefault(t => names.Contains(t.Tool)
+            && t.Words.Any(w => text.Contains(w, StringComparison.OrdinalIgnoreCase))).Tool;
+    }
+
+    /// <summary>Sent when the reply said something about a task that the data contradicts.</summary>
+    private static string FactCheckInstruction(IReadOnlyList<string> facts) =>
+        "[Automatic check, not from the user] Your last reply got a task wrong. The data says: "
+        + string.Join(" ", facts) + " Rewrite your reply using these facts. If your earlier replies "
+        + "said otherwise, say plainly that they were wrong. " + CorrectionStyle;
 
     /// <summary>Sent when the reply called a change done while its card still waits for the user.</summary>
     private static string AwaitingCardInstruction(string claim) =>
@@ -328,6 +433,7 @@ public class ChatService(
                     "tool", ToolName: decision.Call.Name, ToolLabel: Ai.ToolLabel.Running(decision.Call.Name),
                     ConversationId: request.ConversationId);
                 var result = await toolRegistry.ExecuteAsync(decision.Call, ct);
+                round.ToolRuns++;
                 turn.RecordExecution(decision.Call, result);
                 results.Add(result);
             }
@@ -417,6 +523,9 @@ public class ChatService(
         public StringBuilder Text { get; } = new();
 
         public string? Error { get; set; }
+
+        /// <summary>Tools this round ran (not those a guard answered for).</summary>
+        public int ToolRuns { get; set; }
     }
 
     /// <summary>Tokens reported across every model call in the turn; null until a provider reports any.</summary>
@@ -436,7 +545,7 @@ public class ChatService(
     public async Task<IReadOnlyList<ConversationSummary>> ListConversationsAsync(CancellationToken ct = default) =>
         await db.Conversations.AsNoTracking()
             .OrderByDescending(c => c.UpdatedAtUtc)
-            .Select(c => new ConversationSummary(c.Id, c.PublicId, c.Title, c.CreatedAtUtc, c.UpdatedAtUtc))
+            .Select(c => new ConversationSummary(c.Id, c.PublicId, c.Title, c.CreatedAtUtc, c.UpdatedAtUtc, c.Mode))
             .ToListAsync(ct);
 
     public async Task<ConversationDetail?> GetConversationAsync(
@@ -453,6 +562,7 @@ public class ChatService(
                 c.PublicId,
                 c.Title,
                 c.CreatedAtUtc,
+                c.Mode,
                 Messages = c.Messages
                     .OrderBy(m => m.CreatedAtUtc).ThenBy(m => m.Id)
                     .Select(m => new
@@ -485,7 +595,8 @@ public class ChatService(
             .ToList();
 
         return new ConversationDetail(
-            conversation.Id, conversation.PublicId, conversation.Title, conversation.CreatedAtUtc, messages);
+            conversation.Id, conversation.PublicId, conversation.Title, conversation.CreatedAtUtc, messages,
+            ChatModes.Parse(conversation.Mode) ?? ChatModes.Chat);
     }
 
     private IReadOnlyList<ToolReceipt>? ReadReceipts(string? json)
@@ -528,6 +639,7 @@ public class ChatService(
         // Confirming twice must not run the tool twice.
         if (action.Status != PendingActionStatuses.Pending) return ToDto(action);
 
+        chatContext.ConversationId = action.ConversationId;
         var result = await toolRegistry.ExecuteAsync(
             new AiToolCall(action.PublicId, action.ToolName, action.InputJson), ct);
 

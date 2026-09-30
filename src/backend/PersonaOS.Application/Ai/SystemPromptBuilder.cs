@@ -4,6 +4,7 @@ using PersonaOS.Application.Ai.Prompts;
 using PersonaOS.Application.Common;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
+using PersonaOS.Application.Memories;
 using PersonaOS.Domain;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Domain.Services;
@@ -28,18 +29,22 @@ public class SystemPromptBuilder(
     private const int MaxSprintTasks = 12;
     private const int MaxReminders = 5;
 
+    /// <summary>How many memories come with a message at most: enough to help, few enough to stay cheap.</summary>
+    private const int MaxMemories = 8;
+
     private static readonly (string Key, string Label)[] ModuleLabels =
     [
         (InstanceConfig.Modules.Goals, "goals (yearly/quarterly/monthly)"),
-        (InstanceConfig.Modules.Board, "a weekly sprint board (tasks with story points, planned on Sunday evenings)"),
+        (InstanceConfig.Modules.Board, "a sprint board (tasks with value points, in weekly sprints)"),
         (InstanceConfig.Modules.Planner, "a daily planner"),
         (InstanceConfig.Modules.Reminders, "reminders"),
         (InstanceConfig.Modules.Docs, "stored documents you can read"),
+        (InstanceConfig.Modules.Memory, "a memory of what the user told you in earlier conversations"),
         (InstanceConfig.Modules.Voice, "voice input and read-back"),
         (InstanceConfig.Modules.Proactive, "proactive morning and evening briefs"),
     ];
 
-    public async Task<string> BuildAsync(CancellationToken ct = default)
+    public async Task<string> BuildAsync(PromptRequest? request = null, CancellationToken ct = default)
     {
         var config = await configService.GetOrCreateAsync(ct);
         var today = UserClock.Today(config.TimeZone);
@@ -67,12 +72,25 @@ public class SystemPromptBuilder(
         var profile = await db.UserProfile.AsNoTracking().FirstOrDefaultAsync(ct);
         if (!string.IsNullOrWhiteSpace(profile?.AboutMe)) sections.Add("About the user:\n" + profile.AboutMe.Trim());
 
+        if (config.IsEnabled(InstanceConfig.Modules.Memory)) sections.Add(await MemoryAsync(fragments, config, request?.UserMessage, ct));
+
+        // The mode's instructions come last, after the data, so they are what the model reads just
+        // before the conversation: a small model follows the nearest instruction best.
+        var mode = ChatModes.Parse(request?.Mode) ?? ChatModes.Chat;
+
         sections.Add(fragments.Render("clock", ("timeZone", config.TimeZone), ("today", today.ToString("yyyy-MM-dd"))));
 
         if (config.IsEnabled(InstanceConfig.Modules.Goals)) sections.Add(await GoalsAsync(fragments, ct));
         if (config.IsEnabled(InstanceConfig.Modules.Board)) sections.Add(await BoardAsync(fragments, config, ct));
         if (config.IsEnabled(InstanceConfig.Modules.Planner)) sections.Add(await PlannerAsync(fragments, today, ct));
         if (config.IsEnabled(InstanceConfig.Modules.Reminders)) sections.Add(await RemindersAsync(fragments, config, ct));
+        if (mode != ChatModes.Chat)
+        {
+            sections.Add(fragments.Render("mode", ChatModes.All
+                .Where(m => m != ChatModes.Chat)
+                .Select(m => (m, (object?)(m == mode ? "yes" : null)))
+                .ToArray()));
+        }
 
         return string.Join("\n\n", sections.Where(s => s.Length > 0));
     }
@@ -168,6 +186,19 @@ public class SystemPromptBuilder(
             : fragments.Render("reminders", ("reminders", upcoming
                 .Select(r => $"{UserClock.ToLocal(r.DueAtUtc, config.TimeZone):yyyy-MM-dd HH:mm} — {r.Message}")
                 .ToList()));
+    }
+
+    /// <summary>
+    /// How memories work, and those relevant to the message. The memory text is the user's own
+    /// words, so it is passed as values and never rendered as a template.
+    /// </summary>
+    private async Task<string> MemoryAsync(Fragments fragments, InstanceConfig config, string? userMessage, CancellationToken ct)
+    {
+        var relevant = await new MemoryService(db).RelevantAsync(userMessage, MaxMemories, ct);
+        return fragments.Render("memory",
+            ("autoSave", config.MemoryAutoSave ? "on" : null),
+            ("hasMemories", relevant.Count > 0 ? "yes" : null),
+            ("memories", relevant.Select(m => $"[{m.Category}] {m.Content}").ToList()));
     }
 
     /// <summary>The library, fixed to the prompt variant this model gets.</summary>

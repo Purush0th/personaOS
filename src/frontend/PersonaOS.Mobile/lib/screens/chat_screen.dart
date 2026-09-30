@@ -5,6 +5,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../api/personaos_api.dart';
 import '../push_service.dart';
+import '../server_speech.dart';
 import '../voice_service.dart';
 import 'conversations_screen.dart';
 
@@ -68,6 +69,9 @@ class _ChatScreenState extends State<ChatScreen> {
   int? _conversationId;
   bool _streaming = false;
 
+  /// How the assistant works here; sent with each message and kept with the conversation.
+  String _mode = 'chat';
+
   late final VoiceService _voice = widget.voice ?? VoiceService();
   bool _listening = false;
   bool _readBack = false;
@@ -91,6 +95,28 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// True while an old conversation's messages are being fetched.
   bool _loadingHistory = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.voiceEnabled && widget.voice == null) _useServerSpeechIfChosen();
+  }
+
+  /// Hands the voice service the server's speech engines the user chose in
+  /// Settings, for each direction the server actually has.
+  Future<void> _useServerSpeechIfChosen() async {
+    try {
+      final prefs = await VoicePrefs.load();
+      if (!prefs.serverStt && !prefs.serverTts) return;
+      final status = await widget.api.getSpeechStatus();
+      _voice
+        ..server = ServerSpeech(widget.api)
+        ..useServerStt = prefs.serverStt && status.speechToText
+        ..useServerTts = prefs.serverTts && status.textToSpeech;
+    } catch (_) {
+      // The phone's own engines keep working.
+    }
+  }
 
   @override
   void dispose() {
@@ -213,7 +239,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     _subscription = widget.api
-        .streamChat(text, conversationId: _conversationId)
+        .streamChat(text, conversationId: _conversationId, mode: _mode)
         .listen((event) {
       setState(() {
         switch (event.type) {
@@ -315,6 +341,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       setState(() {
         _conversationId = detail.id;
+        _mode = detail.mode;
         _bubbles
           ..clear()
           ..addAll(detail.messages.map((m) => _Bubble(
@@ -340,6 +367,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() {
       _bubbles.clear();
       _conversationId = null;
+      _mode = 'chat';
       // The cards that paused hands-free are gone with the thread.
       _handsFreeAwaitsCard = false;
     });
@@ -447,7 +475,12 @@ class _ChatScreenState extends State<ChatScreen> {
                         _BubbleView(bubble: _bubbles[i], onResolve: _resolveAction),
                   ),
           ),
+          _ModeSwitch(
+            mode: _mode,
+            onChanged: _streaming ? null : (mode) => setState(() => _mode = mode),
+          ),
           SafeArea(
+            top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
               child: Row(
@@ -504,6 +537,53 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The mode switch above the composer: one chip per mode, scrolling sideways on a
+/// narrow phone, with a line saying what the chosen mode does.
+class _ModeSwitch extends StatelessWidget {
+  const _ModeSwitch({required this.mode, required this.onChanged});
+
+  final String mode;
+
+  /// Null while a reply streams: the mode applies per message, so it is fixed until it ends.
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              for (final m in ChatMode.all)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(m.label),
+                    selected: mode == m.id,
+                    visualDensity: VisualDensity.compact,
+                    onSelected: onChanged == null ? null : (_) => onChanged!(m.id),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+          child: Text(
+            ChatMode.of(mode).hint,
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+          ),
+        ),
+      ],
     );
   }
 }

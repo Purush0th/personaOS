@@ -28,10 +28,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<ProactiveJobRun> ProactiveJobRuns => Set<ProactiveJobRun>();
     public DbSet<PendingAction> PendingActions => Set<PendingAction>();
+    public DbSet<Memory> Memories => Set<Memory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Memory>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Content).HasMaxLength(500).IsRequired();
+            cfg.Property(x => x.Category).HasMaxLength(20).IsRequired();
+            // A memory outlives the conversation it came from: deleting the thread only drops the link.
+            cfg.HasOne(x => x.SourceConversation).WithMany()
+                .HasForeignKey(x => x.SourceConversationId).OnDelete(DeleteBehavior.SetNull);
+            cfg.HasIndex(x => x.UpdatedAtUtc);
+        });
 
         modelBuilder.Entity<ProactiveJobRun>(cfg =>
         {
@@ -107,6 +119,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.AiModel).HasMaxLength(100).IsRequired();
             cfg.Property(x => x.AiBaseUrl).HasMaxLength(500);
             cfg.Property(x => x.AnthropicApiKeyEncrypted).HasMaxLength(2000);
+            cfg.Property(x => x.SpeechBaseUrl).HasMaxLength(500);
+            cfg.Property(x => x.SpeechSttModel).HasMaxLength(200);
+            cfg.Property(x => x.SpeechTtsModel).HasMaxLength(200);
+            cfg.Property(x => x.SpeechTtsVoice).HasMaxLength(100);
+            cfg.Property(x => x.SpeechApiKeyEncrypted).HasMaxLength(2000);
 
             // Feature toggle map persisted as a JSON string column.
             var dictComparer = new ValueComparer<Dictionary<string, bool>>(
@@ -140,6 +157,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.PublicId).HasMaxLength(16).IsRequired();
             cfg.HasIndex(x => x.PublicId).IsUnique();
             cfg.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            cfg.Property(x => x.Mode).HasMaxLength(20).IsRequired().HasDefaultValue(ChatModes.Chat);
             cfg.HasMany(x => x.Messages)
                 .WithOne(m => m.Conversation)
                 .HasForeignKey(m => m.ConversationId)

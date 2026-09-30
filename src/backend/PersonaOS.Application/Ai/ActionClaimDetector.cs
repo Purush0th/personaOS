@@ -77,6 +77,22 @@ public static partial class ActionClaimDetector
     private static partial Regex SentenceBreak();
 
     /// <summary>
+    /// "I'll remember that", "I've noted it", "I will keep that in mind", "Noted!": a promise to
+    /// remember. Not "I remember you said…", which is recalling a memory, not saving one.
+    /// </summary>
+    [GeneratedRegex(@"\bi(?:'ll|’ll|\s+will|'ve|’ve|\s+have)\s+(?:\w+\s+){0,2}?(?:remember(?:ed)?|not(?:e|ed)|sav(?:e|ed)\s+(?:that|this|it)|kept\s+(?:that|this|it)|keep\s+(?:that|this|it)\s+in\s+mind|make\s+a\s+note|made\s+a\s+note)\b|^\s*noted\b", RegexOptions.IgnoreCase)]
+    private static partial Regex RemembersClaim();
+
+    /// <summary>
+    /// The first sentence promising to remember something, or null. Seen on qwen2.5:3b
+    /// (2026-09-29): "I'll remember that." with no memory saved, three times running.
+    /// </summary>
+    public static string? FindMemoryClaim(string reply) =>
+        SentenceBreak().Split(reply)
+            .Select(s => s.Trim())
+            .FirstOrDefault(s => s.Length > 0 && !s.EndsWith('?') && RemembersClaim().IsMatch(s) && !NotAClaim().IsMatch(s));
+
+    /// <summary>
     /// Returns the first sentence of <paramref name="reply"/> that claims a change was made, or null.
     /// For a turn that proposed nothing.
     /// </summary>

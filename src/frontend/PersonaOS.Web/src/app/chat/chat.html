@@ -87,6 +87,20 @@
     }
   </div>
 
+  <div class="modes">
+    <mat-chip-listbox
+      aria-label="Mode"
+      [value]="mode()"
+      (change)="pickMode($event.value)"
+      [disabled]="streaming()"
+    >
+      @for (m of modes; track m.id) {
+        <mat-chip-option [value]="m.id" [selectable]="mode() !== m.id">{{ m.label }}</mat-chip-option>
+      }
+    </mat-chip-listbox>
+    <span class="muted small hint">{{ modeHint() }}</span>
+  </div>
+
   <form class="composer" (ngSubmit)="send()">
     <mat-form-field class="grow">
       <mat-label>Message {{ branding.branding()?.assistantNickname ?? 'your assistant' }}</mat-label>

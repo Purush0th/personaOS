@@ -268,6 +268,7 @@ class ConversationDetail {
     required this.id,
     required this.title,
     required this.messages,
+    this.mode = 'chat',
   });
 
   factory ConversationDetail.fromJson(Map<String, dynamic> json) => ConversationDetail(
@@ -276,11 +277,37 @@ class ConversationDetail {
         messages: (json['messages'] as List<dynamic>? ?? [])
             .map((m) => ChatMessageDto.fromJson(m as Map<String, dynamic>))
             .toList(),
+        mode: ChatMode.parse(json['mode'] as String?),
       );
 
   final int id;
   final String title;
   final List<ChatMessageDto> messages;
+
+  /// The mode last used in this conversation.
+  final String mode;
+}
+
+/// How the assistant works in a conversation, picked with the switch in the chat box.
+class ChatMode {
+  const ChatMode(this.id, this.label, this.hint);
+
+  final String id;
+  final String label;
+  final String hint;
+
+  static const all = [
+    ChatMode('chat', 'Chat', 'Answer and discuss; changes come as cards.'),
+    ChatMode('brainstorm', 'Brainstorm', 'Explore options. Nothing is changed.'),
+    ChatMode('plan', 'Plan', 'Turn an intent into goals and tasks, proposed as cards.'),
+    ChatMode('act', 'Act', 'Get it done: changes come as cards straight away.'),
+    ChatMode('reflect', 'Reflect', 'Look back at progress and patterns. Nothing is changed.'),
+  ];
+
+  /// A known mode id, or 'chat' for anything else.
+  static String parse(String? id) => all.any((m) => m.id == id) ? id! : 'chat';
+
+  static ChatMode of(String id) => all.firstWhere((m) => m.id == id, orElse: () => all.first);
 }
 
 /// An uploaded document.
@@ -306,6 +333,59 @@ class DocumentDto {
   final int sizeBytes;
   final DateTime createdAtUtc;
   final String? description;
+}
+
+/// Something the assistant remembers across conversations.
+class MemoryDto {
+  MemoryDto({
+    required this.id,
+    required this.content,
+    required this.category,
+    required this.updatedAtUtc,
+    this.sourceConversationId,
+    this.sourceConversationTitle,
+  });
+
+  factory MemoryDto.fromJson(Map<String, dynamic> json) => MemoryDto(
+        id: json['id'] as int,
+        content: json['content'] as String? ?? '',
+        category: json['category'] as String? ?? 'fact',
+        updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
+        sourceConversationId: json['sourceConversationId'] as String?,
+        sourceConversationTitle: json['sourceConversationTitle'] as String?,
+      );
+
+  /// What kind of thing a memory is, in the order the screens list them.
+  static const categories = ['fact', 'preference', 'project', 'decision'];
+
+  /// The longest memory the server accepts: one short sentence.
+  static const maxLength = 500;
+
+  /// "preference" reads "Preference".
+  static String label(String category) =>
+      category.isEmpty ? category : category[0].toUpperCase() + category.substring(1);
+
+  final int id;
+  final String content;
+  final String category;
+  final DateTime updatedAtUtc;
+
+  /// The conversation's address, when the memory came from chat.
+  final String? sourceConversationId;
+  final String? sourceConversationTitle;
+}
+
+/// Whether the server has a speech service for each direction.
+class SpeechStatus {
+  SpeechStatus({required this.speechToText, required this.textToSpeech});
+
+  factory SpeechStatus.fromJson(Map<String, dynamic> json) => SpeechStatus(
+        speechToText: json['speechToText'] as bool? ?? false,
+        textToSpeech: json['textToSpeech'] as bool? ?? false,
+      );
+
+  final bool speechToText;
+  final bool textToSpeech;
 }
 
 /// Firebase client options for this install's own Firebase project. Identifiers, not secrets.
@@ -654,6 +734,80 @@ class PersonaOsApi {
 
   Future<void> deleteDocument(int id) => _delete('/api/documents/$id');
 
+  // --- Speech (the server's optional speech service) ----------------------
+
+  Future<SpeechStatus> getSpeechStatus() async =>
+      SpeechStatus.fromJson(await _get('/api/speech') as Map<String, dynamic>);
+
+  /// Uploads a recording and returns what the server's speech service heard.
+  Future<String> transcribe(String filePath) async {
+    final request = http.MultipartRequest('POST', Uri.parse('$serverUrl/api/speech/transcribe'));
+    if (_token != null) request.headers['Authorization'] = 'Bearer $_token';
+    request.files.add(await http.MultipartFile.fromPath('audio', filePath));
+
+    final http.Response response;
+    try {
+      final streamed = await request.send().timeout(const Duration(seconds: 120));
+      response = await http.Response.fromStream(streamed);
+    } on TimeoutException {
+      throw ApiException('The speech service took too long.');
+    }
+    if (response.statusCode == 401) {
+      _token = null;
+      throw ApiException('Session expired. Log in again.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(_errorFrom(response), code: _codeFrom(response));
+    }
+    return ((jsonDecode(response.body) as Map<String, dynamic>)['text'] as String? ?? '').trim();
+  }
+
+  /// A reply spoken by the server's speech service, as audio bytes (mp3).
+  Future<List<int>> speak(String text) async {
+    final http.Response response;
+    try {
+      response = await http
+          .post(Uri.parse('$serverUrl/api/speech/speak'), headers: _headers, body: jsonEncode({'text': text}))
+          .timeout(const Duration(seconds: 60));
+    } on TimeoutException {
+      throw ApiException('The speech service took too long.');
+    }
+    if (response.statusCode == 401) {
+      _token = null;
+      throw ApiException('Session expired. Log in again.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(_errorFrom(response), code: _codeFrom(response));
+    }
+    return response.bodyBytes;
+  }
+
+  // --- Memories ------------------------------------------------------------
+
+  Future<List<MemoryDto>> getMemories() async {
+    final data = await _get('/api/memories') as List<dynamic>;
+    return data.map((e) => MemoryDto.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<MemoryDto> createMemory(String content, String category) async =>
+      MemoryDto.fromJson(await _post('/api/memories', {'content': content, 'category': category})
+          as Map<String, dynamic>);
+
+  Future<MemoryDto> updateMemory(int id, String content, String category) async =>
+      MemoryDto.fromJson(await _put('/api/memories/$id', {'content': content, 'category': category})
+          as Map<String, dynamic>);
+
+  Future<void> deleteMemory(int id) => _delete('/api/memories/$id');
+
+  /// On: the assistant saves memories and shows a receipt. Off: each one is a card first.
+  Future<bool> getMemoryAutoSave() async =>
+      ((await _get('/api/memories/settings')) as Map<String, dynamic>)['autoSave'] as bool? ?? true;
+
+  Future<bool> setMemoryAutoSave(bool autoSave) async =>
+      ((await _put('/api/memories/settings', {'autoSave': autoSave})) as Map<String, dynamic>)['autoSave']
+          as bool? ??
+      autoSave;
+
   // --- Settings ------------------------------------------------------------
 
   Future<InstanceSettings> getSettings() async {
@@ -679,7 +833,7 @@ class PersonaOsApi {
   // --- Chat (SSE) ----------------------------------------------------------
 
   /// Sends a chat message and yields SSE events as they stream in.
-  Stream<ChatEvent> streamChat(String message, {int? conversationId}) async* {
+  Stream<ChatEvent> streamChat(String message, {int? conversationId, String? mode}) async* {
     final client = http.Client();
     try {
       final request = http.Request('POST', Uri.parse('$serverUrl/api/chat'))
@@ -688,6 +842,7 @@ class PersonaOsApi {
         ..body = jsonEncode({
           'message': message,
           'conversationId': ?conversationId,
+          'mode': ?mode,
         });
 
       final response = await client.send(request);
