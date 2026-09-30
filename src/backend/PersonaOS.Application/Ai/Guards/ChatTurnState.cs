@@ -28,6 +28,9 @@ public sealed class ChatTurnState(
     /// <summary>Changes the model asked for, each waiting on a card for the user's confirmation.</summary>
     public List<ProposedAction> Proposals { get; } = [];
 
+    /// <summary>Changes the model asked for that were refused before a card, with the reason, in order.</summary>
+    public List<string> Refusals { get; } = [];
+
     /// <summary>What the tools actually did, from their own results.</summary>
     public List<ToolReceipt> Receipts { get; } = [];
 

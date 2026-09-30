@@ -94,6 +94,7 @@ public sealed class ConfirmationGate(IPersonaToolRegistry registry) : IToolCallG
 
         if (await registry.ValidateAsync(call, ct) is { } problem)
         {
+            turn.Refusals.Add(problem);
             return new ToolCallVerdict.Answer(
                 JsonSerializer.Serialize(new { error = problem }), IsError: true, $"refused to propose: {problem}");
         }

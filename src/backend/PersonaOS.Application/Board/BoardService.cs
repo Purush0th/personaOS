@@ -777,14 +777,15 @@ public class BoardService(
             IsScopeLocked(sprint));
     }
 
-    private static void ValidatePoints(int? points)
+    /// <summary>Public so the tools can refuse a bad value before it becomes a card, not after Confirm.</summary>
+    public static void ValidatePoints(int? points)
     {
         if (points is int value && !ValuePoints.Allowed.Contains(value))
             throw new BoardValidationException(
                 $"Value points must be one of {string.Join(", ", ValuePoints.Allowed)} (Fibonacci), or left unestimated.");
     }
 
-    private static string? ValidatePriority(string? priority)
+    public static string? ValidatePriority(string? priority)
     {
         if (priority is null) return null;
         var normalized = priority.Trim().ToLowerInvariant();
@@ -794,7 +795,7 @@ public class BoardService(
                 $"Priority must be one of: {string.Join(", ", WorkItemPriorities.All)}.");
     }
 
-    private static string RequireTitle(string? title)
+    public static string RequireTitle(string? title)
     {
         var trimmed = (title ?? string.Empty).Trim();
         return trimmed.Length == 0 ? throw new BoardValidationException("Title must not be empty.") : trimmed;

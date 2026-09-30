@@ -38,16 +38,30 @@ public class ReminderService(
         return reminder is null ? null : Map(reminder, await TimeZoneAsync(ct));
     }
 
-    public async Task<ReminderDto> CreateAsync(CreateReminderRequest request, CancellationToken ct = default)
+    public async Task ValidateCreateAsync(CreateReminderRequest request, CancellationToken ct = default) =>
+        await CheckCreateAsync(request, ct);
+
+    /// <summary>What creating a reminder refuses, so a card can be refused before it is shown.</summary>
+    private async Task<(string Message, DateTime DueAtUtc, string TimeZone)> CheckCreateAsync(CreateReminderRequest request, CancellationToken ct)
     {
         var timeZone = await TimeZoneAsync(ct);
         var message = RequireMessage(request.Message);
         var dueAtUtc = ResolveDue(request.DueAtUtc, request.DueAtLocal, timeZone);
 
         if (dueAtUtc <= DateTime.UtcNow)
-            throw new ReminderValidationException("The reminder time must be in the future.");
+        {
+            var now = UserClock.ToLocal(DateTime.UtcNow, timeZone);
+            throw new ReminderValidationException(
+                $"The reminder time must be in the future; it is now {now:yyyy-MM-dd HH:mm} for the user.");
+        }
 
         await RequireLinksExistAsync(request.GoalId, request.PlannerItemId, ct);
+        return (message, dueAtUtc, timeZone);
+    }
+
+    public async Task<ReminderDto> CreateAsync(CreateReminderRequest request, CancellationToken ct = default)
+    {
+        var (message, dueAtUtc, timeZone) = await CheckCreateAsync(request, ct);
 
         var reminder = new Reminder
         {

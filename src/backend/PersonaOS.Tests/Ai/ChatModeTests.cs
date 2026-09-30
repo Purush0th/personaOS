@@ -224,3 +224,27 @@ public class CreatePlanToolTests
         Assert.Contains("value points are one of", ex.Message);
     }
 }
+
+/// <summary>
+/// "Tomorrow" on 2026-09-29 was worked out as 2026-10-01 by qwen2.5:3b, and five reminders went
+/// to the wrong day (chat 9wuxkb2b). The prompt states the dates instead of leaving the sum to it.
+/// </summary>
+public class ClockPromptTests
+{
+    [Fact]
+    public async Task The_prompt_names_tomorrow_and_the_coming_week()
+    {
+        var db = TestDbContext.Create();
+        var config = new FakeInstanceConfigService(db);
+        var instance = await config.GetOrCreateAsync();
+        instance.TimeZone = "Asia/Kolkata";
+        await db.SaveChangesAsync();
+        var today = PersonaOS.Application.Common.UserClock.Today("Asia/Kolkata");
+
+        var prompt = await new SystemPromptBuilder(config, db, TestPrompts.Library()).BuildAsync();
+
+        Assert.Contains($"Tomorrow is {today.AddDays(1):yyyy-MM-dd}.", prompt);
+        Assert.Contains($"{today.AddDays(1).ToString("dddd yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)} (tomorrow)", prompt);
+        Assert.Contains(today.AddDays(6).ToString("yyyy-MM-dd"), prompt);
+    }
+}
