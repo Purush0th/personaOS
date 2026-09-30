@@ -96,11 +96,16 @@ public class CreateReminderTool(IReminderService reminders) : ReminderToolBase
     /// proposed "Call mum at 7pm today" with no dueAtLocal at all: the card said when in prose
     /// and would have failed on confirm.
     /// </summary>
-    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default)
-    {
-        RequireDueAt(input);
-        return Task.CompletedTask;
-    }
+    /// <summary>
+    /// Everything creating it checks, the time in the past included: qwen2.5:3b proposed a reminder
+    /// for the day before, and the card only failed once confirmed (2026-10-01).
+    /// </summary>
+    public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default) =>
+        await reminders.ValidateCreateAsync(new CreateReminderRequest(
+            Message: RequireString(input, "message"),
+            DueAtLocal: RequireDueAt(input),
+            GoalId: GetInt(input, "goalId"),
+            PlannerItemId: GetInt(input, "plannerItemId")), ct);
 
     private static DateTime RequireDueAt(JsonElement input)
     {

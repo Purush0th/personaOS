@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../layout.dart';
 import '../date_utils.dart';
 import 'board_screen.dart';
 
@@ -161,7 +162,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: ReadableWidth(child: Column(
         children: [
           _addBar(),
           const Divider(height: 1),
@@ -200,7 +201,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 

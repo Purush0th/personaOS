@@ -480,8 +480,10 @@ class PersonaOsApi {
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      return (body['error'] as String?) ?? 'Login failed (${response.statusCode}).';
+      // A proxy can answer with an empty or HTML body; that must still read as a wrong
+      // password, not as "could not reach the server".
+      if (response.statusCode == 401) return 'Incorrect username or password.';
+      return _errorFrom(response);
     }
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     _token = body['accessToken'] as String;

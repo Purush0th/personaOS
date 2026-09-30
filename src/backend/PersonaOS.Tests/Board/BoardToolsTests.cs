@@ -141,4 +141,29 @@ public class BoardToolsTests
         Assert.Contains("TASK-4", move);
         Assert.DoesNotContain("scope change", move);
     }
+
+    [Theory]
+    [InlineData("""{"title":"Renew passport","points":7}""", "Value points must be one of")]
+    [InlineData("""{"title":"Renew passport","priority":"urgent"}""", "Priority must be one of")]
+    [InlineData("""{"title":"  "}""", "Title must not be empty")]
+    public async Task A_task_that_cannot_be_created_never_becomes_a_card(string input, string expected)
+    {
+        var (_, board, goals) = Setup();
+
+        var ex = await Assert.ThrowsAsync<BoardValidationException>(() => new CreateTaskTool(board, goals).ValidateAsync(Json(input)));
+
+        Assert.Contains(expected, ex.Message);
+    }
+
+    [Fact]
+    public async Task Points_off_the_scale_are_refused_before_an_update_card_too()
+    {
+        var (_, board, goals) = Setup();
+        await board.CreateTaskAsync(new CreateTaskRequest("Renew passport"));
+
+        var ex = await Assert.ThrowsAsync<BoardValidationException>(
+            () => new UpdateTaskTool(board, goals).ValidateAsync(Json("""{"taskKey":"TASK-1","points":4}""")));
+
+        Assert.Contains("Value points must be one of", ex.Message);
+    }
 }

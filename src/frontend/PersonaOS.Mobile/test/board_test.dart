@@ -214,4 +214,61 @@ void main() {
       expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
     });
   });
+
+  group('board on a wide screen', () {
+    // Reported from a tablet: the board showed one column per page although there was room for
+    // all of them. What counts is the width, so a phone on its side gets the same.
+    for (final (name, size) in [
+      ('tablet portrait', const Size(800, 1280)),
+      ('tablet landscape', const Size(1280, 800)),
+      ('phone landscape', const Size(840, 390)),
+    ]) {
+      testWidgets('$name shows every column side by side', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(MaterialApp(theme: personaOsTheme, home: BoardScreen(api: FakeBoardApi())));
+        await tester.pumpAndSettle();
+
+        for (final column in [BoardColumns.todo, BoardColumns.inProgress, BoardColumns.done]) {
+          expect(find.byKey(Key('column-$column')), findsOneWidget);
+        }
+        expect(find.byType(PageView), findsNothing);
+        expect(find.byType(ChoiceChip), findsNothing);
+        final todo = tester.getRect(find.byKey(const Key('column-${BoardColumns.todo}')));
+        final done = tester.getRect(find.byKey(const Key('column-${BoardColumns.done}')));
+        expect(todo.top, done.top);
+        expect(done.left, greaterThan(todo.right));
+        expect(done.right, lessThanOrEqualTo(size.width));
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('a narrow phone keeps one column per page', (tester) async {
+      await _pumpBoard(tester, FakeBoardApi());
+
+      expect(find.byType(PageView), findsOneWidget);
+      expect(find.byType(ChoiceChip), findsWidgets);
+    });
+
+    testWidgets('a card dragged onto another column moves there on a wide screen', (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final api = FakeBoardApi();
+      await tester.pumpWidget(MaterialApp(theme: personaOsTheme, home: BoardScreen(api: api)));
+      await tester.pumpAndSettle();
+
+      final gesture = await tester.startGesture(tester.getCenter(find.byKey(const Key('card-TASK-2'))));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+      await gesture.moveBy(const Offset(20, 0));
+      await tester.pump();
+      await gesture.moveTo(tester.getCenter(find.byKey(const Key('column-${BoardColumns.done}'))));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(api.moves.single.$2, BoardColumns.done);
+    });
+  });
 }

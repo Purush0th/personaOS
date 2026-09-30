@@ -46,6 +46,9 @@ public interface IReminderService
 
     Task<ReminderDto?> GetAsync(int id, CancellationToken ct = default);
 
+    /// <summary>Throws what CreateAsync would, without saving: for the confirmation card.</summary>
+    Task ValidateCreateAsync(CreateReminderRequest request, CancellationToken ct = default);
+
     Task<ReminderDto> CreateAsync(CreateReminderRequest request, CancellationToken ct = default);
 
     Task<ReminderDto?> UpdateAsync(int id, UpdateReminderRequest request, CancellationToken ct = default);

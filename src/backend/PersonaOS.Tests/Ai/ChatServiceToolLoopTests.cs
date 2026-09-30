@@ -385,6 +385,25 @@ public class ChatServiceToolLoopTests
     }
 
     [Fact]
+    public async Task A_refused_change_the_reply_still_claims_ends_with_the_reason()
+    {
+        // Chat 9wuxkb2b: a reminder was refused, the reply said it was waiting on a card anyway,
+        // and the user only saw "nothing was saved", five times, never why.
+        var tool = new FakeTool("create_reminder", mutates: true) { ValidationError = "The reminder time must be in the future." };
+        var (_, chat, streamer) = Setup(tool);
+        streamer
+            .EnqueueToolCall("c1", "create_reminder", """{"message":"Consult a professional"}""")
+            .EnqueueText("I've created a reminder for tomorrow at 9 AM.")
+            .EnqueueText("I've created a reminder for tomorrow at 9 AM.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Remind me tomorrow at 9"));
+
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.True(done.UnverifiedClaim);
+        Assert.EndsWith("It could not be done: The reminder time must be in the future.", done.Text);
+    }
+
+    [Fact]
     public async Task A_refused_proposal_hands_the_model_the_reason()
     {
         // So it can correct the call in the same turn instead of repeating it.

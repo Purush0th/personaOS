@@ -35,10 +35,13 @@ import { BrandingService } from '../core/branding.service';
               [(ngModel)]="password"
               autocomplete="current-password"
             />
-            @if (error(); as message) {
-              <mat-error>{{ message }}</mat-error>
-            }
           </mat-form-field>
+
+          <!-- Not a mat-error: that shows only while the input itself is invalid, and a wrong
+               password leaves the input valid, so the message never appeared. -->
+          @if (error(); as message) {
+            <p class="error" role="alert">{{ message }}</p>
+          }
 
           <button mat-flat-button type="submit" [disabled]="busy()">
             {{ busy() ? 'Signing in…' : 'Sign in' }}
@@ -59,6 +62,12 @@ import { BrandingService } from '../core/branding.service';
       flex-direction: column;
       gap: 0.25rem;
       padding-top: 0.5rem;
+    }
+
+    .error {
+      margin: -0.5rem 0 0.75rem;
+      color: var(--mat-sys-error);
+      font: var(--mat-sys-body-medium);
     }
   `,
 })

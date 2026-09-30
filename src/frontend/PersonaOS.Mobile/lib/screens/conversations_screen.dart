@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../layout.dart';
 import '../date_utils.dart';
 
 /// Past conversations, most recently active first.
@@ -94,7 +95,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         icon: const Icon(Icons.add),
         label: const Text('New chat'),
       ),
-      body: FutureBuilder<List<ConversationSummary>>(
+      body: ReadableWidth(child: FutureBuilder<List<ConversationSummary>>(
         future: _conversations,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -153,7 +154,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             ),
           );
         },
-      ),
+      )),
     );
   }
 }

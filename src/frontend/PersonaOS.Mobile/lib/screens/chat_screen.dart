@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../api/personaos_api.dart';
+import '../layout.dart';
 import '../push_service.dart';
 import '../server_speech.dart';
 import '../voice_service.dart';
@@ -459,7 +460,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
         ],
       ),
-      body: Column(
+      body: ReadableWidth(maxWidth: 960, child: Column(
         children: [
           if (_handsFree) _HandsFreeBanner(listening: _listening, speaking: _speaking),
           Expanded(
@@ -536,7 +537,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

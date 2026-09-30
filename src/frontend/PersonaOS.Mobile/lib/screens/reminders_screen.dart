@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../layout.dart';
 import '../date_utils.dart';
 import '../push_service.dart';
 
@@ -79,7 +80,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
         icon: const Icon(Icons.add_alarm),
         label: const Text('New reminder'),
       ),
-      body: RefreshIndicator(
+      body: ReadableWidth(child: RefreshIndicator(
         onRefresh: () async => _reload(),
         child: FutureBuilder<List<Reminder>>(
           future: _reminders,
@@ -108,7 +109,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
             );
           },
         ),
-      ),
+      )),
     );
   }
 

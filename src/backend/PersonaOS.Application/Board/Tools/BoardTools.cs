@@ -180,8 +180,15 @@ public class CreateTaskTool(IBoardService board, IGoalService goals) : BoardTool
         }
         """;
 
+    /// <summary>
+    /// Everything creating it would refuse. The points were missing: qwen2.5:3b proposed a task with
+    /// 7 points, and the card only failed once the user confirmed it (2026-09-29).
+    /// </summary>
     public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
     {
+        BoardService.RequireTitle(GetString(input, "title"));
+        BoardService.ValidatePoints(GetInt(input, "points"));
+        BoardService.ValidatePriority(GetString(input, "priority"));
         await OptionalGoalAsync(GetKey(input, "goalKey"), ct);
         if (GetString(input, "sprintKey") is { Length: > 0 } sprintKey)
             await StartSprintTool.RequireSprintAsync(Board, sprintKey, ct);
@@ -230,6 +237,9 @@ public class UpdateTaskTool(IBoardService board, IGoalService goals) : BoardTool
     public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
     {
         await RequireTaskAsync(GetKey(input, "taskKey"), ct);
+        if (GetString(input, "title") is { } title) BoardService.RequireTitle(title);
+        BoardService.ValidatePoints(GetInt(input, "points"));
+        BoardService.ValidatePriority(GetString(input, "priority"));
         await OptionalGoalAsync(GetKey(input, "goalKey"), ct);
     }
 
@@ -336,6 +346,16 @@ public class CreateSprintTool(IBoardService board, IGoalService goals) : BoardTo
           }
         }
         """;
+
+    /// <summary>Dates that cannot be read, or an end before the start, are refused before the card.</summary>
+    public override Task ValidateAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var start = ParseLocal(input, "startsAtLocal");
+        var end = ParseLocal(input, "endsAtLocal");
+        if (start is DateTime s && end is DateTime e && e <= s)
+            throw new BoardValidationException("A sprint must end after it starts.");
+        return Task.CompletedTask;
+    }
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {

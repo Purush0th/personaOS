@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../layout.dart';
 
 /// The sprint board: To do, In progress and Done for the sprint that is running.
 ///
@@ -151,56 +152,97 @@ class _BoardScreenState extends State<BoardScreen> {
                   ? _NoSprint(plan: _plan, onReload: _reload)
                   : RefreshIndicator(
                       onRefresh: _reload,
-                      child: Column(
-                        children: [
-                          _SprintHeader(sprint: sprint, velocity: board.velocity),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 150),
-                            child: _dragging
-                                ? _DropBar(
-                                    key: const ValueKey('drop-bar'),
-                                    columns: board.visibleColumns,
-                                    onDrop: (task, column) => _move(task, column),
-                                  )
-                                : _ColumnTabs(
-                                    key: const ValueKey('tabs'),
-                                    board: board,
-                                    selected: _page,
-                                    onSelect: (i) => _pages.animateToPage(i,
-                                        duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
-                                  ),
-                          ),
-                          Expanded(
-                            child: PageView(
-                              controller: _pages,
-                              onPageChanged: (i) => setState(() => _page = i),
-                              children: [
-                                for (final column in board.visibleColumns)
-                                  _ColumnPage(
-                                    key: Key('column-$column'),
-                                    column: column,
-                                    tasks: board.columns[column]!,
-                                    overWip: column == BoardColumns.inProgress &&
-                                        board.columns[column]!.length > board.wipLimit,
-                                    wipLimit: board.wipLimit,
-                                    onOpen: (task) => _openTask(task: task),
-                                    onDragChanged: (dragging) => setState(() => _dragging = dragging),
-                                    onDropBefore: (task, before) {
-                                      final others =
-                                          board.columns[column]!.where((t) => t.key != task.key).toList();
-                                      final index = before == null
-                                          ? others.length
-                                          : others.indexWhere((t) => t.key == before.key);
-                                      _move(task, column, index: index);
-                                    },
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      // Wide enough (a tablet, or a phone on its side): every column side by side,
+                      // the way the web board shows them. Narrow: one column per page.
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => Column(
+                          children: [
+                            _SprintHeader(sprint: sprint, velocity: board.velocity),
+                            if (constraints.maxWidth >= Breakpoints.board)
+                              Expanded(
+                                child: _SideBySide(
+                                  columns: board.visibleColumns,
+                                  page: (column) => _columnPage(board, column),
+                                ),
+                              )
+                            else ...[
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 150),
+                                child: _dragging
+                                    ? _DropBar(
+                                        key: const ValueKey('drop-bar'),
+                                        columns: board.visibleColumns,
+                                        onDrop: (task, column) => _move(task, column),
+                                      )
+                                    : _ColumnTabs(
+                                        key: const ValueKey('tabs'),
+                                        board: board,
+                                        selected: _page,
+                                        onSelect: (i) => _pages.animateToPage(i,
+                                            duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
+                                      ),
+                              ),
+                              Expanded(
+                                child: PageView(
+                                  controller: _pages,
+                                  onPageChanged: (i) => setState(() => _page = i),
+                                  children: [for (final column in board.visibleColumns) _columnPage(board, column)],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
     );
+  }
+
+  Widget _columnPage(BoardView board, String column) => _ColumnPage(
+        key: Key('column-$column'),
+        column: column,
+        tasks: board.columns[column]!,
+        overWip: column == BoardColumns.inProgress && board.columns[column]!.length > board.wipLimit,
+        wipLimit: board.wipLimit,
+        onOpen: (task) => _openTask(task: task),
+        onDragChanged: (dragging) => setState(() => _dragging = dragging),
+        onDropBefore: (task, before) {
+          final others = board.columns[column]!.where((t) => t.key != task.key).toList();
+          final index = before == null ? others.length : others.indexWhere((t) => t.key == before.key);
+          _move(task, column, index: index);
+        },
+      );
+}
+
+/// Every column at once, for a wide screen. Columns share the width, but never get narrower than
+/// a card reads well; past that the row scrolls sideways instead of squeezing them.
+class _SideBySide extends StatelessWidget {
+  const _SideBySide({required this.columns, required this.page});
+
+  final List<String> columns;
+  final Widget Function(String column) page;
+
+  static const _minColumnWidth = 260.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      const padding = 8.0;
+      final fits = (constraints.maxWidth - padding * 2) / columns.length >= _minColumnWidth;
+      if (fits) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: padding),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [for (final column in columns) Expanded(child: page(column))],
+          ),
+        );
+      }
+      return ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: padding),
+        children: [for (final column in columns) SizedBox(width: _minColumnWidth, child: page(column))],
+      );
+    });
   }
 }
 
@@ -440,8 +482,12 @@ class _ColumnPage extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(4, 2, 4, 6),
               child: Row(
                 children: [
-                  Text(BoardColumns.label(column), style: Theme.of(context).textTheme.titleSmall),
-                  const Spacer(),
+                  // Side by side on a tablet a column can be narrow: the name gives way first.
+                  Expanded(
+                    child: Text(BoardColumns.label(column),
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleSmall),
+                  ),
+                  const SizedBox(width: 8),
                   Text('${tasks.length} · $points pts', style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),

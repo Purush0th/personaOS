@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../layout.dart';
 import '../auth_vault.dart';
 import '../server_speech.dart';
 
@@ -226,7 +227,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: _loading
+      body: ReadableWidth(child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
               ? Center(
@@ -443,7 +444,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ],
-                ),
+                )),
     );
   }
 }
