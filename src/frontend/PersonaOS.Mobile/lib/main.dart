@@ -12,6 +12,7 @@ import 'reminder_alarms.dart';
 import 'screens/alarm_screen.dart';
 import 'screens/board_screen.dart';
 import 'screens/chat_screen.dart';
+import 'layout.dart';
 import 'screens/documents_screen.dart';
 import 'screens/memories_screen.dart';
 import 'screens/goals_screen.dart';
@@ -473,7 +474,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           bool enabled(String feature) =>
               branding.enabledFeatures.contains(feature);
           final scheme = Theme.of(context).colorScheme;
-          return ListView(
+          return ReadableWidth(
+            maxWidth: 960,
+            child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             children: [
               _Hero(nickname: nickname),
@@ -502,55 +505,61 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-              if (enabled('goals'))
-                _ModuleCard(
-                  icon: Icons.flag_outlined,
-                  title: 'Goals',
-                  subtitle: 'What you are working towards',
-                  onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api, boardEnabled: enabled('board'))),
-                ),
-              if (enabled('board'))
-                _ModuleCard(
-                  icon: Icons.view_kanban_outlined,
-                  title: 'Board',
-                  subtitle: 'The running sprint, card by card',
-                  onTap: () => _openAfterLogin((_) => BoardScreen(api: _api)),
-                ),
-              if (enabled('planner'))
-                _ModuleCard(
-                  icon: Icons.event_note_outlined,
-                  title: 'Planner',
-                  subtitle: 'Your day, item by item',
-                  onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
-                ),
-              if (enabled('reminders'))
-                _ModuleCard(
-                  icon: Icons.alarm,
-                  title: 'Reminders',
-                  subtitle: 'Nudges at the right time',
-                  onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
-                ),
-              if (enabled('docs'))
-                _ModuleCard(
-                  icon: Icons.folder_outlined,
-                  title: 'Documents',
-                  subtitle: 'Files the assistant can read',
-                  onTap: () => _openAfterLogin((_) => DocumentsScreen(api: _api)),
-                ),
-              if (enabled('memory'))
-                _ModuleCard(
-                  icon: Icons.psychology_outlined,
-                  title: 'Memories',
-                  subtitle: 'What $nickname remembers about you',
-                  onTap: () => _openAfterLogin((_) => MemoriesScreen(api: _api)),
-                ),
-              _ModuleCard(
-                icon: Icons.tune,
-                title: 'Settings',
-                subtitle: 'Persona, provider, modules',
-                onTap: () => _openAfterLogin((_) => SettingsScreen(api: _api)),
+              // Two abreast when there is room: a tablet, or a phone on its side.
+              _ModuleGrid(
+                children: [
+                  if (enabled('goals'))
+                    _ModuleCard(
+                      icon: Icons.flag_outlined,
+                      title: 'Goals',
+                      subtitle: 'What you are working towards',
+                      onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api, boardEnabled: enabled('board'))),
+                    ),
+                  if (enabled('board'))
+                    _ModuleCard(
+                      icon: Icons.view_kanban_outlined,
+                      title: 'Board',
+                      subtitle: 'The running sprint, card by card',
+                      onTap: () => _openAfterLogin((_) => BoardScreen(api: _api)),
+                    ),
+                  if (enabled('planner'))
+                    _ModuleCard(
+                      icon: Icons.event_note_outlined,
+                      title: 'Planner',
+                      subtitle: 'Your day, item by item',
+                      onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
+                    ),
+                  if (enabled('reminders'))
+                    _ModuleCard(
+                      icon: Icons.alarm,
+                      title: 'Reminders',
+                      subtitle: 'Nudges at the right time',
+                      onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
+                    ),
+                  if (enabled('docs'))
+                    _ModuleCard(
+                      icon: Icons.folder_outlined,
+                      title: 'Documents',
+                      subtitle: 'Files the assistant can read',
+                      onTap: () => _openAfterLogin((_) => DocumentsScreen(api: _api)),
+                    ),
+                  if (enabled('memory'))
+                    _ModuleCard(
+                      icon: Icons.psychology_outlined,
+                      title: 'Memories',
+                      subtitle: 'What $nickname remembers about you',
+                      onTap: () => _openAfterLogin((_) => MemoriesScreen(api: _api)),
+                    ),
+                  _ModuleCard(
+                    icon: Icons.tune,
+                    title: 'Settings',
+                    subtitle: 'Persona, provider, modules',
+                    onTap: () => _openAfterLogin((_) => SettingsScreen(api: _api)),
+                  ),
+                ],
               ),
             ],
+            ),
           );
         },
       ),
@@ -687,6 +696,26 @@ class _Hero extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// The module cards: one per row on a narrow screen, two abreast from [Breakpoints.twoColumns].
+class _ModuleGrid extends StatelessWidget {
+  const _ModuleGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.maxWidth < Breakpoints.twoColumns) return Column(children: children);
+      const gap = 10.0;
+      final width = (constraints.maxWidth - gap) / 2;
+      return Wrap(
+        spacing: gap,
+        children: [for (final child in children) SizedBox(width: width, child: child)],
+      );
+    });
   }
 }
 

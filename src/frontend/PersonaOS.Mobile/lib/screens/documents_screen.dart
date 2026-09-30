@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../layout.dart';
 import '../date_utils.dart';
 
 /// Uploaded documents: browse, search, upload, describe, delete.
@@ -152,7 +153,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             : const Icon(Icons.upload_file),
         label: Text(_uploading ? 'Uploading…' : 'Upload'),
       ),
-      body: Column(
+      body: ReadableWidth(child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -266,7 +267,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../layout.dart';
 import '../date_utils.dart';
 
 /// What the assistant remembers across conversations: read, search, add, edit
@@ -129,7 +130,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add'),
       ),
-      body: Column(
+      body: ReadableWidth(child: Column(
         children: [
           if (autoSave != null)
             SwitchListTile(
@@ -250,7 +251,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

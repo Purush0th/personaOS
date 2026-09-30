@@ -195,6 +195,14 @@ public class ChatService(
             }
         }
 
+        // The reply still says a change is on its way, but the change was refused and nothing is
+        // waiting: say why, from the check itself. In chat 9wuxkb2b the user asked five times and
+        // only ever saw "nothing was saved", never the reason.
+        if (unverifiedClaim && request.Turn.Proposals.Count == 0 && request.Turn.Refusals.Count > 0)
+        {
+            final.Rewrite($"{final.Text.TrimEnd()}\n\nIt could not be done: {request.Turn.Refusals[^1]}");
+        }
+
         // What the user watched stream in is no longer the reply when a guard rewrote it or a
         // correction replaced it; the client must swap its bubble for the stored text.
         var replaceStreamedText = reply.Rewritten || final.Text != reply.Text;

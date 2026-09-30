@@ -21,7 +21,7 @@ public class AuthController(IAuthService authService) : ControllerBase
 
         var result = await authService.LoginAsync(request.Username, request.Password, ct);
         if (result is null)
-            return Unauthorized(new { error = "Invalid username or password." });
+            return Unauthorized(new { error = "Incorrect username or password." });
 
         return Ok(new LoginResponse(result.AccessToken, result.ExpiresAtUtc, result.Username));
     }

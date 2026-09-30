@@ -6,12 +6,18 @@ namespace PersonaOS.Tests.Ai.Prompts;
 
 public class PromptLibraryTests
 {
-    private const string DefaultClock = "The user's time zone is Asia/Kolkata, where today is 2026-09-23.";
+    private const string DefaultClock =
+        "The user's time zone is Asia/Kolkata, where today is 2026-09-23 and the time is 20:40. Tomorrow is 2026-09-24. "
+        + "Use these dates for \"today\", \"tomorrow\" and weekdays; never work a date out yourself:\n"
+        + "- Wednesday 2026-09-23 (today)\n- Thursday 2026-09-24 (tomorrow)";
 
     private static readonly Dictionary<string, object?> Clock = new()
     {
         ["timeZone"] = "Asia/Kolkata",
         ["today"] = "2026-09-23",
+        ["now"] = "20:40",
+        ["tomorrow"] = "2026-09-24",
+        ["week"] = new List<string> { "Wednesday 2026-09-23 (today)", "Thursday 2026-09-24 (tomorrow)" },
     };
 
     private readonly FakePromptOverrides _overrides = new();

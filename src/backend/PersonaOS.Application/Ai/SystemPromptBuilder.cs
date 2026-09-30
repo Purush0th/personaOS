@@ -78,7 +78,16 @@ public class SystemPromptBuilder(
         // before the conversation: a small model follows the nearest instruction best.
         var mode = ChatModes.Parse(request?.Mode) ?? ChatModes.Chat;
 
-        sections.Add(fragments.Render("clock", ("timeZone", config.TimeZone), ("today", today.ToString("yyyy-MM-dd"))));
+        var now = UserClock.ToLocal(DateTime.UtcNow, config.TimeZone);
+        sections.Add(fragments.Render("clock",
+            ("timeZone", config.TimeZone),
+            ("today", today.ToString("yyyy-MM-dd")),
+            ("now", now.ToString("HH:mm")),
+            ("tomorrow", today.AddDays(1).ToString("yyyy-MM-dd")),
+            ("week", Enumerable.Range(0, 7)
+                .Select(d => today.AddDays(d))
+                .Select(d => $"{d.ToString("dddd yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}{(d == today ? " (today)" : d == today.AddDays(1) ? " (tomorrow)" : string.Empty)}")
+                .ToList())));
 
         if (config.IsEnabled(InstanceConfig.Modules.Goals)) sections.Add(await GoalsAsync(fragments, ct));
         if (config.IsEnabled(InstanceConfig.Modules.Board)) sections.Add(await BoardAsync(fragments, config, ct));

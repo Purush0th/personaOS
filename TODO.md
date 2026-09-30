@@ -212,6 +212,23 @@ it is not under a parent.
       switches in Settings; falls back to device speech when the server cannot. Verified end to end
       against a mock OpenAI-style server (test, speak, transcribe, bad key); **not yet tried with
       a real faster-whisper/Kokoro server or on a real phone**.
+- [x] **Owner follow-ups (2026-10-01, deployed)**. P4–P6 deployed (live backup first:
+      `data/backups/pre-p456-2026-10-01`); memory wins over About you (kept as built).
+      - Cards refused up front instead of failing after Confirm: create/update_task check title,
+        points (Fibonacci) and priority; create_sprint checks its dates; create_reminder runs the
+        service checks, a time in the past included (`IReminderService.ValidateCreateAsync`).
+      - Wrong password: the web put the message in a `mat-error`, which only shows for an invalid
+        input, so nothing appeared; now a `role="alert"` line. Phone reads any 401 as a wrong
+        password (an HTML/empty body used to say "could not reach the server").
+      - Chat `9wuxkb2b`: the model worked "tomorrow" out as 2026-10-01 on 2026-09-29, then kept
+        saying a reminder waited on a card when the call had been refused. The clock fragment now
+        states the time, tomorrow and the next 7 dates; a refused change the reply still claims
+        ends with "It could not be done: <reason>". Live replay: tomorrow right, past refused.
+      - Tablet/landscape: phone board shows all columns side by side from 720 px wide
+        (portrait tablet, landscape phone); list screens keep a readable 840 px width; the home
+        screen goes two abreast from 640 px; `layout_sweep_test` pumps 8 screens at 4 sizes. Web
+        board lanes now share the width (min 220 px) instead of a fixed 280 px, so a 1024 px
+        landscape tablet shows all three.
 
 ## AI layer refactor (raised by the owner 2026-09-21)
 
