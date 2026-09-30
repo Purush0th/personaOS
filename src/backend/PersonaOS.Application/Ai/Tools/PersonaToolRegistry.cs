@@ -11,20 +11,27 @@ public class PersonaToolRegistry(
     IInstanceConfigService configService,
     ILogger<PersonaToolRegistry> logger) : IPersonaToolRegistry
 {
-    public async Task<IReadOnlyList<AiToolDefinition>> GetEnabledToolDefinitionsAsync(CancellationToken ct = default)
+    public Task<IReadOnlyList<AiToolDefinition>> GetEnabledToolDefinitionsAsync(CancellationToken ct = default) =>
+        GetEnabledToolDefinitionsAsync(includeWrites: true, ct);
+
+    public async Task<IReadOnlyList<AiToolDefinition>> GetEnabledToolDefinitionsAsync(bool includeWrites, CancellationToken ct = default)
     {
         var enabled = await GetEnabledToolsAsync(ct);
-        return enabled.Select(t => new AiToolDefinition(t.Name, t.Description, t.InputSchemaJson)).ToList();
+        return enabled
+            .Where(t => includeWrites || !t.Mutates)
+            .Select(t => new AiToolDefinition(t.Name, t.Description, t.InputSchemaJson))
+            .ToList();
     }
 
     public async Task<IReadOnlySet<string>> GetMutatingToolNamesAsync(CancellationToken ct = default)
     {
+        var config = await configService.GetOrCreateAsync(ct);
         var enabled = await GetEnabledToolsAsync(ct);
         // Only enabled tools appear here, so an unknown or disabled name is absent and falls
         // through to ExecuteAsync, which returns a clear error. Gating it instead would show
         // the user a confirm card for an action that cannot happen, and tell the model nothing.
         // There is no safety cost: ExecuteAsync refuses to run anything not in this list.
-        return enabled.Where(t => t.Mutates).Select(t => t.Name).ToHashSet();
+        return enabled.Where(t => t.NeedsConfirmation(config)).Select(t => t.Name).ToHashSet();
     }
 
     public async Task<AiToolResult> ExecuteAsync(AiToolCall call, CancellationToken ct = default)
@@ -115,10 +122,7 @@ public class PersonaToolRegistry(
     private async Task<IReadOnlyList<IPersonaTool>> GetEnabledToolsAsync(CancellationToken ct)
     {
         var config = await configService.GetOrCreateAsync(ct);
-        return tools
-            .Where(t => t.RequiredFeature is null
-                || config.IsEnabled(t.RequiredFeature))
-            .ToList();
+        return tools.Where(t => t.IsOffered(config)).ToList();
     }
 
     private static AiToolResult Error(AiToolCall call, string message) =>

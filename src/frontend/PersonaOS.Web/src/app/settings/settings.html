@@ -171,4 +171,12 @@
   </form>
 }
 
+@if (branding.isEnabled('memory')) {
+  <app-memories />
+}
+
 <app-push-config />
+
+@if (branding.isEnabled('voice')) {
+  <app-speech-config />
+}

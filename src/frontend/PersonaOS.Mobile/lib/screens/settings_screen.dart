@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../auth_vault.dart';
+import '../server_speech.dart';
 
 /// Module keys the server accepts. Unknown keys are ignored server-side, and
 /// this list matches the web app's so the two screens cannot drift apart.
@@ -11,6 +12,7 @@ const _modules = <String, String>{
   'planner': 'Planner',
   'reminders': 'Reminders',
   'docs': 'Documents',
+  'memory': 'Memory',
   'voice': 'Voice',
   'proactive': 'Proactive briefs',
 };
@@ -72,6 +74,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _vault = AuthVault();
   bool _hasSavedSignIn = false;
 
+  /// What the server's speech service can do, and which the user chose for this phone.
+  SpeechStatus? _speech;
+  VoicePrefs _voicePrefs = VoicePrefs();
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +85,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _vault.hasSavedCredentials.then((saved) {
       if (mounted) setState(() => _hasSavedSignIn = saved);
     });
+    _loadVoice();
+  }
+
+  /// The voice choices are this phone's, not the server's: read apart from the
+  /// settings, and a server without a speech service simply shows none.
+  Future<void> _loadVoice() async {
+    try {
+      final (status, prefs) = await (widget.api.getSpeechStatus(), VoicePrefs.load()).wait;
+      if (mounted) {
+        setState(() {
+          _speech = status;
+          _voicePrefs = prefs;
+        });
+      }
+    } catch (_) {
+      // Older server, or none set up: the phone's own speech is all there is.
+    }
+  }
+
+  Future<void> _setVoice({bool? serverStt, bool? serverTts}) async {
+    await VoicePrefs.save(serverStt: serverStt, serverTts: serverTts);
+    final prefs = await VoicePrefs.load();
+    if (mounted) setState(() => _voicePrefs = prefs);
   }
 
   Future<void> _forgetSignIn() async {
@@ -366,6 +395,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onPressed: _saving ? null : _save,
                       child: Text(_saving ? 'Saving…' : 'Save settings'),
                     ),
+
+                    if ((_features['voice'] ?? false) && _speech != null) ...[
+                      const _SectionLabel('Voice on this phone'),
+                      Card(
+                        child: Column(
+                          children: [
+                            SwitchListTile(
+                              title: const Text("Hear me with the server's speech service"),
+                              subtitle: Text(_speech!.speechToText
+                                  ? 'Off: the phone recognises speech itself.'
+                                  : 'Not set up on the server (web Settings → Speech service).'),
+                              value: _voicePrefs.serverStt && _speech!.speechToText,
+                              onChanged: _speech!.speechToText ? (on) => _setVoice(serverStt: on) : null,
+                            ),
+                            SwitchListTile(
+                              title: const Text("Read replies in the server's voice"),
+                              subtitle: Text(_speech!.textToSpeech
+                                  ? "Off: the phone's own voice reads them."
+                                  : 'Not set up on the server (web Settings → Speech service).'),
+                              value: _voicePrefs.serverTts && _speech!.textToSpeech,
+                              onChanged: _speech!.textToSpeech ? (on) => _setVoice(serverTts: on) : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     if (_hasSavedSignIn) ...[
                       const _SectionLabel('Sign-in'),

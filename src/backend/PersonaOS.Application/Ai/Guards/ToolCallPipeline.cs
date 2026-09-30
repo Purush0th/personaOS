@@ -9,6 +9,8 @@ namespace PersonaOS.Application.Ai.Guards;
 /// <list type="number">
 /// <item><see cref="ArgumentEnvelopeGuard"/> unwraps arguments a model nested in an envelope, so
 /// everything after it sees the real fields.</item>
+/// <item><see cref="OfferedToolGuard"/> refuses a tool that was not offered this turn, such as a
+/// write tool in Brainstorm, which would otherwise still become a card.</item>
 /// <item><see cref="RepeatedCallGuard"/> answers a call already made this turn from memory.</item>
 /// <item><see cref="ConfirmationGate"/> turns a call that would change the user's data into a card,
 /// after checking the call names things that exist.</item>
@@ -21,6 +23,7 @@ public sealed class ToolCallPipeline(IPersonaToolRegistry registry, ILogger<Tool
     private readonly IToolCallGuard[] _guards =
     [
         new ArgumentEnvelopeGuard(),
+        new OfferedToolGuard(),
         new RepeatedCallGuard(),
         new ConfirmationGate(registry),
     ];

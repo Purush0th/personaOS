@@ -130,6 +130,8 @@ public sealed partial class CardInstructionGuard : IReplyGuard
 /// </summary>
 public sealed class ClaimCheckGuard : IReplyGuard
 {
+    private const string MemoryTool = "create_memory";
+
     public string Name => "claim-check";
 
     public ValueTask<string?> ReviewAsync(ReplyDraft draft, CancellationToken ct)
@@ -137,6 +139,16 @@ public sealed class ClaimCheckGuard : IReplyGuard
         draft.UnbackedClaim = draft.Turn.Proposals.Count == 0
             ? ActionClaimDetector.FindClaim(draft.Text)
             : ActionClaimDetector.FindDoneClaim(draft.Text);
+
+        // "I'll remember that" is a claim too when memory is on and nothing was remembered: the
+        // correction round then asks for the create_memory call it promised.
+        if (draft.UnbackedClaim is null
+            && draft.Turn.ToolNames.Contains(MemoryTool)
+            && !draft.Turn.Receipts.Any(r => r.Ok && r.Tool is MemoryTool or "update_memory")
+            && !draft.Turn.Proposals.Any(p => p.ToolName is MemoryTool or "update_memory"))
+        {
+            draft.UnbackedClaim = ActionClaimDetector.FindMemoryClaim(draft.Text);
+        }
 
         return ValueTask.FromResult(draft.UnbackedClaim is null
             ? null
@@ -234,6 +246,10 @@ internal static partial class ReplySentences
 
     [GeneratedRegex(@"\n{3,}")]
     private static partial Regex ExtraBlankLines();
+
+    /// <summary>The reply's sentences, each trimmed; lines count as sentences.</summary>
+    public static IEnumerable<string> Split(string text) =>
+        SentenceBreak().Split(text).Select(s => s.Trim()).Where(s => s.Length > 0);
 
     /// <summary>
     /// The reply without the sentences <paramref name="drop"/> matches; null when nothing matched,

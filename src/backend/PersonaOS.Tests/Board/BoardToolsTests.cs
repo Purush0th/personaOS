@@ -71,6 +71,24 @@ public class BoardToolsTests
     }
 
     [Fact]
+    public async Task The_sprint_report_says_its_counts_in_words()
+    {
+        // qwen2.5:3b read "taskCount": 1, "unestimatedCount": 0 as one unestimated task.
+        var (_, board, goals) = Setup();
+        var sprint = await board.CreateSprintAsync(new CreateSprintRequest("Week one"));
+        await board.CreateTaskAsync(new CreateTaskRequest("Strength", Points: 3, SprintKey: sprint.Key));
+        await board.StartSprintAsync(sprint.Id);
+
+        var report = await new GetSprintReportTool(board, goals).ExecuteAsync(Json("{}"));
+        var boardJson = await new GetBoardTool(board, goals).ExecuteAsync(Json("{}"));
+
+        Assert.Contains("\"unestimated\":\"none: every task has value points\"", report);
+        Assert.Contains("\"tasks\":\"1 task, 0 done\"", report);
+        Assert.DoesNotContain("unestimatedCount", report);
+        Assert.Contains("none: every task has value points", boardJson);
+    }
+
+    [Fact]
     public async Task Move_and_update_tools_take_task_keys()
     {
         var (_, board, goals) = Setup();

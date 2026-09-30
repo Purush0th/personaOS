@@ -59,6 +59,15 @@ public static class DependencyInjection
         services.AddKeyedSingleton<ISecretProtector>(SecretPurposes.PushCredentials, (sp, _) =>
             new DataProtectionSecretProtector(
                 sp.GetRequiredService<IDataProtectionProvider>(), SecretPurposes.PushCredentials));
+        services.AddKeyedSingleton<ISecretProtector>(SecretPurposes.SpeechApiKey, (sp, _) =>
+            new DataProtectionSecretProtector(
+                sp.GetRequiredService<IDataProtectionProvider>(), SecretPurposes.SpeechApiKey));
+        // Optional speech service: one adapter for both directions of the OpenAI-style audio API.
+        // Transcribing a long recording on a CPU can take a while, so the request's own
+        // cancellation bounds it rather than HttpClient's 100-second default.
+        services.AddSingleton(_ => new PersonaOS.Infrastructure.Speech.OpenAiSpeechClient(new HttpClient { Timeout = TimeSpan.FromMinutes(5) }));
+        services.AddSingleton<ISpeechToText>(sp => sp.GetRequiredService<PersonaOS.Infrastructure.Speech.OpenAiSpeechClient>());
+        services.AddSingleton<ITextToSpeech>(sp => sp.GetRequiredService<PersonaOS.Infrastructure.Speech.OpenAiSpeechClient>());
         // AI providers: concrete adapters + a factory that selects one per InstanceConfig.
         services.AddSingleton<AnthropicMessageStreamer>();
         services.AddSingleton<OpenAiCompatibleMessageStreamer>();

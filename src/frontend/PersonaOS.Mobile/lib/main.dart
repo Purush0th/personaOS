@@ -13,6 +13,7 @@ import 'screens/alarm_screen.dart';
 import 'screens/board_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/documents_screen.dart';
+import 'screens/memories_screen.dart';
 import 'screens/goals_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/planner_screen.dart';
@@ -535,6 +536,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   title: 'Documents',
                   subtitle: 'Files the assistant can read',
                   onTap: () => _openAfterLogin((_) => DocumentsScreen(api: _api)),
+                ),
+              if (enabled('memory'))
+                _ModuleCard(
+                  icon: Icons.psychology_outlined,
+                  title: 'Memories',
+                  subtitle: 'What $nickname remembers about you',
+                  onTap: () => _openAfterLogin((_) => MemoriesScreen(api: _api)),
                 ),
               _ModuleCard(
                 icon: Icons.tune,

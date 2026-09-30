@@ -1,3 +1,5 @@
+using PersonaOS.Domain.Entities;
+
 namespace PersonaOS.Application.Ai;
 
 /// <summary>
@@ -35,7 +37,7 @@ public record PendingActionDto(
     bool? ResultOk);
 
 public record ConversationSummary(
-    int Id, string PublicId, string Title, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
+    int Id, string PublicId, string Title, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string Mode = ChatModes.Chat);
 
 public record ChatMessageDto(
     long Id, string Role, string Content, int? InputTokens, int? OutputTokens, DateTime CreatedAtUtc,
@@ -45,7 +47,8 @@ public record ChatMessageDto(
     IReadOnlyList<string>? UnknownItems = null);
 
 public record ConversationDetail(
-    int Id, string PublicId, string Title, DateTime CreatedAtUtc, IReadOnlyList<ChatMessageDto> Messages);
+    int Id, string PublicId, string Title, DateTime CreatedAtUtc, IReadOnlyList<ChatMessageDto> Messages,
+    string Mode = ChatModes.Chat);
 
 public interface IChatService
 {
@@ -53,9 +56,11 @@ public interface IChatService
     /// Sends a user message in a conversation (creating one when null) and streams
     /// the assistant's reply. Persists both sides of the exchange with token usage.
     /// </summary>
+    /// <param name="mode">One of <see cref="ChatModes"/>; null keeps the conversation's current mode.</param>
     IAsyncEnumerable<ChatStreamEvent> StreamChatAsync(
         int? conversationId,
         string userMessage,
+        string? mode = null,
         CancellationToken ct = default);
 
     Task<IReadOnlyList<ConversationSummary>> ListConversationsAsync(CancellationToken ct = default);

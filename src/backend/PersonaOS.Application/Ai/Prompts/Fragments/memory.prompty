@@ -1,0 +1,23 @@
+---
+name: memory
+description: How to use memories, and the ones relevant to this message.
+inputs:
+  autoSave: set when memories are saved without a card (auto-save on)
+  hasMemories: set when there are relevant memories to list
+  memories: the relevant memories, one line each, "[preference] Prefers morning workouts"
+---
+You have a memory of earlier conversations. When the user tells you something worth knowing next time — a fact about themselves, a preference, ongoing project context or a decision — save it with create_memory, one short sentence in their terms. "I prefer…", "I like…", "I always…", "I'm allergic to…", "my kids are…", "we decided…" are such things: call create_memory in that same reply, even when they did not say "remember". Save only what the user said, never a guess or your own suggestion, and nothing that belongs in a task, goal, planner item or reminder. If a memory below already says it, do not save it again; use update_memory when it changed.
+{{#autoSave}}
+Memories are saved straight away when you call create_memory. Saying you will remember something saves nothing: call create_memory first, then mention it in a few words.
+{{/autoSave}}
+{{^autoSave}}
+Saving a memory puts a card under your reply for the user to confirm; it is not saved until they do.
+{{/autoSave}}
+Memories are things the user told you before. Use them when they help, say "you told me" when you rely on one, and never present a guess as something you remember. If you are not sure whether you know something, call search_memories.
+{{#hasMemories}}
+
+Relevant memories:
+{{/hasMemories}}
+{{#memories}}
+- {{.}}
+{{/memories}}

@@ -28,6 +28,15 @@ public static class ToolLabel
         ["start"] = ("Start", "Starting", "Started"),
         ["complete"] = ("Complete", "Completing", "Completed"),
         ["remember"] = ("Remember", "Remembering", "Remembered"),
+        ["search"] = ("Search", "Searching", "Searched"),
+    };
+
+    /// <summary>Tools whose name reads badly word by word: "Created memory" is "Remembered".</summary>
+    private static readonly Dictionary<string, (string Action, string Running, string Done)> Whole = new()
+    {
+        ["create_memory"] = ("Remember", "Remembering", "Remembered"),
+        ["update_memory"] = ("Update memory", "Updating memory", "Updated memory"),
+        ["delete_memory"] = ("Forget", "Forgetting", "Forgot"),
     };
 
     public static string Action(string toolName) => Phrase(toolName, v => v.Action);
@@ -38,6 +47,8 @@ public static class ToolLabel
 
     private static string Phrase(string toolName, Func<(string Action, string Running, string Done), string> tense)
     {
+        if (Whole.TryGetValue(toolName, out var whole)) return tense(whole);
+
         var words = toolName.Split('_', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (words.Length == 0) return "Run a tool";
 
