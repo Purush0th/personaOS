@@ -5,6 +5,7 @@ import '../date_utils.dart';
 import '../goal_calendar.dart';
 import '../goal_tree.dart';
 import 'board_screen.dart';
+import 'goal_view.dart';
 import 'timeline_screen.dart';
 
 /// Goals, with two tabs as on the web: Goals and Timeline. On Goals the years, their quarters and
@@ -152,7 +153,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
           physics: const NeverScrollableScrollPhysics(),
           children: [
             _goalsTab(),
-            TimelineView(goals: _goals, today: _today),
+            TimelineView(goals: _goals, today: _today, api: widget.api),
           ],
         ),
       ),
@@ -221,6 +222,13 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           onFold: () => setState(() {
                             if (!_collapsed.remove(row.goal.id)) _collapsed.add(row.goal.id);
                           }),
+                          onOpen: () async {
+                            await showGoalQuickView(context, widget.api, row.goal.key);
+                            _reload();
+                          },
+                          onOpenTask: (task) async {
+                            if (await showTaskQuickView(context, widget.api, task.key)) _reload();
+                          },
                           onAddTask: () => _addTask(row.goal),
                           onAddChild: () => _newGoal(goals, parent: row.goal),
                           onTaskAction: _taskAction,
@@ -250,6 +258,8 @@ String? _childTypeToAdd(Goal goal) {
 class _GoalTile extends StatelessWidget {
   const _GoalTile({
     super.key,
+    required this.onOpen,
+    required this.onOpenTask,
     required this.goal,
     required this.depth,
     required this.today,
@@ -277,6 +287,12 @@ class _GoalTile extends StatelessWidget {
   final VoidCallback onFold;
   final VoidCallback onAddTask;
   final VoidCallback onAddChild;
+
+  /// The goal's quick view, from its key or title.
+  final VoidCallback onOpen;
+
+  /// A task's quick view, from its row.
+  final ValueChanged<GoalTaskSummary> onOpenTask;
 
   /// Reopen or delete one of the goal's tasks.
   final void Function(GoalTaskSummary task, String action) onTaskAction;
@@ -323,9 +339,22 @@ class _GoalTile extends StatelessWidget {
                           size: 20, semanticLabel: '${collapsed ? 'Expand' : 'Collapse'} ${goal.key}'),
                     ),
                   ),
-                Text(goal.key, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
-                const SizedBox(width: 8),
-                Expanded(child: Text(goal.title, style: const TextStyle(fontWeight: FontWeight.w600))),
+                Expanded(
+                  child: InkWell(
+                    key: Key('open-${goal.key}'),
+                    onTap: onOpen,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Row(
+                      children: [
+                        Text(goal.key,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.primary, decoration: TextDecoration.underline)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(goal.title, style: const TextStyle(fontWeight: FontWeight.w600))),
+                      ],
+                    ),
+                  ),
+                ),
                 Chip(
                   label: Text(goal.slot),
                   visualDensity: VisualDensity.compact,
@@ -390,13 +419,26 @@ class _GoalTile extends StatelessWidget {
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: [
-          Text(task.key, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
-          const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              task.title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                decoration: task.column == BoardColumns.done ? TextDecoration.lineThrough : null,
+            child: InkWell(
+              key: Key('open-${task.key}'),
+              onTap: () => onOpenTask(task),
+              borderRadius: BorderRadius.circular(6),
+              child: Row(
+                children: [
+                  Text(task.key,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary, decoration: TextDecoration.underline)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      task.title,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        decoration: task.column == BoardColumns.done ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

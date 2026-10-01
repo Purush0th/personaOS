@@ -62,11 +62,11 @@
         } @else {
           <span class="fold" aria-hidden="true"></span>
         }
-        <a class="key key-link" [routerLink]="['/goals', goal.key]">{{ goal.key }}</a>
+        <a class="key key-link" [routerLink]="[]" [queryParams]="{ goal: goal.key }" queryParamsHandling="merge">{{ goal.key }}</a>
         <span class="title" [title]="goal.title">{{ goal.title }}</span>
       </div>
       <div class="track" [style.grid-row]="i + 2" [class.lane-first]="row.laneFirst" [class.lane-last]="row.laneLast">
-        <a class="bar" [routerLink]="['/goals', goal.key]"
+        <a class="bar" [routerLink]="[]" [queryParams]="{ goal: goal.key }" queryParamsHandling="merge"
            [class.completed]="goal.status === 'completed'" [class.overdue]="overdue(goal)"
            [attr.data-type]="goal.periodType"
            [style.left.%]="row.left" [style.width.%]="row.width"

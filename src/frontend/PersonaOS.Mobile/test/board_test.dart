@@ -79,6 +79,9 @@ class FakeBoardApi extends PersonaOsApi {
   }
 }
 
+/// The one-column-per-page pager of a narrow board (the tab view is a PageView too).
+final _columnPager = find.byWidgetPredicate((w) => w is PageView && (w.controller?.viewportFraction ?? 1) < 1);
+
 Future<void> _pumpBoard(WidgetTester tester, PersonaOsApi api) async {
   tester.view.physicalSize = const Size(1080, 2340);
   tester.view.devicePixelRatio = 2.75;
@@ -164,7 +167,7 @@ void main() {
       await _pumpBoard(tester, FakeBoardApi(running: false));
 
       expect(find.text('No sprint is running.'), findsOneWidget);
-      expect(find.textContaining('Backlog page'), findsOneWidget);
+      expect(find.textContaining('Backlog tab'), findsOneWidget);
     });
 
     testWidgets('dragging a card onto a column moves it there', (tester) async {
@@ -235,7 +238,7 @@ void main() {
         for (final column in [BoardColumns.todo, BoardColumns.inProgress, BoardColumns.done]) {
           expect(find.byKey(Key('column-$column')), findsOneWidget);
         }
-        expect(find.byType(PageView), findsNothing);
+        expect(_columnPager, findsNothing);
         expect(find.byType(ChoiceChip), findsNothing);
         final todo = tester.getRect(find.byKey(const Key('column-${BoardColumns.todo}')));
         final done = tester.getRect(find.byKey(const Key('column-${BoardColumns.done}')));
@@ -249,7 +252,7 @@ void main() {
     testWidgets('a narrow phone keeps one column per page', (tester) async {
       await _pumpBoard(tester, FakeBoardApi());
 
-      expect(find.byType(PageView), findsOneWidget);
+      expect(_columnPager, findsOneWidget);
       expect(find.byType(ChoiceChip), findsWidgets);
     });
 

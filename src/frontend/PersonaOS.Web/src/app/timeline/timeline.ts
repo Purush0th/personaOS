@@ -8,6 +8,7 @@ import { RouterLink } from '@angular/router';
 
 import { Confirm } from '../core/confirm';
 import { PageTabs } from '../shared/page-tabs';
+import { openTaskFromQuery } from '../board/task-dialog';
 import { PERIOD_LABELS, formatGoalRange, monthName } from '../core/goal-calendar';
 import { Goal, GoalsService, TreeRow, treeRows, unfolded } from '../core/goals.service';
 import { todayLocal } from '../core/local-date';
@@ -108,7 +109,17 @@ export class Timeline implements OnInit {
 
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
 
+  constructor() {
+    // A goal opens over the timeline; its dates or progress may change there, so read them again.
+    openTaskFromQuery(() => void this.load());
+  }
+
   async ngOnInit(): Promise<void> {
+    await this.load();
+    setTimeout(() => this.scrollToToday());
+  }
+
+  private async load(): Promise<void> {
     try {
       this.goals.set(await this.goalsApi.getAll());
     } catch {
@@ -116,7 +127,6 @@ export class Timeline implements OnInit {
     } finally {
       this.loading.set(false);
     }
-    setTimeout(() => this.scrollToToday());
   }
 
   /** When the year is wider than the screen, starts the view a month before today. */
