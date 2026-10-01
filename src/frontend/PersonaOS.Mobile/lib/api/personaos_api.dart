@@ -310,31 +310,6 @@ class ChatMode {
   static ChatMode of(String id) => all.firstWhere((m) => m.id == id, orElse: () => all.first);
 }
 
-/// An uploaded document.
-class DocumentDto {
-  DocumentDto({
-    required this.id,
-    required this.fileName,
-    required this.sizeBytes,
-    required this.createdAtUtc,
-    this.description,
-  });
-
-  factory DocumentDto.fromJson(Map<String, dynamic> json) => DocumentDto(
-        id: json['id'] as int,
-        fileName: json['fileName'] as String? ?? '',
-        sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
-        createdAtUtc: parseServerUtc(json['createdAtUtc'] as String),
-        description: json['description'] as String?,
-      );
-
-  final int id;
-  final String fileName;
-  final int sizeBytes;
-  final DateTime createdAtUtc;
-  final String? description;
-}
-
 /// Something the assistant remembers across conversations.
 class MemoryDto {
   MemoryDto({
@@ -377,15 +352,46 @@ class MemoryDto {
 
 /// Whether the server has a speech service for each direction.
 class SpeechStatus {
-  SpeechStatus({required this.speechToText, required this.textToSpeech});
+  SpeechStatus({
+    required this.speechToText,
+    required this.textToSpeech,
+    this.baseUrl,
+    this.sttModel,
+    this.ttsModel,
+    this.ttsVoice,
+    this.hasApiKey = false,
+  });
 
   factory SpeechStatus.fromJson(Map<String, dynamic> json) => SpeechStatus(
         speechToText: json['speechToText'] as bool? ?? false,
         textToSpeech: json['textToSpeech'] as bool? ?? false,
+        baseUrl: json['baseUrl'] as String?,
+        sttModel: json['sttModel'] as String?,
+        ttsModel: json['ttsModel'] as String?,
+        ttsVoice: json['ttsVoice'] as String?,
+        hasApiKey: json['hasApiKey'] as bool? ?? false,
       );
 
   final bool speechToText;
   final bool textToSpeech;
+  final String? baseUrl;
+  final String? sttModel;
+  final String? ttsModel;
+  final String? ttsVoice;
+
+  /// The key itself never comes back, only whether one is stored.
+  final bool hasApiKey;
+}
+
+/// Whether push is set up on the server, and for which Firebase project.
+class PushStatus {
+  PushStatus({required this.configured, this.projectId});
+
+  factory PushStatus.fromJson(Map<String, dynamic> json) =>
+      PushStatus(configured: json['configured'] as bool? ?? false, projectId: json['projectId'] as String?);
+
+  final bool configured;
+  final String? projectId;
 }
 
 /// Firebase client options for this install's own Firebase project. Identifiers, not secrets.
@@ -531,6 +537,17 @@ class PersonaOsApi {
         'month': ?month,
       });
 
+  /// Title, description (empty clears it) and priority; null leaves a field as it is.
+  Future<void> updateGoal(int id, {String? title, String? description, String? priority}) =>
+      _put('/api/goals/$id', {
+        'title': ?title,
+        if (description != null && description.trim().isEmpty)
+          'clearDescription': true
+        else
+          'description': ?description,
+        'priority': ?priority,
+      });
+
   Future<void> setGoalProgress(int id, int progress) =>
       _put('/api/goals/$id', {'progress': progress});
 
@@ -618,6 +635,7 @@ class PersonaOsApi {
   /// [sprintKey] like "SPRINT-2"; omit it to put the task in the backlog.
   Future<void> createTask({
     required String title,
+    String? priority,
     int? points,
     int? goalId,
     String? sprintKey,
@@ -625,6 +643,7 @@ class PersonaOsApi {
   }) =>
       _post('/api/board/tasks', {
         'title': title,
+        'priority': ?priority,
         'points': ?points,
         'goalId': ?goalId,
         'sprintKey': ?sprintKey,
@@ -632,9 +651,11 @@ class PersonaOsApi {
       });
 
   /// [description] null leaves it as it is; an empty one clears it.
-  Future<void> updateTask(String key, {String? title, int? points, int? goalId, String? description}) =>
+  Future<void> updateTask(String key,
+          {String? title, int? points, int? goalId, String? description, String? priority}) =>
       _put('/api/board/tasks/$key', {
         'title': ?title,
+        'priority': ?priority,
         'points': ?points,
         'clearPoints': points == null,
         'goalId': ?goalId,
@@ -648,6 +669,79 @@ class PersonaOsApi {
   /// One task as it is now, for a quick view or its page.
   Future<BoardTask> getTask(String key) async =>
       BoardTask.fromJson((await _get('/api/board/tasks/$key') as Map<String, dynamic>)['task'] as Map<String, dynamic>);
+
+  // --- Attachments on tasks and goals ([itemType] is "task" or "goal") ----
+
+  Future<List<WorkItemAttachment>> getAttachments(String itemType, String key) async {
+    final data = await _get('/api/items/$itemType/$key/attachments') as List<dynamic>;
+    return data.map((e) => WorkItemAttachment.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Uploads a file as multipart/form-data, the shape the server's `IFormFile` expects.
+  Future<void> uploadAttachment(String itemType, String key, {required String filePath, required String fileName}) async {
+    final request = http.MultipartRequest('POST', Uri.parse('$serverUrl/api/items/$itemType/$key/attachments'));
+    if (_token != null) request.headers['Authorization'] = 'Bearer $_token';
+    request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
+    final http.Response response;
+    try {
+      response = await http.Response.fromStream(await request.send().timeout(const Duration(seconds: 120)));
+    } on TimeoutException {
+      throw ApiException('The upload took too long.');
+    }
+    if (response.statusCode == 401) {
+      _token = null;
+      throw ApiException('Session expired. Log in again.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException(_errorFrom(response));
+  }
+
+  /// The file's bytes, to save on the phone.
+  Future<List<int>> downloadAttachment(int id) async {
+    final http.Response response;
+    try {
+      response = await http
+          .get(Uri.parse('$serverUrl/api/items/attachments/$id/download'), headers: _headers)
+          .timeout(const Duration(seconds: 120));
+    } on TimeoutException {
+      throw ApiException('The download took too long.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) throw ApiException(_errorFrom(response));
+    return response.bodyBytes;
+  }
+
+  Future<void> deleteAttachment(int id) => _delete('/api/items/attachments/$id');
+
+  // --- Push and speech setup (admin) --------------------------------------
+
+  Future<PushStatus> getPushStatus() async => PushStatus.fromJson(await _get('/api/setup/push') as Map<String, dynamic>);
+
+  /// The two Firebase files' contents; the server checks they belong to the same project.
+  Future<PushStatus> setPushConfig({required String serviceAccountJson, required String googleServicesJson}) async =>
+      PushStatus.fromJson(await _put('/api/setup/push', {
+        'serviceAccountJson': serviceAccountJson,
+        'googleServicesJson': googleServicesJson,
+      }) as Map<String, dynamic>);
+
+  Future<void> clearPushConfig() => _delete('/api/setup/push');
+
+  /// Blank fields clear; a null field is left as it is (the key included).
+  Future<SpeechStatus> updateSpeech({String? baseUrl, String? sttModel, String? ttsModel, String? ttsVoice, String? apiKey}) async =>
+      SpeechStatus.fromJson(await _put('/api/speech', {
+        'baseUrl': ?baseUrl,
+        'sttModel': ?sttModel,
+        'ttsModel': ?ttsModel,
+        'ttsVoice': ?ttsVoice,
+        'apiKey': ?apiKey,
+      }) as Map<String, dynamic>);
+
+  Future<ConnectionTest> testSpeech({String? baseUrl, String? sttModel, String? ttsModel, String? ttsVoice, String? apiKey}) async =>
+      ConnectionTest.fromJson(await _post('/api/speech/test', {
+        'baseUrl': ?baseUrl,
+        'sttModel': ?sttModel,
+        'ttsModel': ?ttsModel,
+        'ttsVoice': ?ttsVoice,
+        'apiKey': ?apiKey,
+      }) as Map<String, dynamic>);
 
   // --- Comments on tasks and goals ([itemType] is "task" or "goal") -------
 
@@ -745,49 +839,6 @@ class PersonaOsApi {
 
   Future<void> deleteConversation(String idOrPublicId) =>
       _delete('/api/chat/conversations/$idOrPublicId');
-
-  // --- Documents -----------------------------------------------------------
-
-  Future<List<DocumentDto>> getDocuments({String? search}) async {
-    final query = (search == null || search.isEmpty)
-        ? ''
-        : '?search=${Uri.encodeQueryComponent(search)}';
-    final data = await _get('/api/documents$query') as List<dynamic>;
-    return data.map((e) => DocumentDto.fromJson(e as Map<String, dynamic>)).toList();
-  }
-
-  /// Uploads a file as multipart/form-data, the shape the server's `IFormFile` expects.
-  Future<DocumentDto> uploadDocument({
-    required String filePath,
-    required String fileName,
-    String? description,
-  }) async {
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$serverUrl/api/documents'),
-    );
-    if (_token != null) request.headers['Authorization'] = 'Bearer $_token';
-    request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
-    if (description != null && description.isNotEmpty) {
-      request.fields['description'] = description;
-    }
-
-    final streamed = await request.send().timeout(const Duration(seconds: 120));
-    final response = await http.Response.fromStream(streamed);
-    if (response.statusCode == 401) {
-      _token = null;
-      throw ApiException('Session expired. Log in again.');
-    }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(_errorFrom(response), code: _codeFrom(response));
-    }
-    return DocumentDto.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
-
-  Future<void> updateDocumentDescription(int id, String? description) =>
-      _put('/api/documents/$id/description', {'description': description});
-
-  Future<void> deleteDocument(int id) => _delete('/api/documents/$id');
 
   // --- Speech (the server's optional speech service) ----------------------
 

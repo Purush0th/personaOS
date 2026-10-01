@@ -237,47 +237,6 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.ToTable("DeviceTokens");
                 });
 
-            modelBuilder.Entity("PersonaOS.Domain.Entities.Document", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("StorageName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAtUtc");
-
-                    b.HasIndex("StorageName")
-                        .IsUnique();
-
-                    b.ToTable("Documents");
-                });
-
             modelBuilder.Entity("PersonaOS.Domain.Entities.Goal", b =>
                 {
                     b.Property<int>("Id")

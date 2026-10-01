@@ -19,7 +19,7 @@ import { PushConfig } from './push-config';
 import { SpeechConfig } from './speech-config';
 
 /** Module keys the server accepts; unknown keys are ignored server-side. */
-const MODULES = ['goals', 'board', 'planner', 'reminders', 'docs', 'memory', 'voice', 'proactive'] as const;
+const MODULES = ['goals', 'board', 'planner', 'reminders', 'memory', 'voice', 'proactive'] as const;
 
 @Component({
   selector: 'app-settings',

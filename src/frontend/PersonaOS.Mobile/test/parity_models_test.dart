@@ -65,13 +65,13 @@ void main() {
         'aiModel': 'qwen2.5:latest',
         'aiBaseUrl': 'http://localhost:11434/v1',
         'timeZone': 'Asia/Kolkata',
-        'features': {'goals': true, 'docs': false},
+        'features': {'goals': true, 'planner': false},
         'hasAnthropicApiKey': true,
       });
 
       expect(settings.assistantNickname, 'Friday');
       expect(settings.features['goals'], isTrue);
-      expect(settings.features['docs'], isFalse);
+      expect(settings.features['planner'], isFalse);
       expect(settings.hasApiKey, isTrue);
     });
 
@@ -104,23 +104,6 @@ void main() {
       expect(options.appId, '1:123456789012:android:abc');
       expect(options.messagingSenderId, '123456789012');
       expect(options.projectId, 'persona-test');
-    });
-  });
-
-  group('DocumentDto.fromJson', () {
-    test('reads a document without a description', () {
-      final document = DocumentDto.fromJson({
-        'id': 3,
-        'fileName': 'notes.pdf',
-        'contentType': 'application/pdf',
-        'sizeBytes': 2048,
-        'description': null,
-        'createdAtUtc': '2026-09-12T10:00:00Z',
-      });
-
-      expect(document.fileName, 'notes.pdf');
-      expect(document.sizeBytes, 2048);
-      expect(document.description, isNull);
     });
   });
 

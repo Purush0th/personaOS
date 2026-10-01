@@ -47,7 +47,7 @@ public class WorkItemComment
 }
 
 /// <summary>
-/// A file attached to a task or goal. The bytes live in the same store as documents, under a
+/// A file attached to a task or goal. The bytes live in the file store (IDocumentStorage), under a
 /// server-generated name, so nothing user-supplied ever reaches a filesystem path.
 /// </summary>
 public class WorkItemAttachment

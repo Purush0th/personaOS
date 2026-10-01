@@ -117,7 +117,7 @@ The key is the link everywhere (`TASK-7`, not the task's title).
 
 **Comments** are plain text, kept in order, and marked as written by the user or the assistant
 (the assistant writes them with `add_comment`). **Attachments** — PDFs, images, documents — are
-stored beside documents under a server-generated name, at most 25 MB each.
+stored in the server's file store under a server-generated name, at most 25 MB each.
 
 ## 6. Scope changes during a sprint
 

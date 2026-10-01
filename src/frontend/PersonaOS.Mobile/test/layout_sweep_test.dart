@@ -5,7 +5,6 @@ import 'package:personaos_mobile/api/personaos_api.dart';
 import 'package:personaos_mobile/layout.dart';
 import 'package:personaos_mobile/screens/chat_screen.dart';
 import 'package:personaos_mobile/screens/conversations_screen.dart';
-import 'package:personaos_mobile/screens/documents_screen.dart';
 import 'package:personaos_mobile/screens/goals_screen.dart';
 import 'package:personaos_mobile/screens/memories_screen.dart';
 import 'package:personaos_mobile/screens/planner_screen.dart';
@@ -24,9 +23,6 @@ class _Api extends PersonaOsApi {
 
   @override
   Future<List<Reminder>> getReminders({bool includeCompleted = false}) async => [];
-
-  @override
-  Future<List<DocumentDto>> getDocuments({String? search}) async => [];
 
   @override
   Future<List<ConversationSummary>> getConversations() async => [];
@@ -86,7 +82,6 @@ void main() {
     'goals': (api) => GoalsScreen(api: api),
     'planner': (api) => PlannerScreen(api: api),
     'reminders': (api) => RemindersScreen(api: api),
-    'documents': (api) => DocumentsScreen(api: api),
     'memories': (api) => MemoriesScreen(api: api),
     'settings': (api) => SettingsScreen(api: api),
     'conversations': (api) => ConversationsScreen(api: api, assistantNickname: 'Juno'),

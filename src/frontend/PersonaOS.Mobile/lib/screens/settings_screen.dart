@@ -4,6 +4,9 @@ import '../api/personaos_api.dart';
 import '../layout.dart';
 import '../auth_vault.dart';
 import '../server_speech.dart';
+import '../theme_choice.dart';
+import 'push_config_section.dart';
+import 'speech_config_section.dart';
 
 /// Module keys the server accepts. Unknown keys are ignored server-side, and
 /// this list matches the web app's so the two screens cannot drift apart.
@@ -12,7 +15,6 @@ const _modules = <String, String>{
   'board': 'Sprint board',
   'planner': 'Planner',
   'reminders': 'Reminders',
-  'docs': 'Documents',
   'memory': 'Memory',
   'voice': 'Voice',
   'proactive': 'Proactive briefs',
@@ -397,6 +399,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Text(_saving ? 'Saving…' : 'Save settings'),
                     ),
 
+                    const _SectionLabel('Appearance'),
+                    ValueListenableBuilder<ThemeMode>(
+                      valueListenable: themeChoice,
+                      builder: (context, mode, _) => SegmentedButton<ThemeMode>(
+                        key: const Key('appearance'),
+                        segments: const [
+                          ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto)),
+                          ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode)),
+                          ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode)),
+                        ],
+                        selected: {mode},
+                        onSelectionChanged: (picked) => saveThemeChoice(picked.single),
+                      ),
+                    ),
+
+                    const _SectionLabel('Push notifications'),
+                    PushConfigSection(api: widget.api),
+
+                    if ((_features['voice'] ?? false) && _speech != null) ...[
+                      const _SectionLabel('Speech service'),
+                      SpeechConfigSection(
+                        api: widget.api,
+                        status: _speech!,
+                        onChanged: (status) => setState(() => _speech = status),
+                      ),
+                    ],
+
                     if ((_features['voice'] ?? false) && _speech != null) ...[
                       const _SectionLabel('Voice on this phone'),
                       Card(
@@ -406,7 +435,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               title: const Text("Hear me with the server's speech service"),
                               subtitle: Text(_speech!.speechToText
                                   ? 'Off: the phone recognises speech itself.'
-                                  : 'Not set up on the server (web Settings → Speech service).'),
+                                  : 'Not set up on the server (Speech service above).'),
                               value: _voicePrefs.serverStt && _speech!.speechToText,
                               onChanged: _speech!.speechToText ? (on) => _setVoice(serverStt: on) : null,
                             ),
@@ -414,7 +443,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               title: const Text("Read replies in the server's voice"),
                               subtitle: Text(_speech!.textToSpeech
                                   ? "Off: the phone's own voice reads them."
-                                  : 'Not set up on the server (web Settings → Speech service).'),
+                                  : 'Not set up on the server (Speech service above).'),
                               value: _voicePrefs.serverTts && _speech!.textToSpeech,
                               onChanged: _speech!.textToSpeech ? (on) => _setVoice(serverTts: on) : null,
                             ),
