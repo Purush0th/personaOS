@@ -15,7 +15,9 @@
 
 .chart {
   --label: minmax(9rem, 18rem);
-  min-width: 44rem;
+  // Wide enough for a month's name over each column (about 2.4rem); a landscape tablet with the
+  // nav open (some 40rem of page) fits the whole year without scrolling sideways.
+  min-width: 38rem;
   display: grid;
   grid-template-columns: var(--label) 1fr;
   padding: 0.5rem 0.75rem 0.75rem;

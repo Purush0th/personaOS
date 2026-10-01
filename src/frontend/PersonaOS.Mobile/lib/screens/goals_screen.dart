@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
-import '../layout.dart';
 import '../date_utils.dart';
 import '../goal_calendar.dart';
 import '../goal_tree.dart';
@@ -152,7 +151,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
         body: TabBarView(
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            ReadableWidth(child: _goalsTab()),
+            _goalsTab(),
             TimelineView(goals: _goals, today: _today),
           ],
         ),
