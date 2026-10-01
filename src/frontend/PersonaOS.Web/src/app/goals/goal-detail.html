@@ -1,12 +1,14 @@
 @if (loading()) {
   <mat-progress-bar mode="indeterminate" />
 } @else if (goal(); as goal) {
-  <nav class="crumbs muted small">
-    <a routerLink="/goals">Goals</a>
-    @if (goal.parentKey) {
-      · <a [routerLink]="['/goals', goal.parentKey]">{{ goal.parentKey }} {{ goal.parentTitle }}</a>
-    }
-  </nav>
+  @if (!embedded()) {
+    <nav class="crumbs muted small">
+      <a routerLink="/goals">Goals</a>
+      @if (goal.parentKey) {
+        · <a [routerLink]="['/goals', goal.parentKey]">{{ goal.parentKey }} {{ goal.parentTitle }}</a>
+      }
+    </nav>
+  }
 
   <header class="item-head">
     <span class="key" [style.--hue]="hue()">{{ goal.key }}</span>

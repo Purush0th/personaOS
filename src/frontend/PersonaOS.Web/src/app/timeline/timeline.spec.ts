@@ -92,7 +92,7 @@ describe('Timeline', () => {
     expect(page().querySelector('.today')).toBeNull();
   });
 
-  it('leads each bar to its goal', () => {
-    expect(bar('GOAL-2').getAttribute('href')).toBe('/goals/GOAL-2');
+  it('opens the goal of each bar over the timeline, as a quick view', () => {
+    expect(bar('GOAL-2').getAttribute('href')).toContain('goal=GOAL-2');
   });
 });

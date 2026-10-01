@@ -492,6 +492,9 @@ class PersonaOsApi {
 
   // --- Goals ---------------------------------------------------------------
 
+  /// One goal by its key ("GOAL-3"), for its quick view or page.
+  Future<Goal> getGoal(String key) async => Goal.fromJson(await _get('/api/goals/$key') as Map<String, dynamic>);
+
   Future<List<Goal>> getGoals() async {
     final data = await _get('/api/goals') as List<dynamic>;
     return data.map((e) => Goal.fromJson(e as Map<String, dynamic>)).toList();
@@ -582,8 +585,35 @@ class PersonaOsApi {
   Future<PlanView> getPlan() async =>
       PlanView.fromJson(await _get('/api/board/plan') as Map<String, dynamic>);
 
-  Future<SprintReport> getSprintReport() async =>
-      SprintReport.fromJson(await _get('/api/board/sprints') as Map<String, dynamic>);
+  /// Started sprints, newest first; [count] is how many (the server allows two years of them).
+  Future<SprintReport> getSprintReport({int count = 104}) async =>
+      SprintReport.fromJson(await _get('/api/board/sprints?count=$count') as Map<String, dynamic>);
+
+  Future<SprintDetail> getSprintDetail(String key) async =>
+      SprintDetail.fromJson(await _get('/api/board/sprints/$key') as Map<String, dynamic>);
+
+  /// [startsOn] is a day ("2026-10-04"); the server adds the start time and works out the end.
+  Future<void> createSprint({String? name, String? startsOn}) =>
+      _post('/api/board/sprints', {'name': ?name, 'startsOn': ?startsOn});
+
+  /// A blank [name] clears it; a new [startsOn] moves the end to the first Sunday after it.
+  Future<void> updateSprint(String key, {String? name, String? startsOn}) => _put('/api/board/sprints/$key', {
+        if (name != null && name.trim().isEmpty) 'clearName': true else 'name': ?name,
+        'startsOn': ?startsOn,
+      });
+
+  Future<void> startSprint(String key) => _post('/api/board/sprints/$key/start', const {});
+
+  /// Unfinished work moves to [moveUnfinishedToSprintKey], or to the next planned sprint when it
+  /// is null, or to the backlog with [toBacklog].
+  Future<void> completeSprint(String key, {String? moveUnfinishedToSprintKey, bool toBacklog = false}) =>
+      _post('/api/board/sprints/$key/complete', {
+        'moveUnfinishedToSprintKey': ?moveUnfinishedToSprintKey,
+        'toBacklog': toBacklog,
+      });
+
+  /// Only a planned sprint can go; its tasks return to the backlog.
+  Future<void> deleteSprint(String key) => _delete('/api/board/sprints/$key');
 
   /// [sprintKey] like "SPRINT-2"; omit it to put the task in the backlog.
   Future<void> createTask({
@@ -601,14 +631,37 @@ class PersonaOsApi {
         'acknowledgeScopeChange': acknowledgeScopeChange,
       });
 
-  Future<void> updateTask(String key, {String? title, int? points, int? goalId}) =>
+  /// [description] null leaves it as it is; an empty one clears it.
+  Future<void> updateTask(String key, {String? title, int? points, int? goalId, String? description}) =>
       _put('/api/board/tasks/$key', {
         'title': ?title,
         'points': ?points,
         'clearPoints': points == null,
         'goalId': ?goalId,
         'clearGoal': goalId == null,
+        if (description != null && description.trim().isEmpty)
+          'clearDescription': true
+        else
+          'description': ?description,
       });
+
+  /// One task as it is now, for a quick view or its page.
+  Future<BoardTask> getTask(String key) async =>
+      BoardTask.fromJson((await _get('/api/board/tasks/$key') as Map<String, dynamic>)['task'] as Map<String, dynamic>);
+
+  // --- Comments on tasks and goals ([itemType] is "task" or "goal") -------
+
+  Future<List<WorkItemComment>> getComments(String itemType, String key) async {
+    final data = await _get('/api/items/$itemType/$key/comments') as List<dynamic>;
+    return data.map((e) => WorkItemComment.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> addComment(String itemType, String key, String body) =>
+      _post('/api/items/$itemType/$key/comments', {'body': body});
+
+  Future<void> updateComment(int id, String body) => _put('/api/items/comments/$id', {'body': body});
+
+  Future<void> deleteComment(int id) => _delete('/api/items/comments/$id');
 
   /// Moves a task to [column]; [sprintKey] names the sprint, and is ignored for the backlog.
   Future<void> moveTask(

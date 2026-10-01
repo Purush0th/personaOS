@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../goal_calendar.dart';
 import '../goal_tree.dart';
+import 'goal_view.dart';
 
 /// The Timeline tab of Goals: the goals as a roadmap for one year, like the web's: a bar per goal on a month axis,
 /// years above their quarters above their months, each labelled with its title and filled to its
@@ -12,7 +13,10 @@ import '../goal_tree.dart';
 /// The year scrolls sideways under a pinned label column and opens a month before today. A bar
 /// opens the goal's details.
 class TimelineView extends StatefulWidget {
-  const TimelineView({super.key, required this.goals, this.today});
+  const TimelineView({super.key, required this.goals, this.today, this.api});
+
+  /// When given, a bar opens the goal's full quick view (with its comments) instead of a summary.
+  final PersonaOsApi? api;
 
   /// The goals the Goals tab loaded, so both tabs show the same list.
   final Future<List<Goal>> goals;
@@ -363,7 +367,7 @@ class _TimelineViewState extends State<TimelineView> {
                   '${goal.effectiveProgress}% done${completed ? ', completed' : overdue ? ', overdue' : ''}',
               child: GestureDetector(
                 key: Key('bar-${goal.key}'),
-                onTap: () => _details(goal),
+                onTap: () => widget.api == null ? _details(goal) : showGoalQuickView(context, widget.api!, goal.key),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: Stack(

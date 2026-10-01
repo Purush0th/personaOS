@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Injector, OnInit, inject, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -40,6 +40,7 @@ import { Discussion } from '../shared/discussion';
  */
 @Component({
   selector: 'app-goal-detail',
+  host: { '[class.embedded]': 'embedded()' },
   imports: [
     FormsModule,
     RouterLink,
@@ -60,6 +61,12 @@ import { Discussion } from '../shared/discussion';
   styleUrls: ['../board/item-page.scss', './goal-detail.scss'],
 })
 export class GoalDetail implements OnInit {
+  /** The goal to show when embedded; the full page reads it from the route instead. */
+  readonly goalKey = input<string>();
+  /** Embedded in a dialog: no crumbs, and a delete is reported instead of navigating away. */
+  readonly embedded = input(false);
+  readonly deleted = output<void>();
+
   private readonly goalsApi = inject(GoalsService);
   private readonly boardApi = inject(BoardService);
   private readonly route = inject(ActivatedRoute);
@@ -87,7 +94,7 @@ export class GoalDetail implements OnInit {
   protected readonly setsProgressByHand = setsProgressByHand;
 
   async ngOnInit(): Promise<void> {
-    this.key.set(this.route.snapshot.paramMap.get('key') ?? '');
+    this.key.set(this.goalKey() ?? this.route.snapshot.paramMap.get('key') ?? '');
     await this.reload();
   }
 
@@ -185,7 +192,8 @@ export class GoalDetail implements OnInit {
     const goal = this.goal();
     if (!goal) return;
     if (await askDeleteGoal(this.dialog, this.injector, { goal, goals: await this.goalsApi.getAll() })) {
-      await this.router.navigate(['/goals']);
+      if (this.embedded()) this.deleted.emit();
+      else await this.router.navigate(['/goals']);
     }
   }
 
