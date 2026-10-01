@@ -111,4 +111,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('GOAL-5 · Yearly · 2027'), findsOneWidget);
   });
+
+  // Reported from a tablet: the year stopped at a fixed width and left the rest of the screen empty.
+  for (final (name, size) in [('tablet landscape', const Size(1280, 800)), ('tablet portrait', const Size(800, 1280))]) {
+    testWidgets('on a $name the year fills the width beside the labels', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(body: TimelineView(goals: _Api().getGoals(), today: DateTime(2026, 9, 27))),
+      ));
+      await tester.pumpAndSettle();
+
+      final track = tester.getRect(find.byKey(const Key('timeline-scroll')));
+      final year = tester.getSize(find.byKey(const Key('bar-GOAL-1')));
+      expect(track.right, closeTo(size.width - 8, 1));
+      expect(year.width, closeTo(track.width, 1)); // GOAL-1 runs the whole year: no sideways scroll
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

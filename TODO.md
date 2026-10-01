@@ -229,6 +229,11 @@ it is not under a parent.
         screen goes two abreast from 640 px; `layout_sweep_test` pumps 8 screens at 4 sizes. Web
         board lanes now share the width (min 220 px) instead of a fixed 280 px, so a 1024 px
         landscape tablet shows all three.
+      - Follow-up (owner: "timelines and goals page still not expanding in tab"): the phone
+        Timeline had a fixed 64 px month and 128 px labels (~900 px total); months now share the
+        width (min 48 px) and labels widen to 220 px when the year still fits. The phone Goals tab
+        is no longer capped at 840 px. Web Timeline minimum lowered from 44rem to 38rem, so a
+        1024 px landscape tablet with the nav open shows the whole year.
 
 ## AI layer refactor (raised by the owner 2026-09-21)
 
