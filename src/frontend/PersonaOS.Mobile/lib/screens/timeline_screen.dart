@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
@@ -22,9 +24,13 @@ class TimelineView extends StatefulWidget {
   State<TimelineView> createState() => _TimelineViewState();
 }
 
-/// Width of one month on the axis: wide enough for "Oct 2026 · 40%" on a month's bar.
-const double monthWidth = 64;
+/// The narrowest a month gets on the axis: room for its name and a month bar's "40%". On a wider
+/// screen (a tablet, a phone on its side) months grow so the year fills the width.
+const double monthWidth = 48;
 const double _labelWidth = 128;
+
+/// The label column on a wide screen, where titles have room to be read whole.
+const double _wideLabelWidth = 220;
 const double _rowHeight = 40;
 const double _axisHeight = 44;
 
@@ -40,6 +46,10 @@ class _TimelineViewState extends State<TimelineView> {
   final Set<int> _collapsed = {};
   final _scroll = ScrollController();
   bool _scrolledToToday = false;
+
+  /// One month's width and the label column's, for the width the chart was last laid out in.
+  double _month = monthWidth;
+  double _labels = _labelWidth;
 
   DateTime get _today {
     final now = widget.today ?? DateTime.now();
@@ -69,7 +79,7 @@ class _TimelineViewState extends State<TimelineView> {
   /// Where [day] starts on the axis, in pixels from 1 January; with [end], where it ends.
   double _x(DateTime day, {bool end = false}) {
     final daysInMonth = DateTime(day.year, day.month + 1, 0).day;
-    return (day.month - 1 + (day.day - (end ? 0 : 1)) / daysInMonth) * monthWidth;
+    return (day.month - 1 + (day.day - (end ? 0 : 1)) / daysInMonth) * _month;
   }
 
   void _scrollToToday() {
@@ -77,7 +87,7 @@ class _TimelineViewState extends State<TimelineView> {
     _scrolledToToday = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
-      final target = (_x(_today) - monthWidth).clamp(0.0, _scroll.position.maxScrollExtent);
+      final target = (_x(_today) - _month).clamp(0.0, _scroll.position.maxScrollExtent);
       _scroll.jumpTo(target);
     });
   }
@@ -175,7 +185,16 @@ class _TimelineViewState extends State<TimelineView> {
                 Expanded(
                   child: visible.isEmpty
                       ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('No goals in $_year.')))
-                      : _chart(context, visible),
+                      : LayoutBuilder(builder: (context, constraints) {
+                          // Months share the width left beside the labels, never below their minimum;
+                          // a narrow phone scrolls the year sideways instead.
+                          const padding = 16.0;
+                          final available = constraints.maxWidth - padding;
+                          // Wider labels only where the whole year still fits beside them.
+                          _labels = available - _wideLabelWidth >= monthWidth * 12 ? _wideLabelWidth : _labelWidth;
+                          _month = math.max(monthWidth, (available - _labels) / 12);
+                          return _chart(context, visible);
+                        }),
                 ),
               ],
             ),
@@ -208,7 +227,7 @@ class _TimelineViewState extends State<TimelineView> {
         children: [
           // Labels stay put while the year scrolls sideways beside them.
           SizedBox(
-            width: _labelWidth,
+            width: _labels,
             child: Column(
               children: [
                 const SizedBox(height: _axisHeight),
@@ -225,10 +244,11 @@ class _TimelineViewState extends State<TimelineView> {
               controller: _scroll,
               scrollDirection: Axis.horizontal,
               child: SizedBox(
-                width: monthWidth * 12,
+                width: _month * 12,
                 height: height,
                 child: CustomPaint(
                   painter: _GridPainter(
+                    monthWidth: _month,
                     lineColor: theme.colorScheme.outlineVariant,
                     todayColor: theme.colorScheme.error,
                     todayX: _year == _today.year ? (_x(_today) + _x(_today, end: true)) / 2 : null,
@@ -261,7 +281,7 @@ class _TimelineViewState extends State<TimelineView> {
           Row(children: [
             for (var q = 1; q <= 4; q++)
               SizedBox(
-                width: monthWidth * 3,
+                width: _month * 3,
                 height: _axisHeight / 2,
                 child: Padding(
                   padding: const EdgeInsets.only(left: 4, top: 4),
@@ -272,7 +292,7 @@ class _TimelineViewState extends State<TimelineView> {
           Row(children: [
             for (final name in monthNames)
               SizedBox(
-                width: monthWidth,
+                width: _month,
                 height: _axisHeight / 2,
                 child: Padding(padding: const EdgeInsets.only(left: 4, top: 4), child: Text(name, style: style)),
               ),
@@ -334,7 +354,7 @@ class _TimelineViewState extends State<TimelineView> {
         children: [
           Positioned(
             left: left,
-            width: (right - left).clamp(4.0, monthWidth * 12),
+            width: (right - left).clamp(4.0, _month * 12),
             top: (_rowHeight - height) / 2,
             height: height,
             child: Semantics(
@@ -382,8 +402,15 @@ class _TimelineViewState extends State<TimelineView> {
 
 /// Month lines under the whole chart, and today's line.
 class _GridPainter extends CustomPainter {
-  _GridPainter({required this.lineColor, required this.todayColor, required this.todayX, required this.top});
+  _GridPainter({
+    required this.monthWidth,
+    required this.lineColor,
+    required this.todayColor,
+    required this.todayX,
+    required this.top,
+  });
 
+  final double monthWidth;
   final Color lineColor;
   final Color todayColor;
   final double? todayX;
@@ -407,5 +434,9 @@ class _GridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GridPainter old) =>
-      old.lineColor != lineColor || old.todayColor != todayColor || old.todayX != todayX || old.top != top;
+      old.monthWidth != monthWidth ||
+      old.lineColor != lineColor ||
+      old.todayColor != todayColor ||
+      old.todayX != todayX ||
+      old.top != top;
 }
