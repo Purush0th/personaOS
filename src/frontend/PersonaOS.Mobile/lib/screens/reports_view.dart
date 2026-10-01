@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../layout.dart';
 import 'board_screen.dart';
+import 'goal_view.dart';
+import 'sprint_page.dart';
 
 /// The Reports tab of the board, like the web's: pick any started sprint (the running one first),
 /// see it in a few numbers and its burndown, and every task in it by status. Velocity across
@@ -112,7 +114,33 @@ class _ReportsViewState extends State<ReportsView> {
                         child: Text('Could not load that sprint.'),
                       );
                     }
-                    return _SprintReport(detail: detail.data!);
+                    final sprintKey = detail.data!.sprint.key;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            key: const Key('open-sprint'),
+                            onPressed: () async {
+                              final changed = await Navigator.of(context).push<bool>(MaterialPageRoute(
+                                builder: (_) => SprintPage(api: widget.api, sprintKey: sprintKey),
+                              ));
+                              if (changed == true) await _reload();
+                            },
+                            icon: const Icon(Icons.open_in_full, size: 18),
+                            label: Text('Open $sprintKey'),
+                          ),
+                        ),
+                        SprintSummary(
+                          detail: detail.data!,
+                          searchable: true,
+                          onOpenTask: (task) async {
+                            if (await showTaskQuickView(context, widget.api, task.key)) _pick(sprintKey);
+                          },
+                        ),
+                      ],
+                    );
                   },
                 ),
                 if (report.velocity != null)
@@ -132,15 +160,35 @@ class _ReportsViewState extends State<ReportsView> {
   }
 }
 
-class _SprintReport extends StatelessWidget {
-  const _SprintReport({required this.detail});
+/// A started sprint summed up: its numbers, a breakdown by status and priority, its burndown and
+/// its tasks by status. Shared by the Reports tab and the sprint's own page.
+class SprintSummary extends StatefulWidget {
+  const SprintSummary({super.key, required this.detail, this.onOpenTask, this.searchable = false});
 
   final SprintDetail detail;
+  final ValueChanged<BoardTask>? onOpenTask;
+
+  /// Offers a search over the tasks, as the web's report table does.
+  final bool searchable;
+
+  @override
+  State<SprintSummary> createState() => _SprintSummaryState();
+}
+
+class _SprintSummaryState extends State<SprintSummary> {
+  String _query = '';
 
   @override
   Widget build(BuildContext context) {
+    final detail = widget.detail;
     final theme = Theme.of(context);
     final s = detail.sprint;
+    final words = _query.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+    final tasks = detail.tasks
+        .where((t) => words.every((w) => '${t.key} ${t.title} ${t.goalTitle ?? ''}'.toLowerCase().contains(w)))
+        .toList();
+    int pointsWhere(bool Function(BoardTask t) test) =>
+        detail.tasks.where(test).fold<int>(0, (sum, t) => sum + (t.points ?? 0));
     final committed = s.committedPoints ?? s.totalPoints;
     final numbers = <(String, String)>[
       ('Committed', '$committed'),
@@ -179,6 +227,29 @@ class _SprintReport extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
+        Text('By status', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Text(
+          [
+            for (final c in [BoardColumns.todo, BoardColumns.inProgress, BoardColumns.done])
+              '${BoardColumns.label(c)} ${pointsWhere((t) => t.column == c)} pts',
+          ].join(' · '),
+          key: const Key('by-status'),
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        Text('By priority', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Text(
+          [
+            for (final p in priorities.entries)
+              if (detail.tasks.any((t) => t.priority == p.key))
+                '${p.value} ${detail.tasks.where((t) => t.priority == p.key).length}',
+          ].join(' · '),
+          key: const Key('by-priority'),
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
         Text('Burndown', style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
         SizedBox(
@@ -203,10 +274,25 @@ class _SprintReport extends StatelessWidget {
           _Legend(color: theme.colorScheme.outline, label: 'Ideal', dashed: true),
         ]),
         const SizedBox(height: 16),
+        if (widget.searchable)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TextField(
+              key: const Key('report-search'),
+              decoration: const InputDecoration(
+                hintText: 'Search tasks',
+                prefixIcon: Icon(Icons.search),
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (q) => setState(() => _query = q),
+            ),
+          ),
         for (final column in [BoardColumns.todo, BoardColumns.inProgress, BoardColumns.done]) ...[
-          _TaskGroup(
+          TaskGroup(
             title: BoardColumns.label(column),
-            tasks: detail.tasks.where((t) => t.column == column).toList(),
+            tasks: tasks.where((t) => t.column == column).toList(),
+            onOpen: widget.onOpenTask,
           ),
         ],
       ],
@@ -214,11 +300,13 @@ class _SprintReport extends StatelessWidget {
   }
 }
 
-class _TaskGroup extends StatelessWidget {
-  const _TaskGroup({required this.title, required this.tasks});
+/// A status's tasks, with their count and points; a task opens through [onOpen].
+class TaskGroup extends StatelessWidget {
+  const TaskGroup({super.key, required this.title, required this.tasks, this.onOpen});
 
   final String title;
   final List<BoardTask> tasks;
+  final ValueChanged<BoardTask>? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -246,6 +334,7 @@ class _TaskGroup extends StatelessWidget {
                 style: theme.textTheme.bodySmall,
               ),
               trailing: PointsPill(points: task.points),
+              onTap: onOpen == null ? null : () => onOpen!(task),
             ),
         ],
       ),

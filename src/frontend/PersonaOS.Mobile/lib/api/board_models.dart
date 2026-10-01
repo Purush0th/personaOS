@@ -101,6 +101,7 @@ class Goal {
     this.parentId,
     this.parentKey,
     this.description,
+    this.priority = 'medium',
     required this.status,
     required this.progress,
     required this.effectiveProgress,
@@ -124,6 +125,7 @@ class Goal {
         parentId: json['parentId'] as int?,
         parentKey: json['parentKey'] as String?,
         description: json['description'] as String?,
+        priority: json['priority'] as String? ?? 'medium',
         status: json['status'] as String,
         progress: json['progress'] as int,
         effectiveProgress: json['effectiveProgress'] as int,
@@ -158,6 +160,9 @@ class Goal {
 
   /// What the goal is about, in the user's words; null when none was written.
   final String? description;
+
+  /// highest, high, medium, low or lowest.
+  final String priority;
 
   final String status; // active | completed
 
@@ -198,6 +203,8 @@ class BoardTask {
     this.carryOverCount = 0,
     this.commentCount = 0,
     this.attachmentCount = 0,
+    this.createdAtUtc,
+    this.updatedAtUtc,
   });
 
   factory BoardTask.fromJson(Map<String, dynamic> json) => BoardTask(
@@ -217,6 +224,8 @@ class BoardTask {
         carryOverCount: json['carryOverCount'] as int? ?? 0,
         commentCount: json['commentCount'] as int? ?? 0,
         attachmentCount: json['attachmentCount'] as int? ?? 0,
+        createdAtUtc: json['createdAtUtc'] == null ? null : parseServerUtc(json['createdAtUtc'] as String),
+        updatedAtUtc: json['updatedAtUtc'] == null ? null : parseServerUtc(json['updatedAtUtc'] as String),
       );
 
   final int id;
@@ -235,6 +244,42 @@ class BoardTask {
   final int carryOverCount;
   final int commentCount;
   final int attachmentCount;
+  final DateTime? createdAtUtc;
+  final DateTime? updatedAtUtc;
+}
+
+/// The priorities a task or goal can have, highest first, with their labels.
+const priorities = <String, String>{
+  'highest': 'Highest',
+  'high': 'High',
+  'medium': 'Medium',
+  'low': 'Low',
+  'lowest': 'Lowest',
+};
+
+/// A file attached to a task or goal.
+class WorkItemAttachment {
+  WorkItemAttachment({
+    required this.id,
+    required this.fileName,
+    required this.contentType,
+    required this.sizeBytes,
+    required this.createdAtUtc,
+  });
+
+  factory WorkItemAttachment.fromJson(Map<String, dynamic> json) => WorkItemAttachment(
+        id: json['id'] as int,
+        fileName: json['fileName'] as String? ?? 'file',
+        contentType: json['contentType'] as String? ?? 'application/octet-stream',
+        sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+        createdAtUtc: parseServerUtc(json['createdAtUtc'] as String),
+      );
+
+  final int id;
+  final String fileName;
+  final String contentType;
+  final int sizeBytes;
+  final DateTime createdAtUtc;
 }
 
 /// A comment on a task or goal, written by the user or by the assistant.

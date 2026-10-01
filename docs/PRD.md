@@ -3,7 +3,7 @@
 > **PersonaOS** is an open-source, self-hosted, single-user personal AI assistant.
 > You run it on your own machine, bring your own AI provider key (or point it at a
 > local model), give your assistant any nickname you like — and it manages your goals,
-> a personal sprint board, a daily planner, reminders and documents through chat and voice.
+> a personal sprint board, a daily planner, reminders and memories through chat and voice.
 
 > **Which doc does what:** this PRD = *what & why*; [TODO.md](../TODO.md) = *live progress*
 > (the only status source); [CLAUDE.md](../CLAUDE.md) = *how to work* + the session protocol
@@ -45,7 +45,7 @@ in runtime config and the database (`InstanceConfig`, `UserProfile`, memories).
 These rules hold across every module and every client.
 
 1. **Nothing writes without the user's confirmation — except memory with auto-save on.** Every
-   change the assistant wants to make to goals, tasks, sprints, planner, reminders or documents
+   change the assistant wants to make to goals, tasks, sprints, planner or reminders
    becomes a card that says exactly what will happen, in the user's terms ("Delete TASK-7 “File
    taxes”"), with **Confirm** and **Discard**. Reads never need a card. This is enforced in code,
    per tool, not by the prompt. **Memories** are the one exception: with auto-save on (the
@@ -85,7 +85,6 @@ Each module can be switched off per install; its UI disappears, its endpoints re
 | `board` | on | A one-person Scrum board: tasks, value points, weekly sprints, backlog, reports |
 | `planner` | on | A day-by-day list; items can come from the sprint |
 | `reminders` | on | Scheduled alarms and push notifications, created in chat or by hand |
-| `docs` | on | Upload files; the assistant can read text files by name |
 | `memory` | on | Cross-device personal memory stored by the server: facts, preferences, project context and decisions, retrievable in chat |
 | `voice` | on | Push-to-talk and hands-free voice on the phone, with read-back |
 | `proactive` | **off** | Morning brief and evening rollup pushed to the phone |
@@ -131,7 +130,7 @@ Each module can be switched off per install; its UI disappears, its endpoints re
   `complete_sprint`, `create_task`, `update_task`, `move_task`, `delete_task`, `add_comment`),
   planner (`get_planner`, `add_planner_item`, `update_planner_item_status`,
   `move_planner_item`), reminders (`get_reminders`, `create_reminder`, `cancel_reminder`),
-  documents (`list_documents`, `read_document`), memory (`search_memories`, `create_memory`,
+  memory (`search_memories`, `create_memory`,
   `update_memory`, `delete_memory`) and `remember_about_user`. The UI names them in words
   ("Reading goals…", "Created goal"), never by their tool name.
 
@@ -251,13 +250,11 @@ Full rules: [sprint-board.md](sprint-board.md). In short:
   Settings. The app carries no Firebase config; the service-account key is encrypted at rest and
   never returned by any endpoint.
 
-### 3.6 Documents
+### 3.6 Documents (removed 2026-10-01)
 
-- Upload, search, download and delete files (25 MB each). Files are stored under
-  server-generated names; the user's file name is metadata only.
-- The assistant can list documents and read **text** formats by name (up to 20,000 characters).
-  PDFs, images and Office files are stored but not read. Document RAG remains deferred unless
-  separately approved.
+The owner removed the standalone Documents module. Files now live only as attachments on tasks
+and goals (25 MB each, stored under server-generated names, the user's file name kept as
+metadata); the assistant does not read them.
 
 ### 3.7 Memory
 
@@ -300,8 +297,8 @@ Full rules: [sprint-board.md](sprint-board.md). In short:
 ┌──────────────────────────────────────────────────────────────────────┐
 │  User devices                                                        │
 │   ├── Flutter app (Android)  chat, voice, goals, timeline, board,   │
-│   │                          planner, reminders + alarms, documents, │
-│   │                          memories, settings                      │
+│   │                          planner, reminders + alarms, memories,  │
+│   │                          settings                                │
 │   └── Angular web app        everything above except voice/alarms,   │
 │                              plus the Setup Wizard and admin Settings │
 │                     │  REST + SSE (JWT)                              │
@@ -309,10 +306,10 @@ Full rules: [sprint-board.md](sprint-board.md). In short:
 │  ASP.NET Core API  ─────────────────────►  AI provider (pluggable)   │
 │   ├── Chat: prompt fragments, modes, tool loop, guard pipelines      │
 │   ├── Domain services: goals/roadmap, board, planner, reminders,     │
-│   │                    docs, memory                                  │
+│   │                    memory                                        │
 │   ├── Speech orchestration ──────────────►  STT / TTS (optional)     │
 │   ├── EF Core ──► SQLite (embedded, WAL)                             │
-│   ├── Filesystem storage: documents + attachments                    │
+│   ├── Filesystem storage: task and goal attachments                  │
 │   ├── Schedulers: reminders, sprint nudge, proactive briefs, backup  │
 │   └── FCM push (bring-your-own Firebase)                             │
 └──────────────────────────────────────────────────────────────────────┘
@@ -378,12 +375,12 @@ clients to gate modules and to show "please update" when too old.
 
 ## 6. Clients
 
-- **Web** (Angular 22, Angular Material): side navigation — Goals, **Timeline**, Board, Planner,
-  Reminders, Documents, Chat with its history underneath — and an account menu with Settings and
+- **Web** (Angular 22, Angular Material): side navigation — Goals (with its Timeline tab), Board,
+  Planner, Reminders, Chat with its history underneath — and an account menu with Settings and
   Sign out. Usable on a phone browser. First download kept under a 750 kB budget.
 - **Mobile** (Flutter, Android only for now): chat with voice and modes, conversations, goals,
-  timeline, board, planner, reminders with alarms, documents, memories and settings. The phone
-  has no item pages or comments yet; rows open sheets.
+  timeline, board (sprint, backlog, reports), planner, reminders with alarms, memories and
+  settings. Tasks and goals open quick views with their comments, and full pages from there.
 - **Addresses** (web):
 
   | Page | Address |
@@ -393,7 +390,7 @@ clients to gate modules and to show "please update" when too old.
   | Timeline | `/timeline` |
   | Board | `/board`, `/board/backlog`, `/board/reports?sprint=SPRINT-2` |
   | Task, sprint | `/board/tasks/TASK-7`, `/board/sprints/SPRINT-2` |
-  | Planner, reminders, documents, settings | `/planner`, `/reminders`, `/documents`, `/settings` |
+  | Planner, reminders, settings | `/planner`, `/reminders`, `/settings` |
 
   On the web, memories are a section of Settings.
 
@@ -408,7 +405,7 @@ clients to gate modules and to show "please update" when too old.
   and settings are preserved; a previous version can be pinned for rollback. The web app shows
   an "update available" banner (GitHub Releases; notify only, never automatic). The API stays
   backward-compatible within a major version and advertises `minSupportedClientVersion`.
-- **Data**: everything lives in one Docker volume — the database, document files and the Data
+- **Data**: everything lives in one Docker volume — the database, attachment files and the Data
   Protection keyring that decrypts the stored keys, so it is backed up as a unit. A nightly
   snapshot is built in; Litestream replication off the host is optional. See
   [BACKUP.md](BACKUP.md).
@@ -431,7 +428,7 @@ clients to gate modules and to show "please update" when too old.
 | 2b | Sprint board: tasks, value points, manual sprints, backlog, item pages, comments and attachments, reports |
 | 3 | Daily planner: CRUD + tools, day view, tasks from the sprint |
 | 4 | Reminders: alarms, bring-your-own FCM push, conversational creation |
-| 5 | Documents: filesystem upload/download, read tools (no RAG) |
+| 5 | Documents — removed 2026-10-01; files are attachments on tasks and goals |
 | 5b | Memory: server-side memories with categories, auto-save with receipts, review/edit/delete, relevance-based retrieval |
 | 5c | Interaction modes: Chat, Brainstorm, Plan, Act, Reflect |
 | 6 | Voice: push-to-talk, hands-free, read-back; optional STT/TTS services orchestrated by the API |
@@ -442,7 +439,7 @@ clients to gate modules and to show "please update" when too old.
 
 ### Explicitly deferred (not v1)
 
-Cloud or public-HTTP hosting · RAG over documents · MCP façade · wake-word voice · web voice
+Cloud or public-HTTP hosting · RAG over attachments · MCP façade · wake-word voice · web voice
 conversation · iOS app · sub-tasks, multiple boards, custom columns or sprint lengths, time
 tracking, labels · multi-user or multi-tenant · per-fork store builds · any licence or activation
 gating.

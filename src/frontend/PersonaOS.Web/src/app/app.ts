@@ -38,7 +38,6 @@ const NAV: NavItem[] = [
   { path: '/board', label: 'Board', icon: 'view_kanban', feature: 'board' },
   { path: '/planner', label: 'Planner', icon: 'today', feature: 'planner' },
   { path: '/reminders', label: 'Reminders', icon: 'alarm', feature: 'reminders' },
-  { path: '/documents', label: 'Documents', icon: 'description', feature: 'docs' },
 ];
 
 @Component({

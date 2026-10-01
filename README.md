@@ -1,7 +1,7 @@
 # PersonaOS
 
 **A private, self-hosted personal AI assistant.** It runs on your own machine and manages your
-goals, daily planner, reminders, and documents through a chat and voice interface — powered by
+goals, sprint board, daily planner, reminders and memories through a chat and voice interface — powered by
 **the AI provider you choose**: Anthropic Claude, OpenAI, or any OpenAI-compatible endpoint,
 **including a free local model via [Ollama](https://ollama.com/)**.
 
@@ -23,7 +23,7 @@ data never leaves your machine except for the calls it makes to whichever model 
 | **Goals** | Yearly → quarterly → monthly hierarchy with progress that rolls up automatically |
 | **Planner** | A day-by-day plan; tasks can link to the goal they serve |
 | **Reminders** | Scheduled push notifications, created conversationally ("remind me tomorrow at 9") |
-| **Documents** | Upload files and ask questions about them |
+| **Memory** | Remembers what you tell it across conversations; you can see, edit and delete every memory |
 | **Proactive** | An optional morning brief and evening rollup, pushed to your phone |
 
 The assistant does all of this through **native tool use** — it isn't a chatbot bolted onto a
@@ -188,7 +188,7 @@ Everything lives in **one** Docker volume, `personaos_api-data`:
 
 - `personaos.db` — the SQLite database (config, chat, goals, planner, reminders, and the
   **encrypted** provider API key)
-- `docs-storage/` — uploaded document files
+- `docs-storage/` — files attached to tasks and goals
 - `dp-keys/` — the Data Protection keyring that **decrypts** the stored key
 
 Because the ciphertext (in the db) and its keyring live in the same volume, **back that volume

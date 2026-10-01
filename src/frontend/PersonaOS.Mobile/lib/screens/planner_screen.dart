@@ -4,6 +4,7 @@ import '../api/personaos_api.dart';
 import '../layout.dart';
 import '../date_utils.dart';
 import 'board_screen.dart';
+import 'goal_view.dart';
 
 /// Daily planner day-view: navigate days, add tasks (typed, or picked from the running sprint),
 /// cycle status, move a task to the next day, delete.
@@ -41,11 +42,24 @@ class _PlannerScreenState extends State<PlannerScreen> {
     setState(() { _items = widget.api.getPlannerDay(localYmd(_day)); });
   }
 
-  void _shiftDay(int days) {
+  void _shiftDay(int days) => _goTo(_day.add(Duration(days: days)));
+
+  void _goTo(DateTime day) {
     setState(() {
-      _day = _day.add(Duration(days: days));
+      _day = day;
       _items = widget.api.getPlannerDay(localYmd(_day));
     });
+  }
+
+  /// Any day at once, as the web's date field allows.
+  Future<void> _pickDay() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _day,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) _goTo(picked);
   }
 
   Future<void> _run(Future<void> Function() action) async {
@@ -155,7 +169,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
             icon: const Icon(Icons.chevron_left),
             onPressed: () => _shiftDay(-1),
           ),
-          Center(child: Text(_dayLabel)),
+          TextButton(
+            key: const Key('planner-day'),
+            onPressed: _pickDay,
+            child: Text(_dayLabel),
+          ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: () => _shiftDay(1),
@@ -188,6 +206,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     itemCount: items.length,
                     itemBuilder: (context, i) => _PlannerTile(
                       item: items[i],
+                      onOpenTask: (key) async {
+                        if (await showTaskQuickView(context, widget.api, key)) _reload();
+                      },
+                      onOpenGoal: (key) => showGoalQuickView(context, widget.api, key),
                       onToggle: () => _run(() => widget.api
                           .setPlannerStatus(items[i].id, _nextStatus(items[i].status))),
                       onMove: () => _run(() => widget.api.movePlannerItem(
@@ -264,12 +286,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
 class _PlannerTile extends StatelessWidget {
   const _PlannerTile({
     required this.item,
+    required this.onOpenTask,
+    required this.onOpenGoal,
     required this.onToggle,
     required this.onMove,
     required this.onDelete,
   });
 
   final PlannerItem item;
+  final ValueChanged<String> onOpenTask;
+  final ValueChanged<String> onOpenGoal;
   final VoidCallback onToggle;
   final VoidCallback onMove;
   final VoidCallback onDelete;
@@ -309,8 +335,19 @@ class _PlannerTile extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     if (time != null) Text(time),
-                    if (item.taskKey != null) Text(item.taskKey!),
-                    if (item.goalTitle != null) GoalChip(goalKey: item.goalKey ?? '', title: item.goalTitle!),
+                    if (item.taskKey != null)
+                      InkWell(
+                        key: Key('planner-task-${item.taskKey}'),
+                        onTap: () => onOpenTask(item.taskKey!),
+                        child: Text(item.taskKey!,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary, decoration: TextDecoration.underline)),
+                      ),
+                    if (item.goalTitle != null)
+                      InkWell(
+                        onTap: item.goalKey == null ? null : () => onOpenGoal(item.goalKey!),
+                        child: GoalChip(goalKey: item.goalKey ?? '', title: item.goalTitle!),
+                      ),
                   ],
                 ),
               )

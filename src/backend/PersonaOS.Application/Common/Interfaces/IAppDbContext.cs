@@ -22,7 +22,6 @@ public interface IAppDbContext
     DbSet<PlannerItem> PlannerItems { get; }
     DbSet<Reminder> Reminders { get; }
     DbSet<DeviceToken> DeviceTokens { get; }
-    DbSet<Document> Documents { get; }
     DbSet<ProactiveJobRun> ProactiveJobRuns { get; }
     DbSet<PendingAction> PendingActions { get; }
     DbSet<Memory> Memories { get; }

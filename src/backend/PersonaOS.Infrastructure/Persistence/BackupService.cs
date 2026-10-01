@@ -7,7 +7,7 @@ namespace PersonaOS.Infrastructure.Persistence;
 
 /// <summary>
 /// Takes a nightly, self-contained backup of the whole instance: a clean SQLite
-/// snapshot (VACUUM INTO — safe while the app runs) plus the uploaded documents and
+/// snapshot (VACUUM INTO — safe while the app runs) plus the uploaded attachments and
 /// the Data Protection keyring, so the ciphertext API key and its key travel together.
 /// Keeps the most recent <c>Backup:KeepDays</c> snapshots.
 ///

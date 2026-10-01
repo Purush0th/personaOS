@@ -25,7 +25,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PlannerItem> PlannerItems => Set<PlannerItem>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
-    public DbSet<Document> Documents => Set<Document>();
     public DbSet<ProactiveJobRun> ProactiveJobRuns => Set<ProactiveJobRun>();
     public DbSet<PendingAction> PendingActions => Set<PendingAction>();
     public DbSet<Memory> Memories => Set<Memory>();
@@ -52,17 +51,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cfg.Property(x => x.Summary).HasMaxLength(4000);
             // One run per job per local day: the DB enforces idempotency.
             cfg.HasIndex(x => new { x.JobName, x.LocalDate }).IsUnique();
-        });
-
-        modelBuilder.Entity<Document>(cfg =>
-        {
-            cfg.HasKey(x => x.Id);
-            cfg.Property(x => x.FileName).HasMaxLength(255).IsRequired();
-            cfg.Property(x => x.StorageName).HasMaxLength(100).IsRequired();
-            cfg.Property(x => x.ContentType).HasMaxLength(200).IsRequired();
-            cfg.Property(x => x.Description).HasMaxLength(2000);
-            cfg.HasIndex(x => x.StorageName).IsUnique();
-            cfg.HasIndex(x => x.CreatedAtUtc);
         });
 
         modelBuilder.Entity<Reminder>(cfg =>

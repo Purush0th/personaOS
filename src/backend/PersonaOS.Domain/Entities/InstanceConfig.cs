@@ -144,7 +144,6 @@ public class InstanceConfig
         public const string Goals = "goals";
         public const string Planner = "planner";
         public const string Reminders = "reminders";
-        public const string Docs = "docs";
         public const string Voice = "voice";
         public const string Proactive = "proactive";
         public const string Board = "board";
@@ -157,7 +156,6 @@ public class InstanceConfig
         [Modules.Goals] = true,
         [Modules.Planner] = true,
         [Modules.Reminders] = true,
-        [Modules.Docs] = true,
         [Modules.Voice] = true,
         [Modules.Board] = true,
         [Modules.Memory] = true,
