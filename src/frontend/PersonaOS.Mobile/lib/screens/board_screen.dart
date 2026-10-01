@@ -221,7 +221,7 @@ class _SideBySide extends StatelessWidget {
   final List<String> columns;
   final Widget Function(String column) page;
 
-  static const _minColumnWidth = 260.0;
+  static const _minColumnWidth = 160.0;
 
   @override
   Widget build(BuildContext context) {

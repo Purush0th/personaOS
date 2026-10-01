@@ -70,6 +70,7 @@ const _sizes = {
   'phone portrait': Size(390, 844),
   'phone landscape': Size(844, 390),
   'tablet portrait': Size(800, 1280),
+  '7-inch tablet portrait': Size(533, 853),
   'tablet landscape': Size(1280, 800),
 };
 
