@@ -100,6 +100,7 @@ class Goal {
     this.periodEnd,
     this.parentId,
     this.parentKey,
+    this.description,
     required this.status,
     required this.progress,
     required this.effectiveProgress,
@@ -122,6 +123,7 @@ class Goal {
         periodEnd: DateTime.tryParse(json['periodEnd'] as String? ?? ''),
         parentId: json['parentId'] as int?,
         parentKey: json['parentKey'] as String?,
+        description: json['description'] as String?,
         status: json['status'] as String,
         progress: json['progress'] as int,
         effectiveProgress: json['effectiveProgress'] as int,
@@ -153,6 +155,9 @@ class Goal {
   /// The year a quarter sits under, or the quarter a month sits under; null when standalone.
   final int? parentId;
   final String? parentKey;
+
+  /// What the goal is about, in the user's words; null when none was written.
+  final String? description;
 
   final String status; // active | completed
 
@@ -232,6 +237,35 @@ class BoardTask {
   final int attachmentCount;
 }
 
+/// A comment on a task or goal, written by the user or by the assistant.
+class WorkItemComment {
+  WorkItemComment({
+    required this.id,
+    required this.author,
+    required this.body,
+    required this.createdAtUtc,
+    required this.updatedAtUtc,
+  });
+
+  factory WorkItemComment.fromJson(Map<String, dynamic> json) => WorkItemComment(
+        id: json['id'] as int,
+        author: json['author'] as String? ?? 'user',
+        body: json['body'] as String? ?? '',
+        createdAtUtc: parseServerUtc(json['createdAtUtc'] as String),
+        updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
+      );
+
+  final int id;
+
+  /// "user" or "assistant".
+  final String author;
+  final String body;
+  final DateTime createdAtUtc;
+  final DateTime updatedAtUtc;
+
+  bool get edited => updatedAtUtc.difference(createdAtUtc).inSeconds > 1;
+}
+
 class SprintInfo {
   SprintInfo({
     required this.id,
@@ -249,6 +283,10 @@ class SprintInfo {
     this.totalPoints = 0,
     this.unestimatedCount = 0,
     this.scopeLocked = false,
+    this.startedAtUtc,
+    this.closedAtUtc,
+    this.taskCount = 0,
+    this.doneTaskCount = 0,
   });
 
   factory SprintInfo.fromJson(Map<String, dynamic> json) => SprintInfo(
@@ -267,6 +305,10 @@ class SprintInfo {
         totalPoints: json['totalPoints'] as int? ?? 0,
         unestimatedCount: json['unestimatedCount'] as int? ?? 0,
         scopeLocked: json['scopeLocked'] as bool? ?? false,
+        startedAtUtc: json['startedAtUtc'] == null ? null : parseServerUtc(json['startedAtUtc'] as String),
+        closedAtUtc: json['closedAtUtc'] == null ? null : parseServerUtc(json['closedAtUtc'] as String),
+        taskCount: json['taskCount'] as int? ?? 0,
+        doneTaskCount: json['doneTaskCount'] as int? ?? 0,
       );
 
   final int id;
@@ -288,8 +330,50 @@ class SprintInfo {
   final int totalPoints;
   final int unestimatedCount;
   final bool scopeLocked;
+  final DateTime? startedAtUtc;
+  final DateTime? closedAtUtc;
+  final int taskCount;
+  final int doneTaskCount;
 
   bool get isActive => status == 'active';
+  bool get isPlanned => status == 'planned';
+  bool get isClosed => status == 'closed';
+}
+
+/// One day of a sprint's burndown: the points still open and those done by the end of it.
+class BurndownPoint {
+  BurndownPoint({required this.date, required this.remainingPoints, required this.completedPoints});
+
+  factory BurndownPoint.fromJson(Map<String, dynamic> json) => BurndownPoint(
+        date: DateTime.parse(json['date'] as String),
+        remainingPoints: (json['remainingPoints'] as num?)?.toInt() ?? 0,
+        completedPoints: (json['completedPoints'] as num?)?.toInt() ?? 0,
+      );
+
+  final DateTime date;
+  final int remainingPoints;
+  final int completedPoints;
+}
+
+/// A started sprint in full, for its report: its numbers, every task in it and its burndown.
+class SprintDetail {
+  SprintDetail({required this.sprint, required this.tasks, required this.burndown, this.velocity});
+
+  factory SprintDetail.fromJson(Map<String, dynamic> json) => SprintDetail(
+        sprint: SprintInfo.fromJson(json['sprint'] as Map<String, dynamic>),
+        tasks: (json['tasks'] as List<dynamic>? ?? const [])
+            .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        burndown: (json['burndown'] as List<dynamic>? ?? const [])
+            .map((e) => BurndownPoint.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        velocity: (json['velocity'] as num?)?.toDouble(),
+      );
+
+  final SprintInfo sprint;
+  final List<BoardTask> tasks;
+  final List<BurndownPoint> burndown;
+  final double? velocity;
 }
 
 class BoardView {

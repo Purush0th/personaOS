@@ -4,35 +4,43 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { distinctUntilChanged, map } from 'rxjs';
+import { combineLatest, distinctUntilChanged, map } from 'rxjs';
 
+import { GoalDetail } from '../goals/goal-detail';
 import { TaskDetail } from './task-detail';
 
 /**
- * The query parameter naming the task open over a page: /board?task=TASK-3. Templates link to it
- * as `[queryParams]="{ task: key }"`, since a template cannot use a computed key.
+ * The query parameters naming the item open over a page: /board?task=TASK-3, /goals?goal=GOAL-2.
+ * Templates link to them as `[queryParams]="{ task: key }"`, since a template cannot use a
+ * computed key.
  */
 export const TASK_PARAM = 'task';
+export const GOAL_PARAM = 'goal';
 
-interface TaskDialogData {
+type ItemKind = 'task' | 'goal';
+
+interface ItemDialogData {
+  kind: ItemKind;
   key: string;
 }
 
 /**
- * A task opened from a card, over the page it was opened from, the way Jira opens an issue from
- * its board. The full page is one click away, and Esc or the close button returns to the board.
+ * A task or goal opened from a list, over the page it was opened from, the way Jira opens an issue
+ * from its board. The full page opens in a new tab, so the list and the open item stay where they
+ * are; Esc or the close button returns to the list.
  */
 @Component({
   selector: 'app-task-dialog',
-  imports: [MatButtonModule, MatDialogModule, MatIconModule, RouterLink, TaskDetail],
+  imports: [MatButtonModule, MatDialogModule, MatIconModule, RouterLink, TaskDetail, GoalDetail],
   template: `
     <div class="bar">
       <a
         mat-icon-button
-        [routerLink]="['/board/tasks', data.key]"
-        mat-dialog-close
-        aria-label="Open full page"
-        title="Open full page"
+        [routerLink]="data.kind === 'task' ? ['/board/tasks', data.key] : ['/goals', data.key]"
+        target="_blank"
+        rel="noopener"
+        aria-label="Open full page in a new tab"
+        title="Open full page in a new tab"
       >
         <mat-icon>open_in_full</mat-icon>
       </a>
@@ -41,7 +49,11 @@ interface TaskDialogData {
       </button>
     </div>
     <mat-dialog-content>
-      <app-task-detail [taskKey]="data.key" [embedded]="true" (deleted)="ref.close()" />
+      @if (data.kind === 'task') {
+        <app-task-detail [taskKey]="data.key" [embedded]="true" (deleted)="ref.close()" />
+      } @else {
+        <app-goal-detail [goalKey]="data.key" [embedded]="true" (deleted)="ref.close()" />
+      }
     </mat-dialog-content>
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -60,21 +72,21 @@ interface TaskDialogData {
   `,
 })
 export class TaskDialog {
-  protected readonly data = inject<TaskDialogData>(MAT_DIALOG_DATA);
+  protected readonly data = inject<ItemDialogData>(MAT_DIALOG_DATA);
   protected readonly ref = inject(MatDialogRef<TaskDialog>);
 }
 
 /**
- * Opens the task named by `?task=` in a dialog over the calling page, and keeps the URL and the
- * dialog in step: closing the dialog drops the parameter, and Back (or a link that drops it)
- * closes the dialog. Call it from a component's constructor; `onClosed` runs after each close,
- * for the page to reload what the dialog may have changed.
+ * Opens the task or goal named by `?task=` or `?goal=` in a dialog over the calling page, and keeps
+ * the URL and the dialog in step: closing the dialog drops the parameter, and Back (or a link that
+ * drops it) closes the dialog. Call it from a component's constructor; `onClosed` runs after each
+ * close, for the page to reload what the dialog may have changed.
  */
 export function openTaskFromQuery(onClosed: () => void): void {
   const route = inject(ActivatedRoute);
   const router = inject(Router);
   const dialog = inject(MatDialog);
-  // The page's injector, not the root one MatDialog would use: the task inside needs what the
+  // The page's injector, not the root one MatDialog would use: the item inside needs what the
   // page routes provide, such as the outlined form fields.
   const injector = inject(Injector);
 
@@ -90,18 +102,23 @@ export function openTaskFromQuery(onClosed: () => void): void {
     close();
   });
 
-  route.queryParamMap
+  combineLatest([
+    route.queryParamMap.pipe(map(params => params.get(TASK_PARAM)), distinctUntilChanged()),
+    route.queryParamMap.pipe(map(params => params.get(GOAL_PARAM)), distinctUntilChanged()),
+  ])
     .pipe(
-      map(params => params.get(TASK_PARAM)),
-      distinctUntilChanged(),
+      map(([task, goal]): ItemDialogData | null =>
+        task ? { kind: 'task', key: task } : goal ? { kind: 'goal', key: goal } : null
+      ),
+      distinctUntilChanged((a, b) => a?.kind === b?.kind && a?.key === b?.key),
       takeUntilDestroyed()
     )
-    .subscribe(key => {
+    .subscribe(item => {
       close();
-      if (!key) return;
+      if (!item) return;
 
       const ref = dialog.open(TaskDialog, {
-        data: { key } satisfies TaskDialogData,
+        data: item,
         injector,
         width: '960px',
         maxWidth: 'calc(100vw - 2rem)',
@@ -117,7 +134,7 @@ export function openTaskFromQuery(onClosed: () => void): void {
         open = null;
         void router.navigate([], {
           relativeTo: route,
-          queryParams: { [TASK_PARAM]: null },
+          queryParams: { [TASK_PARAM]: null, [GOAL_PARAM]: null },
           queryParamsHandling: 'merge',
         });
       });

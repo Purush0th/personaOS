@@ -218,7 +218,7 @@
     </mat-menu>
     <mat-menu #moveMenu="matMenu">
       <ng-template matMenuContent let-task="task">
-        <a mat-menu-item [routerLink]="['/board/tasks', task.key]">
+        <a mat-menu-item [routerLink]="['/board/tasks', task.key]" target="_blank" rel="noopener">
           <mat-icon>open_in_full</mat-icon>
           Open
         </a>

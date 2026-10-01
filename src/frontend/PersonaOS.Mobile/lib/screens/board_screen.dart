@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../layout.dart';
+import 'backlog_view.dart';
+import 'comments_section.dart';
+import 'reports_view.dart';
 
 /// The sprint board: To do, In progress and Done for the sprint that is running.
 ///
@@ -18,8 +21,14 @@ class BoardScreen extends StatefulWidget {
   State<BoardScreen> createState() => _BoardScreenState();
 }
 
-class _BoardScreenState extends State<BoardScreen> {
+class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStateMixin {
   final _pages = PageController(viewportFraction: 0.9);
+
+  /// Sprint | Backlog | Reports, as on the web.
+  late final _tabs = TabController(length: 3, vsync: this)..addListener(_tabChanged);
+
+  /// Bumped whenever the board changes, so the Reports tab loads afresh.
+  int _revision = 0;
   BoardView? _board;
   PlanView? _plan;
   List<Goal> _goals = const [];
@@ -37,8 +46,13 @@ class _BoardScreenState extends State<BoardScreen> {
 
   @override
   void dispose() {
+    _tabs.dispose();
     _pages.dispose();
     super.dispose();
+  }
+
+  void _tabChanged() {
+    if (!_tabs.indexIsChanging) setState(() {});
   }
 
   Future<void> _reload() async {
@@ -49,6 +63,7 @@ class _BoardScreenState extends State<BoardScreen> {
       setState(() {
         _board = board;
         _plan = plan;
+        _revision++;
         _error = null;
         _loading = false;
       });
@@ -127,24 +142,33 @@ class _BoardScreenState extends State<BoardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Board'),
-        actions: [
-          IconButton(
-            tooltip: 'Sprint report',
-            icon: const Icon(Icons.insights_outlined),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => SprintReportScreen(api: widget.api),
-            )),
-          ),
-        ],
+        bottom: TabBar(
+          controller: _tabs,
+          tabs: const [Tab(text: 'Sprint'), Tab(text: 'Backlog'), Tab(text: 'Reports')],
+        ),
       ),
-      floatingActionButton: sprint == null
+      floatingActionButton: sprint == null || _tabs.index != 0
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _openTask(),
               icon: const Icon(Icons.add),
               label: const Text('Task'),
             ),
-      body: _loading
+      // Tabs change by tapping: the Sprint tab swipes between its columns.
+      body: TabBarView(
+        controller: _tabs,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          _sprintTab(board, sprint),
+          BacklogView(api: widget.api, goals: _goals, onChanged: _reload),
+          ReportsView(key: ValueKey(_revision), api: widget.api),
+        ],
+      ),
+    );
+  }
+
+  Widget _sprintTab(BoardView? board, SprintInfo? sprint) {
+    return _loading
           ? const Center(child: CircularProgressIndicator())
           : board == null
               ? _Message(text: _error ?? 'Could not load the board.', onRetry: _reload)
@@ -193,8 +217,7 @@ class _BoardScreenState extends State<BoardScreen> {
                           ],
                         ),
                       ),
-                    ),
-    );
+                    );
   }
 
   Widget _columnPage(BoardView board, String column) => _ColumnPage(
@@ -274,7 +297,7 @@ Future<bool> runWithScopeConfirmation(
   }
 }
 
-String _when(DateTime utc) {
+String sprintWhen(DateTime utc) {
   const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   final t = utc.toLocal();
@@ -306,9 +329,9 @@ class _NoSprint extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               planned.isEmpty
-                  ? 'Plan one on the Backlog page in the web app, then start it there.'
+                  ? 'Plan one in the Backlog tab, then start it there.'
                   : '${sprintLabel(planned.first.sprint)} is planned and waiting. '
-                      'Start it from the Backlog page in the web app.',
+                      'Start it from the Backlog tab.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -344,7 +367,7 @@ class _SprintHeader extends StatelessWidget {
               Text('running', style: stat?.copyWith(color: const Color(0xFF3D8B4F))),
             ],
           ),
-          Text('${_when(sprint.startsAtUtc)} – ${_when(sprint.endsAtUtc)}', style: stat),
+          Text('${sprintWhen(sprint.startsAtUtc)} – ${sprintWhen(sprint.endsAtUtc)}', style: stat),
           const SizedBox(height: 4),
           Wrap(
             spacing: 12,
@@ -673,7 +696,8 @@ class GoalChip extends StatelessWidget {
   }
 }
 
-/// Create a task, or edit, move and delete an existing one.
+/// Create a task, or edit, move and delete an existing one: the quick view a card opens, and the
+/// body of the task's full page ([TaskPage]). An existing task shows its description and comments.
 class TaskSheet extends StatefulWidget {
   const TaskSheet({
     super.key,
@@ -683,7 +707,11 @@ class TaskSheet extends StatefulWidget {
     this.sprints = const [],
     this.defaultSprintKey,
     this.fixedGoalId,
+    this.fullPage = false,
   });
+
+  /// Shown as the task's own page rather than over a list: no title row, no "Open full page".
+  final bool fullPage;
 
   final PersonaOsApi api;
   final List<Goal> goals;
@@ -704,6 +732,7 @@ class TaskSheet extends StatefulWidget {
 
 class _TaskSheetState extends State<TaskSheet> {
   late final _title = TextEditingController(text: widget.task?.title ?? '');
+  late final _description = TextEditingController(text: widget.task?.description ?? '');
   late int? _points = widget.task?.points;
   late int? _goalId = widget.fixedGoalId ?? widget.task?.goalId;
   late String? _sprintKey = widget.task?.sprintKey ?? widget.defaultSprintKey;
@@ -715,7 +744,17 @@ class _TaskSheetState extends State<TaskSheet> {
   @override
   void dispose() {
     _title.dispose();
+    _description.dispose();
     super.dispose();
+  }
+
+  /// The task's own page, over this sheet; coming back closes the sheet so the list reloads.
+  Future<void> _openPage() async {
+    final task = widget.task!;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => TaskPage(api: widget.api, taskKey: task.key, goals: widget.goals, sprints: widget.sprints),
+    ));
+    if (mounted) Navigator.pop(context, true);
   }
 
   Future<void> _guard(Future<bool> Function() action) async {
@@ -750,7 +789,15 @@ class _TaskSheetState extends State<TaskSheet> {
     }
     await _guard(() async {
       if (_editing) {
-        await widget.api.updateTask(widget.task!.key, title: title, points: _points, goalId: _goalId);
+        final description = _description.text.trim();
+        await widget.api.updateTask(
+          widget.task!.key,
+          title: title,
+          points: _points,
+          goalId: _goalId,
+          // Only a change is sent: an untouched empty field must not "clear" nothing.
+          description: description == (widget.task!.description ?? '').trim() ? null : description,
+        );
         // Moving between sprints is its own call, and may be a scope change.
         if (_sprintKey != widget.task!.sprintKey) {
           if (!mounted) return true;
@@ -826,7 +873,18 @@ class _TaskSheetState extends State<TaskSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(_editing ? widget.task!.key : 'New task', style: theme.textTheme.titleLarge),
+            if (!widget.fullPage)
+              Row(
+                children: [
+                  Expanded(child: Text(_editing ? widget.task!.key : 'New task', style: theme.textTheme.titleLarge)),
+                  if (_editing)
+                    IconButton(
+                      tooltip: 'Open full page',
+                      icon: const Icon(Icons.open_in_full),
+                      onPressed: _busy ? null : _openPage,
+                    ),
+                ],
+              ),
             const SizedBox(height: 12),
             TextField(
               controller: _title,
@@ -838,6 +896,17 @@ class _TaskSheetState extends State<TaskSheet> {
                 errorText: _error,
               ),
             ),
+            if (_editing) ...[
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('task-description'),
+                controller: _description,
+                minLines: 2,
+                maxLines: 8,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+              ),
+            ],
             const SizedBox(height: 12),
             Text('Value points', style: theme.textTheme.labelLarge),
             const SizedBox(height: 6),
@@ -869,6 +938,11 @@ class _TaskSheetState extends State<TaskSheet> {
                       value: g.id,
                       child: Text('${g.key} ${g.title} · ${g.slot}', overflow: TextOverflow.ellipsis),
                     ),
+                  if (_goalId != null && !widget.goals.any((g) => g.id == _goalId))
+                    DropdownMenuItem<int?>(
+                      value: _goalId,
+                      child: Text(widget.task?.goalKey ?? 'Its goal', overflow: TextOverflow.ellipsis),
+                    ),
                 ],
                 onChanged: (v) => setState(() => _goalId = v),
               ),
@@ -883,6 +957,10 @@ class _TaskSheetState extends State<TaskSheet> {
                   const DropdownMenuItem<String?>(value: null, child: Text('Backlog (no sprint)')),
                   for (final s in widget.sprints)
                     DropdownMenuItem<String?>(value: s.key, child: Text(sprintLabel(s), overflow: TextOverflow.ellipsis)),
+                  // Its own sprint, even when not among those offered (a closed one, or a view opened
+                  // without the plan): a dropdown whose value is not among its items cannot build.
+                  if (_sprintKey != null && !widget.sprints.any((s) => s.key == _sprintKey))
+                    DropdownMenuItem<String?>(value: _sprintKey, child: Text(_sprintKey!)),
                 ],
                 onChanged: (v) => setState(() => _sprintKey = v),
               ),
@@ -924,6 +1002,10 @@ class _TaskSheetState extends State<TaskSheet> {
                 ),
               ],
             ),
+            if (_editing) ...[
+              const Divider(height: 32),
+              CommentsSection(api: widget.api, itemType: 'task', itemKey: widget.task!.key),
+            ],
           ],
         ),
       ),
@@ -931,59 +1013,56 @@ class _TaskSheetState extends State<TaskSheet> {
   }
 }
 
-/// Past sprints: committed against completed, no charts.
-class SprintReportScreen extends StatelessWidget {
-  const SprintReportScreen({super.key, required this.api});
+/// A task on its own page: the same fields as the quick view, with room for its description and
+/// comments. Read afresh, so it is current however it was reached.
+class TaskPage extends StatefulWidget {
+  const TaskPage({
+    super.key,
+    required this.api,
+    required this.taskKey,
+    this.goals = const [],
+    this.sprints = const [],
+  });
 
   final PersonaOsApi api;
+  final String taskKey;
+  final List<Goal> goals;
+  final List<SprintInfo> sprints;
+
+  @override
+  State<TaskPage> createState() => _TaskPageState();
+}
+
+class _TaskPageState extends State<TaskPage> {
+  late final Future<BoardTask> _task = widget.api.getTask(widget.taskKey);
+
+  /// The sprints it can move to: those passed in, or the plan's when it was opened without them.
+  late final Future<List<SprintInfo>> _sprints = widget.sprints.isNotEmpty
+      ? Future.value(widget.sprints)
+      : widget.api.getPlan().then((p) => p.sprints.map((s) => s.sprint).toList(), onError: (_) => <SprintInfo>[]);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sprint report')),
-      body: FutureBuilder<SprintReport>(
-        future: api.getSprintReport(),
+      appBar: AppBar(title: Text(widget.taskKey)),
+      body: FutureBuilder<(BoardTask, List<SprintInfo>)>(
+        future: (_task, _sprints).wait,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
-            return const _Message(text: 'Could not load the sprint report.');
-          }
-          final report = snapshot.data!;
-          final theme = Theme.of(context);
-          return ListView(
-            padding: const EdgeInsets.all(12),
-            children: [
-              if (report.velocity != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-                  child: Text('Velocity ${report.velocity} (last 3 sprints)',
-                      style: theme.textTheme.bodySmall),
-                ),
-              if (report.sprints.isEmpty) const _Message(text: 'No sprints yet.'),
-              for (final s in report.sprints)
-                Card(
-                  child: ListTile(
-                    title: Text('${sprintLabel(s)}${s.isActive ? ' (running)' : ''}'),
-                    subtitle: Text(
-                      [
-                        '${_when(s.startsAtUtc)} – ${_when(s.endsAtUtc)}',
-                        'committed ${s.committedPoints ?? '—'} · added ${s.addedPoints} · removed ${s.removedPoints}',
-                        if (s.carriedOverPoints != null) 'carried over ${s.carriedOverPoints}',
-                      ].join('\n'),
-                    ),
-                    isThreeLine: true,
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('${s.completedPoints}', style: theme.textTheme.titleLarge),
-                        Text('done', style: theme.textTheme.labelSmall),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
+          if (snapshot.hasError) return const _Message(text: 'Could not load that task.');
+          return ReadableWidth(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: TaskSheet(
+                api: widget.api,
+                goals: widget.goals,
+                task: snapshot.data!.$1,
+                sprints: snapshot.data!.$2,
+                fullPage: true,
+              ),
+            ),
           );
         },
       ),

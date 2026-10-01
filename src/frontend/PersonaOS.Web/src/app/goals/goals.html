@@ -28,7 +28,7 @@
             <mat-icon>{{ collapsed().has(goal.id) ? 'chevron_right' : 'expand_more' }}</mat-icon>
           </button>
         }
-        <a class="key key-link" [routerLink]="['/goals', goal.key]">{{ goal.key }}</a>
+        <a class="key key-link" [routerLink]="[]" [queryParams]="{ goal: goal.key }" queryParamsHandling="merge">{{ goal.key }}</a>
         <span class="title">{{ goal.title }}</span>
         <span class="lozenge">{{ goal.slot }}</span>
         @if (overdue(goal)) {
@@ -140,7 +140,7 @@
   <!-- One task menu for the page; the row passes its task in. -->
   <mat-menu #taskMenu="matMenu">
     <ng-template matMenuContent let-task="task">
-      <a mat-menu-item [routerLink]="['/board/tasks', task.key]">
+      <a mat-menu-item [routerLink]="['/board/tasks', task.key]" target="_blank" rel="noopener">
         <mat-icon>open_in_full</mat-icon>
         Open
       </a>

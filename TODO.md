@@ -234,6 +234,17 @@ it is not under a parent.
         width (min 48 px) and labels widen to 220 px when the year still fits. The phone Goals tab
         is no longer capped at 840 px. Web Timeline minimum lowered from 44rem to 38rem, so a
         1024 px landscape tablet with the nav open shows the whole year.
+- [x] **Board tabs, quick views and full pages on the phone; goal quick view on the web**
+      (2026-10-01, web deployed, APK sent). Phone board: Sprint | Backlog | Reports tabs like the
+      web (`backlog_view.dart`: sprints and backlog, create/edit/start/complete/delete sprint, move
+      tasks; `reports_view.dart`: sprint picker, numbers, burndown, tasks by status, velocity; the
+      old report screen is gone). Phone task quick view gains description, comments
+      (`comments_section.dart`) and Open full page (`TaskPage`); goal keys and the tasks under a
+      goal open quick views, with a `GoalPage`; Timeline bars open the goal quick view. Fixed: a
+      task sheet crashed when its sprint was not in the list it was given. Web: goal keys and
+      Timeline bars open a goal quick view (`?goal=`); "Open full page" opens a new tab, which also
+      ends a race where closing the dialog cancelled the page navigation on slow loads.
+      **Not yet on the phone:** attachments (the web has them).
 
 ## AI layer refactor (raised by the owner 2026-09-21)
 

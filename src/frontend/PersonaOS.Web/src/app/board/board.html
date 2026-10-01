@@ -132,7 +132,7 @@
       <!-- One card menu for the whole board; the trigger passes the task in. -->
       <mat-menu #cardMenu="matMenu">
         <ng-template matMenuContent let-task="task">
-          <a mat-menu-item [routerLink]="['/board/tasks', task.key]">
+          <a mat-menu-item [routerLink]="['/board/tasks', task.key]" target="_blank" rel="noopener">
             <mat-icon>open_in_full</mat-icon>
             Open
           </a>
