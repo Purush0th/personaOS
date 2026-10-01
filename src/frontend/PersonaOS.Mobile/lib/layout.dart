@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 /// Widths the screens adapt at, the same on a phone, a tablet, portrait or landscape: what counts
 /// is the width the screen actually has, not the kind of device.
 abstract final class Breakpoints {
-  /// From here the board shows its columns side by side instead of one page per column.
-  static const double board = 720;
+  /// From here the board shows its columns side by side instead of one page per column. Low enough
+  /// for a tablet held upright: many report only 533–600 logical pixels across.
+  static const double board = 520;
 
   /// From here the home screen lays its modules out two abreast.
-  static const double twoColumns = 640;
+  static const double twoColumns = 520;
 
   /// The widest a list of text reads comfortably; wider screens centre it.
   static const double readable = 840;
