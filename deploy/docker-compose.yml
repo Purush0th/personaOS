@@ -19,7 +19,7 @@ services:
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
       # The whole instance persists under /app/data (one volume):
       #   personaos.db        — the SQLite database (config, chat, goals, encrypted key)
-      #   docs-storage/       — uploaded document files
+      #   docs-storage/       — files attached to tasks and goals
       #   dp-keys/            — Data Protection keyring that decrypts the stored API key
       #   prompts/            — optional edits to the assistant's instructions (see README)
       # Back this volume up as a unit — the ciphertext (db) and its keyring live together.

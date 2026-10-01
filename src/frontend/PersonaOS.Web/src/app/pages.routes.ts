@@ -84,11 +84,6 @@ export const PAGE_ROUTES: Routes = [
         loadComponent: () => import('./reminders/reminders').then(m => m.Reminders),
       },
       {
-        path: 'documents',
-        canActivate: [authGuard],
-        loadComponent: () => import('./documents/documents').then(m => m.Documents),
-      },
-      {
         path: 'settings',
         canActivate: [authGuard],
         loadComponent: () => import('./settings/settings').then(m => m.Settings),

@@ -76,7 +76,8 @@ class ItemsApi extends PersonaOsApi {
   }
 
   @override
-  Future<void> updateTask(String key, {String? title, int? points, int? goalId, String? description}) async =>
+  Future<void> updateTask(String key,
+          {String? title, int? points, int? goalId, String? description, String? priority}) async =>
       calls.add('update $key description=${description ?? '(unchanged)'}');
 
   @override

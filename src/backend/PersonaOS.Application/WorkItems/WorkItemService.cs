@@ -8,7 +8,7 @@ namespace PersonaOS.Application.WorkItems;
 
 public class WorkItemService(IAppDbContext db, IDocumentStorage storage) : IWorkItemService
 {
-    /// <summary>Upper bound on a single attachment (25 MB), matching documents.</summary>
+    /// <summary>Upper bound on a single attachment (25 MB).</summary>
     private const long MaxAttachmentBytes = 25L * 1024 * 1024;
 
     private const int MaxCommentLength = 8000;

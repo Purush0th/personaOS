@@ -13,13 +13,14 @@ import 'screens/alarm_screen.dart';
 import 'screens/board_screen.dart';
 import 'screens/chat_screen.dart';
 import 'layout.dart';
-import 'screens/documents_screen.dart';
 import 'screens/memories_screen.dart';
 import 'screens/goals_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/planner_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
+import 'theme_choice.dart';
+import 'update_check.dart';
 
 /// PersonaOS mobile app.
 ///
@@ -35,6 +36,7 @@ Future<void> main() async {
   await alarms.init();
   alarms.onOpen = _showAlarm;
 
+  await loadThemeChoice();
   runApp(const PersonaOsApp());
 
   final launchedBy = await alarms.launchedFrom();
@@ -160,16 +162,18 @@ class PersonaOsApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: appNavigatorKey,
-      title: 'PersonaOS',
-      theme: personaOsTheme,
-      darkTheme: personaOsDarkTheme,
-      // Follow the phone. A self-hosted assistant that ignores the system's
-      // dark mode looks broken at night, and there is no per-install theming
-      // to configure instead.
-      themeMode: ThemeMode.system,
-      home: const _Bootstrapper(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeChoice,
+      builder: (context, mode, _) => MaterialApp(
+        navigatorKey: appNavigatorKey,
+        title: 'PersonaOS',
+        theme: personaOsTheme,
+        darkTheme: personaOsDarkTheme,
+        // Follows the phone unless this phone chose light or dark in Settings; there is no
+        // per-install theming beyond that.
+        themeMode: mode,
+        home: const _Bootstrapper(),
+      ),
     );
   }
 }
@@ -323,6 +327,8 @@ class Branding {
     required this.assistantNickname,
     required this.isConfigured,
     required this.enabledFeatures,
+    this.apiVersion,
+    this.repository,
   });
 
   factory Branding.fromJson(Map<String, dynamic> json) => Branding(
@@ -331,11 +337,17 @@ class Branding {
         enabledFeatures: (json['enabledFeatures'] as List<dynamic>)
             .map((e) => e as String)
             .toList(),
+        apiVersion: json['apiVersion'] as String?,
+        repository: json['repository'] as String?,
       );
 
   final String assistantNickname;
   final bool isConfigured;
   final List<String> enabledFeatures;
+
+  /// The server's version and its GitHub repository ("owner/name"), for the update notice.
+  final String? apiVersion;
+  final String? repository;
 }
 
 /// Placeholder home: greets via the instance's assistant nickname and lists
@@ -356,6 +368,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late Future<Branding> _branding;
+
+  /// A newer release than the server runs, once the check finds one.
+  AvailableUpdate? _update;
 
   /// Titles the reminder alarms this phone schedules. Kept from the last branding fetch.
   String _nickname = 'PersonaOS';
@@ -410,6 +425,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         .timeout(const Duration(seconds: 8));
     final branding = Branding.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
     _nickname = branding.assistantNickname;
+    unawaited(checkForUpdate(currentVersion: branding.apiVersion, repository: branding.repository).then((update) {
+      if (mounted && update != null) setState(() => _update = update);
+    }));
     return branding;
   }
 
@@ -480,6 +498,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             children: [
               _Hero(nickname: nickname),
+              if (_update != null)
+                Card(
+                  key: const Key('update-notice'),
+                  margin: const EdgeInsets.only(top: 16),
+                  child: ListTile(
+                    leading: const Icon(Icons.system_update_alt),
+                    title: Text('PersonaOS ${_update!.name} is available'),
+                    subtitle: SelectableText(_update!.notesUrl),
+                    trailing: IconButton(
+                      tooltip: 'Dismiss',
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        unawaited(dismissUpdate(_update!));
+                        setState(() => _update = null);
+                      },
+                    ),
+                  ),
+                ),
               const SizedBox(height: 20),
               _ModuleCard(
                 icon: Icons.auto_awesome,
@@ -535,13 +571,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       title: 'Reminders',
                       subtitle: 'Nudges at the right time',
                       onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
-                    ),
-                  if (enabled('docs'))
-                    _ModuleCard(
-                      icon: Icons.folder_outlined,
-                      title: 'Documents',
-                      subtitle: 'Files the assistant can read',
-                      onTap: () => _openAfterLogin((_) => DocumentsScreen(api: _api)),
                     ),
                   if (enabled('memory'))
                     _ModuleCard(

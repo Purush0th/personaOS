@@ -159,15 +159,15 @@ public class SystemPromptBuilderTests
     [Fact]
     public async Task Names_a_disabled_module_as_switched_off()
     {
-        // Docs off: the tool is gated anyway, but the model should not offer the feature.
+        // Reminders off: the tools are gated anyway, but the model should not offer the feature.
         var prompt = await BuildAsync(c => c.Features = new Dictionary<string, bool>(c.Features)
         {
-            [InstanceConfig.Modules.Docs] = false,
+            [InstanceConfig.Modules.Reminders] = false,
         });
 
         Assert.Contains("Switched off, so do not offer it:", prompt);
         var switchedOff = prompt[prompt.IndexOf("Switched off", StringComparison.Ordinal)..];
-        Assert.Contains("stored documents", switchedOff);
+        Assert.Contains("reminders", switchedOff);
     }
 
     [Fact]

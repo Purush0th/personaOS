@@ -10,8 +10,8 @@ Everything lives in the API's data directory (the `api-data` volume, mounted at
 
 | Path | What it is | Losing it means |
 |---|---|---|
-| `personaos.db` (+ `-wal`, `-shm`) | The whole database: config, nickname, provider settings, chat, goals, planner, reminders, document metadata, and the **encrypted API key** | All data gone |
-| `docs-storage/` | Uploaded document files | Documents gone |
+| `personaos.db` (+ `-wal`, `-shm`) | The whole database: config, nickname, provider settings, chat, goals, board, planner, reminders, attachment metadata, and the **encrypted API key** | All data gone |
+| `docs-storage/` | Files attached to tasks and goals | Attachments gone |
 | `dp-keys/` | Data Protection keyring — the key that **decrypts** the API key stored in the db | The stored API key becomes unreadable (re-enter it in Settings) |
 
 > **Back these up together.** The encrypted key (in `personaos.db`) is useless

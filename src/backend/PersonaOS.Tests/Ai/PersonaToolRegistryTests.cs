@@ -12,12 +12,12 @@ namespace PersonaOS.Tests.Ai;
 /// </summary>
 public class PersonaToolRegistryTests
 {
-    private static async Task<(PersonaToolRegistry Registry, FakeTool Docs)> SetupWithDocsOff()
+    private static async Task<(PersonaToolRegistry Registry, FakeTool Reminders)> SetupWithRemindersOff()
     {
         var db = TestDbContext.Create();
         var config = new FakeInstanceConfigService(db);
-        await config.UpdateAsync(c => c.Features[InstanceConfig.Modules.Docs] = false);
-        var docs = new FakeTool("delete_document", requiredFeature: InstanceConfig.Modules.Docs, mutates: true);
+        await config.UpdateAsync(c => c.Features[InstanceConfig.Modules.Reminders] = false);
+        var docs = new FakeTool("cancel_reminder", requiredFeature: InstanceConfig.Modules.Reminders, mutates: true);
         var goals = new FakeTool("create_goal", requiredFeature: InstanceConfig.Modules.Goals, mutates: true);
         var always = new FakeTool("remember_about_user", mutates: true);
         return (new PersonaToolRegistry([docs, goals, always], config, NullLogger<PersonaToolRegistry>.Instance), docs);
@@ -26,7 +26,7 @@ public class PersonaToolRegistryTests
     [Fact]
     public async Task A_switched_off_module_offers_no_tools()
     {
-        var (registry, _) = await SetupWithDocsOff();
+        var (registry, _) = await SetupWithRemindersOff();
 
         Assert.Equal(["create_goal", "remember_about_user"], (await registry.GetEnabledToolDefinitionsAsync()).Select(t => t.Name));
     }
@@ -34,20 +34,20 @@ public class PersonaToolRegistryTests
     [Fact]
     public async Task A_switched_off_tool_does_not_run_even_when_the_model_names_it()
     {
-        var (registry, docs) = await SetupWithDocsOff();
+        var (registry, docs) = await SetupWithRemindersOff();
 
-        var result = await registry.ExecuteAsync(new AiToolCall("1", "delete_document", "{}"));
+        var result = await registry.ExecuteAsync(new AiToolCall("1", "cancel_reminder", "{}"));
 
         Assert.True(result.IsError);
         Assert.Contains("Unknown or disabled tool", result.Content);
         Assert.Empty(docs.Invocations);
-        Assert.NotNull(await registry.ValidateAsync(new AiToolCall("1", "delete_document", "{}")));
+        Assert.NotNull(await registry.ValidateAsync(new AiToolCall("1", "cancel_reminder", "{}")));
     }
 
     [Fact]
     public async Task Only_enabled_writes_need_a_card()
     {
-        var (registry, _) = await SetupWithDocsOff();
+        var (registry, _) = await SetupWithRemindersOff();
 
         Assert.Equal(["create_goal", "remember_about_user"], (await registry.GetMutatingToolNamesAsync()).Order());
     }
@@ -55,7 +55,7 @@ public class PersonaToolRegistryTests
     [Fact]
     public async Task Input_that_is_not_json_comes_back_as_an_error_for_the_model()
     {
-        var (registry, _) = await SetupWithDocsOff();
+        var (registry, _) = await SetupWithRemindersOff();
 
         var result = await registry.ExecuteAsync(new AiToolCall("1", "create_goal", "{not json"));
 

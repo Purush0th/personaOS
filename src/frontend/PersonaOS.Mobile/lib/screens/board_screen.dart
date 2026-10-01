@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../date_utils.dart';
 import '../layout.dart';
+import 'attachments_section.dart';
 import 'backlog_view.dart';
 import 'comments_section.dart';
 import 'reports_view.dart';
+import 'sprint_actions.dart';
+import 'sprint_page.dart';
 
 /// The sprint board: To do, In progress and Done for the sprint that is running.
 ///
@@ -134,6 +138,17 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
     if (changed == true) await _reload();
   }
 
+  Future<void> _openSprint(SprintInfo sprint) async {
+    final changed = await Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => SprintPage(api: widget.api, sprintKey: sprint.key)));
+    if (changed == true) await _reload();
+  }
+
+  Future<void> _completeSprint(SprintInfo sprint) async {
+    final next = _plan?.sprints.map((p) => p.sprint).where((s) => s.isPlanned).firstOrNull;
+    if (await completeSprintFlow(context, widget.api, sprint, next: next)) await _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     final board = _board;
@@ -142,6 +157,19 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
     return Scaffold(
       appBar: AppBar(
         title: const Text('Board'),
+        actions: [
+          // The running sprint's own page and its completion, as on the web's Sprint tab.
+          if (sprint != null && _tabs.index == 0)
+            PopupMenuButton<String>(
+              key: const Key('sprint-menu'),
+              tooltip: 'Sprint actions',
+              onSelected: (action) => action == 'open' ? _openSprint(sprint) : _completeSprint(sprint),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'open', child: Text('Open sprint')),
+                PopupMenuItem(value: 'complete', child: Text('Complete sprint')),
+              ],
+            ),
+        ],
         bottom: TabBar(
           controller: _tabs,
           tabs: const [Tab(text: 'Sprint'), Tab(text: 'Backlog'), Tab(text: 'Reports')],
@@ -733,6 +761,7 @@ class TaskSheet extends StatefulWidget {
 class _TaskSheetState extends State<TaskSheet> {
   late final _title = TextEditingController(text: widget.task?.title ?? '');
   late final _description = TextEditingController(text: widget.task?.description ?? '');
+  late String _priority = widget.task?.priority ?? 'medium';
   late int? _points = widget.task?.points;
   late int? _goalId = widget.fixedGoalId ?? widget.task?.goalId;
   late String? _sprintKey = widget.task?.sprintKey ?? widget.defaultSprintKey;
@@ -797,6 +826,7 @@ class _TaskSheetState extends State<TaskSheet> {
           goalId: _goalId,
           // Only a change is sent: an untouched empty field must not "clear" nothing.
           description: description == (widget.task!.description ?? '').trim() ? null : description,
+          priority: _priority == widget.task!.priority ? null : _priority,
         );
         // Moving between sprints is its own call, and may be a scope change.
         if (_sprintKey != widget.task!.sprintKey) {
@@ -817,6 +847,7 @@ class _TaskSheetState extends State<TaskSheet> {
         context,
         (ack) => widget.api.createTask(
           title: title,
+          priority: _priority,
           points: _points,
           goalId: _goalId,
           sprintKey: _sprintKey,
@@ -925,6 +956,14 @@ class _TaskSheetState extends State<TaskSheet> {
                 child: Text('Consider splitting it.',
                     style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFFB26A00))),
               ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              key: const Key('task-priority'),
+              initialValue: priorities.containsKey(_priority) ? _priority : 'medium',
+              decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
+              items: [for (final p in priorities.entries) DropdownMenuItem(value: p.key, child: Text(p.value))],
+              onChanged: (v) => setState(() => _priority = v ?? _priority),
+            ),
             if (widget.fixedGoalId == null && widget.goals.isNotEmpty) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<int?>(
@@ -1003,6 +1042,19 @@ class _TaskSheetState extends State<TaskSheet> {
               ],
             ),
             if (_editing) ...[
+              if (widget.task!.createdAtUtc != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    [
+                      'Created ${relativeTime(widget.task!.createdAtUtc!)}',
+                      if (widget.task!.updatedAtUtc != null) 'updated ${relativeTime(widget.task!.updatedAtUtc!)}',
+                    ].join(' · '),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              const Divider(height: 32),
+              AttachmentsSection(api: widget.api, itemType: 'task', itemKey: widget.task!.key),
               const Divider(height: 32),
               CommentsSection(api: widget.api, itemType: 'task', itemKey: widget.task!.key),
             ],

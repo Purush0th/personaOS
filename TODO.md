@@ -244,7 +244,22 @@ it is not under a parent.
       task sheet crashed when its sprint was not in the list it was given. Web: goal keys and
       Timeline bars open a goal quick view (`?goal=`); "Open full page" opens a new tab, which also
       ends a race where closing the dialog cancelled the page navigation on slow loads.
-      **Not yet on the phone:** attachments (the web has them).
+      Attachments reached the phone in the entry below.
+- [x] **Remove the Documents module; bring every web feature the phone lacks to the phone**
+      (2026-10-01; owner: "remove documents feature entirely and add features all to the mobile
+      from web whichever is missing"). Live had 0 documents; backup taken first at
+      `data/backups/pre-docs-removal-2026-10-01`, then deployed (migration `RemoveDocuments` drops
+      the table and the `docs` feature key). Documents are gone from the API, Application, Domain,
+      tools, prompt, web and phone. `IDocumentStorage` / `FileSystemDocumentStorage` and the
+      `Documents:StoragePath` setting stay: attachments use them (renaming the setting would break
+      existing installs). Phone gained: attachments on tasks and goals (pick, open, delete); task
+      priority and created/updated line; goal edit (title, description, priority), complete/reopen;
+      a sprint page (edit, start, complete, burndown, tasks) from the Backlog menu and the Reports
+      tab; Reports search plus status and priority breakdowns, tasks open their quick view; Sprint
+      tab menu with Open/Complete sprint; planner date picker and task/goal links; Settings for
+      push (the two Firebase files), the speech service (test, save, remove key) and appearance
+      (system/light/dark, kept on the phone); the update notice on home. APK
+      `PersonaOS-2026-10-01e-arm64.apk`. Tests: backend 658, web 115, phone 187.
 
 ## AI layer refactor (raised by the owner 2026-09-21)
 

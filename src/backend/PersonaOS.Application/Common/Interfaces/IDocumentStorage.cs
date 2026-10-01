@@ -1,7 +1,7 @@
 namespace PersonaOS.Application.Common.Interfaces;
 
 /// <summary>
-/// Blob storage port for uploaded documents. Implementations own where bytes
+/// Blob storage port for uploaded files (task and goal attachments). Implementations own where bytes
 /// physically live; Application only deals in server-generated storage names.
 /// </summary>
 public interface IDocumentStorage

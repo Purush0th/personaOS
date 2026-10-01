@@ -5,7 +5,7 @@
 #
 #   docker compose -f docker-compose.yml -f docker-compose.litestream.yml up -d
 #
-# Litestream covers ONLY personaos.db. The uploaded documents and the Data
+# Litestream covers ONLY personaos.db. The uploaded attachments and the Data
 # Protection keyring are captured by the nightly BackupService instead — keep
 # that running (Backup__Enabled=true) alongside this. See docs/BACKUP.md.
 

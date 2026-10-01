@@ -132,10 +132,10 @@ public class ChatServiceToolLoopTests
     [Fact]
     public async Task Disabled_feature_hides_the_tool_from_the_model()
     {
-        var docs = new FakeTool("read_document", requiredFeature: InstanceConfig.Modules.Docs);
+        var docs = new FakeTool("read_document", requiredFeature: InstanceConfig.Modules.Reminders);
         var db = TestDbContext.Create();
         var config = new FakeInstanceConfigService(db);
-        await config.UpdateAsync(c => c.Features[InstanceConfig.Modules.Docs] = false);
+        await config.UpdateAsync(c => c.Features[InstanceConfig.Modules.Reminders] = false);
 
         var streamer = new FakeAiMessageStreamer();
         streamer.EnqueueText("ok");

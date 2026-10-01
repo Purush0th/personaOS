@@ -4,6 +4,7 @@ import '../api/personaos_api.dart';
 import '../goal_calendar.dart';
 import '../layout.dart';
 import 'board_screen.dart';
+import 'attachments_section.dart';
 import 'comments_section.dart';
 
 /// Opens a goal's quick view over the current screen; returns once it closes.
@@ -129,13 +130,41 @@ class GoalView extends StatelessWidget {
               ),
           ],
         ),
-        Text(goal.title, style: theme.textTheme.titleLarge),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: Text(goal.title, style: theme.textTheme.titleLarge)),
+            IconButton(
+              key: const Key('edit-goal'),
+              tooltip: 'Edit goal',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => _edit(context),
+            ),
+          ],
+        ),
         if (goal.periodStart != null && goal.periodEnd != null)
           Text(
             '${formatGoalRange(goal.periodStart!, goal.periodEnd!)}${goal.status == 'completed' ? ' · completed' : ''}',
             style: theme.textTheme.bodySmall,
           ),
         if (goal.parentKey != null) Text('Under ${goal.parentKey}', style: theme.textTheme.bodySmall),
+        Text('Priority: ${priorities[goal.priority] ?? goal.priority}', style: theme.textTheme.bodySmall),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (goal.status == 'completed')
+              OutlinedButton(onPressed: () => _setStatus(context, 'active'), child: const Text('Reopen'))
+            else
+              FilledButton.tonal(
+                onPressed: goal.completeProblem == null ? () => _setStatus(context, 'completed') : null,
+                child: const Text('Complete'),
+              ),
+            if (goal.status != 'completed' && goal.completeProblem != null)
+              Text(goal.completeProblem!, style: theme.textTheme.bodySmall),
+          ],
+        ),
         const SizedBox(height: 12),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
@@ -180,7 +209,101 @@ class GoalView extends StatelessWidget {
             ),
         ],
         const Divider(height: 32),
+        AttachmentsSection(api: api, itemType: 'goal', itemKey: goal.key),
+        const Divider(height: 32),
         CommentsSection(api: api, itemType: 'goal', itemKey: goal.key),
+      ],
+    );
+  }
+
+  Future<void> _setStatus(BuildContext context, String status) async {
+    try {
+      await api.setGoalStatus(goal.id, status);
+      onChanged?.call();
+    } on ApiException catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  /// Title, description and priority, as on the goal's web page.
+  Future<void> _edit(BuildContext context) async {
+    final changes = await showDialog<(String, String, String)>(
+      context: context,
+      builder: (_) => _GoalEditDialog(goal: goal),
+    );
+    if (changes == null) return;
+    final (title, description, priority) = changes;
+    try {
+      await api.updateGoal(
+        goal.id,
+        title: title == goal.title ? null : title,
+        description: description == (goal.description ?? '').trim() ? null : description,
+        priority: priority == goal.priority ? null : priority,
+      );
+      onChanged?.call();
+    } on ApiException catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+}
+
+class _GoalEditDialog extends StatefulWidget {
+  const _GoalEditDialog({required this.goal});
+
+  final Goal goal;
+
+  @override
+  State<_GoalEditDialog> createState() => _GoalEditDialogState();
+}
+
+class _GoalEditDialogState extends State<_GoalEditDialog> {
+  late final _title = TextEditingController(text: widget.goal.title);
+  late final _description = TextEditingController(text: widget.goal.description ?? '');
+  late String _priority = priorities.containsKey(widget.goal.priority) ? widget.goal.priority : 'medium';
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Edit ${widget.goal.key}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: _title, decoration: const InputDecoration(labelText: 'Title')),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _description,
+              minLines: 2,
+              maxLines: 6,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _priority,
+              decoration: const InputDecoration(labelText: 'Priority'),
+              items: [for (final p in priorities.entries) DropdownMenuItem(value: p.key, child: Text(p.value))],
+              onChanged: (v) => setState(() => _priority = v ?? _priority),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () {
+            final title = _title.text.trim();
+            if (title.isEmpty) return;
+            Navigator.pop(context, (title, _description.text.trim(), _priority));
+          },
+          child: const Text('Save'),
+        ),
       ],
     );
   }

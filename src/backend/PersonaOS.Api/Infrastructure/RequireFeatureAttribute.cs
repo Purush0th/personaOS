@@ -8,7 +8,7 @@ namespace PersonaOS.Api.Infrastructure;
 /// Gates a controller or action behind an InstanceConfig feature toggle.
 /// Disabled module → 403 with a machine-readable error, so clients that missed
 /// the /api/branding feature list still fail cleanly.
-/// Usage: [RequireFeature(InstanceConfig.Modules.Docs)]
+/// Usage: [RequireFeature(InstanceConfig.Modules.Reminders)]
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
 public class RequireFeatureAttribute(string module) : Attribute, IAsyncActionFilter

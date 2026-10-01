@@ -77,7 +77,6 @@ export class SetupWizard {
     { key: 'board', label: 'Sprint board', enabled: true },
     { key: 'planner', label: 'Daily planner', enabled: true },
     { key: 'reminders', label: 'Reminders & notifications', enabled: true },
-    { key: 'docs', label: 'Document storage', enabled: true },
     { key: 'memory', label: 'Memory across conversations', enabled: true },
     { key: 'voice', label: 'Voice assistant (push-to-talk)', enabled: true },
     { key: 'proactive', label: 'Proactive scheduler (morning brief)', enabled: false },

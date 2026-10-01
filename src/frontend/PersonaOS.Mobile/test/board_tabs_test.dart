@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:personaos_mobile/api/personaos_api.dart';
 import 'package:personaos_mobile/main.dart';
 import 'package:personaos_mobile/screens/board_screen.dart';
+import 'package:personaos_mobile/screens/sprint_page.dart';
 
 Map<String, dynamic> _task(int n, String column, String? sprintKey, {int? points}) => {
       'id': n,
@@ -121,6 +122,25 @@ void main() {
     expect(find.text('Task'), findsOneWidget); // the add button belongs to the Sprint tab
   });
 
+  testWidgets('the Sprint tab completes the running sprint from its menu', (tester) async {
+    final api = await open(tester, 'Sprint');
+
+    await tester.tap(find.byKey(const Key('sprint-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Complete sprint'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('To SPRINT-3'));
+    await tester.pumpAndSettle();
+
+    expect(api.calls, contains('complete SPRINT-2'));
+  });
+
+  testWidgets('the sprint menu belongs to the Sprint tab only', (tester) async {
+    await open(tester, 'Backlog');
+
+    expect(find.byKey(const Key('sprint-menu')), findsNothing);
+  });
+
   group('Backlog', () {
     testWidgets('lists each sprint and the backlog with their tasks', (tester) async {
       await open(tester, 'Backlog');
@@ -172,6 +192,24 @@ void main() {
       expect(api.calls, contains('delete SPRINT-3'));
     });
 
+    testWidgets('a sprint opens on its own page, which can complete it', (tester) async {
+      final api = await open(tester, 'Backlog');
+
+      await tester.tap(find.descendant(of: find.byKey(const Key('section-SPRINT-2')), matching: find.byTooltip('Sprint actions')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open sprint'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SprintPage), findsOneWidget);
+      expect(find.byKey(const Key('burndown')), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Complete sprint'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('To SPRINT-3'));
+      await tester.pumpAndSettle();
+
+      expect(api.calls, contains('complete SPRINT-2'));
+    });
+
     testWidgets('a sprint is created with a name', (tester) async {
       final api = await open(tester, 'Backlog');
 
@@ -194,8 +232,34 @@ void main() {
       expect(find.text('Completed'), findsOneWidget);
       expect(find.byKey(const Key('burndown')), findsOneWidget);
       expect(find.text('Task 2'), findsOneWidget);
-      await tester.scrollUntilVisible(find.textContaining('Velocity 7.5'), 300, scrollable: find.byType(Scrollable).last);
+      // The report's own list, not the search field's scrollable inside it.
+      await tester.scrollUntilVisible(find.textContaining('Velocity 7.5'), 300,
+          scrollable: find.ancestor(of: find.text('Committed'), matching: find.byType(Scrollable)).first);
       expect(find.textContaining('Velocity 7.5'), findsOneWidget);
+    });
+
+    testWidgets('the tasks can be searched, and broken down by status and priority', (tester) async {
+      await open(tester, 'Reports');
+
+      expect(find.byKey(const Key('by-status')), findsOneWidget);
+      expect(find.byKey(const Key('by-priority')), findsOneWidget);
+      expect(find.text('Task 2'), findsOneWidget);
+      expect(find.text('Task 3'), findsOneWidget);
+
+      await tester.enterText(find.byKey(const Key('report-search')), 'task 3');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Task 2'), findsNothing);
+      expect(find.text('Task 3'), findsOneWidget);
+    });
+
+    testWidgets('the sprint opens on its own page from the report', (tester) async {
+      await open(tester, 'Reports');
+
+      await tester.tap(find.byKey(const Key('open-sprint')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SprintPage), findsOneWidget);
     });
 
     testWidgets('another sprint can be picked', (tester) async {
