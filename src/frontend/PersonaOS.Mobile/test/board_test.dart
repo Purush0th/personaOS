@@ -220,6 +220,8 @@ void main() {
     // all of them. What counts is the width, so a phone on its side gets the same.
     for (final (name, size) in [
       ('tablet portrait', const Size(800, 1280)),
+      ('small tablet portrait', const Size(600, 960)),
+      ('7-inch tablet portrait', const Size(533, 853)),
       ('tablet landscape', const Size(1280, 800)),
       ('phone landscape', const Size(840, 390)),
     ]) {
