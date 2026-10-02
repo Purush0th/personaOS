@@ -110,14 +110,20 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// Hands the voice service the server's speech engines the user chose in
-  /// Settings, for each direction the server actually has.
+  /// Settings, for each direction the server actually has. Runs again each time
+  /// the microphone starts, so a switch flipped in Settings applies at once.
   Future<void> _useServerSpeechIfChosen() async {
     try {
       final prefs = await VoicePrefs.load();
-      if (!prefs.serverStt && !prefs.serverTts) return;
+      if (!prefs.serverStt && !prefs.serverTts) {
+        _voice
+          ..useServerStt = false
+          ..useServerTts = false;
+        return;
+      }
       final status = await widget.api.getSpeechStatus();
       _voice
-        ..server = ServerSpeech(widget.api)
+        ..server ??= ServerSpeech(widget.api)
         ..useServerStt = prefs.serverStt && status.speechToText
         ..useServerTts = prefs.serverTts && status.textToSpeech;
     } catch (_) {
@@ -194,6 +200,7 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Initializes speech recognition, reporting anything that stops it working.
   /// Returns whether the microphone is usable.
   Future<bool> _prepareMic() async {
+    if (widget.voiceEnabled && widget.voice == null) await _useServerSpeechIfChosen();
     final ready = await _voice.ensureStt(
       onStatus: (status) {
         if (status == 'notListening' || status == 'done') {

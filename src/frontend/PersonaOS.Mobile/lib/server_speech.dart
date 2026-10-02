@@ -7,6 +7,7 @@ import 'package:record/record.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api/personaos_api.dart';
+import 'pause_detector.dart';
 
 /// Which engine the phone uses for each direction of speech. "server" is only
 /// honoured while the server reports that direction set up; otherwise the
@@ -22,10 +23,7 @@ class VoicePrefs {
 
   static Future<VoicePrefs> load() async {
     final prefs = await SharedPreferences.getInstance();
-    return VoicePrefs(
-      serverStt: prefs.getBool(_sttKey) ?? false,
-      serverTts: prefs.getBool(_ttsKey) ?? false,
-    );
+    return VoicePrefs(serverStt: prefs.getBool(_sttKey) ?? false, serverTts: prefs.getBool(_ttsKey) ?? false);
   }
 
   static Future<void> save({bool? serverStt, bool? serverTts}) async {
@@ -57,15 +55,29 @@ class ServerSpeech {
 
   bool get isRecording => _recording;
 
-  /// Louder than this (dBFS) counts as speech; quieter as a pause.
-  static const _speechLevel = -38.0;
+  /// How long to wait for the speaker to start before ending the recording.
+  static const _noSpeechFor = Duration(seconds: 10);
+
+  /// Recorded as Android's speech recognizer records: the voice-recognition
+  /// source, which is tuned for speech, with noise suppression, and echo
+  /// cancelling so hands-free does not pick up the reply it is playing.
+  static const recordConfig = RecordConfig(
+    encoder: AudioEncoder.aacLc,
+    sampleRate: 16000,
+    numChannels: 1,
+    bitRate: 48000,
+    noiseSuppress: true,
+    echoCancel: true,
+    androidConfig: AndroidRecordConfig(audioSource: AndroidAudioSource.voiceRecognition),
+  );
 
   Future<bool> ensureMic() => _recorder.hasPermission();
 
   /// Records one utterance: it ends after the speaker pauses for [pauseFor]
-  /// (once they have said something), after [listenFor] at most, or when
-  /// [finish] is called. The recording is then transcribed on the server and
-  /// handed to [onFinal] (empty when nothing was said).
+  /// (once they have said something; see [PauseDetector]), after 10 s with no
+  /// speech, after [listenFor] at most, or when [finish] is called. The
+  /// recording is then transcribed on the server and handed to [onFinal]
+  /// (empty when nothing was said).
   Future<void> listen({
     required void Function(String text) onFinal,
     required void Function(String error) onError,
@@ -78,22 +90,12 @@ class ServerSpeech {
 
     final dir = await getTemporaryDirectory();
     _path = '${dir.path}/speech-${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _recorder.start(
-      const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 16000, numChannels: 1, bitRate: 48000),
-      path: _path!,
-    );
+    await _recorder.start(recordConfig, path: _path!);
     _recording = true;
 
-    var heard = false;
-    var lastLoud = DateTime.now();
-    _level = _recorder.onAmplitudeChanged(const Duration(milliseconds: 200)).listen((level) {
-      final now = DateTime.now();
-      if (level.current > _speechLevel) {
-        heard = true;
-        lastLoud = now;
-      } else if (heard && now.difference(lastLoud) >= pauseFor) {
-        unawaited(finish());
-      }
+    final pause = PauseDetector(pauseFor: pauseFor, noSpeechFor: _noSpeechFor);
+    _level = _recorder.onAmplitudeChanged(const Duration(milliseconds: 100)).listen((level) {
+      if (pause.add(level.current, DateTime.now())) unawaited(finish());
     });
     _limit = Timer(listenFor, finish);
   }
