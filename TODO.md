@@ -339,10 +339,9 @@ it is not under a parent.
       switches in Settings; falls back to device speech when the server cannot. Verified end to end
       against a mock OpenAI-style server (test, speak, transcribe, bad key); **not yet tried with
       a real faster-whisper/Kokoro server or on a real phone**.
-      2026-10-02: speech-to-text now runs on a real faster-whisper server (native on the host GPU,
-      not Docker: `C:\Apps\SDK\FasterWhisper`, model `large-v3-turbo` int8_float16, about 1.2 GB
-      of video memory, `127.0.0.1:8000`, reached as `http://host.docker.internal:8000/v1`). Live is
-      set to it; an AAC clip through `/api/speech/transcribe` came back word for word in 1.0 s.
+      2026-10-02: speech-to-text runs on a real faster-whisper server (`large-v3-turbo`
+      int8_float16, about 1.2 GB of video memory); an AAC clip through `/api/speech/transcribe`
+      came back word for word in under a second, and the owner confirmed voice on their phone.
       faster-whisper 1.2.1 needs PyAV below 15 (PyAV 19 dropped `metadata_errors`).
       Text-to-speech and shipping (same day, owner): both services ship in the repo as the opt-in
       compose profile `speech` (`COMPOSE_PROFILES=speech` in `deploy/.env`): `whisper` is built from
