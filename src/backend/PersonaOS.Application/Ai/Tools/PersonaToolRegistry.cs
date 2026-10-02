@@ -80,6 +80,23 @@ public class PersonaToolRegistry(
         }
     }
 
+    public async Task<AiToolCall> CompleteAsync(AiToolCall call, CancellationToken ct = default)
+    {
+        var (tool, input, _) = await PrepareAsync(call, ct);
+        if (tool is null) return call;
+
+        try
+        {
+            return call with { InputJson = await tool.CompleteInputAsync(input, ct) };
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Validation, which runs next, reports what is wrong with the call itself.
+            logger.LogWarning(ex, "Completing the input of {Tool} failed", call.Name);
+            return call;
+        }
+    }
+
     public async Task<string?> DescribeTargetAsync(AiToolCall call, CancellationToken ct = default)
     {
         var (tool, input, _) = await PrepareAsync(call, ct);

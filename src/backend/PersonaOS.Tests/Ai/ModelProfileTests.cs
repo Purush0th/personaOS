@@ -1,4 +1,5 @@
 using PersonaOS.Application.Ai.Models;
+using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
 
 namespace PersonaOS.Tests.Ai;
@@ -73,12 +74,34 @@ public class ModelProfileTests
         Assert.Null(ModelProfiles.For(Ollama, "qwen2.5:3b-instruct").OptionsFor(Ollama).Think);
     }
 
-    [Theory]
-    [InlineData(Anthropic, "claude-sonnet-5")]
-    [InlineData(Compatible, "qwen3:4b")]
-    public void Providers_that_cannot_take_options_are_sent_none(string provider, string model)
+    [Fact]
+    public void Anthropic_is_sent_no_options_at_all()
     {
-        Assert.Equal(AiModelOptionsDefault(), ModelProfiles.For(provider, model).OptionsFor(provider));
+        // Its newer models refuse any temperature but the default, and it manages its own context.
+        Assert.Equal(AiModelOptionsDefault(), ModelProfiles.For(Anthropic, "claude-sonnet-5").OptionsFor(Anthropic));
+    }
+
+    [Fact]
+    public void An_openai_compatible_endpoint_is_sent_only_the_temperature_and_only_when_set()
+    {
+        Assert.Equal(AiModelOptionsDefault(), ModelProfiles.For(Compatible, "qwen3:4b").OptionsFor(Compatible));
+        Assert.Equal(new AiModelOptions(Temperature: 0.3), ModelProfiles.For(Compatible, "qwen3:4b", temperature: 0.3).OptionsFor(Compatible));
+    }
+
+    [Theory]
+    [InlineData(Ollama)]
+    [InlineData(Compatible)]
+    public void Self_hosted_models_keep_the_server_default_temperature(string provider)
+    {
+        // Measured: a forced low temperature scored worse on qwen2.5:3b (see ModelProfile.Temperature).
+        Assert.Null(ModelProfiles.For(provider, "qwen2.5:3b-instruct").OptionsFor(provider).Temperature);
+    }
+
+    [Fact]
+    public void A_temperature_set_in_settings_wins_and_zero_is_a_real_value()
+    {
+        Assert.Equal(0.0, ModelProfiles.For(Ollama, "qwen2.5:3b-instruct", temperature: 0.0).OptionsFor(Ollama).Temperature);
+        Assert.Equal(0.7, ModelProfiles.For(Compatible, "llama3.1", temperature: 0.7).Temperature);
     }
 
     [Fact]

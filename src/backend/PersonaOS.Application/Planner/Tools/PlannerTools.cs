@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Configuration;
 using PersonaOS.Domain.Entities;
@@ -19,6 +21,9 @@ public abstract class PlannerToolBase : IPersonaTool
 
     /// <summary>Tools that act on an existing item override this to check it early.</summary>
     public virtual Task ValidateAsync(JsonElement input, CancellationToken ct = default) => Task.CompletedTask;
+
+    public virtual Task<string> CompleteInputAsync(JsonElement input, CancellationToken ct = default) =>
+        Task.FromResult(input.GetRawText());
 
     /// <summary>Tools that act on an existing item name it, for the confirmation card.</summary>
     public virtual Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
@@ -127,10 +132,16 @@ public class GetPlannerTool(IPlannerService planner, IInstanceConfigService conf
     }
 }
 
+/// <summary>
+/// The day is optional and means today: asked to plan something "for today", qwen2.5:3b sometimes
+/// passed tomorrow's date (2026-10-01, accuracy suite). A day the model does not have to work out
+/// is a day it cannot get wrong. The default is filled in before the card, so the card shows it.
+/// </summary>
 public class AddPlannerItemTool(
     IPlannerService planner,
     PersonaOS.Application.Goals.IGoalService goals,
-    PersonaOS.Application.Board.IBoardService board) : PlannerToolBase
+    PersonaOS.Application.Board.IBoardService board,
+    IInstanceConfigService configService) : PlannerToolBase
 {
     public override string Name => "add_planner_item";
     public override string Description =>
@@ -142,21 +153,36 @@ public class AddPlannerItemTool(
           "type": "object",
           "properties": {
             "title": { "type": "string", "description": "What the task is." },
-            "date": { "type": "string", "description": "Day to plan it for, ISO date (e.g. 2026-07-21)." },
+            "date": { "type": "string", "description": "Leave it out for today. For another day, its ISO date (e.g. 2026-07-21), copied from the dates in your instructions." },
             "notes": { "type": "string", "description": "Optional detail." },
             "scheduledTime": { "type": "string", "description": "Optional 24-hour time, e.g. 09:30." },
             "taskKey": { "type": "string", "description": "Optional sprint-board task this is a day's work on." },
             "goalKey": { "type": "string", "description": "Optional goal this item contributes to." }
-          },
-          "required": ["date"]
+          }
         }
         """;
 
+    private async Task<DateOnly> DayAsync(JsonElement input, CancellationToken ct) =>
+        GetDate(input, "date") ?? Common.UserClock.Today((await configService.GetOrCreateAsync(ct)).TimeZone);
+
+    public override async Task<string> CompleteInputAsync(JsonElement input, CancellationToken ct = default)
+    {
+        if (GetString(input, "date") is not null) return input.GetRawText();
+        var completed = JsonNode.Parse(input.GetRawText())!.AsObject();
+        completed["date"] = (await DayAsync(input, ct)).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return completed.ToJsonString();
+    }
+
     public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
     {
-        // The day is what the card promises, so a missing or unreadable one is caught here
-        // rather than after the user has confirmed it.
-        RequireDate(input, "date");
+        // An unreadable day is what the card would promise wrongly, so it is caught here rather
+        // than after the user has confirmed it.
+        if (GetString(input, "date") is not null) RequireDate(input, "date");
+        // Something to do: a title, or a board task that lends its own. qwen2.5:3b proposed
+        // {"date":"2026-10-01"} and nothing else, a card that would only fail once confirmed
+        // (accuracy suite, 2026-10-01).
+        if (string.IsNullOrWhiteSpace(GetString(input, "title")) && GetString(input, "taskKey") is null)
+            throw new PlannerValidationException("'title' is required: what the user plans to do (or a taskKey from get_board).");
         await ResolveLinksAsync(input, ct);
     }
 
@@ -186,7 +212,7 @@ public class AddPlannerItemTool(
 
         return Ok(await planner.CreateAsync(new CreatePlannerItemRequest(
             Title: GetString(input, "title") ?? string.Empty,
-            Date: RequireDate(input, "date"),
+            Date: await DayAsync(input, ct),
             Notes: GetString(input, "notes"),
             ScheduledTime: GetTime(input, "scheduledTime"),
             GoalId: goalId,

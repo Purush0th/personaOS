@@ -45,7 +45,7 @@ public sealed class FcmPushSender : IPushSender, IDisposable
         string body,
         IReadOnlyDictionary<string, string>? data = null,
         CancellationToken ct = default) =>
-        SendInBatchesAsync(tokens, data, ct, new AndroidConfig
+        SendInBatchesAsync(tokens, data, new AndroidConfig
         {
             // High priority so it wakes a dozing phone rather than waiting for the next
             // maintenance window.
@@ -59,7 +59,7 @@ public sealed class FcmPushSender : IPushSender, IDisposable
                 // thousand years ago ("2032y" in the header). Confirmed by reflection on the SDK.
                 EventTimestamp = DateTime.UtcNow,
             },
-        }, new Notification { Title = title, Body = body });
+        }, new Notification { Title = title, Body = body }, ct);
 
     public Task<IReadOnlyList<PushResult>> SendDataAsync(
         IReadOnlyList<string> tokens,
@@ -67,14 +67,14 @@ public sealed class FcmPushSender : IPushSender, IDisposable
         CancellationToken ct = default) =>
         // No Notification at all — a notification block would make Android draw it and bypass
         // the app. High priority is what lets the message wake a phone in Doze to act on it.
-        SendInBatchesAsync(tokens, data, ct, new AndroidConfig { Priority = Priority.High }, notification: null);
+        SendInBatchesAsync(tokens, data, new AndroidConfig { Priority = Priority.High }, notification: null, ct);
 
     private async Task<IReadOnlyList<PushResult>> SendInBatchesAsync(
         IReadOnlyList<string> tokens,
         IReadOnlyDictionary<string, string>? data,
-        CancellationToken ct,
         AndroidConfig android,
-        Notification? notification)
+        Notification? notification,
+        CancellationToken ct)
     {
         var results = new List<PushResult>(tokens.Count);
 

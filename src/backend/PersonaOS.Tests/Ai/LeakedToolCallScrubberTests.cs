@@ -12,6 +12,16 @@ public class LeakedToolCallScrubberTests
     private static readonly string[] Tools =
         ["read_document", "add_planner_item", "create_reminder", "get_goals"];
 
+    [Theory]
+    [InlineData("</tool_call> </tool_call>", "")]
+    [InlineData("You have two goals.\n<tool_call>\n</tool_call>", "You have two goals.")]
+    [InlineData("Use <b>bold</b> for emphasis.", "Use <b>bold</b> for emphasis.")]
+    public void Strips_qwen_tool_call_tags_and_nothing_else(string text, string expected)
+    {
+        // qwen2.5:3b answered "What are my goals?" with only "</tool_call> </tool_call>".
+        Assert.Equal(expected, LeakedToolCallScrubber.Scrub(text, Tools));
+    }
+
     [Fact]
     public void Strips_a_call_written_with_the_definition_shape()
     {
@@ -129,7 +139,7 @@ public class LeakedToolCallScrubberTests
         // The balanced yaml block survives; only the unmatched trailing marker goes.
         Assert.Contains("```yaml", result);
         Assert.Contains("port: 8080", result);
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(result, "```").Count);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Count(result, "```"));
         Assert.Contains("it kept talking.", result);
     }
 

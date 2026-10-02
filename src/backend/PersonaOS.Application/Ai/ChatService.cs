@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Ai.Guards;
@@ -18,7 +19,7 @@ namespace PersonaOS.Application.Ai;
 /// stored. What may run, and what the reply may say, is decided by the guards
 /// (<see cref="ToolCallPipeline"/> and <see cref="ReplyPipeline"/>); this class only orchestrates.
 /// </summary>
-public class ChatService(
+public partial class ChatService(
     IAppDbContext db,
     IInstanceConfigService configService,
     ISystemPromptBuilder promptBuilder,
@@ -88,7 +89,13 @@ public class ChatService(
             profile,
             turns,
             // Which tools need confirmation is fixed for the turn, so it is resolved once.
-            new ChatTurnState(config.AiModel, await toolRegistry.GetMutatingToolNamesAsync(ct), tools.Select(t => t.Name).ToList(), activeMode),
+            new ChatTurnState(
+                config.AiModel,
+                await toolRegistry.GetMutatingToolNamesAsync(ct),
+                tools.Select(t => t.Name).ToList(),
+                activeMode,
+                userMessage,
+                Common.UserClock.Today(config.TimeZone, time)),
             conversation.Id);
 
         // The reply, streamed as it is written.
@@ -103,6 +110,29 @@ public class ChatService(
 
         var reply = await replyGuards.ReviewAsync(
             new ReplyDraft(first.Text.ToString(), request.Turn, interrupted: first.Error is not null), ct);
+
+        var retried = false;
+
+        // The model wrote nothing and did nothing: qwen2.5:3b sometimes answers with only
+        // "</tool_call>" tags, which the scrubber removes (accuracy suite, 2026-10-01). The same
+        // request is asked once more before the user is told there is no answer.
+        if (first.Error is null && reply.Text is EmptyReplyGuard.NoAnswer or LeakedToolCallGuard.NothingLeft
+            && request.Turn.Receipts.Count == 0 && request.Turn.Proposals.Count == 0)
+        {
+            logger.LogWarning("Model {Model} wrote an empty reply; asking once more.", config.AiModel);
+            var retry = new ModelRound();
+            await foreach (var evt in RunToolLoopAsync(request, retry, streamText: false, ct)) yield return evt;
+
+            var again = retry.Error is null
+                ? await replyGuards.ReviewAsync(new ReplyDraft(retry.Text.ToString(), request.Turn), ct)
+                : null;
+            if (again is { Text.Length: > 0 } && again.Text is not (EmptyReplyGuard.NoAnswer or LeakedToolCallGuard.NothingLeft))
+            {
+                reply = again;
+                retried = true;
+            }
+        }
+
         var final = reply;
         var unverifiedClaim = false;
 
@@ -205,7 +235,7 @@ public class ChatService(
 
         // What the user watched stream in is no longer the reply when a guard rewrote it or a
         // correction replaced it; the client must swap its bubble for the stored text.
-        var replaceStreamedText = reply.Rewritten || final.Text != reply.Text;
+        var replaceStreamedText = retried || reply.Rewritten || final.Text != reply.Text;
         var pending = await PersistAsync(conversation, userMessage, final, request, unverifiedClaim);
 
         if (first.Error is not null)
@@ -226,79 +256,6 @@ public class ChatService(
             UnverifiedClaim: unverifiedClaim ? true : null,
             UnknownItems: final.UnknownItems.Count == 0 ? null : final.UnknownItems);
     }
-
-    /// <summary>
-    /// Sent when the reply claimed a change nothing made. The last sentence matters: without it,
-    /// models answer the check conversationally and the user reads "Sure, here is the corrected
-    /// message:" above their reply.
-    /// </summary>
-    private static string ClaimCheckInstruction(string claim) =>
-        "[Automatic check, not from the user] Your last reply says a change was made — \""
-        + claim + "\" — but you did not call any tool, so nothing was saved or changed. "
-        + "If the user asked for that change, call the right tool now. If they did not, "
-        + "rewrite your reply so it does not say anything was done. "
-        + CorrectionStyle;
-
-    /// <summary>
-    /// Sent when the reply promised to remember something and saved nothing. Names the tool: told
-    /// only to "call the right tool", qwen2.5:3b answered "I have noted this preference" again.
-    /// </summary>
-    private static string MemoryClaimInstruction(string claim) =>
-        "[Automatic check, not from the user] Your last reply says \"" + claim + "\", but you did not "
-        + "call create_memory, so nothing was remembered. Call create_memory now, with arguments like "
-        + "{\"content\": \"<what the user told you, as one short sentence>\", \"category\": \"preference\"} "
-        + "(category: fact, preference, project or decision). If there is nothing worth remembering, "
-        + "rewrite your reply without saying you will remember it. " + CorrectionStyle;
-
-    /// <summary>Sent when the reply promised to look something up and called no tool.</summary>
-    private static string LookupInstruction(string promise, string? tool) =>
-        "[Automatic check, not from the user] Your last reply says \"" + promise + "\", but you did "
-        + "not call any tool, so nothing was looked up and the user is still waiting. "
-        + (tool is null ? "Call the tool" : $"Call {tool}") + " now and answer the user's question "
-        + "from its result. Do not ask the user for keys or details a tool can give you. " + CorrectionStyle;
-
-    /// <summary>
-    /// The read tool a promised lookup most likely needs, going by what the user and the reply
-    /// talk about; null when nothing points at one of the enabled tools. qwen2.5:3b asked for a task
-    /// key three times when told only to "call the tool", so the instruction names it.
-    /// </summary>
-    public static string? LookupToolFor(string text, IEnumerable<string> enabled)
-    {
-        var names = enabled.ToHashSet();
-        (string Tool, string[] Words)[] byTopic =
-        [
-            ("get_board", ["task", "sprint", "point", "estimat", "board", "backlog"]),
-            ("get_goals", ["goal"]),
-            ("get_reminders", ["remind"]),
-            ("get_planner", ["plan", "today", "schedule", "calendar"]),
-        ];
-        return byTopic.FirstOrDefault(t => names.Contains(t.Tool)
-            && t.Words.Any(w => text.Contains(w, StringComparison.OrdinalIgnoreCase))).Tool;
-    }
-
-    /// <summary>Sent when the reply said something about a task that the data contradicts.</summary>
-    private static string FactCheckInstruction(IReadOnlyList<string> facts) =>
-        "[Automatic check, not from the user] Your last reply got a task wrong. The data says: "
-        + string.Join(" ", facts) + " Rewrite your reply using these facts. If your earlier replies "
-        + "said otherwise, say plainly that they were wrong. " + CorrectionStyle;
-
-    /// <summary>Sent when the reply called a change done while its card still waits for the user.</summary>
-    private static string AwaitingCardInstruction(string claim) =>
-        "[Automatic check, not from the user] Your last reply says \"" + claim + "\", but nothing "
-        + "has been done yet: the change is on a card under your reply, waiting for the user to tap "
-        + "Confirm. Rewrite your reply to describe the change as proposed, not done. Do not call the "
-        + "tool again. " + CorrectionStyle;
-
-    /// <summary>The reply without the sentence calling the change done, led by a pointer to the card.</summary>
-    private static string WithoutClaim(string text, string claim)
-    {
-        var rest = text.Replace(claim, string.Empty, StringComparison.Ordinal).Trim();
-        return rest.Length == 0 ? EmptyReplyGuard.ProposalOnly : $"{EmptyReplyGuard.ProposalOnly} {rest}";
-    }
-
-    private const string CorrectionStyle =
-        "Write only what the user should read, as if for the first time. Do not "
-        + "mention this check, and do not introduce your reply.";
 
     /// <summary>
     /// The system prompt and the turns to send: as much recent history as the model's context
@@ -548,142 +505,5 @@ public class ChatService(
             if (chunk.InputTokens is not null) Input = (Input ?? 0) + chunk.InputTokens;
             if (chunk.OutputTokens is not null) Output = (Output ?? 0) + chunk.OutputTokens;
         }
-    }
-
-    public async Task<IReadOnlyList<ConversationSummary>> ListConversationsAsync(CancellationToken ct = default) =>
-        await db.Conversations.AsNoTracking()
-            .OrderByDescending(c => c.UpdatedAtUtc)
-            .Select(c => new ConversationSummary(c.Id, c.PublicId, c.Title, c.CreatedAtUtc, c.UpdatedAtUtc, c.Mode))
-            .ToListAsync(ct);
-
-    public async Task<ConversationDetail?> GetConversationAsync(
-        string idOrPublicId, CancellationToken ct = default)
-    {
-        // Public id is the normal case; a numeric id keeps links made before public ids working.
-        var numericId = int.TryParse(idOrPublicId, out var parsed) ? parsed : (int?)null;
-
-        var conversation = await db.Conversations.AsNoTracking()
-            .Where(c => c.PublicId == idOrPublicId || (numericId != null && c.Id == numericId))
-            .Select(c => new
-            {
-                c.Id,
-                c.PublicId,
-                c.Title,
-                c.CreatedAtUtc,
-                c.Mode,
-                Messages = c.Messages
-                    .OrderBy(m => m.CreatedAtUtc).ThenBy(m => m.Id)
-                    .Select(m => new
-                    {
-                        m.Id, m.Role, m.Content, m.InputTokens, m.OutputTokens, m.CreatedAtUtc,
-                        m.ToolActionsJson, m.UnverifiedClaim, m.UnknownItems,
-                    })
-                    .ToList(),
-            })
-            .FirstOrDefaultAsync(ct);
-
-        if (conversation is null) return null;
-
-        var actions = await db.PendingActions.AsNoTracking()
-            .Where(a => a.ConversationId == conversation.Id)
-            .OrderBy(a => a.Id)
-            .ToListAsync(ct);
-
-        // Receipts are deserialized here rather than in the query: EF cannot translate it,
-        // and a malformed row must not take the whole conversation down.
-        var messages = conversation.Messages
-            .Select(m => new ChatMessageDto(
-                m.Id, m.Role, m.Content, m.InputTokens, m.OutputTokens, m.CreatedAtUtc,
-                ReadReceipts(m.ToolActionsJson),
-                actions.Where(a => a.ChatMessageId == m.Id).Select(ToDto).ToList() is { Count: > 0 } p
-                    ? p
-                    : null,
-                m.UnverifiedClaim,
-                m.UnknownItems is { Length: > 0 } unknown ? unknown.Split(',') : null))
-            .ToList();
-
-        return new ConversationDetail(
-            conversation.Id, conversation.PublicId, conversation.Title, conversation.CreatedAtUtc, messages,
-            ChatModes.Parse(conversation.Mode) ?? ChatModes.Chat);
-    }
-
-    private IReadOnlyList<ToolReceipt>? ReadReceipts(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return null;
-
-        try
-        {
-            return JsonSerializer.Deserialize<List<ToolReceipt>>(json);
-        }
-        catch (JsonException ex)
-        {
-            logger.LogWarning(ex, "Could not read stored tool receipts; showing the message without them.");
-            return null;
-        }
-    }
-
-    public async Task<bool> DeleteConversationAsync(string idOrPublicId, CancellationToken ct = default)
-    {
-        var numericId = int.TryParse(idOrPublicId, out var parsed) ? parsed : (int?)null;
-
-        var conversation = await db.Conversations
-            .FirstOrDefaultAsync(c => c.PublicId == idOrPublicId || (numericId != null && c.Id == numericId), ct);
-        if (conversation is null) return false;
-
-        // Messages and pending actions are cascade-deleted by their foreign keys, so the
-        // thread leaves nothing orphaned behind it.
-        db.Conversations.Remove(conversation);
-        await db.SaveChangesAsync(ct);
-
-        logger.LogInformation("Deleted conversation {PublicId}", conversation.PublicId);
-        return true;
-    }
-
-    public async Task<PendingActionDto?> ConfirmActionAsync(string actionId, CancellationToken ct = default)
-    {
-        var action = await db.PendingActions.FirstOrDefaultAsync(a => a.PublicId == actionId, ct);
-        if (action is null) return null;
-
-        // Confirming twice must not run the tool twice.
-        if (action.Status != PendingActionStatuses.Pending) return ToDto(action);
-
-        chatContext.ConversationId = action.ConversationId;
-        var result = await toolRegistry.ExecuteAsync(
-            new AiToolCall(action.PublicId, action.ToolName, action.InputJson), ct);
-
-        var receipt = ToolReceiptBuilder.Build(action.ToolName, result.Content, result.IsError);
-        action.Status = PendingActionStatuses.Confirmed;
-        action.ResultOk = !result.IsError;
-        action.ResultSummary = receipt.Summary;
-        action.ResolvedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(CancellationToken.None);
-
-        logger.LogInformation(
-            "Confirmed action {Tool} ({Action}); ok={Ok}", action.ToolName, action.PublicId, action.ResultOk);
-
-        return ToDto(action);
-    }
-
-    public async Task<PendingActionDto?> DiscardActionAsync(string actionId, CancellationToken ct = default)
-    {
-        var action = await db.PendingActions.FirstOrDefaultAsync(a => a.PublicId == actionId, ct);
-        if (action is null) return null;
-        if (action.Status != PendingActionStatuses.Pending) return ToDto(action);
-
-        action.Status = PendingActionStatuses.Discarded;
-        action.ResolvedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(CancellationToken.None);
-
-        return ToDto(action);
-    }
-
-    private static PendingActionDto ToDto(PendingAction a) =>
-        new(a.PublicId, a.ToolName, a.Summary, a.Status, a.ResultSummary, a.ResultOk);
-
-    private static Conversation CreateConversation(string firstMessage)
-    {
-        var title = firstMessage.Trim();
-        if (title.Length > 60) title = title[..57] + "…";
-        return new Conversation { Title = title.Length == 0 ? "New conversation" : title };
     }
 }

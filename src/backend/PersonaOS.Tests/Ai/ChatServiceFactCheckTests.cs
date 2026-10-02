@@ -152,6 +152,10 @@ public class ItemFactGuardTests
     [InlineData("TASK-1 is not done yet.", 3, "in_progress", false)]
     [InlineData("TASK-1 is in progress.", 3, "in_progress", false)]
     [InlineData("TASK-1 is in the backlog.", 3, "todo", true)]
+    [InlineData("TASK-1 is in the running sprint.", 3, "backlog", true)]
+    [InlineData("TASK-1 is part of the current sprint.", 3, "backlog", true)]
+    [InlineData("TASK-1 is in the running sprint.", 3, "todo", false)]
+    [InlineData("TASK-1 is not in the sprint yet.", 3, "backlog", false)]
     public void Checks_what_a_sentence_says_about_one_task(string sentence, int? points, string column, bool wrong)
     {
         Assert.Equal(wrong, ItemFactGuard.Contradicts(sentence, points, column));
@@ -202,6 +206,37 @@ public class ItemFactGuardTests
     public void Checks_what_a_sentence_says_about_a_sprints_done_tasks(string sentence, int done, bool wrong)
     {
         Assert.Equal(wrong, ItemFactGuard.SprintContradicts(sentence, 3, 0, done));
+    }
+
+    // Open since 2026-09-28: "the tasks are in the backlog, not pulled into the sprint", said of a
+    // running sprint with tasks in it.
+    [Theory]
+    [InlineData("The tasks are in the backlog, not pulled into the sprint yet.", 3, 0, true)]
+    [InlineData("None of the tasks have been pulled into the sprint.", 3, 2, true)]
+    [InlineData("The sprint is empty.", 3, 2, true)]
+    [InlineData("Your tasks are still in the backlog.", 0, 0, true)]
+    [InlineData("Your tasks are still in the backlog.", 0, 2, false)]
+    [InlineData("The sprint is empty.", 0, 2, false)]
+    [InlineData("If no tasks are in the sprint, start by pulling some in.", 3, 0, false)]
+    [InlineData("The sprint has 3 tasks and the backlog has none.", 3, 0, false)]
+    public void Checks_where_a_sentence_says_unnamed_tasks_are(string sentence, int inSprint, int inBacklog, bool wrong)
+    {
+        Assert.Equal(wrong, ItemFactGuard.LocationContradicts(sentence, sprintRunning: true, inSprint, inBacklog));
+    }
+
+    [Fact]
+    public async Task Tasks_said_to_be_outside_a_sprint_they_are_in_get_the_facts()
+    {
+        var db = TestDbContext.Create();
+        var sprint = new Sprint { Number = 2, Status = SprintStatuses.Active };
+        db.Sprints.Add(sprint);
+        db.BoardTasks.Add(new BoardTask { Number = 1, Title = "Read chapter 4", Points = 3, Sprint = sprint });
+        await db.SaveChangesAsync();
+        var draft = new ReplyDraft("The tasks are in the backlog, not pulled into the sprint.", new ChatTurnState("m", new HashSet<string>(), []));
+
+        await new ItemFactGuard(db).ReviewAsync(draft, CancellationToken.None);
+
+        Assert.Equal(["SPRINT-2 is running with 1 task, and the backlog has 0."], draft.WrongFacts);
     }
 
     [Fact]

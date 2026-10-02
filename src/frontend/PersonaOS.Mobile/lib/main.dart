@@ -7,15 +7,15 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api/personaos_api.dart';
+import 'layout.dart';
 import 'push_service.dart';
 import 'reminder_alarms.dart';
 import 'screens/alarm_screen.dart';
 import 'screens/board_screen.dart';
 import 'screens/chat_screen.dart';
-import 'layout.dart';
-import 'screens/memories_screen.dart';
 import 'screens/goals_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/memories_screen.dart';
 import 'screens/planner_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
@@ -64,7 +64,7 @@ const _kServerUrlPref = 'server_url';
 /// the address is wrong, or — the usual cause here — the VPN carrying the
 /// connection is switched off.
 String connectionFailureReason(Object error) => switch (error) {
-      SocketException e when e.osError != null => 'Network error: ${e.osError!.message}.',
+      final SocketException e when e.osError != null => 'Network error: ${e.osError!.message}.',
       SocketException _ => 'Could not open a connection to that host.',
       TimeoutException _ => 'The server did not respond within 8 seconds.',
       HandshakeException _ => 'TLS failed — if the server is plain HTTP, use http:// not https://.',
@@ -193,12 +193,12 @@ class _BootstrapperState extends State<_Bootstrapper> {
   @override
   void initState() {
     super.initState();
-    SharedPreferences.getInstance().then((prefs) {
+    unawaited(SharedPreferences.getInstance().then((prefs) {
       setState(() {
         _serverUrl = prefs.getString(_kServerUrlPref);
         _loaded = true;
       });
-    });
+    }));
   }
 
   void _onServerChanged(String? url) {
@@ -211,7 +211,7 @@ class _BootstrapperState extends State<_Bootstrapper> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return _serverUrl == null
-        ? ServerUrlScreen(onSaved: (url) => _onServerChanged(url))
+        ? ServerUrlScreen(onSaved: _onServerChanged)
         : HomeScreen(
             serverUrl: _serverUrl!,
             onForgetServer: () => _onServerChanged(null),

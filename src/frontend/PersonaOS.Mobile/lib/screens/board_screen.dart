@@ -1,14 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
-import '../date_utils.dart';
 import '../layout.dart';
-import 'attachments_section.dart';
 import 'backlog_view.dart';
-import 'comments_section.dart';
+import 'board_widgets.dart';
 import 'reports_view.dart';
 import 'sprint_actions.dart';
 import 'sprint_page.dart';
+import 'task_views.dart';
 
 /// The sprint board: To do, In progress and Done for the sprint that is running.
 ///
@@ -44,8 +45,8 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _reload();
-    _loadContext();
+    unawaited(_reload());
+    unawaited(_loadContext());
   }
 
   @override
@@ -122,20 +123,23 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
         ),
       );
 
+  /// An existing task opens its quick view; without one, the new-task sheet.
   Future<void> _openTask({BoardTask? task}) async {
-    final changed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => TaskSheet(
-        api: widget.api,
-        goals: _goals,
-        task: task,
-        sprints: _plan?.sprints.map((s) => s.sprint).toList() ?? const [],
-        defaultSprintKey: _board?.sprint?.key,
-      ),
-    );
-    if (changed == true) await _reload();
+    final changed = task != null
+        ? await showTaskQuickView(context, widget.api, task.key, task: task, goals: _goals)
+        : await showModalBottomSheet<bool>(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              builder: (_) => TaskSheet(
+                api: widget.api,
+                goals: _goals,
+                sprints: _plan?.sprints.map((s) => s.sprint).toList() ?? const [],
+                defaultSprintKey: _board?.sprint?.key,
+              ),
+            ) ==
+            true;
+    if (changed) await _reload();
   }
 
   Future<void> _openSprint(SprintInfo sprint) async {
@@ -178,7 +182,7 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
       floatingActionButton: sprint == null || _tabs.index != 0
           ? null
           : FloatingActionButton.extended(
-              onPressed: () => _openTask(),
+              onPressed: _openTask,
               icon: const Icon(Icons.add),
               label: const Text('Task'),
             ),
@@ -224,7 +228,7 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
                                     ? _DropBar(
                                         key: const ValueKey('drop-bar'),
                                         columns: board.visibleColumns,
-                                        onDrop: (task, column) => _move(task, column),
+                                        onDrop: _move,
                                       )
                                     : _ColumnTabs(
                                         key: const ValueKey('tabs'),
@@ -259,7 +263,7 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
         onDropBefore: (task, before) {
           final others = board.columns[column]!.where((t) => t.key != task.key).toList();
           final index = before == null ? others.length : others.indexWhere((t) => t.key == before.key);
-          _move(task, column, index: index);
+          unawaited(_move(task, column, index: index));
         },
       );
 }
@@ -296,46 +300,6 @@ class _SideBySide extends StatelessWidget {
     });
   }
 }
-
-/// Runs [attempt]; when the server says it changes a running sprint's scope, asks and retries
-/// with the acknowledgement. Returns false when the user declines.
-Future<bool> runWithScopeConfirmation(
-  BuildContext context,
-  Future<void> Function(bool acknowledge) attempt,
-) async {
-  try {
-    await attempt(false);
-    return true;
-  } on ApiException catch (e) {
-    if (e.code != scopeChangeCode || !context.mounted) rethrow;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Scope change'),
-        content: Text(e.message),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Change scope')),
-        ],
-      ),
-    );
-    if (ok != true) return false;
-    await attempt(true);
-    return true;
-  }
-}
-
-String sprintWhen(DateTime utc) {
-  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  final t = utc.toLocal();
-  final hh = t.hour.toString().padLeft(2, '0');
-  final mm = t.minute.toString().padLeft(2, '0');
-  return '${weekdays[t.weekday - 1]} ${t.day} ${months[t.month - 1]} $hh:$mm';
-}
-
-String sprintLabel(SprintInfo sprint) =>
-    sprint.name == null ? sprint.key : '${sprint.key} · ${sprint.name}';
 
 /// Shown when nothing is running: the phone does not plan sprints, it works them.
 class _NoSprint extends StatelessWidget {
@@ -593,530 +557,6 @@ class _ColumnPage extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// One task on the board.
-class TaskCard extends StatelessWidget {
-  const TaskCard({super.key, required this.task, this.onTap});
-
-  final BoardTask task;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      key: Key('card-${task.key}'),
-      // Lighter than the column in light mode and darker in dark, so a card stands out either way.
-      color: theme.colorScheme.surfaceContainerLowest,
-      margin: const EdgeInsets.only(bottom: 6),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(task.key, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
-                  const Spacer(),
-                  PointsPill(points: task.points),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(task.title, style: theme.textTheme.bodyMedium),
-              if (task.goalKey != null ||
-                  task.carryOverCount > 0 ||
-                  task.addedMidSprint ||
-                  task.commentCount > 0 ||
-                  task.attachmentCount > 0) ...[
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (task.goalKey != null) GoalChip(goalKey: task.goalKey!, title: task.goalTitle ?? task.goalKey!),
-                    if (task.carryOverCount > 0)
-                      Text('↻ ${task.carryOverCount}', style: theme.textTheme.labelSmall),
-                    if (task.addedMidSprint)
-                      Text('added', style: theme.textTheme.labelSmall?.copyWith(color: const Color(0xFFB26A00))),
-                    if (task.commentCount > 0)
-                      Text('💬 ${task.commentCount}', style: theme.textTheme.labelSmall),
-                    if (task.attachmentCount > 0)
-                      Text('📎 ${task.attachmentCount}', style: theme.textTheme.labelSmall),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Value points, or "–" while unestimated.
-class PointsPill extends StatelessWidget {
-  const PointsPill({super.key, required this.points});
-
-  final int? points;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final none = points == null;
-    return Container(
-      constraints: const BoxConstraints(minWidth: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: none ? null : scheme.secondaryContainer,
-        border: none ? Border.all(color: scheme.outlineVariant) : null,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        none ? '–' : '$points',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-}
-
-/// A goal's chip, coloured consistently per goal.
-class GoalChip extends StatelessWidget {
-  const GoalChip({super.key, required this.goalKey, required this.title});
-
-  final String goalKey;
-  final String title;
-
-  /// Golden-angle steps keep neighbouring goals (GOAL-1, GOAL-2) clearly different.
-  static double hueFor(String goalKey) {
-    final n = int.tryParse(goalKey.replaceAll(RegExp(r'\D'), '')) ?? 0;
-    return (n * 137.508) % 360;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final hue = hueFor(goalKey);
-    final background = HSLColor.fromAHSL(1, hue, 0.55, dark ? 0.25 : 0.9).toColor();
-    final foreground = HSLColor.fromAHSL(1, hue, 0.5, dark ? 0.85 : 0.28).toColor();
-    return Tooltip(
-      message: '$goalKey $title',
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
-        child: Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(color: foreground),
-        ),
-      ),
-    );
-  }
-}
-
-/// Create a task, or edit, move and delete an existing one: the quick view a card opens, and the
-/// body of the task's full page ([TaskPage]). An existing task shows its description and comments.
-class TaskSheet extends StatefulWidget {
-  const TaskSheet({
-    super.key,
-    required this.api,
-    required this.goals,
-    this.task,
-    this.sprints = const [],
-    this.defaultSprintKey,
-    this.fixedGoalId,
-    this.fullPage = false,
-  });
-
-  /// Shown as the task's own page rather than over a list: no title row, no "Open full page".
-  final bool fullPage;
-
-  final PersonaOsApi api;
-  final List<Goal> goals;
-  final BoardTask? task;
-
-  /// Sprints a task can be moved into: the running one and those planned after it.
-  final List<SprintInfo> sprints;
-
-  /// Where a new task goes by default; null puts it in the backlog.
-  final String? defaultSprintKey;
-
-  /// For a task added from a goal: the goal is set and not offered as a choice.
-  final int? fixedGoalId;
-
-  @override
-  State<TaskSheet> createState() => _TaskSheetState();
-}
-
-class _TaskSheetState extends State<TaskSheet> {
-  late final _title = TextEditingController(text: widget.task?.title ?? '');
-  late final _description = TextEditingController(text: widget.task?.description ?? '');
-  late String _priority = widget.task?.priority ?? 'medium';
-  late int? _points = widget.task?.points;
-  late int? _goalId = widget.fixedGoalId ?? widget.task?.goalId;
-  late String? _sprintKey = widget.task?.sprintKey ?? widget.defaultSprintKey;
-  bool _busy = false;
-  String? _error;
-
-  bool get _editing => widget.task != null;
-
-  @override
-  void dispose() {
-    _title.dispose();
-    _description.dispose();
-    super.dispose();
-  }
-
-  /// The task's own page, over this sheet; coming back closes the sheet so the list reloads.
-  Future<void> _openPage() async {
-    final task = widget.task!;
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => TaskPage(api: widget.api, taskKey: task.key, goals: widget.goals, sprints: widget.sprints),
-    ));
-    if (mounted) Navigator.pop(context, true);
-  }
-
-  Future<void> _guard(Future<bool> Function() action) async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      final done = await action();
-      if (mounted) {
-        if (done) {
-          Navigator.pop(context, true);
-        } else {
-          setState(() => _busy = false);
-        }
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _error = e.message;
-        });
-      }
-    }
-  }
-
-  Future<void> _save() async {
-    final title = _title.text.trim();
-    if (title.isEmpty) {
-      setState(() => _error = 'Give the task a title.');
-      return;
-    }
-    await _guard(() async {
-      if (_editing) {
-        final description = _description.text.trim();
-        await widget.api.updateTask(
-          widget.task!.key,
-          title: title,
-          points: _points,
-          goalId: _goalId,
-          // Only a change is sent: an untouched empty field must not "clear" nothing.
-          description: description == (widget.task!.description ?? '').trim() ? null : description,
-          priority: _priority == widget.task!.priority ? null : _priority,
-        );
-        // Moving between sprints is its own call, and may be a scope change.
-        if (_sprintKey != widget.task!.sprintKey) {
-          if (!mounted) return true;
-          return runWithScopeConfirmation(
-            context,
-            (ack) => widget.api.moveTask(
-              widget.task!.key,
-              column: _sprintKey == null ? BoardColumns.backlog : BoardColumns.todo,
-              sprintKey: _sprintKey,
-              acknowledgeScopeChange: ack,
-            ),
-          );
-        }
-        return true;
-      }
-      return runWithScopeConfirmation(
-        context,
-        (ack) => widget.api.createTask(
-          title: title,
-          priority: _priority,
-          points: _points,
-          goalId: _goalId,
-          sprintKey: _sprintKey,
-          acknowledgeScopeChange: ack,
-        ),
-      );
-    });
-  }
-
-  Future<void> _moveTo(String column) => _guard(() => runWithScopeConfirmation(
-        context,
-        (ack) => widget.api.moveTask(
-          widget.task!.key,
-          column: column,
-          sprintKey: column == BoardColumns.backlog ? null : widget.task!.sprintKey,
-          acknowledgeScopeChange: ack,
-        ),
-      ));
-
-  Future<void> _delete() async {
-    final task = widget.task!;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete ${task.key}?'),
-        content: Text('“${task.title}” will be deleted.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (ok == true) {
-      await _guard(() async {
-        await widget.api.deleteTask(task.key);
-        return true;
-      });
-    }
-  }
-
-  List<String> get _moveTargets {
-    final task = widget.task;
-    if (task == null || task.sprintKey == null) return const [];
-    return BoardColumns.board.where((c) => c != task.column).toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).viewInsets.bottom + 16),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!widget.fullPage)
-              Row(
-                children: [
-                  Expanded(child: Text(_editing ? widget.task!.key : 'New task', style: theme.textTheme.titleLarge)),
-                  if (_editing)
-                    IconButton(
-                      tooltip: 'Open full page',
-                      icon: const Icon(Icons.open_in_full),
-                      onPressed: _busy ? null : _openPage,
-                    ),
-                ],
-              ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _title,
-              autofocus: !_editing,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                labelText: 'Task',
-                border: const OutlineInputBorder(),
-                errorText: _error,
-              ),
-            ),
-            if (_editing) ...[
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('task-description'),
-                controller: _description,
-                minLines: 2,
-                maxLines: 8,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Text('Value points', style: theme.textTheme.labelLarge),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                ChoiceChip(label: const Text('–'), selected: _points == null, onSelected: (_) => setState(() => _points = null)),
-                for (final p in valuePoints)
-                  ChoiceChip(label: Text('$p'), selected: _points == p, onSelected: (_) => setState(() => _points = p)),
-              ],
-            ),
-            if ((_points ?? 0) >= 13)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text('Consider splitting it.',
-                    style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFFB26A00))),
-              ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              key: const Key('task-priority'),
-              initialValue: priorities.containsKey(_priority) ? _priority : 'medium',
-              decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
-              items: [for (final p in priorities.entries) DropdownMenuItem(value: p.key, child: Text(p.value))],
-              onChanged: (v) => setState(() => _priority = v ?? _priority),
-            ),
-            if (widget.fixedGoalId == null && widget.goals.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int?>(
-                initialValue: _goalId,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Goal', border: OutlineInputBorder()),
-                items: [
-                  const DropdownMenuItem<int?>(value: null, child: Text('No goal')),
-                  for (final g in widget.goals)
-                    DropdownMenuItem<int?>(
-                      value: g.id,
-                      child: Text('${g.key} ${g.title} · ${g.slot}', overflow: TextOverflow.ellipsis),
-                    ),
-                  if (_goalId != null && !widget.goals.any((g) => g.id == _goalId))
-                    DropdownMenuItem<int?>(
-                      value: _goalId,
-                      child: Text(widget.task?.goalKey ?? 'Its goal', overflow: TextOverflow.ellipsis),
-                    ),
-                ],
-                onChanged: (v) => setState(() => _goalId = v),
-              ),
-            ],
-            if (widget.fixedGoalId == null) ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String?>(
-                initialValue: _sprintKey,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Sprint', border: OutlineInputBorder()),
-                items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('Backlog (no sprint)')),
-                  for (final s in widget.sprints)
-                    DropdownMenuItem<String?>(value: s.key, child: Text(sprintLabel(s), overflow: TextOverflow.ellipsis)),
-                  // Its own sprint, even when not among those offered (a closed one, or a view opened
-                  // without the plan): a dropdown whose value is not among its items cannot build.
-                  if (_sprintKey != null && !widget.sprints.any((s) => s.key == _sprintKey))
-                    DropdownMenuItem<String?>(value: _sprintKey, child: Text(_sprintKey!)),
-                ],
-                onChanged: (v) => setState(() => _sprintKey = v),
-              ),
-            ],
-            if (_editing && _moveTargets.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text('Move to', style: theme.textTheme.labelLarge),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final column in _moveTargets)
-                    OutlinedButton(
-                      onPressed: _busy ? null : () => _moveTo(column),
-                      child: Text(BoardColumns.label(column)),
-                    ),
-                ],
-              ),
-            ],
-            if (_editing && widget.task!.carryOverCount > 0) ...[
-              const SizedBox(height: 8),
-              Text('Carried over ${widget.task!.carryOverCount} '
-                  '${widget.task!.carryOverCount == 1 ? 'time' : 'times'}.',
-                  style: theme.textTheme.bodySmall),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                if (_editing)
-                  TextButton(
-                    onPressed: _busy ? null : _delete,
-                    child: Text('Delete', style: TextStyle(color: theme.colorScheme.error)),
-                  ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: _busy ? null : _save,
-                  child: Text(_busy ? 'Saving…' : (_editing ? 'Save' : 'Add task')),
-                ),
-              ],
-            ),
-            if (_editing) ...[
-              if (widget.task!.createdAtUtc != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    [
-                      'Created ${relativeTime(widget.task!.createdAtUtc!)}',
-                      if (widget.task!.updatedAtUtc != null) 'updated ${relativeTime(widget.task!.updatedAtUtc!)}',
-                    ].join(' · '),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ),
-              const Divider(height: 32),
-              AttachmentsSection(api: widget.api, itemType: 'task', itemKey: widget.task!.key),
-              const Divider(height: 32),
-              CommentsSection(api: widget.api, itemType: 'task', itemKey: widget.task!.key),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A task on its own page: the same fields as the quick view, with room for its description and
-/// comments. Read afresh, so it is current however it was reached.
-class TaskPage extends StatefulWidget {
-  const TaskPage({
-    super.key,
-    required this.api,
-    required this.taskKey,
-    this.goals = const [],
-    this.sprints = const [],
-  });
-
-  final PersonaOsApi api;
-  final String taskKey;
-  final List<Goal> goals;
-  final List<SprintInfo> sprints;
-
-  @override
-  State<TaskPage> createState() => _TaskPageState();
-}
-
-class _TaskPageState extends State<TaskPage> {
-  late final Future<BoardTask> _task = widget.api.getTask(widget.taskKey);
-
-  /// The sprints it can move to: those passed in, or the plan's when it was opened without them.
-  late final Future<List<SprintInfo>> _sprints = widget.sprints.isNotEmpty
-      ? Future.value(widget.sprints)
-      : widget.api.getPlan().then((p) => p.sprints.map((s) => s.sprint).toList(), onError: (_) => <SprintInfo>[]);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.taskKey)),
-      body: FutureBuilder<(BoardTask, List<SprintInfo>)>(
-        future: (_task, _sprints).wait,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) return const _Message(text: 'Could not load that task.');
-          return ReadableWidth(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: TaskSheet(
-                api: widget.api,
-                goals: widget.goals,
-                task: snapshot.data!.$1,
-                sprints: snapshot.data!.$2,
-                fullPage: true,
-              ),
-            ),
-          );
-        },
       ),
     );
   }

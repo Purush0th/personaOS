@@ -12,6 +12,8 @@ namespace PersonaOS.Application.Ai.Guards;
 /// <item><see cref="OfferedToolGuard"/> refuses a tool that was not offered this turn, such as a
 /// write tool in Brainstorm, which would otherwise still become a card.</item>
 /// <item><see cref="RepeatedCallGuard"/> answers a call already made this turn from memory.</item>
+/// <item><see cref="RelativeDateGuard"/> sends back a change for a different day than the
+/// "today", "tomorrow" or "yesterday" the user said, with the right date.</item>
 /// <item><see cref="ConfirmationGate"/> turns a call that would change the user's data into a card,
 /// after checking the call names things that exist.</item>
 /// </list>
@@ -25,6 +27,7 @@ public sealed class ToolCallPipeline(IPersonaToolRegistry registry, ILogger<Tool
         new ArgumentEnvelopeGuard(),
         new OfferedToolGuard(),
         new RepeatedCallGuard(),
+        new RelativeDateGuard(),
         new ConfirmationGate(registry),
     ];
 

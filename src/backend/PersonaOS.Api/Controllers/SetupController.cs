@@ -50,7 +50,9 @@ public class SetupController(
         bool HasAnthropicApiKey,
         int? AiContextTokens,
         int DefaultContextTokens,
-        bool PhraseBriefs);
+        bool PhraseBriefs,
+        double? AiTemperature = null,
+        double? DefaultTemperature = null);
 
     public record UpdateSettingsRequest(
         string? AssistantNickname,
@@ -62,7 +64,8 @@ public class SetupController(
         string? TimeZone,
         Dictionary<string, bool>? Features,
         int? AiContextTokens = null,
-        bool? PhraseBriefs = null);
+        bool? PhraseBriefs = null,
+        double? AiTemperature = null);
 
     /// <summary>
     /// Provider settings to test. Any omitted field falls back to what's stored, so the
@@ -160,7 +163,9 @@ public class SetupController(
             config.AiContextTokens,
             // What applies when the field is left empty, so the page can show it as the hint.
             DefaultContextTokens: ModelProfiles.For(config.AiProvider, config.AiModel).ContextTokens,
-            config.PhraseBriefs));
+            config.PhraseBriefs,
+            config.AiTemperature,
+            DefaultTemperature: ModelProfiles.For(config.AiProvider, config.AiModel).Temperature));
     }
 
     /// <summary>Edit settings after setup. Admin JWT required. Only provided fields change.</summary>
@@ -183,7 +188,9 @@ public class SetupController(
         var current = await configService.GetOrCreateAsync(ct);
         var effectiveProvider = string.IsNullOrWhiteSpace(request.AiProvider) ? current.AiProvider : request.AiProvider;
         var effectiveBaseUrl = request.AiBaseUrl ?? current.AiBaseUrl;
-        var providerError = ValidateProvider(effectiveProvider, effectiveBaseUrl) ?? ValidateContext(request.AiContextTokens);
+        var providerError = ValidateProvider(effectiveProvider, effectiveBaseUrl)
+            ?? ValidateContext(request.AiContextTokens)
+            ?? ValidateTemperature(request.AiTemperature);
         if (providerError is not null)
             return BadRequest(new { error = providerError });
 
@@ -194,6 +201,7 @@ public class SetupController(
             if (request.PersonaTemplate is not null)
                 c.PersonaTemplate = request.PersonaTemplate.Trim();
             ApplyAiSettings(c, request.AiProvider, request.AiModel, request.AiBaseUrl, request.AiContextTokens);
+            ApplyTemperature(c, request.AiTemperature);
             if (resolvedTimeZone is not null)
                 c.TimeZone = resolvedTimeZone;
             if (request.Features is not null)
@@ -308,6 +316,19 @@ public class SetupController(
     /// <summary>Smallest and largest context size accepted; 0 clears the setting back to the model's default.</summary>
     private const int MinContextTokens = 2_048;
     private const int MaxContextTokens = 1_048_576;
+
+    /// <summary>Highest temperature accepted; a negative value clears it back to the profile's.</summary>
+    private const double MaxTemperature = 2.0;
+
+    private static string? ValidateTemperature(double? temperature) =>
+        temperature is null or < 0 or <= MaxTemperature
+            ? null
+            : $"AiTemperature must be between 0 and {MaxTemperature}, or negative for the model's default.";
+
+    private static void ApplyTemperature(InstanceConfig config, double? temperature)
+    {
+        if (temperature is double value) config.AiTemperature = value < 0 ? null : value;
+    }
 
     private static string? ValidateContext(int? contextTokens) =>
         contextTokens is null or 0 or (>= MinContextTokens and <= MaxContextTokens)

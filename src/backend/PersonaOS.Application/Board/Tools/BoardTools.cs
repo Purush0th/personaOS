@@ -82,7 +82,8 @@ public class GetBoardTool(IBoardService board, IGoalService goals) : BoardToolBa
         "completed / added points, whether scope is locked), velocity (missing until a sprint has " +
         "finished), and its To do " +
         "(todo), In progress and Done columns. Tasks have keys like TASK-7, value points " +
-        "(none = unestimated) and a priority. Use get_plan for the backlog and the sprints to come.";
+        "(none = unestimated) and a priority. Use get_plan for the backlog and the sprints to come, " +
+        "and get_task for one task by its key.";
     public override string InputSchemaJson => """{ "type": "object", "properties": {} }""";
 
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
@@ -98,6 +99,66 @@ public class GetBoardTool(IBoardService board, IGoalService goals) : BoardToolBa
                 todo = view.Todo,
                 inProgress = view.InProgress,
                 done = view.Done,
+            },
+        });
+    }
+}
+
+/// <summary>
+/// One task by its key, wherever it sits. Without it a question about one task meant reading the
+/// whole board, which lists only the running sprint: asked about a backlog task's points,
+/// qwen2.5:3b said "TASK-11 is not listed in the current sprint" and gave no answer
+/// (2026-10-01, accuracy suite).
+/// </summary>
+public class GetTaskTool(IBoardService board, IGoalService goals) : BoardToolBase(board, goals)
+{
+    /// <summary>The most recent comments a reply needs; older ones are on the task's page.</summary>
+    private const int CommentsShown = 10;
+
+    public override string Name => "get_task";
+    public override bool Mutates => false;
+    public override string Description =>
+        "THE TOOL FOR A QUESTION ABOUT ONE TASK by its key (TASK-7), wherever it is: the running " +
+        "sprint, a planned sprint or the backlog. Returns its title, description, value points " +
+        "(or that it is unestimated), priority, status, which sprint it is in or that it is in the " +
+        "backlog, its goal, how often it carried over, and its latest comments.";
+    public override string InputSchemaJson => """
+        {
+          "type": "object",
+          "properties": {
+            "taskKey": { "type": "string", "description": "Task key like \"TASK-7\"." }
+          },
+          "required": ["taskKey"]
+        }
+        """;
+
+    public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
+    {
+        var id = await RequireTaskAsync(GetKey(input, "taskKey"), ct);
+        var detail = await Board.GetTaskAsync(id, ct)
+            ?? throw new BoardValidationException($"There is no task {GetKey(input, "taskKey")}.");
+        var task = detail.Task;
+        return Ok(new
+        {
+            task = new
+            {
+                key = task.Key,
+                title = task.Title,
+                description = task.Description,
+                // Said in words: a bare null was read as "0 points" and a 0 count as "one task".
+                valuePoints = task.Points is int p ? $"{p}" : "none: it is unestimated",
+                priority = task.Priority,
+                status = BoardColumns.Label(task.Column),
+                where = task.SprintKey is null
+                    ? "in the backlog (in no sprint)"
+                    : $"in {task.SprintKey}{(task.SprintName is null ? "" : $" \"{task.SprintName}\"")}",
+                goal = task.GoalKey is null ? null : $"{task.GoalKey} {task.GoalTitle}",
+                carriedOver = task.CarryOverCount == 0 ? "never" : $"{task.CarryOverCount} times",
+                comments = detail.Comments
+                    .OrderByDescending(c => c.CreatedAtUtc)
+                    .Take(CommentsShown)
+                    .Select(c => new { author = c.Author, body = c.Body, at = c.CreatedAtUtc })
+                    .ToList(),
             },
         });
     }

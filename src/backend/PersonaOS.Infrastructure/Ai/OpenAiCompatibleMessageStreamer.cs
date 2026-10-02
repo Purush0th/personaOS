@@ -15,38 +15,38 @@ namespace PersonaOS.Infrastructure.Ai;
 /// Translates the neutral turns/tools to the OpenAI wire format and streams the
 /// SSE response back as provider-neutral chunks.
 /// </summary>
-public class OpenAiCompatibleMessageStreamer : IAiMessageStreamer
+/// <param name="http">Streaming reads can outlast HttpClient's 100-second default, so the client
+/// it is given should have no timeout; the request's cancellation bounds it instead.</param>
+public class OpenAiCompatibleMessageStreamer(HttpClient http) : IAiMessageStreamer
 {
-    // Streaming reads can outlast the default 100s; rely on the CancellationToken.
-    private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
-
     private const int MaxOutputTokens = 16000;
 
     /// <summary>
-    /// Model options are not sent: the Chat Completions API has no field for a context size or
-    /// for turning thinking off. That is what the native Ollama adapter is for.
+    /// Of the model options only the temperature is sent: the Chat Completions API has no field for
+    /// a context size or for turning thinking off. That is what the native Ollama adapter is for.
     /// </summary>
     public async IAsyncEnumerable<AiStreamChunk> StreamAsync(
-        AiRequest aiRequest, [EnumeratorCancellation] CancellationToken ct = default)
+        AiRequest request, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(aiRequest.BaseUrl))
+        if (string.IsNullOrWhiteSpace(request.BaseUrl))
             throw new AiStreamException("No base URL is set for the OpenAI-compatible provider. Add one in Settings.");
 
-        var url = $"{aiRequest.BaseUrl.TrimEnd('/')}/chat/completions";
-        var body = BuildRequestBody(aiRequest.Model, aiRequest.SystemPrompt, aiRequest.Turns, aiRequest.Tools);
+        var url = $"{request.BaseUrl.TrimEnd('/')}/chat/completions";
+        var body = BuildRequestBody(request.Model, request.SystemPrompt, request.Turns, request.Tools);
+        if (request.ModelOptions.Temperature is double temperature) body["temperature"] = temperature;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url)
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url)
         {
             Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
         };
-        if (!string.IsNullOrEmpty(aiRequest.ApiKey))
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", aiRequest.ApiKey);
+        if (!string.IsNullOrEmpty(request.ApiKey))
+            httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", request.ApiKey);
 
         // `yield` cannot live inside try/catch — advance the reader inside try, yield outside.
         HttpResponseMessage response;
         try
         {
-            response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            response = await http.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         }
         catch (Exception ex)
         {

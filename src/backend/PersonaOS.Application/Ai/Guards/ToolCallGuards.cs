@@ -92,6 +92,8 @@ public sealed class ConfirmationGate(IPersonaToolRegistry registry) : IToolCallG
     {
         if (!turn.MutatingTools.Contains(call.Name)) return null;
 
+        // What the card shows is what Confirm runs, defaults included.
+        call = await registry.CompleteAsync(call, ct);
         if (await registry.ValidateAsync(call, ct) is { } problem)
         {
             turn.Refusals.Add(problem);

@@ -1,9 +1,22 @@
 ---
 name: board.compact
 description: The sprint board in brief, for small models. Planning advice is left out; they only need the keys and what is in the sprint.
+template:
+  format:
+    kind: mustache
+  parser:
+    kind: prompty
 inputs:
-  sprint: one line summarising the running or next sprint (empty when there is none)
-  tasks: its open tasks, one line each, "TASK-7 Title [todo, 3 pts]"
+  sprint:
+    kind: string
+    description: "one line summarising the running or next sprint (empty when there is none)"
+    example: "SPRINT-2 \"Week two\", running, 12 Sep to 18 Sep, 8 points committed, 3 done"
+  tasks:
+    kind: array
+    description: "its open tasks, one line each, \"TASK-7 Title [todo, 3 pts]\""
+    example:
+      - "TASK-7 File taxes [todo, 3 pts]"
+      - "TASK-8 Book the dentist [in progress, 1 pt]"
 ---
 The board has goals (GOAL-n), tasks (TASK-n) and sprints (SPRINT-n). Always use these keys, never a position in a list.
 {{#sprint}}

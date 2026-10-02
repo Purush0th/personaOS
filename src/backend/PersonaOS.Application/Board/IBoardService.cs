@@ -28,6 +28,16 @@ public static class BoardColumns
     public static string Of(BoardTask task) => task.SprintId is not null
         ? task.Status
         : task.Status == BoardTaskStatuses.Done ? Done : Backlog;
+
+    /// <summary>The column as the board names it: "To do", "In progress", "Done", "Backlog".</summary>
+    public static string Label(string column) => column switch
+    {
+        Backlog => "Backlog",
+        Todo => "To do",
+        InProgress => "In progress",
+        Done => "Done",
+        _ => column,
+    };
 }
 
 public record BoardTaskDto(

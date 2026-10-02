@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Ai.Prompts;
 using PersonaOS.Tests.TestSupport;
 
@@ -44,6 +45,38 @@ public class PromptLibraryTests
         {
             Assert.False(string.IsNullOrWhiteSpace(PromptLibrary.Default(name).Description), $"{name} has no description");
         }
+    }
+
+    [Fact]
+    public void Every_shipped_fragment_follows_the_prompty_format()
+    {
+        // The front matter follows the Prompty spec, so Prompty tooling (the VS Code extension)
+        // opens and previews the files: the template names its engine, and every value the body
+        // uses is declared under inputs with its kind, and nothing more.
+        foreach (var name in PromptLibrary.DefaultNames())
+        {
+            var text = ShippedText(name);
+            var close = text.IndexOf("\n---", 3, StringComparison.Ordinal);
+            var front = text[4..close];
+            var body = text[(close + 4)..];
+
+            Assert.Contains("\ntemplate:\n  format:\n    kind: mustache\n  parser:\n    kind: prompty", front);
+            var declared = Regex.Matches(front, @"^  ([A-Za-z]\w*):\n    kind: (string|array|boolean)$", RegexOptions.Multiline)
+                .Select(m => m.Groups[1].Value)
+                .ToHashSet();
+            var used = Regex.Matches(body, @"\{\{\s*[#^/]?\s*([A-Za-z]\w*)\s*\}\}")
+                .Select(m => m.Groups[1].Value)
+                .ToHashSet();
+            Assert.True(declared.SetEquals(used),
+                $"{name}: declared [{string.Join(", ", declared.Order())}] but uses [{string.Join(", ", used.Order())}]");
+        }
+    }
+
+    private static string ShippedText(string name)
+    {
+        using var stream = typeof(PromptLibrary).Assembly.GetManifestResourceStream($"PersonaOS.Prompts.{name}.prompty")!;
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd().ReplaceLineEndings("\n");
     }
 
     [Fact]

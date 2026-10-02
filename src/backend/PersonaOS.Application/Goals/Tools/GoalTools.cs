@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Domain.Entities;
@@ -54,7 +55,7 @@ public abstract class GoalToolBase : IPersonaTool
 
     /// <summary>A key written as "GOAL-3", or a model passing the bare number 3.</summary>
     protected static string? GetKey(JsonElement input, string name) =>
-        GetString(input, name) ?? GetInt(input, name)?.ToString();
+        GetString(input, name) ?? GetInt(input, name)?.ToString(CultureInfo.InvariantCulture);
 
     protected static bool GetBool(JsonElement input, string name, bool fallback = false) =>
         input.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False
