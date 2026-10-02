@@ -54,5 +54,44 @@ services:
       - "${PERSONAOS_BIND:-127.0.0.1}:${PERSONAOS_PORT:-8080}:8080"
     restart: unless-stopped
 
+  # --- Optional: your own speech service (profile "speech", off by default) ----------------
+  # Speech-to-text (faster-whisper) and text-to-speech (Kokoro), both on an NVIDIA GPU, so the
+  # phone can talk to the assistant and hear it answer without a cloud service.
+  #   Turn on:   COMPOSE_PROFILES=speech in .env, then `docker compose up -d`
+  #   Turn off:  remove that line, then `docker compose stop whisper kokoro`
+  #   Or use OpenAI instead: leave the profile off and point Settings -> Speech service at
+  #   https://api.openai.com/v1 with your key. Neither service publishes a port to the host;
+  #   PersonaOS reaches them over the compose network. Needs the NVIDIA container toolkit
+  #   (Docker Desktop on Windows has GPU support built in). See README "Voice".
+  whisper:
+    profiles: ["speech"]
+    build: ./speech/whisper
+    image: personaos-whisper:local
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-large-v3-turbo}
+    volumes:
+      - speech-models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  kokoro:
+    profiles: ["speech"]
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:v0.9.0-cu128
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
 volumes:
   api-data:
+  speech-models:

@@ -179,6 +179,37 @@ it on the host and your phone, then point the mobile app at
 If you'd rather expose it on your LAN, set `PERSONAOS_BIND=0.0.0.0` in `.env` — but put a
 reverse proxy with TLS in front of it first. There is no HTTPS inside the compose bundle.
 
+## Voice (optional)
+
+The phone can speak to the assistant and hear it answer. By default it uses the phone's own
+speech engine, which needs nothing from you. You can replace it in one of three ways:
+
+**Your own speech service on an NVIDIA GPU.** Compose can run [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+(speech-to-text) and [Kokoro](https://github.com/remsky/Kokoro-FastAPI) (text-to-speech) next to
+PersonaOS. Neither publishes a port; PersonaOS reaches them over the compose network.
+
+1. Needs the [NVIDIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+   on Linux (Docker Desktop on Windows has GPU support built in) and about 2 GB of video memory
+   beside your chat model. The first start downloads about 7 GB of images and a 1.6 GB model.
+2. In `deploy/.env` set `COMPOSE_PROFILES=speech`, then `docker compose up -d --build`. From then
+   on both start and stop with the rest of the stack.
+3. In the web app, Settings → Speech service: address `http://whisper:8000/v1`, speech-to-text
+   model `large-v3-turbo`, text-to-speech model `kokoro`, voice `af_heart`, no key. Press **Test**,
+   then **Save**. The Setup Wizard has the same step.
+4. On the phone, Settings → Voice on this phone: switch speech-to-text and text-to-speech to
+   Server.
+
+**OpenAI's speech API instead.** Leave the profile off. In Settings → Speech service use address
+`https://api.openai.com/v1`, models `whisper-1` and `tts-1`, voice `alloy` and your API key (stored
+encrypted like the chat key). Anthropic has no speech API, so Claude is for chat only; speech
+still comes from the phone, your own service or OpenAI.
+
+**Turn it off again.** Remove the `COMPOSE_PROFILES` line, run `docker compose stop whisper kokoro`
+(`docker compose rm -f whisper kokoro` to delete the containers; `docker volume rm
+personaos_speech-models` to delete the 1.6 GB model) and clear the address in Settings → Speech
+service. The phone then uses its own speech again. If a stopped service is still set, the phone
+speaks with its own voice but speech-to-text reports that it could not hear you.
+
 ## Updating
 
 ```bash
