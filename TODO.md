@@ -17,6 +17,133 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ---
 
+## Maturity: phone UX, accuracy, engineering standards (owner, 2026-10-01)
+
+Owner: "focus on feature and UI polishing and ux for phone, esp the full screen and quick looks
+the same size and features in mobile, not sure will help in tablet. I need to mature this product
+in terms of accuracy: research and make appropriate changes. Finally a well-architected, principal
+engineer level coding standard." Worked in this order; one session (backend+web+mobile).
+
+**Phone UX**
+- [x] **U1. Quick view and full page differ on purpose** (2026-10-01). The task quick view was
+      the whole edit form in a near-full-height sheet and the full page was the same form. Now:
+      `TaskQuickView` is a short look (key, status chip, title, priority, points, sprint, goal
+      chip that opens the goal, four lines of description, comment/file counts, carry-overs) with
+      the common moves and "Edit, files and comments"; `TaskPage` is the editor, which stays open
+      after Save ("Saved.") and reloads, closes on Delete, and from 840 dp puts a Details panel
+      (status and moves, fields, Save/Delete, dates) beside the text and discussion. The new-task
+      sheet only asks what a task needs to exist. `GoalQuickView`: key, type, slot, title, dates,
+      priority, parent, progress with what drives it ("0 of 1 task done"), description, Complete/
+      Reopen, Open goal. `GoalPage`: everything, plus a menu with every action of the goals list
+      (progress, add task, add child goal, move, delete); from 840 dp files and comments sit
+      beside the goal. `showQuickView` (layout.dart) shows a sheet below 600 dp and a dialog at
+      most 560 wide above it. `board_screen.dart` split: `board_widgets.dart` (scope
+      confirmation, sprint labels, card, pills, `StatusChip`, `boardMoveTargets`) and
+      `task_views.dart`. Checked by rendering phone (light) and tablet (dark) goldens.
+- [x] **U2. Every place that opens a task or goal uses the same entry points** (2026-10-01): board
+      card, backlog row, planner links, goal tasks and child goals, reports, sprint page, goals
+      list and timeline go through `showTaskQuickView` / `showGoalQuickView`. New: task and goal
+      keys in chat replies are links (`item_links.dart`; never inside code, existing links or for
+      keys the server could not find) that open the quick view. Tests: `item_links_test`,
+      `chat_item_links_test`, quick view/full page tests in `item_views_test` and `board_test`.
+- [x] **U3. Visual sweep, phone and tablet, light and dark** (2026-10-01). Rendered 12 screens
+      (board sprint and backlog, sprint page, goals, timeline, planner, reminders, conversations,
+      memories, settings, login, chat) at phone, tablet portrait and tablet landscape (dark), with
+      realistic data. Fixed: the Backlog section squeezed "Backlog" into a column of letters
+      beside "Create sprint" on a phone (the control now goes under the title below 520 dp); chat
+      bubbles were capped at 320 px on every screen (now 82% of the width, at most 600); the
+      login form stretched across a tablet (now at most 480 wide). The rest read well: lists
+      stay readable width, the board shows its columns side by side, the timeline fills the width,
+      lists end above the add button. (Black outlines round buttons in test renders are Flutter's
+      test-mode shadows, not the app.)
+
+**Accuracy** (research: Anthropic "Reduce hallucinations"; Qwen function-calling guide; Ollama
+sampling defaults; findings in the entries)
+- [x] **A1. Sampling made explicit, and measured** (2026-10-01). `InstanceConfig.AiTemperature`
+      (migration `AiTemperature`; set or cleared through `PUT /api/setup`, negative clears; shown
+      with the profile default in `GET /api/setup`), `ModelProfile.Temperature`, sent by the
+      Ollama (`options.temperature`) and OpenAI-compatible (`temperature`) adapters. Anthropic
+      never gets one: models after Claude Opus 4.6 refuse any value but 1.0 (the SDK marks the
+      field obsolete). **Finding: a forced low temperature made qwen2.5:3b worse, not better** —
+      0.8 (Ollama's default) 35/39 = 90%, 0.2 31/39 = 79%, 0.0 30/39 = 77%: a low temperature
+      repeats a mistake on every try. After the fixes below 0.8 and 0.2 scored alike (64/65 and
+      63/65). So no profile sets a temperature; the setting is there for an admin who wants one.
+      The OpenAI-compatible adapter now takes its `HttpClient` (tested like the Ollama one) and
+      disposes its request message.
+- [x] **A2. Accuracy suite** (2026-10-01). `scripts/model-check.ps1`: 13 scenarios (6 new, each
+      from an incident: tomorrow's date, a backlog task's points, backlog vs sprint, an unknown
+      task, a reminder in the past, the download link), `-Runs` for a pass rate per scenario
+      (PASS / FLAKY / FAIL), `-Temperature`, `-Only`, `-Json` with the full reply of every failure.
+      Seeds a backlog task and deletes it; restores model and temperature. Run it against a local
+      API (`.claude/launch.json` "api") with Ollama; numbers for this round, qwen2.5:3b-instruct: start 35/39 (90%, 3 runs); final 64/65
+      (98.5%, 5 runs), the one miss naming "GitHub releases" without the link.
+- [x] **A3. Claim checks and the failures the suite found** (2026-10-01).
+      - `ItemFactGuard`: "TASK-1 is in the running sprint" said of a backlog task, and keyless
+        "the tasks are in the backlog, not pulled into the sprint" / "the sprint is empty" against
+        a running sprint with tasks (or "the tasks are in the backlog" with an empty backlog).
+      - New read tool **`get_task`**: one task by key wherever it is (the board lists only the
+        running sprint, so the model said a backlog task "is not listed"); facts in words; the
+        lookup round prefers it when the text names a key.
+      - `create_reminder` took internal ids (`goalId`, `plannerItemId`); at low temperature the
+        model invented `plannerItemId: 123` every time. Now `goalKey` ("GOAL-3"), and each link
+        says to leave it out unless the user asked.
+      - `add_planner_item`: the day is optional (today), filled in before the card through a new
+        `IPersonaTool.CompleteInputAsync` / registry `CompleteAsync` step, so the card shows the
+        day and Confirm runs what was shown; a call with neither title nor task is refused.
+      - New tool-call guard **`RelativeDateGuard`**: a change for another day than the "today",
+        "tomorrow" or "yesterday" the user said (and no other date in the message) is sent back
+        with the right date. Reminder-for-tomorrow went from 4/5 to 5/5, past-reminder 4/5 to 5/5.
+      - `LeakedToolCallScrubber` strips Qwen's `<tool_call>` tags (a reply was only those), and an
+        empty reply is asked for once more before "I did not manage to write an answer".
+      - `ChatService` takes "today" from its `TimeProvider`, so tests pin it.
+      Still open: the model sometimes asks for a key after being told which tool to call (not seen
+      in this round's runs); one board read was flagged as an unverified claim once in 22 runs and
+      could not be reproduced (the suite now keeps the full reply to catch it).
+- [x] **A4. Grounding rules in the prompt** (2026-10-01). `tool-rules` (full and compact): answer
+      about the user's data only from a tool result or the instructions, values exactly as given;
+      "if neither says it, you do not know it — say so or read it"; a task key can be anywhere, so
+      read it before saying it does not exist. From Anthropic's "Reduce hallucinations" guide
+      (allow "I don't know", restrict to provided information).
+- [x] **A5. Owner decisions** (2026-10-02). (1) The owner switched live to the native **Ollama**
+      provider (`http://host.docker.internal:11434/v1`; the adapter drops the `/v1`), so it sends
+      `num_ctx` 16,384 and `keep_alive` itself; connection test passes. (2) **Model stays
+      qwen2.5:3b-instruct**: production will run on an **RTX 3050 6 GB**, so a 7B model is not
+      the target. The 3B model at Q4 (about 2 GB) plus a 16k context fits that card. Deployed
+      2026-10-02 (backup `data/backups/pre-maturity-2026-10-02`, migration `AiTemperature`
+      applied); APK `PersonaOS-2026-10-02-arm64.apk`.
+
+**Engineering standards**
+- [x] **S1. `docs/ENGINEERING.md`** (2026-10-01): principles, architecture and layer table, tool
+      and guard rules (keys not ids, optional fields say when to leave out, facts in words,
+      validate before the card, every guard names its incident, AI changes measured), C#, Dart
+      and TypeScript rules, testing table, review checklist, definition of done. CLAUDE.md lists
+      it; CONTRIBUTING.md links it and lost its stale "native Anthropic" and "SQL Server" lines.
+- [x] **S2. Enforced** (2026-10-01). `src/backend/Directory.Build.props`: nullable, implicit
+      usings, **warnings as errors**, `AnalysisLevel latest-recommended`, code style in the build
+      (removed from the five csproj files). Root `.editorconfig`: file-scoped namespaces as a
+      warning, migrations as generated code, and the four rules turned off with the reason
+      (CA1848/CA1873 logging delegates, CA1716 VB keywords, CA1859 concrete types; tests allow
+      underscores). Every other finding fixed, including real ones: the Anthropic stream ignored
+      cancellation (CA2016), prompt and brief dates were formatted in the server's culture
+      (CA1305: a non-Gregorian culture would have put a wrong year in the prompt), a push helper
+      took its token mid-list. The API Dockerfile copies `.editorconfig` and the props (image
+      checked to build). Phone: `analysis_options.yaml` with strict casts, inference and raw
+      types and 15 more lints, `dart format` at 120 columns; all 49 findings fixed, among them
+      fire-and-forget futures now marked `unawaited`, and a latent bug: Memories' auto-save read
+      used `.catchError((_) {})` on a `Future<bool>`, which throws if the call fails.
+- [x] **S3. Architecture tests** (2026-10-01): `PersonaOS.Tests/Architecture/ArchitectureTests`
+      (Domain on nothing; Application not on Infrastructure, Api, EF SQLite, Anthropic, Firebase or
+      ASP.NET; Infrastructure not on Api; one file uses the Anthropic SDK; no controller touches
+      the database). It found one: `ProactiveController` queried `IAppDbContext` itself; now
+      `IProactiveService.GetRecentRunsAsync`.
+- [x] **S4. Largest files split along their seams** (2026-10-01), no behaviour change: phone
+      `board_screen.dart` 1,149 → 589 (+ `board_widgets.dart`, `task_views.dart`),
+      `goals_screen.dart` 1,074 → 527 (+ `goal_forms.dart`), `chat_screen.dart` 1,099 → 685
+      (+ `chat_messages.dart` as a part); backend `BoardService` 813 → 359 (+ `.Sprints`,
+      `.Tasks`, `.Nudge` partials), `ChatService` 702 → ~500 (+ `.Instructions`,
+      `.Conversations`). Not done: an ESLint setup for the web app (needs new npm packages;
+      `strict` TypeScript and strict templates already gate it).
+
 ## Pivot: goal roadmap, memory, modes, speech (owner, 2026-09-26/27)
 
 The owner revised the PRD (docs/PRD.md, revision of 2026-09-27) and answered the open questions.
@@ -288,6 +415,17 @@ stops being code. Estimates assume one focused session each, tests kept green th
       and not) before deleting the comparison. Also: `InstanceConfig.IsEnabled` replaces six
       copies of `Features.TryGetValue(...) && on`. README: "Editing the assistant's
       instructions". 353 backend tests.
+- [x] **A2. Fragments follow the Prompty format** (2026-10-01; owner: "format only"). Front
+      matter of all 18 fragments now matches the Prompty spec (microsoft/prompty `spec/spec.md`
+      §2): `template: {format: {kind: mustache}, parser: {kind: prompty}}`, and `inputs` as typed
+      properties (`kind`, `description`, `example`) instead of one-line notes. Bodies are
+      byte-for-byte unchanged and every rendered prompt is the same; the server still uses its own
+      `PromptTemplate` and reads only `description`. No Prompty runtime or package, no `model`
+      block (the model comes from Settings). Checked with PyYAML using the spec's split regex.
+      Test `Every_shipped_fragment_follows_the_prompty_format`: the template block is there and
+      the declared inputs equal the values the body uses (659 backend tests). README "Editing the
+      assistant's instructions" says how to preview with the VS Code extension and the two
+      differences from strict Mustache (no HTML escaping, the tag subset).
 - [x] **B. Guardrails become a pipeline** (2026-09-23). `Application/Ai/Guards`. Tool calls
       pass `ToolCallPipeline`: `ArgumentEnvelopeGuard` -> `RepeatedCallGuard` ->
       `ConfirmationGate` (validates, then proposes); each lets a call through, rewrites it, or

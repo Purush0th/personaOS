@@ -7,7 +7,12 @@ namespace PersonaOS.Application.Ai.Guards;
 /// were already answered, what was proposed, and what actually ran.
 /// </summary>
 public sealed class ChatTurnState(
-    string model, IReadOnlySet<string> mutatingTools, IReadOnlyList<string> toolNames, string mode = PersonaOS.Domain.Entities.ChatModes.Chat)
+    string model,
+    IReadOnlySet<string> mutatingTools,
+    IReadOnlyList<string> toolNames,
+    string mode = PersonaOS.Domain.Entities.ChatModes.Chat,
+    string? userMessage = null,
+    DateOnly? userToday = null)
 {
     /// <summary>After this many repeated calls the model is stuck, and more rounds only cost time.</summary>
     private const int StuckAfterRepeats = 2;
@@ -18,6 +23,12 @@ public sealed class ChatTurnState(
 
     /// <summary>The conversation's mode this turn (<see cref="PersonaOS.Domain.Entities.ChatModes"/>).</summary>
     public string Mode { get; } = mode;
+
+    /// <summary>What the user wrote this turn, for guards that check a call against it.</summary>
+    public string? UserMessage { get; } = userMessage;
+
+    /// <summary>The user's local date this turn; null when not known.</summary>
+    public DateOnly? UserToday { get; } = userToday;
 
     /// <summary>Tools that change the user's data, so a call becomes a card instead of running.</summary>
     public IReadOnlySet<string> MutatingTools { get; } = mutatingTools;

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
-import '../layout.dart';
 import '../date_utils.dart';
+import '../layout.dart';
 
 /// Past conversations, most recently active first.
 ///

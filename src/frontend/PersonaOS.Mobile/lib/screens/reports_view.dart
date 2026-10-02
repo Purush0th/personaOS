@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../layout.dart';
-import 'board_screen.dart';
-import 'goal_view.dart';
+import 'board_widgets.dart';
 import 'sprint_page.dart';
+import 'task_views.dart';
 
 /// The Reports tab of the board, like the web's: pick any started sprint (the running one first),
 /// see it in a few numbers and its burndown, and every task in it by status. Velocity across
@@ -381,7 +381,7 @@ class BurndownPainter extends CustomPainter {
     final grid = Paint()
       ..color = gridColor
       ..strokeWidth = 1;
-    canvas.drawLine(Offset(left, top), Offset(left, top + height), grid);
+    canvas.drawLine(const Offset(left, top), Offset(left, top + height), grid);
     canvas.drawLine(Offset(left, top + height), Offset(size.width, top + height), grid);
 
     final text = TextPainter(textDirection: TextDirection.ltr);

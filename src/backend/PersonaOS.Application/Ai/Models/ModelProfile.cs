@@ -35,10 +35,23 @@ public sealed record ModelProfile(
     /// <summary>How long a local server keeps the model loaded between messages.</summary>
     public const string LocalKeepAlive = "30m";
 
-    /// <summary>What to send with a request. Only the native Ollama adapter can act on these.</summary>
+    /// <summary>
+    /// Sampling temperature to request; null leaves the provider's default. No profile sets one:
+    /// measured with <c>scripts/model-check.ps1</c> on qwen2.5:3b-instruct (2026-10-01), 0.2 and
+    /// 0.0 scored lower than Ollama's own 0.8 (79% and 77% against 90%, 39 turns each), because a
+    /// low temperature repeats a model's mistake on every try instead of some of them; once the
+    /// tools stopped inviting those mistakes, 0.8 and 0.2 scored alike (98% and 97%, 65 turns).
+    /// The admin can still set one in Settings (<c>AiTemperature</c>).
+    /// </summary>
+    public double? Temperature { get; init; }
+
+    /// <summary>
+    /// What to send with a request. Every adapter sends the temperature; only the native Ollama
+    /// adapter can act on the context size, the think switch and keep-alive.
+    /// </summary>
     public AiModelOptions OptionsFor(string provider) => provider == InstanceConfig.Providers.Ollama
-        ? new AiModelOptions(ContextTokens, Think: Thinks ? false : null, LocalKeepAlive)
-        : AiModelOptions.Default;
+        ? new AiModelOptions(ContextTokens, Think: Thinks ? false : null, LocalKeepAlive, Temperature)
+        : new AiModelOptions(Temperature: Temperature);
 }
 
 /// <summary>
@@ -82,9 +95,13 @@ public static partial class ModelProfiles
     private const double SmallModelBillions = 1.5;
 
     public static ModelProfile For(InstanceConfig config) =>
-        For(config.AiProvider, config.AiModel, config.AiContextTokens);
+        For(config.AiProvider, config.AiModel, config.AiContextTokens, config.AiTemperature);
 
-    public static ModelProfile For(string provider, string model, int? contextTokens = null)
+    /// <summary>
+    /// The profile for <paramref name="model"/> on <paramref name="provider"/>; a context size or
+    /// temperature set in Settings wins over the profile's.
+    /// </summary>
+    public static ModelProfile For(string provider, string model, int? contextTokens = null, double? temperature = null)
     {
         var profile = provider switch
         {
@@ -114,7 +131,9 @@ public static partial class ModelProfiles
             }
         }
 
-        return contextTokens is int configured and > 0 ? profile with { ContextTokens = configured } : profile;
+        if (contextTokens is int configured and > 0) profile = profile with { ContextTokens = configured };
+        if (temperature is double chosen) profile = profile with { Temperature = chosen };
+        return profile;
     }
 
     /// <summary>

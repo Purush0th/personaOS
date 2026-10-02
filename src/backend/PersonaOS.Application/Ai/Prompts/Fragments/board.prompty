@@ -1,9 +1,22 @@
 ---
 name: board
 description: How the sprint board works, how to run sprint planning, and the current sprint in brief.
+template:
+  format:
+    kind: mustache
+  parser:
+    kind: prompty
 inputs:
-  sprint: one line summarising the running or next sprint (empty when there is none)
-  tasks: its open tasks, one line each, "TASK-7 Title [todo, 3 pts]"
+  sprint:
+    kind: string
+    description: "one line summarising the running or next sprint (empty when there is none)"
+    example: "SPRINT-2 \"Week two\", running, 12 Sep to 18 Sep, 8 points committed, 3 done"
+  tasks:
+    kind: array
+    description: "its open tasks, one line each, \"TASK-7 Title [todo, 3 pts]\""
+    example:
+      - "TASK-7 File taxes [todo, 3 pts]"
+      - "TASK-8 Book the dentist [in progress, 1 pt]"
 ---
 The sprint board works like Scrum for one person. Goals nest year > quarter > month; tasks (keys like TASK-7) sit under a monthly goal or stand alone, never directly under a year or quarter goal, and are sized in Fibonacci value points: 1, 2, 3, 5, 8, 13, 21. Work waits in the backlog, is pulled into a sprint (keys like SPRINT-2, with a name and start and end dates), and moves through To do (todo), In progress and Done. Sprints are created, started and completed by the user — nothing starts or closes on a timer — and only one runs at a time. Completing a sprint moves unfinished work to the next one. Adding to or removing from a sprint that has started is a scope change: allowed, but say so. Always refer to tasks, goals and sprints by key, never by list position.
 When the user wants to plan or review a sprint:

@@ -119,14 +119,19 @@ Each module can be switched off per install; its UI disappears, its endpoints re
   the prompt always fits the model's context.
 - **Guards** run on every tool call and every reply, and each firing is logged and counted:
   - tool calls — unwrap arguments sent inside an envelope, answer repeated calls from the first
-    result, validate a change before it becomes a card (a card that cannot work is never shown);
+    result, send back a change for another day than the "today", "tomorrow" or "yesterday" the
+    user said (with the right date), fill in a change's defaults so the card shows them, and
+    validate a change before it becomes a card (a card that cannot work is never shown);
   - replies — strip leaked reasoning and tool-call text, drop sentences that name a tool or ask
     the user to type "yes" above a card with buttons, catch a claim that something was done when
-    it was not (one corrective round, then an amber "nothing was saved" note), and flag item keys
-    the reply mentions that do not exist.
+    it was not (one corrective round, then an amber "nothing was saved" note), check what a reply
+    says about tasks and sprints against the data (points, status, where tasks are), ask once more
+    when a reply comes back empty, and flag item keys the reply mentions that do not exist.
+- **Measured.** Changes to prompts, guards, tools and sampling are judged by the accuracy suite
+  (`scripts/model-check.ps1`): scenarios from real incidents, several runs each, a pass rate.
 - Tools (native tool use, not MCP): goals (`get_goals`, `create_goal`, `update_goal_status`,
   `delete_goal`, and tools to update, move and set progress on goals as the hierarchy needs),
-  board (`get_board`, `get_plan`, `get_sprint_report`, `create_sprint`, `start_sprint`,
+  board (`get_board`, `get_plan`, `get_task`, `get_sprint_report`, `create_sprint`, `start_sprint`,
   `complete_sprint`, `create_task`, `update_task`, `move_task`, `delete_task`, `add_comment`),
   planner (`get_planner`, `add_planner_item`, `update_planner_item_status`,
   `move_planner_item`), reminders (`get_reminders`, `create_reminder`, `cancel_reminder`),

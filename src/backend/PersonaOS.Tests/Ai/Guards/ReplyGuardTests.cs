@@ -80,7 +80,7 @@ public class ReplyGuardTests
         var draft = await Review(new CardInstructionGuard(), Draft(text, TurnWithCard()));
 
         Assert.StartsWith("I'll add Learn Rust as a monthly goal.", draft.Text);
-        Assert.EndsWith(CardInstructionGuard.Pointer, draft.Text);
+        Assert.EndsWith(CardInstructionGuard.ButtonHint, draft.Text);
         Assert.DoesNotContain("yes", draft.Text, StringComparison.OrdinalIgnoreCase);
     }
 

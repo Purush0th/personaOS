@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -181,8 +183,8 @@ class VoiceService {
   }
 
   void dispose() {
-    _stt.cancel();
-    _tts.stop();
+    unawaited(_stt.cancel());
+    unawaited(_tts.stop());
     server?.dispose();
   }
 }

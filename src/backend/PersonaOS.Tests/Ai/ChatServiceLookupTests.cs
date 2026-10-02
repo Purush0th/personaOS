@@ -94,6 +94,14 @@ public class ChatServiceLookupTests
         Assert.Equal(tool, ChatService.LookupToolFor(text, ["get_board", "get_goals", "get_planner", "get_reminders"]));
     }
 
+    [Theory]
+    [InlineData("how many points does TASK-11 have?", "get_task")]
+    [InlineData("which one task is not estimated?", "get_board")]
+    public void A_task_named_by_key_is_looked_up_on_its_own(string text, string tool)
+    {
+        Assert.Equal(tool, ChatService.LookupToolFor(text, ["get_task", "get_board", "get_goals"]));
+    }
+
     [Fact]
     public void Names_no_tool_that_is_not_enabled()
     {

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Options;
@@ -29,7 +30,7 @@ public class JwtTokenGenerator(IOptions<JwtOptions> jwtOptions) : IJwtTokenGener
             SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
             Subject = new ClaimsIdentity(
             [
-                new Claim(JwtRegisteredClaimNames.Sub, admin.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Sub, admin.Id.ToString(CultureInfo.InvariantCulture)),
                 new Claim(JwtRegisteredClaimNames.UniqueName, admin.Username),
                 new Claim(ClaimTypes.Role, "admin"),
             ]),

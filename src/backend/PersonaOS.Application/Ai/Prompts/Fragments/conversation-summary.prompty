@@ -1,8 +1,16 @@
 ---
 name: conversation-summary
 description: Appended to the system prompt when older messages of a long conversation have been summarised instead of sent.
+template:
+  format:
+    kind: mustache
+  parser:
+    kind: prompty
 inputs:
-  summary: the conversation's running summary
+  summary:
+    kind: string
+    description: "the conversation's running summary"
+    example: "The user is planning October: taxes first, then the dentist."
 ---
 Earlier in this conversation (a summary; the messages themselves are no longer shown):
 {{summary}}

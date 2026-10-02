@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using PersonaOS.Application.Ai.Tools;
+using PersonaOS.Application.Goals;
 using PersonaOS.Domain.Entities;
 
 namespace PersonaOS.Application.Reminders.Tools;
@@ -67,14 +68,20 @@ public class GetRemindersTool(IReminderService reminders) : ReminderToolBase
         Ok(new { reminders = await reminders.ListAsync(GetBool(input, "includeCompleted"), ct) });
 }
 
-public class CreateReminderTool(IReminderService reminders) : ReminderToolBase
+/// <summary>
+/// The links take only what the model was shown: a goal's key from get_goals, a planner item's id
+/// from get_planner. At a low temperature qwen2.5:3b filled the optional "plannerItemId" with an
+/// invented 123 on every try, so "remind me to call mum at 7pm tomorrow" never got a card
+/// (2026-10-01, accuracy suite). Each link now says to leave it out unless the user asked for it.
+/// </summary>
+public class CreateReminderTool(IReminderService reminders, IGoalService goals) : ReminderToolBase
 {
     public override string Name => "create_reminder";
     public override string Description =>
         "Schedules a reminder that notifies the user at a given time. 'dueAtLocal' is the " +
         "user's own wall-clock time (their time zone and today's date are in your context) — " +
         "resolve relative phrasing like 'tomorrow at 9am' into that value yourself. " +
-        "Optionally link it to a goal or planner item.";
+        "Most reminders need only 'message' and 'dueAtLocal'.";
     public override string InputSchemaJson => """
         {
           "type": "object",
@@ -84,12 +91,28 @@ public class CreateReminderTool(IReminderService reminders) : ReminderToolBase
               "type": "string",
               "description": "Local date-time in the user's zone, ISO 8601 without offset, e.g. 2026-07-22T09:00:00."
             },
-            "goalId": { "type": "integer", "description": "Optional related goal id." },
-            "plannerItemId": { "type": "integer", "description": "Optional related planner item id." }
+            "goalKey": {
+              "type": "string",
+              "description": "Only when the user ties the reminder to one of their goals: that goal's key from get_goals, e.g. \"GOAL-3\". Leave it out otherwise."
+            },
+            "plannerItemId": {
+              "type": "integer",
+              "description": "Only when the user ties the reminder to a planner item: the itemId get_planner returned for it. Leave it out otherwise; never guess an id."
+            }
           },
           "required": ["message", "dueAtLocal"]
         }
         """;
+
+    /// <summary>The goal the reminder is linked to, from its key ("GOAL-3"); null when none is given.</summary>
+    private async Task<int?> GoalAsync(JsonElement input, CancellationToken ct)
+    {
+        var key = GetString(input, "goalKey");
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        return await goals.ResolveKeyAsync(key, ct)
+            ?? throw new ReminderValidationException(
+                $"There is no goal {key}. Use a goalKey from get_goals (like \"GOAL-3\"), or leave it out.");
+    }
 
     /// <summary>
     /// The time is the whole point of a reminder, so a card is never shown without one. A model
@@ -104,7 +127,7 @@ public class CreateReminderTool(IReminderService reminders) : ReminderToolBase
         await reminders.ValidateCreateAsync(new CreateReminderRequest(
             Message: RequireString(input, "message"),
             DueAtLocal: RequireDueAt(input),
-            GoalId: GetInt(input, "goalId"),
+            GoalId: await GoalAsync(input, ct),
             PlannerItemId: GetInt(input, "plannerItemId")), ct);
 
     private static DateTime RequireDueAt(JsonElement input)
@@ -123,7 +146,7 @@ public class CreateReminderTool(IReminderService reminders) : ReminderToolBase
         return Ok(await reminders.CreateAsync(new CreateReminderRequest(
             Message: RequireString(input, "message"),
             DueAtLocal: local,
-            GoalId: GetInt(input, "goalId"),
+            GoalId: await GoalAsync(input, ct),
             PlannerItemId: GetInt(input, "plannerItemId")), ct));
     }
 }

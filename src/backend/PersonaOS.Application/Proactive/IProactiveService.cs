@@ -16,4 +16,10 @@ public interface IProactiveService
     /// triggering. Still records the run so the scheduled pass won't repeat it.
     /// </summary>
     Task<ProactiveRunResult> RunJobAsync(string jobName, bool force = true, CancellationToken ct = default);
+
+    /// <summary>The most recent runs, newest first: what was sent and when.</summary>
+    Task<IReadOnlyList<ProactiveRunDto>> GetRecentRunsAsync(int count, CancellationToken ct = default);
 }
+
+/// <summary>One recorded run of a proactive job.</summary>
+public record ProactiveRunDto(int Id, string JobName, DateOnly LocalDate, DateTime RanAtUtc, bool Pushed, string Summary);

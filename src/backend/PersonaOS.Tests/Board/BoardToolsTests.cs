@@ -89,6 +89,26 @@ public class BoardToolsTests
     }
 
     [Fact]
+    public async Task Get_task_reads_one_task_wherever_it_is_with_its_facts_in_words()
+    {
+        // Asked about a backlog task, the model read the board (the running sprint only) and said
+        // the task was not there.
+        var (_, board, goals) = Setup();
+        await board.CreateTaskAsync(new CreateTaskRequest("Water the plants", Points: 5));
+        await board.CreateTaskAsync(new CreateTaskRequest("Sort receipts"));
+
+        var watered = await new GetTaskTool(board, goals).ExecuteAsync(Json("""{"taskKey":"TASK-1"}"""));
+        var receipts = await new GetTaskTool(board, goals).ExecuteAsync(Json("""{"taskKey":"task-2"}"""));
+
+        Assert.Contains("\"valuePoints\":\"5\"", watered);
+        Assert.Contains("\"status\":\"Backlog\"", watered);
+        Assert.Contains("in the backlog (in no sprint)", watered);
+        Assert.Contains("none: it is unestimated", receipts);
+        await Assert.ThrowsAsync<BoardValidationException>(
+            () => new GetTaskTool(board, goals).ExecuteAsync(Json("""{"taskKey":"TASK-99"}""")));
+    }
+
+    [Fact]
     public async Task Move_and_update_tools_take_task_keys()
     {
         var (_, board, goals) = Setup();
@@ -106,6 +126,35 @@ public class BoardToolsTests
     }
 
     [Fact]
+    public async Task A_planner_item_with_no_day_is_for_today_and_the_card_says_which_day()
+    {
+        // Asked for "today", the model sometimes passed tomorrow's date; leaving it out cannot.
+        var (db, board, goals) = Setup();
+        var config = new FakeInstanceConfigService(db);
+        var tool = new AddPlannerItemTool(new PlannerService(db), goals, board, config);
+        var today = PersonaOS.Application.Common.UserClock.Today((await config.GetOrCreateAsync()).TimeZone);
+
+        var completed = await tool.CompleteInputAsync(Json("""{"title":"Buy milk"}"""));
+        var given = await tool.CompleteInputAsync(Json("""{"title":"Buy milk","date":"2026-12-24"}"""));
+
+        Assert.Contains($"\"date\":\"{today:yyyy-MM-dd}\"", completed);
+        Assert.Contains("2026-12-24", given);
+        Assert.Contains($"— {today:yyyy-MM-dd}", PersonaOS.Application.Ai.ProposedActionSummary.Describe("add_planner_item", completed));
+    }
+
+    [Fact]
+    public async Task A_planner_item_with_nothing_to_do_is_refused_before_the_card()
+    {
+        var (db, board, goals) = Setup();
+        var tool = new AddPlannerItemTool(new PlannerService(db), goals, board, new FakeInstanceConfigService(db));
+
+        var ex = await Assert.ThrowsAsync<PlannerValidationException>(() => tool.ValidateAsync(Json("""{"date":"2026-10-01"}""")));
+
+        Assert.Contains("'title' is required", ex.Message);
+        await tool.ValidateAsync(Json("""{"title":"Buy milk"}"""));
+    }
+
+    [Fact]
     public async Task A_day_plan_can_be_picked_from_a_board_task_and_shows_its_goal()
     {
         var (db, board, goals) = Setup();
@@ -113,7 +162,7 @@ public class BoardToolsTests
         await board.CreateTaskAsync(new CreateTaskRequest("Borrow checker", GoalId: 1));
         var planner = new PlannerService(db);
 
-        await new AddPlannerItemTool(planner, goals, board).ExecuteAsync(
+        await new AddPlannerItemTool(planner, goals, board, new FakeInstanceConfigService(db)).ExecuteAsync(
             Json("""{"taskKey":"TASK-1","date":"2026-09-15"}"""));
 
         var item = (await planner.GetDayAsync(new DateOnly(2026, 9, 15))).Items.Single();

@@ -1,33 +1,42 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
-#
-# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
-# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
-# invoked from the command line by running `flutter analyze`.
+# Static analysis for the PersonaOS phone app: `flutter analyze` must report no issues.
+# The rules below go beyond flutter_lints where a mistake has cost, or would cost, something
+# real; see docs/ENGINEERING.md (Dart).
+include: package:flutter_lints/flutter.yaml
 
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
 analyzer:
   exclude:
     - build/**
     - android/**
     - ios/**
-include: package:flutter_lints/flutter.yaml
+  language:
+    # No silent dynamic: a JSON field read with the wrong type fails where it is read.
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+formatter:
+  # The code is written to 120 columns; `dart format` keeps it there instead of reflowing to 80.
+  page_width: 120
 
 linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
-
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+    # A Future nobody awaits hides its failure; await it or mark it with unawaited().
+    - unawaited_futures
+    - discarded_futures
+    - avoid_void_async
+    # Every member says what it returns and takes.
+    - always_declare_return_types
+    - type_annotate_public_apis
+    # Calls on dynamic are unchecked.
+    - avoid_dynamic_calls
+    # Streams and timers are closed with the widget that opened them.
+    - cancel_subscriptions
+    - close_sinks
+    # Readable, consistent source.
+    - directives_ordering
+    - prefer_final_locals
+    - prefer_single_quotes
+    - unnecessary_await_in_return
+    - unnecessary_lambdas
+    - prefer_const_constructors
+    - prefer_const_declarations

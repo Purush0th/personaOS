@@ -139,12 +139,20 @@ drop to `8192` in that case.
 ## Editing the assistant's instructions
 
 The system prompt is built from small text files, one per topic: `identity`, `tool-rules`,
-`product`, `modules`, `clock`, `goals`, `board`, `planner` and `reminders`. Small models get the
+`product`, `modules`, `clock`, `goals`, `board`, `planner`, `reminders`, `memory` and `mode`
+(plus `summarize`, `summarize-input`, `conversation-summary` and `brief-phrasing` for long chats
+and the briefs). Small models get the
 `.compact` versions where one exists (`tool-rules.compact`, `product.compact`,
 `board.compact`), and you can add your own `<name>.compact.prompty` too. The defaults ship
 inside the server, in
 [`src/backend/PersonaOS.Application/Ai/Prompts/Fragments`](src/backend/PersonaOS.Application/Ai/Prompts/Fragments).
 Each file has a short header saying what it is for and which values it can use, then the text.
+The files follow the [Prompty](https://github.com/microsoft/prompty) format (Mustache template,
+typed inputs with an example each), so the Prompty extension for VS Code opens and previews them.
+The server renders them itself, though, and only reads the `description`; it uses no Prompty
+runtime, and the model comes from Settings, not from the file. Two differences from a strict
+Mustache preview: the server inserts values as they are (no HTML escaping), and it supports only
+`{{value}}`, `{{#list}}`, `{{^empty}}`, `{{.}}` and `{{! comments }}`.
 
 To change one, copy it into the `prompts` folder of your data volume under the same name and
 edit it:

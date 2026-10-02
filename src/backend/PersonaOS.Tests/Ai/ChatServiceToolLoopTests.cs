@@ -222,7 +222,9 @@ public class ChatServiceToolLoopTests
     public async Task A_reply_that_was_only_a_leaked_call_is_replaced_with_an_explanation()
     {
         var (db, chat, streamer) = Setup(new FakeTool("get_goals"));
-        streamer.EnqueueText("""{"name": "get_goals", "arguments": {}}""");
+        // Leaked on the first try and again when asked once more.
+        streamer.EnqueueText("""{"name": "get_goals", "arguments": {}}""")
+            .EnqueueText("""{"name": "get_goals", "arguments": {}}""");
 
         var events = await CollectAsync(chat.StreamChatAsync(null, "What are my goals?"));
 
@@ -230,6 +232,30 @@ public class ChatServiceToolLoopTests
         Assert.DoesNotContain("get_goals", stored.Content);
         Assert.Contains("nothing was changed", stored.Content);
         Assert.Equal(stored.Content, Assert.Single(events, e => e.Type == "done").Text);
+    }
+
+    [Fact]
+    public async Task An_empty_reply_is_asked_for_once_more_before_giving_up()
+    {
+        // qwen2.5:3b answered "What are my goals?" with only "</tool_call>" tags.
+        var (db, chat, streamer) = Setup(new FakeTool("get_goals"));
+        streamer.EnqueueText("</tool_call> </tool_call>").EnqueueText("You have one goal: Learn Rust.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "What are my goals?"));
+
+        Assert.Equal("You have one goal: Learn Rust.", Assert.Single(events, e => e.Type == "done").Text);
+        Assert.Equal("You have one goal: Learn Rust.", (await db.ChatMessages.OrderBy(m => m.Id).LastAsync()).Content);
+    }
+
+    [Fact]
+    public async Task Two_empty_replies_say_what_went_wrong_instead_of_showing_nothing()
+    {
+        var (_, chat, streamer) = Setup();
+        streamer.EnqueueText("</tool_call>").EnqueueText(string.Empty);
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "What are my goals?"));
+
+        Assert.Equal(PersonaOS.Application.Ai.Guards.LeakedToolCallGuard.NothingLeft, Assert.Single(events, e => e.Type == "done").Text);
     }
 
     [Fact]

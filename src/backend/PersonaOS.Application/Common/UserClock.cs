@@ -20,8 +20,11 @@ public static class UserClock
     }
 
     /// <summary>The user's current local date.</summary>
-    public static DateOnly Today(string timeZoneId) =>
-        DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Zone(timeZoneId)));
+    public static DateOnly Today(string timeZoneId) => Today(timeZoneId, TimeProvider.System);
+
+    /// <summary>The user's local date by <paramref name="time"/>, so a test can pin it.</summary>
+    public static DateOnly Today(string timeZoneId, TimeProvider time) =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(time.GetUtcNow().UtcDateTime, Zone(timeZoneId)));
 
     /// <summary>Renders a stored UTC instant in the user's zone.</summary>
     public static DateTime ToLocal(DateTime utc, string timeZoneId) =>

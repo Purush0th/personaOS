@@ -21,7 +21,8 @@ public class AnthropicMessageStreamer : IAiMessageStreamer
         AiRequest request, [EnumeratorCancellation] CancellationToken ct = default)
     {
         // The base URL and model options are for local servers; Anthropic uses its own endpoint
-        // and manages context itself.
+        // and manages context itself. The temperature is not sent either: models after Claude Opus
+        // 4.6 reject any value but 1.0 (the SDK marks the field obsolete for that reason).
         var client = new AnthropicClient { ApiKey = request.ApiKey };
         var parameters = new MessageCreateParams
         {
@@ -39,7 +40,7 @@ public class AnthropicMessageStreamer : IAiMessageStreamer
         var pendingToolJson = new StringBuilder();
 
         // `yield` cannot live inside try/catch — advance inside try, yield outside.
-        var stream = client.Messages.CreateStreaming(parameters).GetAsyncEnumerator(ct);
+        var stream = client.Messages.CreateStreaming(parameters, ct).GetAsyncEnumerator(ct);
         try
         {
             while (true)

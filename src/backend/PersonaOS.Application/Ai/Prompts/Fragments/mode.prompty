@@ -1,11 +1,28 @@
 ---
 name: mode
 description: What the mode the user picked in the chat box asks of you. Not rendered for Chat, the default.
+template:
+  format:
+    kind: mustache
+  parser:
+    kind: prompty
 inputs:
-  brainstorm: set in Brainstorm mode
-  plan: set in Plan mode
-  act: set in Act mode
-  reflect: set in Reflect mode
+  brainstorm:
+    kind: boolean
+    description: "set in Brainstorm mode"
+    example: false
+  plan:
+    kind: boolean
+    description: "set in Plan mode"
+    example: true
+  act:
+    kind: boolean
+    description: "set in Act mode"
+    example: false
+  reflect:
+    kind: boolean
+    description: "set in Reflect mode"
+    example: false
 ---
 {{#brainstorm}}
 Mode: Brainstorm. The user wants to explore ideas, not change anything. Offer several options with their trade-offs, ask a question when it helps, and build on what they say. You have no tools that change data in this mode: never say you created, saved or changed anything. If the user wants something done, suggest it in words; they can switch to Plan or Act to make it.

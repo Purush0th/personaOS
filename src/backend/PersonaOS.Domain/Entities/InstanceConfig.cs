@@ -46,6 +46,13 @@ public class InstanceConfig
     public int? AiContextTokens { get; set; }
 
     /// <summary>
+    /// The sampling temperature, when the admin wants something other than the model profile's.
+    /// Lower is steadier: the assistant repeats what tools return instead of paraphrasing it into
+    /// something else. Null means the profile's default.
+    /// </summary>
+    public double? AiTemperature { get; set; }
+
+    /// <summary>
     /// The configured provider's API key, encrypted at rest via Data Protection. Never the
     /// raw key. Column name kept for backward compatibility — existing ciphertext is bound
     /// to the protector purpose and must not be re-encrypted under a new one.

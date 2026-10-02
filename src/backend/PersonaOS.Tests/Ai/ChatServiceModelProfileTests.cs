@@ -111,7 +111,7 @@ public class ChatServiceModelProfileTests
         Assert.Contains("The user is training for a marathon in March.", chat.SystemPrompt);
         Assert.True(chat.Turns.Count < 41, $"sent {chat.Turns.Count} turns");
         Assert.Equal("Motivate me", chat.Turns[^1].Content);
-        Assert.DoesNotContain(chat.Turns, t => t.Content.StartsWith("message 0 "));
+        Assert.DoesNotContain(chat.Turns, t => t.Content.StartsWith("message 0 ", StringComparison.Ordinal));
 
         var stored = await db.Conversations.SingleAsync(c => c.Id == conversation.Id);
         Assert.Equal("The user is training for a marathon in March.", stored.Summary);

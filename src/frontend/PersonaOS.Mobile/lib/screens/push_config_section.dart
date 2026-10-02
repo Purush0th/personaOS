@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
@@ -28,11 +29,11 @@ class _PushConfigSectionState extends State<PushConfigSection> {
   @override
   void initState() {
     super.initState();
-    widget.api.getPushStatus().then((s) {
+    unawaited(widget.api.getPushStatus().then((s) {
       if (mounted) setState(() => _status = s);
     }, onError: (_) {
       // An older server has no push setup to show; the section then says nothing about its state.
-    });
+    }));
   }
 
   void _show(String message) {

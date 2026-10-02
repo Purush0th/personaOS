@@ -40,8 +40,8 @@ Map<String, dynamic> _boardJson({bool running = true}) => {
       'sprint': running ? _sprintJson() : null,
       'velocity': 7.5,
       'wipLimit': 3,
-      'todo': running ? [_task(2, 'todo', points: 5, goalKey: 'GOAL-1', goalTitle: 'Learn Rust')] : [],
-      'inProgress': running ? [_task(3, 'in_progress', points: 3)] : [],
+      'todo': running ? [_task(2, 'todo', points: 5, goalKey: 'GOAL-1', goalTitle: 'Learn Rust')] : <Map<String, dynamic>>[],
+      'inProgress': running ? [_task(3, 'in_progress', points: 3)] : <Map<String, dynamic>>[],
       'done': <Map<String, dynamic>>[],
     };
 
@@ -202,19 +202,37 @@ void main() {
       expect(api.moves, hasLength(1));
     });
 
-    testWidgets('the task sheet lays out its points, sprint picker and actions', (tester) async {
-      await _pumpBoard(tester, FakeBoardApi());
+    testWidgets('a card opens its quick view, which moves it without opening the form', (tester) async {
+      final api = FakeBoardApi();
+      await _pumpBoard(tester, api);
 
       await tester.tap(find.byKey(const Key('card-TASK-2')));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('TASK-2'), findsWidgets);
-      expect(find.widgetWithText(ChoiceChip, '13'), findsOneWidget);
-      // The sprint can be changed from the task itself; the picker shows where it sits now.
-      expect(find.widgetWithText(DropdownButtonFormField<String?>, 'SPRINT-2 · Week two'), findsOneWidget);
+      expect(find.byKey(const Key('task-quick-view-TASK-2')), findsOneWidget);
       expect(find.widgetWithText(OutlinedButton, 'In progress'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
+      // The quick view is a look and the common moves; editing is the full page's.
+      final quickView = find.byKey(const Key('task-quick-view-TASK-2'));
+      expect(find.descendant(of: quickView, matching: find.text('Save')), findsNothing);
+      expect(find.descendant(of: quickView, matching: find.byType(ChoiceChip)), findsNothing);
+
+      await tester.tap(find.byKey(const Key('quick-move-done')));
+      await tester.pumpAndSettle();
+      expect(api.moves, contains(('TASK-2', BoardColumns.done, false)));
+    });
+
+    testWidgets('the new-task sheet lays out its points, sprint picker and add button', (tester) async {
+      await _pumpBoard(tester, FakeBoardApi());
+
+      await tester.tap(find.widgetWithText(FloatingActionButton, 'Task'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('New task'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, '13'), findsOneWidget);
+      expect(find.widgetWithText(DropdownButtonFormField<String?>, 'SPRINT-2 · Week two'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
     });
   });
 

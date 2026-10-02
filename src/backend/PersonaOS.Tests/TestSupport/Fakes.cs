@@ -195,7 +195,7 @@ public class FakeInstanceConfigService(TestDbContext db, string? apiKey = "sk-an
         await db.SaveChangesAsync(ct);
     }
 
-    public Task SetAnthropicApiKeyAsync(string key, CancellationToken ct = default) => Task.CompletedTask;
+    public Task SetAnthropicApiKeyAsync(string apiKey, CancellationToken ct = default) => Task.CompletedTask;
 
     public Task<string?> GetAnthropicApiKeyAsync(CancellationToken ct = default) => Task.FromResult(apiKey);
 }

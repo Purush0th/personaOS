@@ -92,7 +92,7 @@ class ServerSpeech {
         heard = true;
         lastLoud = now;
       } else if (heard && now.difference(lastLoud) >= pauseFor) {
-        finish();
+        unawaited(finish());
       }
     });
     _limit = Timer(listenFor, finish);
@@ -157,8 +157,8 @@ class ServerSpeech {
   }
 
   void dispose() {
-    cancel();
-    _playerInstance?.dispose();
-    _recorderInstance?.dispose();
+    unawaited(cancel());
+    unawaited(_playerInstance?.dispose());
+    unawaited(_recorderInstance?.dispose());
   }
 }

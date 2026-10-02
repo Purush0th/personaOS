@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Globalization;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
@@ -33,7 +34,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
         InstanceConfig config, DateOnly localDate, CancellationToken ct)
     {
         var sb = new StringBuilder();
-        sb.Append("Good morning. Here's ").Append(localDate.ToString("dddd, d MMM")).Append('.');
+        sb.Append("Good morning. Here's ").Append(localDate.ToString("dddd, d MMM", CultureInfo.InvariantCulture)).Append('.');
         var hasContent = false;
 
         if (config.IsEnabled(InstanceConfig.Modules.Planner))
@@ -53,7 +54,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
                 foreach (var item in items)
                 {
                     sb.Append("\n• ");
-                    if (item.ScheduledTime is TimeOnly t) sb.Append(t.ToString("HH:mm")).Append(" — ");
+                    if (item.ScheduledTime is TimeOnly t) sb.Append(t.ToString("HH:mm", CultureInfo.InvariantCulture)).Append(" — ");
                     sb.Append(item.Title);
                 }
             }
@@ -78,7 +79,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
                 foreach (var reminder in reminders)
                 {
                     sb.Append("\n• ")
-                      .Append(Common.UserClock.ToLocal(reminder.DueAtUtc, config.TimeZone).ToString("HH:mm"))
+                      .Append(Common.UserClock.ToLocal(reminder.DueAtUtc, config.TimeZone).ToString("HH:mm", CultureInfo.InvariantCulture))
                       .Append(" — ").Append(reminder.Message);
                 }
             }
@@ -153,7 +154,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
         var open = items.Where(i => i.Status == PlannerItemStatuses.Planned).ToList();
 
         var sb = new StringBuilder();
-        sb.Append("Evening rollup for ").Append(localDate.ToString("ddd, d MMM")).Append(": ")
+        sb.Append("Evening rollup for ").Append(localDate.ToString("ddd, d MMM", CultureInfo.InvariantCulture)).Append(": ")
           .Append(done).Append(" of ").Append(items.Count).Append(" done.");
 
         if (open.Count > 0)

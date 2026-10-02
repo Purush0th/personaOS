@@ -50,10 +50,11 @@ public class OllamaMessageStreamerTests
     {
         var server = new StubServer(HttpStatusCode.OK, """{"message":{"content":"Hi"},"done":true}""");
 
-        await Collect(server, Request(new AiModelOptions(ContextTokens: 16384, Think: false, KeepAlive: "30m")));
+        await Collect(server, Request(new AiModelOptions(ContextTokens: 16384, Think: false, KeepAlive: "30m", Temperature: 0.2)));
 
         Assert.Equal("http://gpu-box:11434/api/chat", server.Url!.ToString());
         Assert.Equal(16384, server.Body!["options"]!["num_ctx"]!.GetValue<int>());
+        Assert.Equal(0.2, server.Body["options"]!["temperature"]!.GetValue<double>());
         Assert.False(server.Body["think"]!.GetValue<bool>());
         Assert.Equal("30m", server.Body["keep_alive"]!.GetValue<string>());
         Assert.True(server.Body["stream"]!.GetValue<bool>());

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../auth_vault.dart';
+import '../layout.dart';
 
 /// Admin login before opening the chat.
 ///
@@ -47,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _prepare();
+    unawaited(_prepare());
   }
 
   @override
@@ -82,8 +85,10 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final error = await widget.api
-          .login(credentials.username, credentials.password);
+      final error = await widget.api.login(
+        credentials.username,
+        credentials.password,
+      );
       if (!mounted) return;
 
       if (error == null) {
@@ -118,8 +123,10 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      final error =
-          await widget.api.login(_username.text.trim(), _password.text);
+      final error = await widget.api.login(
+        _username.text.trim(),
+        _password.text,
+      );
       if (!mounted) return;
       if (error != null) {
         setState(() {
@@ -147,55 +154,61 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('PersonaOS')),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          const Text('Log in',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _username,
-            autocorrect: false,
-            enableSuggestions: false,
-            decoration: const InputDecoration(labelText: 'Username'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _password,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: 'Password',
-              errorText: _error,
+      // A sign-in form reads as one column; on a tablet it stays form-sized instead of stretching.
+      body: ReadableWidth(
+        maxWidth: 480,
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            const Text(
+              'Log in',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            onSubmitted: (_) => _login(),
-          ),
-          if (_biometricAvailable && !_hasSaved) ...[
-            const SizedBox(height: 4),
-            CheckboxListTile(
-              value: _rememberMe,
-              onChanged: (on) => setState(() => _rememberMe = on ?? false),
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: const Text('Unlock with fingerprint next time'),
-              subtitle: const Text(
-                'Your sign-in is kept in the phone’s secure keystore.',
-              ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _username,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(labelText: 'Username'),
             ),
-          ],
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: _busy ? null : _login,
-            child: Text(_busy ? 'Signing in…' : 'Log in'),
-          ),
-          if (_biometricAvailable && _hasSaved) ...[
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _unlock,
-              icon: const Icon(Icons.fingerprint),
-              label: const Text('Use fingerprint'),
+            TextField(
+              controller: _password,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Password',
+                errorText: _error,
+              ),
+              onSubmitted: (_) => _login(),
             ),
+            if (_biometricAvailable && !_hasSaved) ...[
+              const SizedBox(height: 4),
+              CheckboxListTile(
+                value: _rememberMe,
+                onChanged: (on) => setState(() => _rememberMe = on ?? false),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Unlock with fingerprint next time'),
+                subtitle: const Text(
+                  'Your sign-in is kept in the phone’s secure keystore.',
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: _busy ? null : _login,
+              child: Text(_busy ? 'Signing in…' : 'Log in'),
+            ),
+            if (_biometricAvailable && _hasSaved) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _unlock,
+                icon: const Icon(Icons.fingerprint),
+                label: const Text('Use fingerprint'),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

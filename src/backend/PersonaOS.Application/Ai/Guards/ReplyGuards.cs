@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
@@ -98,7 +99,7 @@ public sealed class CorrectionPreambleGuard : IReplyGuard
 /// </summary>
 public sealed partial class CardInstructionGuard : IReplyGuard
 {
-    public const string Pointer = "Use the Confirm or Discard button below.";
+    public const string ButtonHint = "Use the Confirm or Discard button below.";
 
     /// <summary>
     /// Tells the user to answer in words: "reply 'yes'", "just say confirm", "respond with ok",
@@ -116,7 +117,7 @@ public sealed partial class CardInstructionGuard : IReplyGuard
 
         if (ReplySentences.Without(draft.Text, AsksForAWord().IsMatch) is not { } text) return ValueTask.FromResult<string?>(null);
 
-        draft.Rewrite(text.Length == 0 ? Pointer : $"{text}\n\n{Pointer}");
+        draft.Rewrite(text.Length == 0 ? ButtonHint : $"{text}\n\n{ButtonHint}");
         return ValueTask.FromResult<string?>("replaced an instruction to answer the card in words");
     }
 }
@@ -174,7 +175,7 @@ public sealed partial class ItemReferenceGuard(IAppDbContext db) : IReplyGuard
     public async ValueTask<string?> ReviewAsync(ReplyDraft draft, CancellationToken ct)
     {
         var named = ItemKey().Matches(draft.Text)
-            .Select(m => (Prefix: m.Groups[1].Value.ToUpperInvariant(), Number: int.Parse(m.Groups[2].Value)))
+            .Select(m => (Prefix: m.Groups[1].Value.ToUpperInvariant(), Number: int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)))
             .Distinct()
             .ToList();
         if (named.Count == 0) return null;

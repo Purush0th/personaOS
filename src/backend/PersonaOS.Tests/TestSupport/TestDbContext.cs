@@ -28,7 +28,8 @@ public class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(
     public DbSet<PendingAction> PendingActions => Set<PendingAction>();
     public DbSet<Memory> Memories => Set<Memory>();
 
-    public override Task<int> SaveChangesAsync(CancellationToken ct = default) => base.SaveChangesAsync(ct);
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
+        base.SaveChangesAsync(cancellationToken);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

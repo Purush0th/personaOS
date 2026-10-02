@@ -12,13 +12,18 @@ stored in the singleton `InstanceConfig` row. No per-install theming, and never 
 anything user-specific.
 
 **2. Tools are thin wrappers over domain services.**
-Claude tools call the same services the REST endpoints do — they don't reimplement logic. We
-use **native Anthropic tool use, not MCP** (the app is the only consumer). Adding a tool means
-adding an `IPersonaTool`, not a new code path.
+The assistant's tools call the same services the REST endpoints do — they don't reimplement
+logic. Tool use is **native and provider-neutral, not MCP** (the app is the only consumer): every
+provider is an adapter behind `IAiMessageStreamer`. Adding a tool means adding an
+`IPersonaTool`, not a new code path.
+
+The full engineering standard (layers, C#, Dart and TypeScript rules, testing, the review
+checklist and the definition of done) is [docs/ENGINEERING.md](docs/ENGINEERING.md).
 
 ## Architecture
 
-The backend is clean architecture, and the dependency rule is enforced by project references:
+The backend is clean architecture, and the dependency rule is enforced by project references
+and by `ArchitectureTests`:
 
 ```
 Api  →  Application  ←  Infrastructure
@@ -28,7 +33,7 @@ Api  →  Application  ←  Infrastructure
 
 - **Domain** — entities and pure rules. No dependencies at all.
 - **Application** — use cases plus *ports* (`IAppDbContext`, `IAiMessageStreamer`,
-  `IPushSender`, `IDocumentStorage`, …). No EF SQL Server, no Anthropic SDK, no ASP.NET.
+  `IPushSender`, `IDocumentStorage`, …). No EF SQLite provider, no provider SDK, no ASP.NET.
 - **Infrastructure** — adapters implementing those ports. `AnthropicMessageStreamer` is the
   only file that touches the Anthropic SDK.
 - **Api** — controllers (Application interfaces only, never `AppDbContext`) and the
@@ -42,9 +47,13 @@ Full conventions, build commands, and gotchas live in [CLAUDE.md](CLAUDE.md).
 ## Before you open a PR
 
 ```bash
-dotnet build PersonaOS.slnx                 # must be 0 warnings
+dotnet build PersonaOS.slnx                 # warnings are errors (src/backend/Directory.Build.props)
 dotnet test src/backend/PersonaOS.Tests     # must be green
 ```
+
+For the phone app, `flutter analyze` must report no issues and `flutter test` must pass; for
+the web app, `npx ng build` and `npx ng test --watch=false --browsers=ChromeHeadless`. A change
+to prompts, guards, tools or sampling also runs `scripts/model-check.ps1` before and after.
 
 - **Keep the build at zero warnings.** If a transitive package trips a CVE analyzer, pin a
   patched version rather than suppressing it.

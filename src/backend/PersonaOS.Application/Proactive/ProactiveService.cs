@@ -23,6 +23,13 @@ public class ProactiveService(
     /// </summary>
     private static readonly TimeSpan LateThreshold = TimeSpan.FromHours(3);
 
+    public async Task<IReadOnlyList<ProactiveRunDto>> GetRecentRunsAsync(int count, CancellationToken ct = default) =>
+        await db.ProactiveJobRuns.AsNoTracking()
+            .OrderByDescending(r => r.RanAtUtc)
+            .Take(count)
+            .Select(r => new ProactiveRunDto(r.Id, r.JobName, r.LocalDate, r.RanAtUtc, r.Pushed, r.Summary))
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<ProactiveRunResult>> RunDueJobsAsync(CancellationToken ct = default)
     {
         var config = await configService.GetOrCreateAsync(ct);

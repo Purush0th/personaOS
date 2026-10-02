@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
@@ -287,9 +288,9 @@ class ReminderAlarms {
 
     switch (response.actionId) {
       case AlarmActions.snooze:
-        snooze(alarm);
+        unawaited(snooze(alarm));
       case AlarmActions.dismiss:
-        dismiss(alarm);
+        unawaited(dismiss(alarm));
       default:
         onOpen?.call(alarm);
     }

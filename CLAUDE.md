@@ -18,6 +18,7 @@ the files below.
 | `CLAUDE.md` (this file) | **How** to work: layout, layer rules, build commands, conventions. Auto-loaded. |
 | `TODO.md` | **Where we are**: the single source of progress truth — live task board, claims, status. |
 | `docs/PRD.md` | **What & why**: product rules, architecture decisions, phase scope. Changes rarely. |
+| `docs/ENGINEERING.md` | **The bar**: coding standard, review checklist, definition of done. Read before coding. |
 
 **Session protocol (every session, in order):**
 1. Read [TODO.md](TODO.md). Progress lives *only* there — never record status in the PRD or code comments.
@@ -71,7 +72,9 @@ data/           docs-storage/ (runtime files, gitignored)
 
 ## Build & run
 
-- Build: `dotnet build PersonaOS.slnx` (keep it at **0 warnings**; pin transitive CVEs).
+- Build: `dotnet build PersonaOS.slnx` (warnings are errors via `src/backend/Directory.Build.props`,
+  .NET analyzers at `latest-recommended`, exceptions with reasons in `.editorconfig`; pin
+  transitive CVEs).
 - Test: `dotnet test src/backend/PersonaOS.Tests` (xUnit; keep it green). Tests target the
   **Application layer** — `TestDbContext` implements `IAppDbContext` over EF InMemory, and
   `TestSupport/Fakes.cs` has scriptable fakes for the ports (push, AI streamer, tools).
@@ -88,7 +91,10 @@ data/           docs-storage/ (runtime files, gitignored)
   an `await`, which OnPush would not redraw, so moving to OnPush is its own change. Unit tests
   still run on Karma (`npx ng test --watch=false --browsers=ChromeHeadless`); the optional Vitest
   migration has not been done.
-- Flutter: `flutter analyze && flutter test` in `src/frontend/PersonaOS.Mobile`.
+- Flutter: `flutter analyze && flutter test` in `src/frontend/PersonaOS.Mobile` (strict casts,
+  inference and raw types; `dart format` at 120 columns).
+- Accuracy suite: `scripts/model-check.ps1 -Runs 5` against a local API with Ollama (set
+  `PERSONAOS_USER` / `PERSONAOS_PASSWORD`); compare pass rates before and after an AI change.
 - Dev DB: **embedded SQLite** at `src/backend/PersonaOS.Api/data/personaos.db` (WAL; created +
   migrated on first run; gitignored). No LocalDB / SQL Server. Path is `Database:Path` in config.
   Dev credentials once set up: admin `purush` / `S3cure-Pass!`. Free local chat: point the

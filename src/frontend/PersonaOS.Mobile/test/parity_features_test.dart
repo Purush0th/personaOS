@@ -143,9 +143,9 @@ void main() {
   group('goal', () {
     testWidgets('is edited: title, description and priority, only what changed', (tester) async {
       final api = ParityApi();
-      await pump(tester, GoalView(api: api, sheet: false, goal: Goal.fromJson(_goalJson())), scrolls: false);
+      await pump(tester, GoalView(api: api, goal: Goal.fromJson(_goalJson())), scrolls: false);
 
-      expect(find.text('Priority: High'), findsOneWidget);
+      expect(find.textContaining('priority high'), findsOneWidget);
       expect(find.byType(AttachmentsSection), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('edit-goal')));
@@ -159,12 +159,12 @@ void main() {
 
     testWidgets('completes, and a completed one reopens', (tester) async {
       final api = ParityApi();
-      await pump(tester, GoalView(api: api, sheet: false, goal: Goal.fromJson(_goalJson())), scrolls: false);
+      await pump(tester, GoalView(api: api, goal: Goal.fromJson(_goalJson())), scrolls: false);
       await tester.tap(find.text('Complete'));
       await tester.pumpAndSettle();
       expect(api.calls, contains('goal 4 completed'));
 
-      await pump(tester, GoalView(api: api, sheet: false, goal: Goal.fromJson(_goalJson(status: 'completed'))), scrolls: false);
+      await pump(tester, GoalView(api: api, goal: Goal.fromJson(_goalJson(status: 'completed'))), scrolls: false);
       await tester.tap(find.text('Reopen'));
       await tester.pumpAndSettle();
       expect(api.calls, contains('goal 4 active'));

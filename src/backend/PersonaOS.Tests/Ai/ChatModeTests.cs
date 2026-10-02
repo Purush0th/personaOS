@@ -67,7 +67,7 @@ public class ChatModeTests
 
         Assert.Null(done.Pending);
         Assert.Empty(create.Invocations);
-        var refusal = streamer.ReceivedRequests[1].Turns.Last().ToolResults!.Single();
+        var refusal = streamer.ReceivedRequests[1].Turns[^1].ToolResults!.Single();
         Assert.True(refusal.IsError);
         Assert.Contains("Brainstorm mode", refusal.Content);
     }

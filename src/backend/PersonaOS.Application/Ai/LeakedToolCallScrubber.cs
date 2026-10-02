@@ -23,6 +23,9 @@ public static class LeakedToolCallScrubber
     /// <summary>An empty fenced block left behind once the call inside it was removed.</summary>
     private static readonly Regex EmptyFence = new(@"```[a-zA-Z]*\s*```", RegexOptions.Compiled);
 
+    /// <summary>The tags Qwen's chat template wraps a tool call in, which never belong in a reply.</summary>
+    private static readonly Regex ToolCallTag = new(@"</?tool_calls?>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     /// <summary>Three or more newlines collapse to a paragraph break.</summary>
     private static readonly Regex ExcessBlankLines = new(@"(\r?\n){3,}", RegexOptions.Compiled);
 
@@ -41,6 +44,10 @@ public static class LeakedToolCallScrubber
     public static string Scrub(string text, IReadOnlyCollection<string> toolNames)
     {
         if (string.IsNullOrEmpty(text)) return text;
+
+        // Qwen's own tool-call markup, printed as text: qwen2.5:3b answered "What are my goals?"
+        // with nothing but "</tool_call> </tool_call>" (accuracy suite, 2026-10-01).
+        if (ToolCallTag.IsMatch(text)) text = ExcessBlankLines.Replace(ToolCallTag.Replace(text, string.Empty), "\n\n").Trim();
 
         // An odd number of fences means one was opened and never closed — an artifact, not a
         // code block. Handled before the JSON pass, because the model sometimes emits the

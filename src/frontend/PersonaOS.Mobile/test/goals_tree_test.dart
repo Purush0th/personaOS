@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaos_mobile/api/personaos_api.dart';
+import 'package:personaos_mobile/screens/goal_forms.dart';
 import 'package:personaos_mobile/screens/goals_screen.dart';
 
 Map<String, dynamic> _goal(int id, String type, String slot,

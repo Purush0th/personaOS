@@ -14,6 +14,42 @@ abstract final class Breakpoints {
 
   /// The widest a list of text reads comfortably; wider screens centre it.
   static const double readable = 840;
+
+  /// From here a quick view floats as a dialog over the screen instead of rising as a sheet from
+  /// the bottom edge: on a tablet a full-width sheet is mostly empty space.
+  static const double dialog = 600;
+
+  /// From here an item's full page puts its details beside its text instead of below it.
+  static const double sideBySide = 840;
+}
+
+/// Shows a quick view: a short look at one item, with its common actions and a way to its full
+/// page. A sheet from the bottom on a phone; a dialog no wider than [maxWidth] on a wider screen.
+/// Either way it scrolls when its content is taller than most of the screen.
+Future<T?> showQuickView<T>(BuildContext context, {required WidgetBuilder builder, double maxWidth = 560}) {
+  final size = MediaQuery.sizeOf(context);
+  if (size.width >= Breakpoints.dialog) {
+    return showDialog<T>(
+      context: context,
+      builder: (context) => Dialog(
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: size.height * 0.85),
+          child: builder(context),
+        ),
+      ),
+    );
+  }
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    useSafeArea: true,
+    builder: (context) => ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: size.height * 0.85),
+      child: builder(context),
+    ),
+  );
 }
 
 /// Centres [child] and keeps it no wider than [maxWidth], so a list on a tablet or a phone in

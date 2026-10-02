@@ -24,20 +24,20 @@ namespace PersonaOS.Infrastructure.Ai;
 public class OllamaMessageStreamer(HttpClient http) : IAiMessageStreamer
 {
     public async IAsyncEnumerable<AiStreamChunk> StreamAsync(
-        AiRequest aiRequest, [EnumeratorCancellation] CancellationToken ct = default)
+        AiRequest request, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(aiRequest.BaseUrl))
+        if (string.IsNullOrWhiteSpace(request.BaseUrl))
             throw new AiStreamException("No base URL is set for Ollama. Add one in Settings, e.g. http://localhost:11434.");
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, ChatUrl(aiRequest.BaseUrl))
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, ChatUrl(request.BaseUrl))
         {
-            Content = new StringContent(BuildRequestBody(aiRequest).ToJsonString(), Encoding.UTF8, "application/json"),
+            Content = new StringContent(BuildRequestBody(request).ToJsonString(), Encoding.UTF8, "application/json"),
         };
 
         HttpResponseMessage response;
         try
         {
-            response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            response = await http.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         }
         catch (HttpRequestException ex)
         {
@@ -47,7 +47,7 @@ public class OllamaMessageStreamer(HttpClient http) : IAiMessageStreamer
         using (response)
         {
             if (!response.IsSuccessStatusCode)
-                throw MapError(response.StatusCode, await response.Content.ReadAsStringAsync(ct), aiRequest.Model);
+                throw MapError(response.StatusCode, await response.Content.ReadAsStringAsync(ct), request.Model);
 
             await using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var reader = new StreamReader(stream);
@@ -200,7 +200,10 @@ public class OllamaMessageStreamer(HttpClient http) : IAiMessageStreamer
         var options = request.ModelOptions;
         if (options.Think is bool think) body["think"] = think;
         if (options.KeepAlive is { } keepAlive) body["keep_alive"] = keepAlive;
-        if (options.ContextTokens is int context) body["options"] = new JsonObject { ["num_ctx"] = context };
+        var modelOptions = new JsonObject();
+        if (options.ContextTokens is int context) modelOptions["num_ctx"] = context;
+        if (options.Temperature is double temperature) modelOptions["temperature"] = temperature;
+        if (modelOptions.Count > 0) body["options"] = modelOptions;
         return body;
     }
 
