@@ -93,6 +93,10 @@ data/           docs-storage/ (runtime files, gitignored)
   migration has not been done.
 - Flutter: `flutter analyze && flutter test` in `src/frontend/PersonaOS.Mobile` (strict casts,
   inference and raw types; `dart format` at 120 columns).
+- Voice: the opt-in `speech` compose profile (`COMPOSE_PROFILES=speech` in `deploy/.env`) runs
+  faster-whisper (`deploy/speech/whisper`) and Kokoro on the GPU; PersonaOS address
+  `http://whisper:8000/v1`, models `large-v3-turbo` / `kokoro`. Python pins (PyAV below 15) live in
+  that folder's `requirements.txt`. No host ports; see README "Voice".
 - Accuracy suite: `scripts/model-check.ps1 -Runs 5` against a local API with Ollama (set
   `PERSONAOS_USER` / `PERSONAOS_PASSWORD`); compare pass rates before and after an AI change.
 - Dev DB: **embedded SQLite** at `src/backend/PersonaOS.Api/data/personaos.db` (WAL; created +

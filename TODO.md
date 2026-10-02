@@ -339,6 +339,33 @@ it is not under a parent.
       switches in Settings; falls back to device speech when the server cannot. Verified end to end
       against a mock OpenAI-style server (test, speak, transcribe, bad key); **not yet tried with
       a real faster-whisper/Kokoro server or on a real phone**.
+      2026-10-02: speech-to-text now runs on a real faster-whisper server (native on the host GPU,
+      not Docker: `C:\Apps\SDK\FasterWhisper`, model `large-v3-turbo` int8_float16, about 1.2 GB
+      of video memory, `127.0.0.1:8000`, reached as `http://host.docker.internal:8000/v1`). Live is
+      set to it; an AAC clip through `/api/speech/transcribe` came back word for word in 1.0 s.
+      faster-whisper 1.2.1 needs PyAV below 15 (PyAV 19 dropped `metadata_errors`).
+      Text-to-speech and shipping (same day, owner): both services ship in the repo as the opt-in
+      compose profile `speech` (`COMPOSE_PROFILES=speech` in `deploy/.env`): `whisper` is built from
+      `deploy/speech/whisper` (faster-whisper on the GPU, CUDA 12 from pip, non-root, healthcheck,
+      model in the `speech-models` volume; it also passes `/v1/audio/speech` and `/v1/audio/voices`
+      on to Kokoro because PersonaOS has one speech address) and `kokoro` is the upstream
+      `kokoro-fastapi-gpu:v0.9.0-cu128` image. No host ports; live address is
+      `http://whisper:8000/v1`, TTS model `kokoro`, voice `af_heart`. Off: remove the profile, stop
+      the two, clear the address; or use OpenAI (README "Voice"). Natively Kokoro clashed (onnxruntime-gpu
+      1.30 wants CUDA 13, Whisper CUDA 12), hence Docker. Checked live: test OK, transcribe 0.64 s,
+      speak 0.26 s, stop/start of both gives a clear 502 and the phone falls back to its own voice.
+      Video memory with the chat model: about 5.5 GB on this PC (qwen2.5:3b 2.7, Whisper 1.2,
+      Kokoro 1, desktop 0.55): tight on the 6 GB RTX 3050; measure there, and if it does not fit,
+      a smaller Whisper (`WHISPER_MODEL`) or Kokoro on the CPU. Not done: a CPU variant of the
+      profile, and a phone fallback to its own speech-to-text when the server one fails.
+      Owner's first phone run: recordings did not end on a pause. The fixed -38 dBFS "speech"
+      line sat below the room's level once Android raised the gain, so only the 30 s limit ended
+      it. Now `PauseDetector` (phone, `lib/pause_detector.dart`) learns the background and judges
+      against it (speech +12 dB, silence within +6 dB, 2 s pause; 3 s hands-free; gives up after
+      10 s with no speech); readings every 100 ms; the recorder uses the voice-recognition source
+      with noise suppression and echo cancelling. Chat re-reads "Voice on this phone" each time
+      the mic starts (it read it once per screen). Tests: `pause_detector_test.dart` (8).
+      APK `PersonaOS-2026-10-02b-arm64.apk`; not yet confirmed on the owner's phone.
 - [x] **Owner follow-ups (2026-10-01, deployed)**. P4–P6 deployed (live backup first:
       `data/backups/pre-p456-2026-10-01`); memory wins over About you (kept as built).
       - Cards refused up front instead of failing after Confirm: create/update_task check title,
