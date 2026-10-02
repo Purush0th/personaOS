@@ -348,7 +348,11 @@ Key decisions:
   independent of the chat model. **The API is the orchestrator**: the phone talks only to the
   PersonaOS API, which calls the configured service. Adapters speak the OpenAI-style audio API
   (`/v1/audio/transcriptions`, `/v1/audio/speech`), which self-hosted servers such as
-  faster-whisper and Kokoro commonly offer. The core application does not bundle those services.
+  faster-whisper and Kokoro commonly offer. The core application does not depend on those
+  services: `deploy/docker-compose.yml` ships them as the opt-in `speech` profile (a faster-whisper
+  image built from `deploy/speech/whisper`, which also passes text-to-speech on to the Kokoro
+  image), off by default, reached only over the compose network. Turning the profile off, or
+  pointing the address at OpenAI, changes nothing in the application.
 - **Auth**: JWT for a single admin user created in the Setup Wizard; username is
   case-insensitive. The phone can sign in with a fingerprint (credentials in Keystore-backed
   storage).
