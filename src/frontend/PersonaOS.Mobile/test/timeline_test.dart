@@ -17,7 +17,7 @@ Map<String, dynamic> _goal(int id, String type, String slot, String start, Strin
       'effectiveProgress': 40,
       'taskCount': 0,
       'doneTaskCount': 0,
-      'tasks': const [],
+      'tasks': const <Map<String, dynamic>>[],
     };
 
 class _Api extends PersonaOsApi {

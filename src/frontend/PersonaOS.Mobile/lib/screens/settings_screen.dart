@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
-import '../layout.dart';
 import '../auth_vault.dart';
+import '../layout.dart';
 import '../server_speech.dart';
 import '../theme_choice.dart';
 import 'push_config_section.dart';
@@ -84,11 +86,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
-    _vault.hasSavedCredentials.then((saved) {
+    unawaited(_load());
+    unawaited(_vault.hasSavedCredentials.then((saved) {
       if (mounted) setState(() => _hasSavedSignIn = saved);
-    });
-    _loadVoice();
+    }));
+    unawaited(_loadVoice());
   }
 
   /// The voice choices are this phone's, not the server's: read apart from the

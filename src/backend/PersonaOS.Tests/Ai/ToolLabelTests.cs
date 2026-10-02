@@ -5,6 +5,9 @@ namespace PersonaOS.Tests.Ai;
 
 public class ToolLabelTests
 {
+    /// <summary>How the API writes JSON to clients (camelCase).</summary>
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
+
     [Theory]
     [InlineData("get_goals", "Read goals", "Reading goals…", "Read goals")]
     [InlineData("create_goal", "Create goal", "Creating goal…", "Created goal")]
@@ -31,7 +34,7 @@ public class ToolLabelTests
         var stored = """[{"Tool":"create_goal","Ok":true,"Summary":"Learn Rust"}]""";
 
         var receipt = JsonSerializer.Deserialize<List<ToolReceipt>>(stored)![0];
-        var sent = JsonSerializer.Serialize(receipt, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var sent = JsonSerializer.Serialize(receipt, WebJson);
 
         Assert.Equal("Created goal", receipt.Label);
         Assert.Contains("\"label\":\"Created goal\"", sent);

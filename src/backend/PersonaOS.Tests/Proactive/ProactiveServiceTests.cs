@@ -52,6 +52,19 @@ public class ProactiveServiceTests
     }
 
     [Fact]
+    public async Task Recent_runs_come_newest_first_and_no_more_than_asked_for()
+    {
+        var (db, _, service, _) = Setup();
+        db.ProactiveJobRuns.Add(new ProactiveJobRun { JobName = "morning_brief", Summary = "older", RanAtUtc = new DateTime(2026, 9, 1, 3, 0, 0, DateTimeKind.Utc) });
+        db.ProactiveJobRuns.Add(new ProactiveJobRun { JobName = "evening_rollup", Summary = "newer", RanAtUtc = new DateTime(2026, 9, 1, 15, 0, 0, DateTimeKind.Utc) });
+        await db.SaveChangesAsync();
+
+        var runs = await service.GetRecentRunsAsync(1);
+
+        Assert.Equal("newer", Assert.Single(runs).Summary);
+    }
+
+    [Fact]
     public async Task Morning_brief_runs_pushes_and_files_a_chat_entry()
     {
         var (db, push, service, _) = Setup();

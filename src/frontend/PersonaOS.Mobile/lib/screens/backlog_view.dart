@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../layout.dart';
-import 'board_screen.dart';
+import 'board_widgets.dart';
 import 'sprint_actions.dart';
 import 'sprint_page.dart';
+import 'task_views.dart';
 
 /// The Backlog tab of the board, like the web's: the running sprint, the sprints planned after it
 /// and the backlog, each with its tasks. Sprints are created, started, completed and deleted here,
@@ -78,20 +79,23 @@ class _BacklogViewState extends State<BacklogView> {
 
   // -------------------------------------------------------------- tasks
 
+  /// An existing task opens its quick view; without one, the new-task sheet for [sprintKey].
   Future<void> _openTask(List<SprintPlan> plan, {BoardTask? task, String? sprintKey}) async {
-    final changed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => TaskSheet(
-        api: widget.api,
-        goals: widget.goals,
-        task: task,
-        sprints: plan.map((p) => p.sprint).toList(),
-        defaultSprintKey: sprintKey,
-      ),
-    );
-    if (changed == true) {
+    final changed = task != null
+        ? await showTaskQuickView(context, widget.api, task.key, task: task, goals: widget.goals)
+        : await showModalBottomSheet<bool>(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              builder: (_) => TaskSheet(
+                api: widget.api,
+                goals: widget.goals,
+                sprints: plan.map((p) => p.sprint).toList(),
+                defaultSprintKey: sprintKey,
+              ),
+            ) ==
+            true;
+    if (changed) {
       await _reload();
       widget.onChanged?.call();
     }
@@ -177,7 +181,7 @@ class _BacklogViewState extends State<BacklogView> {
                   onToggle: () => setState(
                       () => _collapsed.contains(_backlog) ? _collapsed.remove(_backlog) : _collapsed.add(_backlog)),
                   header: FilledButton.tonalIcon(
-                    onPressed: () => _editSprint(),
+                    onPressed: _editSprint,
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Create sprint'),
                   ),
@@ -244,6 +248,7 @@ class _Section extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final points = tasks.fold<int>(0, (sum, t) => sum + (t.points ?? 0));
+    final narrow = MediaQuery.sizeOf(context).width < Breakpoints.board;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -279,10 +284,14 @@ class _Section extends StatelessWidget {
                         ],
                       ),
                       if (subtitle != null) Text(subtitle!, style: theme.textTheme.bodySmall),
+                      // On a phone the extra control goes under the title: beside it, it squeezed
+                      // "Backlog" into a column of letters.
+                      if (header != null && narrow)
+                        Padding(padding: const EdgeInsets.only(top: 6), child: header),
                     ],
                   ),
                 ),
-                ?header,
+                if (!narrow) ?header,
                 if (actions.isNotEmpty)
                   PopupMenuButton<_Action>(
                     tooltip: 'Sprint actions',

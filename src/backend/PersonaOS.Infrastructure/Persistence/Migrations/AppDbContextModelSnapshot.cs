@@ -322,6 +322,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
+                    b.Property<double?>("AiTemperature")
+                        .HasColumnType("REAL");
+
                     b.Property<string>("AnthropicApiKeyEncrypted")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");

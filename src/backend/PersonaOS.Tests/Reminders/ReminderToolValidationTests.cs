@@ -18,7 +18,7 @@ public class ReminderToolValidationTests
         var config = new FakeInstanceConfigService(db);
         await config.GetOrCreateAsync();
         var publisher = new ReminderAlarmPublisher(db, new FakePushSender(), config, NullLogger<ReminderAlarmPublisher>.Instance);
-        return new CreateReminderTool(new ReminderService(db, config, publisher));
+        return new CreateReminderTool(new ReminderService(db, config, publisher), TestGoals.Service(db));
     }
 
     private static JsonElement Input(string message, DateTime local) =>
@@ -41,6 +41,19 @@ public class ReminderToolValidationTests
         var tool = await ToolAsync();
 
         await tool.ValidateAsync(Input("Consult a professional", DateTime.UtcNow.AddDays(1)));
+    }
+
+    [Fact]
+    public async Task A_goal_is_linked_by_its_key_and_an_unknown_key_says_what_to_do()
+    {
+        var tool = await ToolAsync();
+        var due = DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-ddTHH:mm:ss");
+
+        var ex = await Assert.ThrowsAsync<ReminderValidationException>(() => tool.ValidateAsync(
+            JsonDocument.Parse(JsonSerializer.Serialize(new { message = "Call mum", dueAtLocal = due, goalKey = "GOAL-9" })).RootElement.Clone()));
+
+        Assert.Contains("There is no goal GOAL-9", ex.Message);
+        Assert.Contains("leave it out", ex.Message);
     }
 
     [Fact]

@@ -1,8 +1,18 @@
 ---
 name: goals
 description: How goals work, and the user's active goals. Only rendered when there are some.
+template:
+  format:
+    kind: mustache
+  parser:
+    kind: prompty
 inputs:
-  goals: one line per goal, parents before their children, "GOAL-3 Title (quarter Q4 2026, under GOAL-1)"
+  goals:
+    kind: array
+    description: "one line per goal, parents before their children, \"GOAL-3 Title (quarter Q4 2026, under GOAL-1)\""
+    example:
+      - "GOAL-1 Get fit (year 2026)"
+      - "GOAL-3 Run 5 km (quarter Q4 2026, under GOAL-1)"
 ---
 {{! Keys, not positions: a model that saw a numbered list passed "3" as a goal id. }}
 Goals follow the calendar and nest year > quarter > month. A quarter sits under a year and a month under a quarter, or either stands alone. Tasks sit only under monthly goals. Progress counts finished tasks and completed child goals, never value points or time. Only the user completes a goal; a month with open tasks, or a goal with active child goals, cannot be completed yet.

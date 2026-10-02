@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
-import '../layout.dart';
 import '../date_utils.dart';
+import '../layout.dart';
 
 /// What the assistant remembers across conversations: read, search, add, edit
 /// and delete each memory, and choose whether the assistant saves them without
@@ -26,9 +28,14 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
   void initState() {
     super.initState();
     _memories = widget.api.getMemories();
-    widget.api.getMemoryAutoSave().then((on) {
-      if (mounted) setState(() => _autoSave = on);
-    }).catchError((_) {});
+    // A failed read leaves the switch as it was: the list below still loads. (A bare
+    // catchError returning nothing for a Future<bool> would itself throw.)
+    unawaited(widget.api.getMemoryAutoSave().then(
+      (on) {
+        if (mounted) setState(() => _autoSave = on);
+      },
+      onError: (Object _) {},
+    ));
   }
 
   @override
@@ -126,7 +133,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Memories')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _edit(),
+        onPressed: _edit,
         icon: const Icon(Icons.add),
         label: const Text('Add'),
       ),

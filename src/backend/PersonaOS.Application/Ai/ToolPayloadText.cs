@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace PersonaOS.Application.Ai;
@@ -47,8 +48,8 @@ internal static class ToolPayloadText
         if (value.Contains('T') && DateTime.TryParse(value, out var parsed))
         {
             return parsed.TimeOfDay == TimeSpan.Zero
-                ? parsed.ToString("yyyy-MM-dd")
-                : parsed.ToString("yyyy-MM-dd HH:mm");
+                ? parsed.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                : parsed.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
         }
 
         return value;

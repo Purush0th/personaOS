@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -74,7 +75,7 @@ public class BackupService(IConfiguration configuration, ILogger<BackupService> 
             return;
         }
 
-        var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+        var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
         var dest = Path.Combine(backupRoot, stamp);
         Directory.CreateDirectory(dest);
 

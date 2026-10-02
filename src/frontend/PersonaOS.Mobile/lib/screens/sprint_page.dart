@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../layout.dart';
-import 'board_screen.dart';
-import 'goal_view.dart';
+import 'board_widgets.dart';
 import 'reports_view.dart';
 import 'sprint_actions.dart';
+import 'task_views.dart';
 
 /// One sprint on its own page, like the web's /board/sprints/SPRINT-2: its dates and numbers,
 /// its burndown once it has started, every task in it by status, and what can be done with it

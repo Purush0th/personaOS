@@ -66,6 +66,13 @@ public interface IPersonaTool
     /// and the user would confirm blind. Null for tools that create something new.
     /// </summary>
     Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) => Task.FromResult<string?>(null);
+
+    /// <summary>
+    /// Fills in what the call left to its default, so the card shows it and confirming later runs
+    /// exactly what was shown: "add Buy milk" with no date becomes today's date now, not the day
+    /// the user happens to tap Confirm. Returns the input JSON; the default changes nothing.
+    /// </summary>
+    Task<string> CompleteInputAsync(JsonElement input, CancellationToken ct = default) => Task.FromResult(input.GetRawText());
 }
 
 public interface IPersonaToolRegistry
@@ -93,6 +100,12 @@ public interface IPersonaToolRegistry
 
     /// <summary>The item a call acts on, for its confirmation card, or null. Never throws.</summary>
     Task<string?> DescribeTargetAsync(AiToolCall call, CancellationToken ct = default);
+
+    /// <summary>
+    /// The call with its defaults filled in (see <see cref="IPersonaTool.CompleteInputAsync"/>);
+    /// the call unchanged when the tool has none or completing fails. Never throws.
+    /// </summary>
+    Task<AiToolCall> CompleteAsync(AiToolCall call, CancellationToken ct = default) => Task.FromResult(call);
 
     /// <summary>
     /// Names of the enabled tools that change data, and so need the user's confirmation before

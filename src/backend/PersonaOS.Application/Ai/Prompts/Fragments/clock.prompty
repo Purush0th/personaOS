@@ -1,12 +1,35 @@
 ---
 name: clock
 description: The user's time zone, local date and time, and the dates of the coming week. "Today" must be the user's date, not the server's UTC date; the dates are listed because small models get "tomorrow" wrong when they add it up themselves.
+template:
+  format:
+    kind: mustache
+  parser:
+    kind: prompty
 inputs:
-  timeZone: IANA time zone id
-  today: the user's local date, yyyy-MM-dd
-  now: the user's local time, HH:mm
-  tomorrow: the user's local date tomorrow, yyyy-MM-dd
-  week: the next seven days, one per line, "Thursday 2026-10-01"
+  timeZone:
+    kind: string
+    description: "IANA time zone id"
+    example: "Asia/Kolkata"
+  today:
+    kind: string
+    description: "the user's local date, yyyy-MM-dd"
+    example: "2026-10-01"
+  now:
+    kind: string
+    description: "the user's local time, HH:mm"
+    example: "09:30"
+  tomorrow:
+    kind: string
+    description: "the user's local date tomorrow, yyyy-MM-dd"
+    example: "2026-10-02"
+  week:
+    kind: array
+    description: "the next seven days, one per line, \"Thursday 2026-10-01\""
+    example:
+      - "Thursday 2026-10-01 (today)"
+      - "Friday 2026-10-02 (tomorrow)"
+      - "Saturday 2026-10-03"
 ---
 The user's time zone is {{timeZone}}, where today is {{today}} and the time is {{now}}. Tomorrow is {{tomorrow}}. Use these dates for "today", "tomorrow" and weekdays; never work a date out yourself:
 {{#week}}

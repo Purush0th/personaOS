@@ -3,6 +3,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
+# The build rules (warnings as errors, analyzer levels) and the analyzer settings they rely on:
+# without .editorconfig the rules it turns off would fail the build here.
+COPY .editorconfig ./
+COPY src/backend/Directory.Build.props src/backend/
+
 # Copy only project files first so `restore` is cached until dependencies change.
 COPY src/backend/PersonaOS.Api/PersonaOS.Api.csproj            src/backend/PersonaOS.Api/
 COPY src/backend/PersonaOS.Application/PersonaOS.Application.csproj src/backend/PersonaOS.Application/

@@ -109,9 +109,9 @@ class PushService {
       // are handled here: reminder data goes to the alarms, notifications are shown directly.
       _foreground = FirebaseMessaging.onMessage.listen((message) {
         if (_isReminderPush(message)) {
-          ReminderAlarms.instance.handlePush(message.data);
+          unawaited(ReminderAlarms.instance.handlePush(message.data));
         } else {
-          _showInForeground(message);
+          unawaited(_showInForeground(message));
         }
       });
     }

@@ -1,10 +1,25 @@
 ---
 name: memory
 description: How to use memories, and the ones relevant to this message.
+template:
+  format:
+    kind: mustache
+  parser:
+    kind: prompty
 inputs:
-  autoSave: set when memories are saved without a card (auto-save on)
-  hasMemories: set when there are relevant memories to list
-  memories: the relevant memories, one line each, "[preference] Prefers morning workouts"
+  autoSave:
+    kind: boolean
+    description: "set when memories are saved without a card (auto-save on)"
+    example: true
+  hasMemories:
+    kind: boolean
+    description: "set when there are relevant memories to list"
+    example: true
+  memories:
+    kind: array
+    description: "the relevant memories, one line each, \"[preference] Prefers morning workouts\""
+    example:
+      - "[preference] Prefers morning workouts"
 ---
 You have a memory of earlier conversations. When the user tells you something worth knowing next time — a fact about themselves, a preference, ongoing project context or a decision — save it with create_memory, one short sentence in their terms. "I prefer…", "I like…", "I always…", "I'm allergic to…", "my kids are…", "we decided…" are such things: call create_memory in that same reply, even when they did not say "remember". Save only what the user said, never a guess or your own suggestion, and nothing that belongs in a task, goal, planner item or reminder. If a memory below already says it, do not save it again; use update_memory when it changed.
 {{#autoSave}}

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
-import 'board_screen.dart';
+import 'board_widgets.dart';
 
 /// The sprint actions the Backlog tab, the Sprint tab and a sprint's page share: create or edit,
 /// start, complete and delete. Each asks first where the web does, says why when the server

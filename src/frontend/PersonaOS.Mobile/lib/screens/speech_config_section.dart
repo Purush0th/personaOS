@@ -128,7 +128,7 @@ class _SpeechConfigSectionState extends State<SpeechConfigSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(on ? 'On · $what' : "Off · the phone uses its own speech engine",
+            Text(on ? 'On · $what' : 'Off · the phone uses its own speech engine',
                 style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             Text(

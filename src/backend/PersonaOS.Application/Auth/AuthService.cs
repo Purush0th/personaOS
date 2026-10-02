@@ -32,7 +32,11 @@ public class AuthService(
         // is BINARY, so a plain `==` silently changed login behaviour when the store moved.
         // The column is also declared COLLATE NOCASE, which keeps the unique index in step.
         var normalized = username.Trim().ToLowerInvariant();
+        // ToLower() here is translated to SQL lower(), not run under a .NET culture, and EF cannot
+        // translate the StringComparison overloads the culture analyzers suggest instead.
+#pragma warning disable CA1304, CA1311, CA1862
         var admin = await db.AdminUsers.FirstOrDefaultAsync(u => u.Username.ToLower() == normalized, ct);
+#pragma warning restore CA1304, CA1311, CA1862
         if (admin is null)
             return null;
 

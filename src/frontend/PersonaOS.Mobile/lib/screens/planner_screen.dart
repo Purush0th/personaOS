@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
-import '../layout.dart';
 import '../date_utils.dart';
-import 'board_screen.dart';
+import '../layout.dart';
+import 'board_widgets.dart';
 import 'goal_view.dart';
+import 'task_views.dart';
 
 /// Daily planner day-view: navigate days, add tasks (typed, or picked from the running sprint),
 /// cycle status, move a task to the next day, delete.

@@ -57,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<IPersonaTool, DeleteGoalTool>();
         services.AddScoped<IPersonaTool, GetBoardTool>();
         services.AddScoped<IPersonaTool, GetPlanTool>();
+        services.AddScoped<IPersonaTool, GetTaskTool>();
         services.AddScoped<IPersonaTool, CreateSprintTool>();
         services.AddScoped<IPersonaTool, StartSprintTool>();
         services.AddScoped<IPersonaTool, CompleteSprintTool>();

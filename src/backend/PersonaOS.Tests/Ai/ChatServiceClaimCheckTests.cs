@@ -23,7 +23,9 @@ public class ChatServiceClaimCheckTests
         var db = TestDbContext.Create();
         var config = new FakeInstanceConfigService(db);
         var streamer = new FakeAiMessageStreamer();
-        return (db, TestChat.Create(db, config, streamer, tools), streamer);
+        // The messages say "today" and the calls carry 2026-09-15: the clock agrees with them.
+        var clock = new FixedTimeProvider(new DateTimeOffset(2026, 9, 15, 8, 0, 0, TimeSpan.Zero));
+        return (db, TestChat.Create(db, config, streamer, clock, tools), streamer);
     }
 
     private static async Task<List<ChatStreamEvent>> CollectAsync(IAsyncEnumerable<ChatStreamEvent> stream)

@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using PersonaOS.Api.Infrastructure;
-using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Proactive;
 using PersonaOS.Domain.Entities;
 
@@ -12,18 +10,14 @@ namespace PersonaOS.Api.Controllers;
 [Route("api/proactive")]
 [Authorize]
 [RequireFeature(InstanceConfig.Modules.Proactive)]
-public class ProactiveController(
-    IProactiveService proactive,
-    IAppDbContext db) : ControllerBase
+public class ProactiveController(IProactiveService proactive) : ControllerBase
 {
+    /// <summary>How many recent runs the history shows.</summary>
+    private const int RunsShown = 30;
+
     /// <summary>Recent proactive runs, newest first — what was sent and when.</summary>
     [HttpGet("runs")]
-    public async Task<IActionResult> Runs(CancellationToken ct) =>
-        Ok(await db.ProactiveJobRuns.AsNoTracking()
-            .OrderByDescending(r => r.RanAtUtc)
-            .Take(30)
-            .Select(r => new { r.Id, r.JobName, r.LocalDate, r.RanAtUtc, r.Pushed, r.Summary })
-            .ToListAsync(ct));
+    public async Task<IActionResult> Runs(CancellationToken ct) => Ok(await proactive.GetRecentRunsAsync(RunsShown, ct));
 
     /// <summary>
     /// Runs a job now, ignoring its schedule. Useful for previewing a brief and

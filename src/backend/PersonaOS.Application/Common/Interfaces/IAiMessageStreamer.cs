@@ -49,7 +49,9 @@ public class AiStreamException(string userMessage, Exception? inner = null)
 /// <param name="ContextTokens">Context window to load the model with (Ollama's <c>num_ctx</c>).</param>
 /// <param name="Think">For models that reason before answering: false turns it off, null leaves the default.</param>
 /// <param name="KeepAlive">How long a local server keeps the model loaded after a request, e.g. "30m".</param>
-public record AiModelOptions(int? ContextTokens = null, bool? Think = null, string? KeepAlive = null)
+/// <param name="Temperature">Sampling temperature; null leaves the provider's default (Ollama's is 0.8).
+/// Anthropic's adapter ignores it: its newer models refuse any value but the default.</param>
+public record AiModelOptions(int? ContextTokens = null, bool? Think = null, string? KeepAlive = null, double? Temperature = null)
 {
     public static readonly AiModelOptions Default = new();
 }

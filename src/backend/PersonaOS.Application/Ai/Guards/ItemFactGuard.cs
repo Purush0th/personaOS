@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using PersonaOS.Application.Board;
@@ -64,6 +65,18 @@ public sealed partial class ItemFactGuard(IAppDbContext db) : IReplyGuard
     [GeneratedRegex(@"\b(?:is|are)\s+(?:currently\s+|now\s+|still\s+)?in\s+(?:the\s+)?backlog\b", RegexOptions.IgnoreCase)]
     private static partial Regex BacklogClaim();
 
+    /// <summary>"is in the running sprint", "is part of the current sprint": said of a backlog task, wrong.</summary>
+    [GeneratedRegex(@"\b(?:is|are)\s+(?:currently\s+|now\s+|still\s+|already\s+)?(?:in|part\s+of)\s+(?:the\s+|your\s+|this\s+)?(?:running\s+|current\s+|active\s+)?sprint\b", RegexOptions.IgnoreCase)]
+    private static partial Regex InSprintClaim();
+
+    /// <summary>"no tasks are in the sprint", "the sprint is empty", "not pulled into the sprint".</summary>
+    [GeneratedRegex(@"\b(?:no|zero|none\s+of\s+the|none\s+of\s+your)\s+tasks?\s+(?:are\s+|is\s+|have\s+been\s+)?(?:in|pulled\s+into|added\s+to)\s+(?:the\s+|your\s+)?(?:running\s+|current\s+|active\s+)?sprint\b|\bsprint\s+(?:is\s+(?:currently\s+)?empty|has\s+no\s+tasks)\b|\bnot\s+(?:yet\s+)?(?:been\s+)?(?:pulled|moved|added)\s+(?:in)?to\s+(?:the\s+|your\s+)?(?:running\s+|current\s+|active\s+)?sprint\b", RegexOptions.IgnoreCase)]
+    private static partial Regex EmptySprintClaim();
+
+    /// <summary>"the tasks are still in the backlog": tasks, unnamed, said to be in the backlog.</summary>
+    [GeneratedRegex(@"\b(?:the|these|those|all|your|all\s+the|all\s+your)\s+(?:\w+\s+){0,2}tasks\s+(?:are\s+)?(?:still\s+|currently\s+|all\s+)?in\s+(?:the\s+|your\s+)?backlog\b", RegexOptions.IgnoreCase)]
+    private static partial Regex TasksInBacklogClaim();
+
     /// <summary>"none of the tasks", "no tasks", "zero": no task is meant. "no value points" is not one.</summary>
     [GeneratedRegex(@"\b(?:none|zero)\b|\bno\b(?!\s+(?:value\s+|story\s+)?points?)", RegexOptions.IgnoreCase)]
     private static partial Regex NoneOf();
@@ -118,11 +131,16 @@ public sealed partial class ItemFactGuard(IAppDbContext db) : IReplyGuard
         var runningTasks = running is null ? []
             : await db.BoardTasks.AsNoTracking().Where(t => t.SprintId == running.Id).ToListAsync(ct);
 
+        // How many tasks wait in the backlog, for sentences that say where unnamed tasks are.
+        var backlogCount = (await db.BoardTasks.AsNoTracking().Where(t => t.SprintId == null).ToListAsync(ct))
+            .Count(t => BoardColumns.Of(t) == BoardColumns.Backlog);
+
         var wrongFacts = new List<string>();
         var wrongSentences = new List<string>();
         foreach (var sentence in sentences)
         {
-            var fact = await CheckAsync(sentence, running, runningTasks, ct);
+            var fact = await CheckAsync(sentence, running, runningTasks, ct)
+                ?? CheckWhereTasksAre(sentence, running, runningTasks.Count, backlogCount);
             if (fact is null) continue;
             if (!wrongFacts.Contains(fact)) wrongFacts.Add(fact);
             wrongSentences.Add(sentence);
@@ -136,8 +154,8 @@ public sealed partial class ItemFactGuard(IAppDbContext db) : IReplyGuard
     /// <summary>The true fact a sentence contradicts, or null when it is right or says nothing checkable.</summary>
     private async Task<string?> CheckAsync(string sentence, Sprint? running, IReadOnlyList<BoardTask> runningTasks, CancellationToken ct)
     {
-        var taskKeys = TaskKey().Matches(sentence).Select(m => int.Parse(m.Groups[1].Value)).Distinct().ToList();
-        var sprintKeys = SprintKey().Matches(sentence).Select(m => int.Parse(m.Groups[1].Value)).Distinct().ToList();
+        var taskKeys = TaskKey().Matches(sentence).Select(m => int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture)).Distinct().ToList();
+        var sprintKeys = SprintKey().Matches(sentence).Select(m => int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture)).Distinct().ToList();
 
         BoardTask? task = null;
         if (taskKeys.Count == 1)
@@ -176,6 +194,38 @@ public sealed partial class ItemFactGuard(IAppDbContext db) : IReplyGuard
             : null;
     }
 
+    /// <summary>
+    /// For a sentence naming no task and no sprint: the true fact when it says the running sprint
+    /// has no tasks while it has some ("the tasks are in the backlog, not pulled into the
+    /// sprint"), or that the tasks are in the backlog while it is empty.
+    /// </summary>
+    private static string? CheckWhereTasksAre(string sentence, Sprint? running, int runningCount, int backlogCount)
+    {
+        if (TaskKey().IsMatch(sentence) || SprintKey().IsMatch(sentence)) return null;
+        return LocationContradicts(sentence, running is not null, runningCount, backlogCount)
+            ? LocationFact(running is null ? null : ItemKeys.Sprint(running.Number), runningCount, backlogCount)
+            : null;
+    }
+
+    /// <summary>Whether a sentence gets wrong where unnamed tasks are: in the running sprint or the backlog.</summary>
+    public static bool LocationContradicts(string sentence, bool sprintRunning, int runningCount, int backlogCount)
+    {
+        foreach (var clause in ClauseBreak().Split(sentence))
+        {
+            if (clause.Trim().Length == 0 || Conditional().IsMatch(clause) || Modal().IsMatch(clause)) continue;
+            if (sprintRunning && runningCount > 0 && EmptySprintClaim().IsMatch(clause)) return true;
+            if (backlogCount == 0 && TasksInBacklogClaim().IsMatch(clause) && !Negation().IsMatch(clause)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>"SPRINT-2 is running with 3 tasks, and the backlog has 0."</summary>
+    public static string LocationFact(string? runningKey, int runningCount, int backlogCount) =>
+        (runningKey is null
+            ? "No sprint is running"
+            : $"{runningKey} is running with {runningCount} {(runningCount == 1 ? "task" : "tasks")}")
+        + $", and the backlog has {backlogCount}.";
+
     /// <summary>Whether the sentence says something about the task's points or column that is not so.</summary>
     public static bool Contradicts(string sentence, int? points, string column)
     {
@@ -184,14 +234,15 @@ public sealed partial class ItemFactGuard(IAppDbContext db) : IReplyGuard
 
         foreach (Match m in PointsClaim().Matches(text))
         {
-            var said = int.Parse(m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value);
+            var said = int.Parse(m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value, CultureInfo.InvariantCulture);
             if (said != points) return true;
         }
 
         if (Negation().IsMatch(text)) return false;
         return (DoneClaim().IsMatch(text) && column != BoardColumns.Done)
             || (InProgressClaim().IsMatch(text) && column != BoardColumns.InProgress)
-            || (BacklogClaim().IsMatch(text) && column != BoardColumns.Backlog);
+            || (BacklogClaim().IsMatch(text) && column != BoardColumns.Backlog)
+            || (InSprintClaim().IsMatch(text) && column == BoardColumns.Backlog);
     }
 
     /// <summary>
