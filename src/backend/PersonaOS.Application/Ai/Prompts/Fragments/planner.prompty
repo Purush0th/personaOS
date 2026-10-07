@@ -9,9 +9,9 @@ template:
 inputs:
   items:
     kind: array
-    description: "one line per item, \"09:30 Title [pending]\""
+    description: "one line per event, \"09:30-10:30 Title [planned]\"; an all-day event has no times"
     example:
-      - "09:30 File taxes [pending]"
+      - "09:30-10:30 File taxes [planned]"
 ---
 Today's planner (use the planner tools to change it):
 {{#items}}

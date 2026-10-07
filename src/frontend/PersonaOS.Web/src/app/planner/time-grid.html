@@ -1,0 +1,85 @@
+<div class="grid" [style.--days]="columns().length">
+  <!-- Day headings -->
+  <div class="head">
+    <div class="gutter zone">{{ zone }}</div>
+    @for (col of columns(); track col.date) {
+      <button type="button" class="day-head" [class.today]="col.isToday" (click)="openDay.emit(col.date)" [attr.aria-label]="'Open ' + col.date">
+        <span class="weekday">{{ col.weekday }}</span>
+        <span class="number">{{ col.dayOfMonth }}</span>
+      </button>
+    }
+  </div>
+
+  <!-- All-day strip -->
+  @if (hasAllDay()) {
+    <div class="all-day-row">
+      <div class="gutter"></div>
+      @for (col of columns(); track col.date) {
+        <div class="all-day" (click)="create.emit({ date: col.date, start: null })">
+          @for (item of col.allDay; track item.id + item.occurrenceDate) {
+            <button
+              type="button"
+              class="chip"
+              data-testid="event"
+              [class.goal]="hue(item) !== null"
+              [style.--hue]="hue(item)"
+              [class.past]="isPast(col.date, null)"
+              [class.done]="item.status !== 'planned'"
+              [attr.aria-label]="label(item)"
+              (click)="$event.stopPropagation(); open.emit(item)"
+            >
+              {{ item.title }}
+            </button>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Hours -->
+  <div class="scroller" #scroller>
+    <div class="body" [style.height.px]="24 * hourPx">
+      <div class="gutter hours">
+        @for (h of hours; track h) {
+          @if (h > 0) {
+            <span class="hour-label" [style.top.px]="h * hourPx">{{ hourLabel(h) }}</span>
+          }
+        }
+      </div>
+
+      @for (col of columns(); track col.date) {
+        <div class="day" [class.today]="col.isToday" (click)="slotClick($event, col.date)">
+          @for (h of hours; track h) {
+            <div class="hour-line" [style.top.px]="h * hourPx"></div>
+          }
+
+          @for (event of col.placed; track event.item.id + event.item.occurrenceDate) {
+            <button
+              type="button"
+              class="event"
+              data-testid="event"
+              [class.goal]="hue(event.item) !== null"
+              [style.--hue]="hue(event.item)"
+              [class.compact]="compact(event)"
+              [class.past]="isPast(col.date, event)"
+              [class.done]="event.item.status !== 'planned'"
+              [style.top.px]="top(event.startMinutes)"
+              [style.height.px]="height(event)"
+              [style.left]="'calc(' + (event.column / event.columns) * 100 + '% + 1px)'"
+              [style.width]="'calc(' + 100 / event.columns + '% - 6px)'"
+              [attr.aria-label]="label(event.item)"
+              (click)="$event.stopPropagation(); open.emit(event.item)"
+            >
+              <span class="title">{{ event.item.title }}</span>
+              <span class="time">{{ compact(event) ? formatTime(event.item.scheduledTime!) : formatRange(event.item.scheduledTime!, event.item.endTime!) }}</span>
+            </button>
+          }
+
+          @if (col.isToday) {
+            <div class="now" [style.top.px]="top(nowMinutes())" aria-hidden="true"></div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>

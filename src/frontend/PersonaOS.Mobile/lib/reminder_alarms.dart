@@ -103,6 +103,10 @@ class ReminderAlarms {
   /// Called when an alarm is opened — tapped, or launched full screen over the lock screen.
   void Function(ReminderAlarm alarm)? onOpen;
 
+  /// A tapped notification that is not an alarm (a planner event's heads-up shown in the
+  /// foreground), with its payload. This plugin has one tap handler for the whole app.
+  void Function(String payload)? onOtherTap;
+
   Future<void> init() async {
     if (_initialised) return;
     _initialised = true;
@@ -284,7 +288,11 @@ class ReminderAlarms {
 
   void _onResponse(NotificationResponse response) {
     final alarm = ReminderAlarm.fromPayload(response.payload);
-    if (alarm == null) return;
+    if (alarm == null) {
+      final payload = response.payload;
+      if (payload != null) onOtherTap?.call(payload);
+      return;
+    }
 
     switch (response.actionId) {
       case AlarmActions.snooze:

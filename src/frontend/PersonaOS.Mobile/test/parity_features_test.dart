@@ -75,8 +75,9 @@ class ParityApi extends PersonaOsApi {
   final days = <String>[];
 
   @override
-  Future<List<PlannerItem>> getPlannerDay(String date) async {
-    days.add(date);
+  Future<List<PlannerItem>> getPlannerRange(String from, String to) async {
+    days.add(from);
+    final date = from;
     return [
       PlannerItem(
         id: 1,
@@ -197,6 +198,9 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: PlannerScreen(api: api, boardEnabled: true)));
       await tester.pumpAndSettle();
 
+      // The task key is a link in the event's quick view.
+      await tester.tap(find.text('File taxes'));
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('planner-task-TASK-7')), findsOneWidget);
     });
   });

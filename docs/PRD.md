@@ -83,7 +83,7 @@ Each module can be switched off per install; its UI disappears, its endpoints re
 | Chat | always on | Streaming conversation with the assistant; history, receipts and confirmation cards |
 | `goals` | on | Yearly, quarterly and monthly goals, nested roadmap, Timeline, dates and progress |
 | `board` | on | A one-person Scrum board: tasks, value points, weekly sprints, backlog, reports |
-| `planner` | on | A day-by-day list; items can come from the sprint |
+| `planner` | on | A calendar of events (repeats, notifications); items can come from the sprint |
 | `reminders` | on | Scheduled alarms and push notifications, created in chat or by hand |
 | `memory` | on | Cross-device personal memory stored by the server: facts, preferences, project context and decisions, retrievable in chat |
 | `voice` | on | Push-to-talk and hands-free voice on the phone, with read-back |
@@ -240,8 +240,17 @@ Full rules: [sprint-board.md](sprint-board.md). In short:
 
 ### 3.4 Planner
 
-- The planner is the **daily** list; the board is the **weekly** one. Items have a date, an
-  optional time, a status (planned, done, skipped) and optionally a linked sprint task.
+- The planner is a **calendar**, after Google Calendar: Day, 4 days, Week, Month, Year and
+  Schedule views on web and phone, with its view menu (and keyboard shortcuts on the web).
+  The board stays the **weekly** commitment. An item is an **event**: a day, all day or a
+  start and end time, a status (planned, done, skipped), optionally a linked sprint task.
+- Events can **repeat** (daily, weekly on chosen days, monthly by day or weekday, yearly,
+  every weekday, every N, ending never, on a date or after N times; RFC 5545 RRULE text).
+  A repeating event is one series; changing or deleting one occurrence asks This event /
+  This and following / All events.
+- An event can **notify** the phone once, a chosen time before it starts (5 minutes to 4 weeks,
+  or a custom number and unit), as an ordinary notification, not an alarm. Reminders stay
+  separate and alarm-grade. An all-day event counts from 9:00.
 - Marking a planner item done does not finish its task; the user moves the card.
 
 ### 3.5 Reminders
@@ -435,7 +444,7 @@ clients to gate modules and to show "please update" when too old.
 | 2 | Goals: CRUD + tools, year → quarter → month hierarchy, task-based progress with roll-up |
 | 2a | Timeline: Gantt-style year/quarter/month roadmap with roll-up progress (web and phone) |
 | 2b | Sprint board: tasks, value points, manual sprints, backlog, item pages, comments and attachments, reports |
-| 3 | Daily planner: CRUD + tools, day view, tasks from the sprint |
+| 3 | Daily planner: CRUD + tools, day view, tasks from the sprint (now a calendar, see §3.4) |
 | 4 | Reminders: alarms, bring-your-own FCM push, conversational creation |
 | 5 | Documents — removed 2026-10-01; files are attachments on tasks and goals |
 | 5b | Memory: server-side memories with categories, auto-save with receipts, review/edit/delete, relevance-based retrieval |

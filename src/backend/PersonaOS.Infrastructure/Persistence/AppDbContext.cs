@@ -23,6 +23,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<WorkItemComment> WorkItemComments => Set<WorkItemComment>();
     public DbSet<WorkItemAttachment> WorkItemAttachments => Set<WorkItemAttachment>();
     public DbSet<PlannerItem> PlannerItems => Set<PlannerItem>();
+    public DbSet<PlannerOccurrence> PlannerOccurrences => Set<PlannerOccurrence>();
+    public DbSet<PlannerAlertLog> PlannerAlertLogs => Set<PlannerAlertLog>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<ProactiveJobRun> ProactiveJobRuns => Set<ProactiveJobRun>();
@@ -94,6 +96,27 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasForeignKey(x => x.TaskId)
                 .OnDelete(DeleteBehavior.SetNull);
             cfg.HasIndex(x => new { x.Date, x.SortOrder });
+            cfg.Property(x => x.Recurrence).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<PlannerOccurrence>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Title).HasMaxLength(300);
+            cfg.Property(x => x.Notes).HasMaxLength(4000);
+            cfg.Property(x => x.Status).HasMaxLength(20);
+            // The changes belong to the series: deleting it takes them along.
+            cfg.HasOne(x => x.Item).WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+            cfg.HasIndex(x => new { x.ItemId, x.OriginalDate }).IsUnique();
+            cfg.HasIndex(x => x.Date);
+        });
+
+        modelBuilder.Entity<PlannerAlertLog>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.HasOne(x => x.Item).WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+            cfg.HasIndex(x => new { x.ItemId, x.OccurrenceDate, x.StartUtc }).IsUnique();
+            cfg.HasIndex(x => x.SentAtUtc);
         });
 
         modelBuilder.Entity<InstanceConfig>(cfg =>
