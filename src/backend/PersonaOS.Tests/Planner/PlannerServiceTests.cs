@@ -41,12 +41,14 @@ public class PlannerServiceTests
     }
 
     [Fact]
-    public async Task A_range_must_run_forwards_and_stay_within_a_year()
+    public async Task A_range_must_run_forwards_and_stay_within_a_year_view()
     {
         var (_, planner) = Setup();
 
         await Assert.ThrowsAsync<PlannerValidationException>(() => planner.GetRangeAsync(Day, Day.AddDays(-1)));
-        await Assert.ThrowsAsync<PlannerValidationException>(() => planner.GetRangeAsync(Day, Day.AddDays(400)));
+        await Assert.ThrowsAsync<PlannerValidationException>(() => planner.GetRangeAsync(Day, Day.AddDays(401)));
+        // A year view with the weeks that spill over its edges fits.
+        Assert.Empty(await planner.GetRangeAsync(Day, Day.AddDays(400)));
     }
 
     [Fact]

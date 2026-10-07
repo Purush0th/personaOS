@@ -20,6 +20,8 @@ public interface IAppDbContext
     DbSet<WorkItemComment> WorkItemComments { get; }
     DbSet<WorkItemAttachment> WorkItemAttachments { get; }
     DbSet<PlannerItem> PlannerItems { get; }
+    DbSet<PlannerOccurrence> PlannerOccurrences { get; }
+    DbSet<PlannerAlertLog> PlannerAlertLogs { get; }
     DbSet<Reminder> Reminders { get; }
     DbSet<DeviceToken> DeviceTokens { get; }
     DbSet<ProactiveJobRun> ProactiveJobRuns { get; }

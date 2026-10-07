@@ -82,6 +82,9 @@ public static class ProposedActionSummary
             }
         }
 
+        // An event's end, repeat and heads-up are what the user is agreeing to as much as its day.
+        if (toolName is "add_planner_item") parts.AddRange(EventDetails(input));
+
         // A goal's calendar slot is what the user is agreeing to: "Q4 2026", "Oct 2026".
         if (toolName is "create_goal" or "move_goal" && Slot(input) is { } slot) parts.Add(slot);
 
@@ -118,6 +121,32 @@ public static class ProposedActionSummary
         if (parts.Count > 0) sb.Append(" — ").Append(string.Join(" · ", parts));
 
         return ToolPayloadText.Truncate(sb.ToString(), 500);
+    }
+
+    /// <summary>"until 10:30", "repeats weekly until 2026-12-31", "notify 30 minutes before", for an add_planner_item card.</summary>
+    private static IEnumerable<string> EventDetails(JsonElement input)
+    {
+        if (ToolPayloadText.FirstValue(input, ["endTime"]) is { } end) yield return "until " + end;
+        if (ToolPayloadText.FirstValue(input, ["scheduledTime"]) is null) yield return "all day";
+
+        if (ToolPayloadText.FirstValue(input, ["repeat"]) is { } repeat)
+        {
+            var until = ToolPayloadText.FirstValue(input, ["repeatUntil"]);
+            var every = repeat.Trim().Equals("weekdays", StringComparison.OrdinalIgnoreCase)
+                ? "every weekday"
+                : repeat.Trim().ToLowerInvariant();
+            yield return until is null ? $"repeats {every}" : $"repeats {every} until {until}";
+        }
+
+        if (input.TryGetProperty("notifyBeforeMinutes", out var notify) && notify.ValueKind == JsonValueKind.Number
+            && notify.TryGetInt32(out var minutes))
+        {
+            yield return minutes < 0
+                ? "no notification"
+                : minutes == 0
+                    ? "notify when it starts"
+                    : $"notify {Planner.PlannerAlertDispatcher.Lead(minutes)} before";
+        }
     }
 
     /// <summary>"Q4 2026" or "Oct 2026" from a goal call's quarter or month and year; null when absent.</summary>

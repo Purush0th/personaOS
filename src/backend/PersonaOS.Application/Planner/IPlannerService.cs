@@ -2,7 +2,17 @@ using PersonaOS.Application.Common.Exceptions;
 
 namespace PersonaOS.Application.Planner;
 
-/// <summary>A planner item with its optional goal link resolved for display.</summary>
+/// <summary>
+/// An event on one day, with its optional goal link resolved for display. For a repeating event
+/// this is one occurrence: <see cref="Id"/> is the series, <see cref="OccurrenceDate"/> says which.
+/// </summary>
+/// <param name="ScheduledTime">Start time; null means the event lasts all day.</param>
+/// <param name="EndTime">End time of a timed event (the default length after the start when none was set); null for all-day.</param>
+/// <param name="NotifyBeforeMinutes">Minutes before the start the phone is notified; null means never.</param>
+/// <param name="Recurrence">The repeat rule as text; null for a one-off.</param>
+/// <param name="RecurrenceText">The rule in words, like "Weekly on Saturday".</param>
+/// <param name="OccurrenceDate">The day the series' rule put this occurrence on: what to send back to change just this one.</param>
+/// <param name="IsChanged">This occurrence was edited on its own.</param>
 public record PlannerItemDto(
     int Id,
     string Title,
@@ -17,7 +27,13 @@ public record PlannerItemDto(
     DateTime UpdatedAtUtc,
     string? GoalKey = null,
     int? TaskId = null,
-    string? TaskKey = null);
+    string? TaskKey = null,
+    TimeOnly? EndTime = null,
+    int? NotifyBeforeMinutes = null,
+    string? Recurrence = null,
+    string? RecurrenceText = null,
+    DateOnly? OccurrenceDate = null,
+    bool IsChanged = false);
 
 /// <summary>One day's plan.</summary>
 public record PlannerDay(DateOnly Date, IReadOnlyList<PlannerItemDto> Items);
@@ -29,7 +45,10 @@ public record CreatePlannerItemRequest(
     TimeOnly? ScheduledTime = null,
     int? SortOrder = null,
     int? GoalId = null,
-    int? TaskId = null);
+    int? TaskId = null,
+    TimeOnly? EndTime = null,
+    int? NotifyBeforeMinutes = null,
+    string? Recurrence = null);
 
 /// <summary>Partial update; null fields are left unchanged.</summary>
 public record UpdatePlannerItemRequest(
@@ -42,7 +61,29 @@ public record UpdatePlannerItemRequest(
     bool ClearGoal = false,
     bool ClearScheduledTime = false,
     int? TaskId = null,
-    bool ClearTask = false);
+    bool ClearTask = false,
+    TimeOnly? EndTime = null,
+    bool ClearEndTime = false,
+    int? NotifyBeforeMinutes = null,
+    bool ClearNotify = false,
+    string? Recurrence = null,
+    bool ClearRecurrence = false);
+
+/// <summary>Which events of a repeating series a change or delete applies to.</summary>
+public enum PlannerEditScope
+{
+    /// <summary>Every event in the series (and the only choice for an event that does not repeat).</summary>
+    All,
+
+    /// <summary>Just the occurrence named.</summary>
+    This,
+
+    /// <summary>The occurrence named and every one after it.</summary>
+    Following,
+}
+
+/// <summary>What a change or delete is aimed at: the scope, and for a repeating event which occurrence.</summary>
+public record PlannerTarget(PlannerEditScope Scope = PlannerEditScope.All, DateOnly? Occurrence = null);
 
 /// <summary>Invalid input to a planner operation; message is user/model-presentable.</summary>
 public class PlannerValidationException(string message)
@@ -53,20 +94,23 @@ public interface IPlannerService
     /// <summary>All items planned for a single day, ordered by time then sort order.</summary>
     Task<PlannerDay> GetDayAsync(DateOnly date, CancellationToken ct = default);
 
-    /// <summary>Days in an inclusive date range that have items (for week/month views).</summary>
+    /// <summary>Days in an inclusive date range that have items (for the week, month and year views).</summary>
     Task<IReadOnlyList<PlannerDay>> GetRangeAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
 
-    Task<PlannerItemDto?> GetAsync(int id, CancellationToken ct = default);
+    /// <summary>One event; for a repeating one the occurrence named, or the series' first.</summary>
+    Task<PlannerItemDto?> GetAsync(int id, DateOnly? occurrence = null, CancellationToken ct = default);
 
     Task<PlannerItemDto> CreateAsync(CreatePlannerItemRequest request, CancellationToken ct = default);
 
-    Task<PlannerItemDto?> UpdateAsync(int id, UpdatePlannerItemRequest request, CancellationToken ct = default);
+    Task<PlannerItemDto?> UpdateAsync(
+        int id, UpdatePlannerItemRequest request, PlannerTarget? target = null, CancellationToken ct = default);
 
-    /// <summary>Sets the status (planned / done / skipped).</summary>
-    Task<PlannerItemDto?> UpdateStatusAsync(int id, string status, CancellationToken ct = default);
+    /// <summary>Sets the status (planned / done / skipped); a repeating event needs the occurrence.</summary>
+    Task<PlannerItemDto?> UpdateStatusAsync(
+        int id, string status, DateOnly? occurrence = null, CancellationToken ct = default);
 
     /// <summary>Moves an item to another day, keeping everything else intact.</summary>
-    Task<PlannerItemDto?> MoveAsync(int id, DateOnly date, CancellationToken ct = default);
+    Task<PlannerItemDto?> MoveAsync(int id, DateOnly date, PlannerTarget? target = null, CancellationToken ct = default);
 
-    Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+    Task<bool> DeleteAsync(int id, PlannerTarget? target = null, CancellationToken ct = default);
 }

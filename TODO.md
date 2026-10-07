@@ -17,6 +17,91 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ---
 
+## Planner as a calendar (owner, 2026-10-03)
+
+Owner: "The planner should look like Google Calendar" (Day, Week, Month, Year views and its view
+dropdown: Day, Week, Month, Year, Schedule, 4 days; Show weekends, Show declined events, Show
+completed tasks). Items can repeat. Reminders stay separate and alarm-grade. Planner items are events
+and notify the phone before they start, as an ordinary notification (not an alarm), configured when
+the event is created: 5, 10, 15, 25, 30 minutes, 1, 2, 4, 8 hours, 1 day, or custom (a number box
+that steps by 1 plus a unit: minutes, hours, days, weeks; when the choice is too large it says what
+is exceeded). Answers: repeat edits offer This event / This and following / All events; **one**
+alert per event; default for a new event 30 minutes before (the owner's answer to this was garbled,
+so Google's default, one constant, easy to change). One session, backend then web then phone.
+
+Design (decided here, so later sessions need not rediscover it):
+- **Event** = `PlannerItem`. New: `EndTime`, `NotifyBeforeMinutes` (null = none), `Recurrence`
+  (an RFC 5545 RRULE subset: FREQ DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, BYDAY, BYMONTHDAY, COUNT,
+  UNTIL). No start time = all-day. Events stay inside one day; multi-day events are not in this round.
+  Times are the install's local time, as before.
+- **A repeating item is one row** (the series); occurrences are expanded on read, never stored.
+  `PlannerOccurrence` holds a change to one occurrence (moved, retitled, cancelled, done/skipped).
+  "This and following" splits the series: the old one ends the day before, a new one starts there.
+- **Alerts**: a dispatcher (30 s tick, like reminders) sends one push notification per occurrence at
+  start minus the lead time, once (`PlannerAlertLog`), only while the event has not started. An
+  all-day event counts from 09:00 local that day (a constant; flagged to the owner).
+- The API keeps `GET /api/planner?from&to` returning days of items (now expanded), so an older phone
+  app still works; edits and deletes take `scope=this|following|all` and `occurrence=<date>`.
+
+- [x] **C1. Backend events** (2026-10-06). `PlannerItem` + `EndTime`, `NotifyBeforeMinutes`,
+      `Recurrence`; new `PlannerOccurrence`, `PlannerAlertLog`; migration `PlannerCalendar` (additive
+      only). `Domain/Services/RecurrenceRule` (parse, expand a window without walking from the start,
+      split, move, describe in words; 57 tests). `PlannerCalendar.Expand` applies single-occurrence
+      changes; `PlannerQueries.EventsAsync` is the one read used by the service, the prompt and the
+      briefs. Service scopes this / following / all (a split keeps a done mark on the day it starts
+      from, found against SQLite). `PlannerAlertDispatcher` + `PlannerAlertService` (30 s): one
+      notification per occurrence and start, `type=planner_alert` with `itemId`, `occurrenceDate`,
+      `date`; body "Starts in 30 minutes · 10:00 am" / "All day today". API: `scope` and `occurrence`
+      query on PUT/DELETE/date/status; range limit 400 days (year view). Chat tools: `endTime`,
+      `repeat` (daily/weekly/weekdays/monthly/yearly), `repeatUntil`, `notifyBeforeMinutes` (-1 off,
+      default 30 on a timed event, filled before the card), `occurrenceDate` for status and move;
+      the card shows "until 17:00 · repeats weekly · notify 30 minutes before". 833 tests; a smoke
+      script against a local API on SQLite passed 13 of 13.
+- [x] **C2. Web calendar** (2026-10-06). `planner/` is now a calendar: `calendar.ts` (pure:
+      ranges, titles, overlap layout, repeat presets and custom rules, notification presets,
+      `notifyAt`), `time-grid` (Day, 4 days, Week: all-day strip, hours, events side by side, red
+      now-line, GMT label, opens at 7 am), `month-view` (dots and bars, "N more"), `year-view` (12
+      months, a dot on busy days), `schedule-view`, `event-dialog` (title, day, all day or start and
+      end, repeat presets + custom editor, notification presets + custom number with − / + and a
+      unit, "You will be notified Fri 2 Oct, 10:00 am" or "Too far ahead… The most is 4 weeks"
+      and Save disabled, notes, board task, goal; asks the scope for a repeat), `event-peek`
+      (quick view: edit, delete, done, skip), `scope-dialog`. Toolbar: Create, Today, ‹ ›, title,
+      view menu with D W M Y A X and Show weekends / skipped / completed (kept in localStorage);
+      keys D W M Y A X, T, J/N, K/P, C; view and day in the address (followed, so back/forward
+      work). The page takes the full width (`.content:has(app-planner)`). Found by looking: a
+      name clash (`end` used by the End time and the custom repeat's "Ends") blanked the End time
+      when Custom was picked; a title squashed to 6px in a narrow column; letter-by-letter wrapping
+      on a phone. Tests: `calendar.spec` (15), `planner.spec` (8); web 138 pass. One unexplained
+      failure in one of seven full runs (not reproduced; name not captured).
+- [x] **C3. Phone calendar** (2026-10-07). Done:
+      `lib/planner_calendar.dart` (Dart port of the web `calendar.ts`; 15 tests in
+      `test/planner_calendar_test.dart`), `PlannerItem` + event fields, `EditScope`,
+      `getPlannerRange`, `createEvent`, `updateEvent`, scoped `deletePlannerItem`,
+      `setPlannerStatus(occurrence:)`. `screens/planner_screen.dart` is the calendar (title opens a
+      date picker, Today, view menu with the views and the three toggles, swipe to step, +);
+      `planner_views.dart` (time grid with all-day strip, overlap layout, now-line; month; year;
+      schedule), `planner_event.dart` (full-screen editor: all day, start/end, repeat presets +
+      custom dialog, notification presets + custom stepper with "Too far ahead … would be …",
+      notes, board task, goal; quick view sheet: edit, delete with scope, done, skip, task link;
+      scope dialog). View and toggles kept in SharedPreferences. Tapping a `planner_alert`
+      notification (background, closed, or foreground via a `planner:` payload) opens the planner
+      on that day. Found by looking at rendered PNGs (real fonts): custom notification and custom
+      repeat rows overflowed at 360 px, the repeat sheet hid "Custom…", titles broke mid-word in
+      narrow week columns. Tests: `planner_calendar_test` (15), `planner_screen_test` (10),
+      phone 229 pass. Not yet on a real phone.
+      Note: an installed old app gets an error marking a repeating event done (it sends no
+      occurrence); one-off events work as before.: Day, Week, 4 days, Month, Year, Schedule; toolbar and dropdown with
+      shortcuts and the three toggles; event dialog with repeat and alert pickers; scope dialog.
+- [ ] **C3. Phone calendar**: the same views for a phone, event editor, tap on a notification.
+- [x] **C4. Accuracy and docs** (2026-10-07). Suite on qwen2.5:3b, 5 runs: 61/65 twice (the
+      2026-10-01 single run was 64/65; the other misses are the known flakes: board read flagged,
+      asks for a key, download link, 17:00 for "7pm" once). Real regression found and fixed: the
+      new optional fields made the model send an end with no start or `repeat:"none"`, which were
+      refused, and it asked the user instead of proposing (planner scenario 8/10). Now
+      `add_planner_item` drops empty/unusable optional fields before the card and `repeat` takes
+      "none": planner scenario 28/30 over three runs (remaining misses: no title at all, the
+      refusal that predates this work). PRD §3.4 and the module table, README updated.
+
 ## Maturity: phone UX, accuracy, engineering standards (owner, 2026-10-01)
 
 Owner: "focus on feature and UI polishing and ux for phone, esp the full screen and quick looks

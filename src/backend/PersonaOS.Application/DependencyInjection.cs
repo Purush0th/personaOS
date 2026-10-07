@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<PersonaOS.Application.Profile.IUserProfileService, PersonaOS.Application.Profile.UserProfileService>();
         services.AddScoped<PersonaOS.Application.Push.IPushConfigService, PersonaOS.Application.Push.PushConfigService>();
         services.AddScoped<IReminderDispatcher, ReminderDispatcher>();
+        services.AddScoped<IPlannerAlertDispatcher, PlannerAlertDispatcher>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IProactiveBriefComposer, ProactiveBriefComposer>();
         services.AddScoped<IBriefPhraser, BriefPhraser>();

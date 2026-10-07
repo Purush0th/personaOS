@@ -1,0 +1,124 @@
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-top: 0.5rem;
+}
+
+.full {
+  width: 100%;
+}
+
+/* Material keeps the dialog's content to 65% of the window; a calendar event has more to set. */
+mat-dialog-content {
+  max-height: min(78vh, 46rem);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.day {
+  width: 10.5rem;
+}
+
+.time {
+  width: 7.5rem;
+}
+
+.count {
+  width: 5rem;
+}
+
+.unit {
+  width: 8rem;
+}
+
+.custom {
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  padding: 0.5rem 1rem 1rem;
+  margin: 0 0 1rem;
+
+  legend {
+    font: var(--mat-sys-label-large);
+    padding: 0 0.25rem;
+  }
+}
+
+.days {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.day-toggle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-label-medium);
+  cursor: pointer;
+
+  &.on {
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  .row {
+    margin-bottom: 0;
+  }
+}
+
+.ends .label {
+  display: block;
+  font: var(--mat-sys-label-large);
+  margin: 0.5rem 0 0.25rem;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* The board task and the goal share a row; on a narrow screen they stack. */
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.75rem;
+
+  mat-form-field {
+    flex: 1 1 14rem;
+  }
+}
+
+.error {
+  color: var(--mat-sys-error);
+  margin: 0 0 0.5rem;
+}
+
+.small {
+  font: var(--mat-sys-body-small);
+}
+
+p.small {
+  margin: -0.5rem 0 0.75rem;
+}

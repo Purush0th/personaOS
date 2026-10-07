@@ -10,6 +10,7 @@ import 'package:personaos_mobile/screens/memories_screen.dart';
 import 'package:personaos_mobile/screens/planner_screen.dart';
 import 'package:personaos_mobile/screens/reminders_screen.dart';
 import 'package:personaos_mobile/screens/settings_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Serves every screen something to show, without a server.
 class _Api extends PersonaOsApi {
@@ -20,6 +21,9 @@ class _Api extends PersonaOsApi {
 
   @override
   Future<List<PlannerItem>> getPlannerDay(String date) async => [];
+
+  @override
+  Future<List<PlannerItem>> getPlannerRange(String from, String to) async => [];
 
   @override
   Future<List<Reminder>> getReminders({bool includeCompleted = false}) async => [];
@@ -71,6 +75,9 @@ const _sizes = {
 };
 
 void main() {
+  // The planner remembers its view; without a mock the preferences channel never answers.
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
