@@ -132,7 +132,8 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-/// A single daily-planner task.
+/// One planner event on one day. For an event that repeats this is one occurrence: [id] is the
+/// series and [occurrenceDate] says which (send it back to change or delete just this one).
 class PlannerItem {
   PlannerItem({
     required this.id,
@@ -143,7 +144,16 @@ class PlannerItem {
     required this.goalTitle,
     this.goalKey,
     this.taskKey,
-  });
+    this.endTime,
+    this.notes,
+    this.goalId,
+    this.taskId,
+    this.notifyBeforeMinutes,
+    this.recurrence,
+    this.recurrenceText,
+    String? occurrenceDate,
+    this.isChanged = false,
+  }) : occurrenceDate = occurrenceDate ?? date;
 
   factory PlannerItem.fromJson(Map<String, dynamic> json) => PlannerItem(
         id: json['id'] as int,
@@ -154,20 +164,67 @@ class PlannerItem {
         goalTitle: json['goalTitle'] as String?,
         goalKey: json['goalKey'] as String?,
         taskKey: json['taskKey'] as String?,
+        endTime: json['endTime'] as String?,
+        notes: json['notes'] as String?,
+        goalId: json['goalId'] as int?,
+        taskId: json['taskId'] as int?,
+        notifyBeforeMinutes: json['notifyBeforeMinutes'] as int?,
+        recurrence: json['recurrence'] as String?,
+        recurrenceText: json['recurrenceText'] as String?,
+        occurrenceDate: json['occurrenceDate'] as String?,
+        isChanged: json['isChanged'] as bool? ?? false,
       );
 
   final int id;
   final String title;
   final String date;
-  final String? scheduledTime; // "HH:mm:ss" or null
+
+  /// Start, "HH:mm:ss"; null means the event lasts all day.
+  final String? scheduledTime;
+
+  /// End of a timed event (an hour after the start when none was set); null for all day.
+  final String? endTime;
   final String status; // planned | done | skipped
+  final String? notes;
+  final int? goalId;
   final String? goalTitle;
 
   /// The goal's key, for the chip colour.
   final String? goalKey;
 
   /// The sprint-board task this item is a day's work on, if picked from the board.
+  final int? taskId;
   final String? taskKey;
+
+  /// Minutes before the start the phone is notified; null means no notification.
+  final int? notifyBeforeMinutes;
+
+  /// The repeat rule (RFC 5545 RRULE text); null for a one-off.
+  final String? recurrence;
+
+  /// The repeat in words, like "Weekly on Saturday".
+  final String? recurrenceText;
+
+  /// The day the series put this occurrence on.
+  final String occurrenceDate;
+
+  /// This occurrence was changed on its own.
+  final bool isChanged;
+
+  bool get isAllDay => scheduledTime == null;
+  bool get repeats => recurrence != null;
+}
+
+/// Which events of a repeating series a change or delete applies to.
+enum EditScope {
+  thisEvent('this'),
+  following('following'),
+  all('all');
+
+  const EditScope(this.wire);
+
+  /// The name the API takes.
+  final String wire;
 }
 
 /// A reminder with its due time resolved to the install's zone for display.
@@ -568,6 +625,45 @@ class PersonaOsApi {
         .toList();
   }
 
+  /// The events from [from] to [to] (inclusive, yyyy-MM-dd), repeats expanded, in day order.
+  Future<List<PlannerItem>> getPlannerRange(String from, String to) async {
+    final days = await _get('/api/planner?from=$from&to=$to') as List<dynamic>;
+    return [
+      for (final day in days.cast<Map<String, dynamic>>())
+        for (final item in (day['items'] as List<dynamic>).cast<Map<String, dynamic>>()) PlannerItem.fromJson(item),
+    ];
+  }
+
+  /// Creates an event. Times are "HH:mm"; no [scheduledTime] means all day.
+  Future<void> createEvent({
+    required String title,
+    required String date,
+    String? notes,
+    String? scheduledTime,
+    String? endTime,
+    int? notifyBeforeMinutes,
+    String? recurrence,
+    int? goalId,
+    int? taskId,
+  }) async {
+    await _post('/api/planner/items', {
+      'title': title,
+      'date': date,
+      'notes': ?notes,
+      'scheduledTime': ?scheduledTime,
+      'endTime': ?endTime,
+      'notifyBeforeMinutes': ?notifyBeforeMinutes,
+      'recurrence': ?recurrence,
+      'goalId': ?goalId,
+      'taskId': ?taskId,
+    });
+  }
+
+  /// Changes an event. [change] holds only what changed (the server's field names, with its clear
+  /// flags to remove a value); for a repeating event, [scope] and [occurrence] say which.
+  Future<void> updateEvent(int id, Map<String, Object?> change, {EditScope? scope, String? occurrence}) =>
+      _put('/api/planner/items/$id${_target(scope, occurrence)}', change);
+
   /// Adds an item to a day. With [taskId], the item is a day's work on that board task and
   /// takes its title and goal when [title] is empty.
   Future<void> addPlannerItem({
@@ -584,13 +680,18 @@ class PersonaOsApi {
     });
   }
 
-  Future<void> setPlannerStatus(int id, String status) =>
-      _put('/api/planner/items/$id/status', {'status': status});
+  /// Sets planned / done / skipped; a repeating event needs the [occurrence].
+  Future<void> setPlannerStatus(int id, String status, {String? occurrence}) =>
+      _put('/api/planner/items/$id/status${occurrence == null ? '' : '?occurrence=$occurrence'}', {'status': status});
 
   Future<void> movePlannerItem(int id, String date) =>
       _put('/api/planner/items/$id/date', {'date': date});
 
-  Future<void> deletePlannerItem(int id) => _delete('/api/planner/items/$id');
+  Future<void> deletePlannerItem(int id, {EditScope? scope, String? occurrence}) =>
+      _delete('/api/planner/items/$id${_target(scope, occurrence)}');
+
+  static String _target(EditScope? scope, String? occurrence) =>
+      scope == null ? '' : '?scope=${scope.wire}&occurrence=$occurrence';
 
   // --- Sprint board --------------------------------------------------------
 

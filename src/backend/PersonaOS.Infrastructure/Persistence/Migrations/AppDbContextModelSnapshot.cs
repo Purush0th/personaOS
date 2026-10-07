@@ -498,6 +498,34 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.ToTable("PendingActions");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.PlannerAlertLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("OccurrenceDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("SentAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SentAtUtc");
+
+                    b.HasIndex("ItemId", "OccurrenceDate", "StartUtc")
+                        .IsUnique();
+
+                    b.ToTable("PlannerAlertLogs");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.PlannerItem", b =>
                 {
                     b.Property<int>("Id")
@@ -510,11 +538,21 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("Date")
                         .HasColumnType("TEXT");
 
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("GoalId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("NotifyBeforeMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Recurrence")
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<TimeOnly?>("ScheduledTime")
@@ -548,6 +586,58 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.HasIndex("Date", "SortOrder");
 
                     b.ToTable("PlannerItems");
+                });
+
+            modelBuilder.Entity("PersonaOS.Domain.Entities.PlannerOccurrence", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool?>("AllDay")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly?>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("OriginalDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<TimeOnly?>("ScheduledTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("ItemId", "OriginalDate")
+                        .IsUnique();
+
+                    b.ToTable("PlannerOccurrences");
                 });
 
             modelBuilder.Entity("PersonaOS.Domain.Entities.ProactiveJobRun", b =>
@@ -860,6 +950,17 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Navigation("Conversation");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.PlannerAlertLog", b =>
+                {
+                    b.HasOne("PersonaOS.Domain.Entities.PlannerItem", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Item");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.PlannerItem", b =>
                 {
                     b.HasOne("PersonaOS.Domain.Entities.Goal", "Goal")
@@ -875,6 +976,17 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Navigation("Goal");
 
                     b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("PersonaOS.Domain.Entities.PlannerOccurrence", b =>
+                {
+                    b.HasOne("PersonaOS.Domain.Entities.PlannerItem", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Item");
                 });
 
             modelBuilder.Entity("PersonaOS.Domain.Entities.Reminder", b =>

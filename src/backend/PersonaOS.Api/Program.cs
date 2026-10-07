@@ -22,6 +22,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 // Delivers due reminders to registered devices without the app being open.
 builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.ReminderDispatchService>();
+builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.PlannerAlertService>();
 // Sends the morning brief / evening rollup at the user's configured local times.
 builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.ProactiveScheduleService>();
 builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.SprintScheduleService>();

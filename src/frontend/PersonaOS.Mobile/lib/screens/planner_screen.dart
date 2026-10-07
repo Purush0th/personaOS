@@ -1,366 +1,315 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
-import '../layout.dart';
-import 'board_widgets.dart';
-import 'goal_view.dart';
-import 'task_views.dart';
+import '../planner_calendar.dart';
+import 'planner_event.dart';
+import 'planner_views.dart';
 
-/// Daily planner day-view: navigate days, add tasks (typed, or picked from the running sprint),
-/// cycle status, move a task to the next day, delete.
+/// The planner as a calendar, after Google Calendar's phone app: Schedule, Day, 4 days, Week,
+/// Month and Year; the title opens a date picker, Today comes back, a swipe steps a period, the
+/// view menu holds the three toggles, and the button adds an event. The view and toggles are
+/// remembered on this phone.
 class PlannerScreen extends StatefulWidget {
-  const PlannerScreen({super.key, required this.api, this.boardEnabled = false});
+  const PlannerScreen({super.key, required this.api, this.boardEnabled = false, this.initialDate, this.initialView});
 
   final PersonaOsApi api;
 
-  /// Whether the day's work can be picked from the sprint board.
+  /// Whether a new event's work can be picked from the sprint board.
   final bool boardEnabled;
+
+  /// Opens on this day (a tapped notification), in [initialView] or the remembered view.
+  final DateTime? initialDate;
+  final CalendarView? initialView;
 
   @override
   State<PlannerScreen> createState() => _PlannerScreenState();
 }
 
 class _PlannerScreenState extends State<PlannerScreen> {
-  DateTime _day = DateTime.now();
-  late Future<List<PlannerItem>> _items;
-  final _title = TextEditingController();
-  TimeOfDay? _time;
+  static const _viewKey = 'planner.view';
+  static const _weekendsKey = 'planner.showWeekends';
+  static const _skippedKey = 'planner.showSkipped';
+  static const _completedKey = 'planner.showCompleted';
+
+  CalendarView _view = CalendarView.day;
+  late DateTime _anchor = dayOnly(widget.initialDate ?? DateTime.now());
+  bool _showWeekends = true;
+  bool _showSkipped = true;
+  bool _showCompleted = true;
+
+  List<PlannerItem> _items = [];
+  bool _loading = true;
+  String? _error;
+
+  /// Answers from a slow request for a range no longer shown are dropped.
+  int _request = 0;
 
   @override
   void initState() {
     super.initState();
-    _items = widget.api.getPlannerDay(localYmd(_day));
+    unawaited(_restore());
   }
 
-  @override
-  void dispose() {
-    _title.dispose();
-    super.dispose();
+  Future<void> _restore() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_viewKey);
+      _view = widget.initialView ?? CalendarView.values.where((v) => v.name == saved).firstOrNull ?? CalendarView.day;
+      _showWeekends = prefs.getBool(_weekendsKey) ?? true;
+      _showSkipped = prefs.getBool(_skippedKey) ?? true;
+      _showCompleted = prefs.getBool(_completedKey) ?? true;
+    } catch (_) {
+      // Preferences unavailable: the defaults apply.
+    }
+    await _reload();
   }
 
-  void _reload() {
-    setState(() { _items = widget.api.getPlannerDay(localYmd(_day)); });
+  Future<void> _save() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_viewKey, _view.name);
+      await prefs.setBool(_weekendsKey, _showWeekends);
+      await prefs.setBool(_skippedKey, _showSkipped);
+      await prefs.setBool(_completedKey, _showCompleted);
+    } catch (_) {
+      // Not remembered this time; nothing else depends on it.
+    }
   }
 
-  void _shiftDay(int days) => _goTo(_day.add(Duration(days: days)));
+  Future<void> _reload() async {
+    final request = ++_request;
+    final range = viewRange(_view, _anchor);
+    if (mounted) setState(() => _loading = true);
+    try {
+      final items = await widget.api.getPlannerRange(localYmd(range.from), localYmd(range.to));
+      if (!mounted || request != _request) return;
+      setState(() {
+        _items = items;
+        _error = null;
+      });
+    } on ApiException catch (e) {
+      if (mounted && request == _request) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted && request == _request) setState(() => _error = 'Could not load the planner.');
+    } finally {
+      if (mounted && request == _request) setState(() => _loading = false);
+    }
+  }
 
-  void _goTo(DateTime day) {
+  EventsByDay get _events {
+    final byDay = <String, List<PlannerItem>>{};
+    for (final item in _items) {
+      if (!_showSkipped && item.status == 'skipped') continue;
+      if (!_showCompleted && item.status == 'done') continue;
+      (byDay[item.date] ??= []).add(item);
+    }
+    return byDay;
+  }
+
+  void _go(CalendarView view, DateTime anchor) {
     setState(() {
-      _day = day;
-      _items = widget.api.getPlannerDay(localYmd(_day));
+      _view = view;
+      _anchor = dayOnly(anchor);
     });
+    unawaited(_save());
+    unawaited(_reload());
   }
 
-  /// Any day at once, as the web's date field allows.
+  void _step(int direction) => _go(_view, stepAnchor(_view, _anchor, direction));
+
   Future<void> _pickDay() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _day,
+      initialDate: _anchor,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (picked != null) _goTo(picked);
+    if (picked != null) _go(_view, picked);
   }
 
-  Future<void> _run(Future<void> Function() action) async {
-    try {
-      await action();
-      _reload();
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    }
+  Future<void> _open(PlannerItem item) async {
+    if (await showEventQuickView(context, widget.api, item)) await _reload();
   }
 
-  Future<void> _add() async {
-    final title = _title.text.trim();
-    if (title.isEmpty) return;
-    final time = _time;
-    final scheduled = time == null
-        ? null
-        : '${time.hour.toString().padLeft(2, '0')}:'
-            '${time.minute.toString().padLeft(2, '0')}';
-    await _run(() async {
-      await widget.api
-          .addPlannerItem(title: title, date: localYmd(_day), scheduledTime: scheduled);
-      _title.clear();
-      setState(() => _time = null);
-    });
-  }
-
-  /// Plans a board task for this day: the item takes the task's title and goal.
-  Future<void> _pickFromBoard() async {
-    final List<BoardTask> tasks;
-    try {
-      final board = await widget.api.getBoard();
-      tasks = [...board.columns[BoardColumns.inProgress]!, ...board.columns[BoardColumns.todo]!];
-    } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      return;
-    }
-    if (!mounted) return;
-
-    final picked = await showModalBottomSheet<BoardTask>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => tasks.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.all(32),
-              child: Text('Nothing left in the sprint.', textAlign: TextAlign.center),
-            )
-          : ListView(
-              shrinkWrap: true,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text('From the sprint', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                for (final task in tasks)
-                  ListTile(
-                    title: Text(task.title),
-                    subtitle: Text([
-                      task.key,
-                      if (task.column == BoardColumns.inProgress) 'in progress',
-                      ?task.goalTitle,
-                    ].join(' · ')),
-                    trailing: PointsPill(points: task.points),
-                    onTap: () => Navigator.pop(context, task),
-                  ),
-              ],
-            ),
+  Future<void> _create({DateTime? day, String? start}) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EventEditorPage(
+          api: widget.api,
+          date: day ?? (_view == CalendarView.month || _view == CalendarView.year ? DateTime.now() : _anchor),
+          start: start,
+          boardEnabled: widget.boardEnabled,
+        ),
+      ),
     );
-    if (picked == null) return;
-
-    final time = _time;
-    final scheduled = time == null
-        ? null
-        : '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-    await _run(() async {
-      await widget.api.addPlannerItem(title: '', date: localYmd(_day), taskId: picked.id, scheduledTime: scheduled);
-      setState(() => _time = null);
-    });
+    if (saved == true) await _reload();
   }
 
-  /// planned → done → skipped → planned
-  String _nextStatus(String status) => switch (status) {
-        'planned' => 'done',
-        'done' => 'skipped',
-        _ => 'planned',
-      };
-
-  String get _dayLabel {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return '${weekdays[_day.weekday - 1]} ${_day.day} ${months[_day.month - 1]}';
+  List<DateTime> get _gridDays {
+    final range = viewRange(_view, _anchor);
+    final days = daysBetween(range.from, range.to);
+    return _view == CalendarView.day || _showWeekends ? days : days.where((d) => !isWeekend(d)).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final today = DateTime.now().day;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Planner'),
+        titleSpacing: 0,
+        title: TextButton(
+          key: const Key('planner-day'),
+          onPressed: _pickDay,
+          style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurface),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  viewTitle(_view, _anchor),
+                  key: const Key('planner-title'),
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              const Icon(Icons.arrow_drop_down),
+            ],
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () => _shiftDay(-1),
-          ),
-          TextButton(
-            key: const Key('planner-day'),
-            onPressed: _pickDay,
-            child: Text(_dayLabel),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () => _shiftDay(1),
-          ),
-        ],
-      ),
-      body: ReadableWidth(child: Column(
-        children: [
-          _addBar(),
-          const Divider(height: 1),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async => _reload(),
-              child: FutureBuilder<List<PlannerItem>>(
-                future: _items,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return _messageList('Could not load that day.',
-                        color: Theme.of(context).colorScheme.error);
-                  }
-                  final items = snapshot.data!;
-                  if (items.isEmpty) {
-                    return _messageList('Nothing planned for this day.');
-                  }
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: items.length,
-                    itemBuilder: (context, i) => _PlannerTile(
-                      item: items[i],
-                      onOpenTask: (key) async {
-                        if (await showTaskQuickView(context, widget.api, key)) _reload();
-                      },
-                      onOpenGoal: (key) => showGoalQuickView(context, widget.api, key),
-                      onToggle: () => _run(() => widget.api
-                          .setPlannerStatus(items[i].id, _nextStatus(items[i].status))),
-                      onMove: () => _run(() => widget.api.movePlannerItem(
-                          items[i].id, localYmd(_day.add(const Duration(days: 1))))),
-                      onDelete: () =>
-                          _run(() => widget.api.deletePlannerItem(items[i].id)),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
-      )),
-    );
-  }
-
-  Widget _addBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _title,
-              textInputAction: TextInputAction.done,
-              decoration: const InputDecoration(
-                hintText: 'What needs doing?',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              onSubmitted: (_) => _add(),
-            ),
-          ),
-          IconButton(
-            tooltip: _time == null ? 'Add a time' : _time!.format(context),
-            icon: Icon(_time == null ? Icons.schedule : Icons.schedule_outlined,
-                color: _time == null ? null : Theme.of(context).colorScheme.primary),
-            onPressed: () async {
-              final picked = await showTimePicker(
-                context: context,
-                initialTime: TimeOfDay.now(),
-              );
-              if (picked != null) setState(() => _time = picked);
-            },
-          ),
-          if (widget.boardEnabled)
-            IconButton(
-              tooltip: 'From the board',
-              icon: const Icon(Icons.view_kanban_outlined),
-              onPressed: _pickFromBoard,
-            ),
-          IconButton.filled(onPressed: _add, icon: const Icon(Icons.add)),
-        ],
-      ),
-    );
-  }
-
-  Widget _messageList(String message, {Color? color}) {
-    return ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(32),
-          child: Center(
-            child: Text(message,
-                style: TextStyle(color: color ?? Colors.grey.shade600)),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PlannerTile extends StatelessWidget {
-  const _PlannerTile({
-    required this.item,
-    required this.onOpenTask,
-    required this.onOpenGoal,
-    required this.onToggle,
-    required this.onMove,
-    required this.onDelete,
-  });
-
-  final PlannerItem item;
-  final ValueChanged<String> onOpenTask;
-  final ValueChanged<String> onOpenGoal;
-  final VoidCallback onToggle;
-  final VoidCallback onMove;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final done = item.status == 'done';
-    final skipped = item.status == 'skipped';
-    final icon = switch (item.status) {
-      'done' => Icons.check_circle,
-      'skipped' => Icons.remove_circle_outline,
-      _ => Icons.radio_button_unchecked,
-    };
-    final time = item.scheduledTime?.substring(0, 5); // HH:mm
-
-    return Opacity(
-      opacity: skipped ? 0.6 : 1,
-      child: ListTile(
-        leading: IconButton(
-          icon: Icon(icon),
-          tooltip: 'Status: ${item.status}',
-          onPressed: onToggle,
-        ),
-        title: Text(
-          item.title,
-          style: TextStyle(
-            decoration: done ? TextDecoration.lineThrough : null,
-            color: done ? Colors.grey : null,
-          ),
-        ),
-        subtitle: (time != null || item.taskKey != null || item.goalTitle != null)
-            ? Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (time != null) Text(time),
-                    if (item.taskKey != null)
-                      InkWell(
-                        key: Key('planner-task-${item.taskKey}'),
-                        onTap: () => onOpenTask(item.taskKey!),
-                        child: Text(item.taskKey!,
-                            style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary, decoration: TextDecoration.underline)),
-                      ),
-                    if (item.goalTitle != null)
-                      InkWell(
-                        onTap: item.goalKey == null ? null : () => onOpenGoal(item.goalKey!),
-                        child: GoalChip(goalKey: item.goalKey ?? '', title: item.goalTitle!),
-                      ),
-                  ],
+            key: const Key('planner-today'),
+            tooltip: 'Today',
+            onPressed: () => _go(_view, DateTime.now()),
+            icon: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(Icons.calendar_today_outlined),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text('$today', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
                 ),
-              )
-            : null,
-        trailing: PopupMenuButton<String>(
-          onSelected: (choice) => choice == 'move' ? onMove() : onDelete(),
-          itemBuilder: (context) => const [
-            PopupMenuItem(value: 'move', child: Text('Move to tomorrow')),
-            PopupMenuItem(value: 'delete', child: Text('Delete')),
-          ],
-        ),
+              ],
+            ),
+          ),
+          PopupMenuButton<String>(
+            key: const Key('planner-view-menu'),
+            tooltip: 'View',
+            icon: const Icon(Icons.view_agenda_outlined),
+            onSelected: (choice) {
+              switch (choice) {
+                case 'weekends':
+                  setState(() => _showWeekends = !_showWeekends);
+                case 'skipped':
+                  setState(() => _showSkipped = !_showSkipped);
+                case 'completed':
+                  setState(() => _showCompleted = !_showCompleted);
+                default:
+                  _go(CalendarView.values.firstWhere((v) => v.name == choice), _anchor);
+                  return;
+              }
+              unawaited(_save());
+            },
+            itemBuilder: (context) => [
+              for (final option in viewOptions)
+                CheckedPopupMenuItem(
+                  key: Key('view-${option.view.name}'),
+                  value: option.view.name,
+                  checked: option.view == _view,
+                  child: Text(option.label),
+                ),
+              const PopupMenuDivider(),
+              CheckedPopupMenuItem(
+                key: const Key('opt-weekends'),
+                value: 'weekends',
+                checked: _showWeekends,
+                child: const Text('Show weekends'),
+              ),
+              CheckedPopupMenuItem(
+                key: const Key('opt-skipped'),
+                value: 'skipped',
+                checked: _showSkipped,
+                child: const Text('Show skipped events'),
+              ),
+              CheckedPopupMenuItem(
+                key: const Key('opt-completed'),
+                value: 'completed',
+                checked: _showCompleted,
+                child: const Text('Show completed events'),
+              ),
+            ],
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        key: const Key('planner-create'),
+        tooltip: 'Create event',
+        onPressed: _create,
+        child: const Icon(Icons.add),
+      ),
+      body: Column(
+        children: [
+          SizedBox(height: 3, child: _loading ? const LinearProgressIndicator() : null),
+          if (_error != null)
+            MaterialBanner(
+              content: Text(_error!),
+              actions: [TextButton(onPressed: _reload, child: const Text('Try again'))],
+            ),
+          Expanded(
+            // A swipe across steps a period, as on Google Calendar's phone app.
+            child: GestureDetector(
+              onHorizontalDragEnd: (details) {
+                final velocity = details.primaryVelocity ?? 0;
+                if (velocity.abs() < 300) return;
+                _step(velocity < 0 ? 1 : -1);
+              },
+              child: _body(),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _body() {
+    final events = _events;
+    switch (_view) {
+      case CalendarView.month:
+        return MonthGridView(
+          anchor: _anchor,
+          events: events,
+          showWeekends: _showWeekends,
+          onOpen: _open,
+          onOpenDay: (day) => _go(CalendarView.day, day),
+        );
+      case CalendarView.year:
+        return YearGridView(anchor: _anchor, events: events, onOpenDay: (day) => _go(CalendarView.day, day));
+      case CalendarView.schedule:
+        final range = viewRange(_view, _anchor);
+        return RefreshIndicator(
+          onRefresh: _reload,
+          child: ScheduleListView(
+            days: daysBetween(range.from, range.to),
+            events: events,
+            onOpen: _open,
+            onOpenDay: (day) => _go(CalendarView.day, day),
+          ),
+        );
+      case CalendarView.day:
+      case CalendarView.fourDay:
+      case CalendarView.week:
+        return TimeGridView(
+          key: ValueKey('${_view.name}-${localYmd(_anchor)}-$_showWeekends'),
+          days: _gridDays,
+          events: events,
+          onOpen: _open,
+          onCreate: (day, start) => _create(day: day, start: start),
+          onOpenDay: (day) => _go(CalendarView.day, day),
+        );
+    }
   }
 }

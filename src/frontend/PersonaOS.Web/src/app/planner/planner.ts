@@ -1,162 +1,227 @@
-import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatDialog } from '@angular/material/dialog';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
-import { RouterLink } from '@angular/router';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { ActivatedRoute, Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
-import { BoardService, BoardTask, goalHue } from '../core/board.service';
-import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
-import { shiftLocalDate, todayLocal } from '../core/local-date';
+import { todayLocal } from '../core/local-date';
 import { PlannerItemDto, PlannerService } from '../core/planner.service';
+import { CalendarView, VIEWS, daysBetween, isWeekend, stepAnchor, viewRange, viewTitle } from './calendar';
+import { EventDialog, EventDialogData } from './event-dialog';
+import { EventPeek } from './event-peek';
+import { MonthView } from './month-view';
+import { ScheduleView } from './schedule-view';
+import { TimeGrid } from './time-grid';
+import { YearView } from './year-view';
 
+/** The view options, as the toggles at the bottom of Google Calendar's view menu. */
+interface CalendarOptions {
+  showWeekends: boolean;
+  showSkipped: boolean;
+  showCompleted: boolean;
+}
+
+const OPTIONS_KEY = 'planner.options';
+const DEFAULT_OPTIONS: CalendarOptions = { showWeekends: true, showSkipped: true, showCompleted: true };
+
+const STEP_LABELS: Record<CalendarView, string> = {
+  day: 'day',
+  '4day': '4 days',
+  week: 'week',
+  month: 'month',
+  year: 'year',
+  schedule: 'period',
+};
+
+/**
+ * The planner as a calendar, after Google Calendar: Day, Week, Month, Year, Schedule and 4 days,
+ * the same keyboard shortcuts (D W M Y A X, T for today, J/N and K/P to step, C to create), and
+ * the view and day in the address so a reload or a shared link opens the same place.
+ */
 @Component({
   selector: 'app-planner',
   imports: [
-    FormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatCardModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatListModule,
-    MatProgressBarModule,
-    MatSelectModule,
+    MatButtonModule, MatDividerModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule,
+    MonthView, ScheduleView, TimeGrid, YearView,
   ],
   templateUrl: './planner.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './planner.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
 })
 export class Planner implements OnInit {
   private readonly planner = inject(PlannerService);
-  private readonly boardApi = inject(BoardService);
-  private readonly branding = inject(BrandingService);
+  private readonly dialog = inject(MatDialog);
   private readonly confirm = inject(Confirm);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
-  /** The running sprint's unfinished tasks, to pick the day's work from. */
-  protected readonly sprintTasks = signal<BoardTask[]>([]);
+  protected readonly views = VIEWS;
 
-  protected readonly items = signal<PlannerItemDto[]>([]);
+  protected readonly view = signal<CalendarView>('week');
+  protected readonly anchor = signal(todayLocal());
+  protected readonly options = signal<CalendarOptions>(loadOptions());
   protected readonly loading = signal(true);
-  protected readonly date = signal(todayLocal());
+  private readonly items = signal<PlannerItemDto[]>([]);
 
-  draftTitle = '';
-  draftTime = '';
+  protected readonly title = computed(() => viewTitle(this.view(), this.anchor()));
+  protected readonly viewLabel = computed(() => VIEWS.find(v => v.view === this.view())!.label);
+  protected readonly stepLabel = computed(() => STEP_LABELS[this.view()]);
 
-  async ngOnInit(): Promise<void> {
-    await Promise.all([this.reload(), this.loadSprintTasks()]);
-  }
+  /** The days the grid views show, without weekends when they are hidden (never for Day). */
+  protected readonly gridDays = computed(() => {
+    const { from, to } = viewRange(this.view(), this.anchor());
+    const days = daysBetween(from, to);
+    return this.view() === 'day' || this.options().showWeekends ? days : days.filter(d => !isWeekend(d));
+  });
 
-  private async loadSprintTasks(): Promise<void> {
-    if (!this.branding.isEnabled('board')) return;
-    try {
-      const board = await this.boardApi.board();
-      this.sprintTasks.set([...board.inProgress, ...board.todo]);
-    } catch {
-      this.sprintTasks.set([]);
+  protected readonly scheduleDays = computed(() => {
+    const { from, to } = viewRange('schedule', this.anchor());
+    return daysBetween(from, to);
+  });
+
+  /** The loaded events by day, without the ones the options hide. */
+  protected readonly itemsByDay = computed(() => {
+    const { showSkipped, showCompleted } = this.options();
+    const byDay = new Map<string, PlannerItemDto[]>();
+    for (const item of this.items()) {
+      if (!showSkipped && item.status === 'skipped') continue;
+      if (!showCompleted && item.status === 'done') continue;
+      byDay.set(item.date, [...(byDay.get(item.date) ?? []), item]);
     }
-  }
+    return byDay;
+  });
 
-  /** Plans a board task for this day; the item takes the task's title and goal. */
-  protected async pickTask(value: string): Promise<void> {
-    const taskId = Number(value);
-    if (!taskId) return;
-    try {
-      await this.planner.create({ title: '', date: this.date(), taskId, scheduledTime: this.draftTime || null });
-      this.draftTime = '';
-      await this.reload();
-    } catch (e: unknown) {
-      this.confirm.error(this.messageFrom(e, 'Could not plan that task.'));
-    }
-  }
-
-  protected hue(goalKey: string | null): number {
-    return goalHue(goalKey);
+  /**
+   * The address decides the view and the day, so a reload, a shared link and the browser's back
+   * and forward all land where they should. The page is reused between them, so it follows the
+   * address rather than reading it once.
+   */
+  ngOnInit(): void {
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+      const view = params.get('view') as CalendarView | null;
+      this.view.set(view && VIEWS.some(v => v.view === view) ? view : 'week');
+      const date = params.get('date');
+      this.anchor.set(date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayLocal());
+      void this.reload();
+    });
   }
 
   protected async reload(): Promise<void> {
     this.loading.set(true);
     try {
-      const day = await this.planner.getDay(this.date());
-      this.items.set(day.items);
+      const { from, to } = viewRange(this.view(), this.anchor());
+      const days = await this.planner.getRange(from, to);
+      this.items.set(days.flatMap(d => d.items));
     } catch {
-      this.confirm.error('Could not load that day.');
+      this.confirm.error('Could not load the planner.');
     } finally {
       this.loading.set(false);
     }
   }
 
-  protected async shiftDay(days: number): Promise<void> {
-    this.date.set(shiftLocalDate(this.date(), days));
-    await this.reload();
+  // --- Navigation ----------------------------------------------------------------------
+
+  protected async setView(view: CalendarView): Promise<void> {
+    if (view === this.view()) return;
+    this.view.set(view);
+    await this.navigated();
   }
 
-  protected async onDateChange(value: string): Promise<void> {
-    if (!value) return;
-    this.date.set(value);
-    await this.reload();
+  protected async step(direction: 1 | -1): Promise<void> {
+    this.anchor.set(stepAnchor(this.view(), this.anchor(), direction));
+    await this.navigated();
   }
 
-  protected async add(): Promise<void> {
-    const title = this.draftTitle.trim();
-    if (!title) return;
+  protected async goToday(): Promise<void> {
+    this.anchor.set(todayLocal());
+    await this.navigated();
+  }
 
+  protected async openDay(date: string): Promise<void> {
+    this.anchor.set(date);
+    this.view.set('day');
+    await this.navigated();
+  }
+
+  /** Puts the view and day in the address; following it (above) loads them. */
+  private async navigated(): Promise<void> {
+    const params = this.route.snapshot.queryParamMap;
+    if (params.get('view') === this.view() && params.get('date') === this.anchor()) return;
+    await this.router.navigate([], { relativeTo: this.route, queryParams: { view: this.view(), date: this.anchor() } });
+  }
+
+  protected setOption(key: keyof CalendarOptions): void {
+    const next = { ...this.options(), [key]: !this.options()[key] };
+    this.options.set(next);
     try {
-      await this.planner.create({
-        title,
-        date: this.date(),
-        scheduledTime: this.draftTime || null,
-      });
-      this.draftTitle = '';
-      this.draftTime = '';
-      await this.reload();
-    } catch (e: unknown) {
-      this.confirm.error(this.messageFrom(e, 'Could not add that task.'));
-    }
-  }
-
-  protected async cycleStatus(item: PlannerItemDto): Promise<void> {
-    // planned → done → skipped → planned
-    const next =
-      item.status === 'planned' ? 'done' : item.status === 'done' ? 'skipped' : 'planned';
-    try {
-      await this.planner.updateStatus(item.id, next);
-      await this.reload();
-    } catch (e: unknown) {
-      this.confirm.error(this.messageFrom(e, 'Could not update that task.'));
-    }
-  }
-
-  protected async moveToTomorrow(item: PlannerItemDto): Promise<void> {
-    try {
-      await this.planner.move(item.id, shiftLocalDate(this.date(), 1));
-      await this.reload();
-    } catch (e: unknown) {
-      this.confirm.error(this.messageFrom(e, 'Could not move that task.'));
-    }
-  }
-
-  protected async remove(item: PlannerItemDto): Promise<void> {
-    try {
-      await this.planner.delete(item.id);
-      await this.reload();
+      localStorage.setItem(OPTIONS_KEY, JSON.stringify(next));
     } catch {
-      this.confirm.error('Could not delete that task.');
+      // Storage may be blocked: the choice simply lasts for this visit.
     }
   }
 
-  protected get doneCount(): number {
-    return this.items().filter(i => i.status === 'done').length;
+  // --- Events --------------------------------------------------------------------------
+
+  protected async openEvent(item: PlannerItemDto): Promise<void> {
+    const changed = await firstValueFrom(
+      this.dialog.open<EventPeek, PlannerItemDto, boolean>(EventPeek, { data: item, width: '28rem', maxWidth: '95vw', autoFocus: 'dialog' })
+        .afterClosed()
+    );
+    if (changed) await this.reload();
   }
 
-  private messageFrom(error: unknown, fallback: string): string {
-    return (error as { error?: { error?: string } })?.error?.error ?? fallback;
+  protected async createEvent(at?: { date: string; start: string | null }): Promise<void> {
+    const data: EventDialogData = at ?? { date: this.view() === 'year' || this.view() === 'month' ? todayLocal() : this.anchor(), start: '09:00' };
+    const saved = await firstValueFrom(
+      this.dialog.open<EventDialog, EventDialogData, boolean>(EventDialog, { data, width: '36rem', maxWidth: '95vw' }).afterClosed()
+    );
+    if (saved) await this.reload();
+  }
+
+  // --- Keyboard ------------------------------------------------------------------------
+
+  @HostListener('document:keydown', ['$event'])
+  protected async onKey(event: KeyboardEvent): Promise<void> {
+    if (event.ctrlKey || event.metaKey || event.altKey || this.dialog.openDialogs.length > 0) return;
+    // A key typed into a field, or in an open menu, is not a shortcut. The target can be the
+    // document itself, which has no closest().
+    const target = event.target;
+    if (target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"], .mat-mdc-menu-panel')) return;
+
+    const key = event.key.toLowerCase();
+    const view = VIEWS.find(v => v.key.toLowerCase() === key);
+    if (view) {
+      event.preventDefault();
+      await this.setView(view.view);
+    } else if (key === 't') {
+      event.preventDefault();
+      await this.goToday();
+    } else if (key === 'j' || key === 'n') {
+      event.preventDefault();
+      await this.step(1);
+    } else if (key === 'k' || key === 'p') {
+      event.preventDefault();
+      await this.step(-1);
+    } else if (key === 'c') {
+      event.preventDefault();
+      await this.createEvent();
+    }
+  }
+}
+
+function loadOptions(): CalendarOptions {
+  try {
+    const saved = JSON.parse(localStorage.getItem(OPTIONS_KEY) ?? 'null') as Partial<CalendarOptions> | null;
+    return { ...DEFAULT_OPTIONS, ...(saved ?? {}) };
+  } catch {
+    return { ...DEFAULT_OPTIONS };
   }
 }

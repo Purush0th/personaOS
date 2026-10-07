@@ -2,6 +2,7 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using PersonaOS.Application.Common.Interfaces;
+using PersonaOS.Application.Planner;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Domain.Services;
 
@@ -39,13 +40,10 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
 
         if (config.IsEnabled(InstanceConfig.Modules.Planner))
         {
-            var items = await db.PlannerItems.AsNoTracking()
-                .Where(i => i.Date == localDate && i.Status == PlannerItemStatuses.Planned)
-                .OrderBy(i => i.ScheduledTime == null)
-                .ThenBy(i => i.ScheduledTime)
-                .ThenBy(i => i.SortOrder)
-                .Select(i => new { i.Title, i.ScheduledTime })
-                .ToListAsync(ct);
+            var items = (await db.EventsAsync(localDate, localDate, ct: ct))
+                .Where(e => e.Status == PlannerItemStatuses.Planned)
+                .Select(e => new { e.Title, ScheduledTime = e.Start })
+                .ToList();
 
             if (items.Count > 0)
             {
@@ -143,10 +141,9 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
     {
         if (!config.IsEnabled(InstanceConfig.Modules.Planner)) return null;
 
-        var items = await db.PlannerItems.AsNoTracking()
-            .Where(i => i.Date == localDate)
-            .Select(i => new { i.Title, i.Status })
-            .ToListAsync(ct);
+        var items = (await db.EventsAsync(localDate, localDate, ct: ct))
+            .Select(e => new { e.Title, e.Status })
+            .ToList();
 
         if (items.Count == 0) return null;
 

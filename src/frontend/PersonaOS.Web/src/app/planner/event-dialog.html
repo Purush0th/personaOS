@@ -1,0 +1,237 @@
+<h2 mat-dialog-title>{{ editing ? 'Edit event' : 'New event' }}</h2>
+
+<mat-dialog-content>
+  <form id="event-form" (ngSubmit)="save()">
+    <mat-form-field class="full">
+      <mat-label>Title</mat-label>
+      <input
+        matInput
+        name="title"
+        data-testid="event-title"
+        [ngModel]="title()"
+        (ngModelChange)="title.set($event)"
+        required
+        cdkFocusInitial
+      />
+    </mat-form-field>
+
+    <div class="row">
+      <mat-form-field class="day" subscriptSizing="dynamic">
+        <mat-label>Day</mat-label>
+        <input matInput type="date" name="date" data-testid="event-date" [ngModel]="date()" (ngModelChange)="setDate($event)" required />
+      </mat-form-field>
+
+      @if (!allDay()) {
+        <mat-form-field class="time" subscriptSizing="dynamic">
+          <mat-label>Start</mat-label>
+          <input matInput type="time" name="start" data-testid="event-start" [ngModel]="start()" (ngModelChange)="setStart($event)" />
+        </mat-form-field>
+        <span class="dash" aria-hidden="true">–</span>
+        <mat-form-field class="time" subscriptSizing="dynamic">
+          <mat-label>End</mat-label>
+          <input matInput type="time" name="end" data-testid="event-end" [ngModel]="end()" (ngModelChange)="end.set($event)" />
+        </mat-form-field>
+      }
+
+      <mat-checkbox name="allDay" data-testid="event-all-day" [ngModel]="allDay()" (ngModelChange)="setAllDay($event)">All day</mat-checkbox>
+    </div>
+    @if (timeError(); as message) {
+      <p class="error small">{{ message }}</p>
+    }
+
+    <!-- Repeat -->
+    <mat-form-field class="full">
+      <mat-label>Repeat</mat-label>
+      <mat-icon matPrefix>repeat</mat-icon>
+      <mat-select name="repeat" data-testid="event-repeat" [ngModel]="repeatChoice()" (ngModelChange)="repeatChoice.set($event)">
+        @for (option of repeatChoices(); track option.label) {
+          <mat-option [value]="option.rule">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (repeatChoice() === 'custom') {
+      <fieldset class="custom" data-testid="custom-repeat">
+        <legend>Custom repeat</legend>
+        <div class="row">
+          <span>Every</span>
+          <mat-form-field class="count" subscriptSizing="dynamic">
+            <input
+              matInput
+              type="number"
+              min="1"
+              max="999"
+              name="interval"
+              aria-label="Repeat every"
+              [ngModel]="custom().interval"
+              (ngModelChange)="updateCustom({ interval: +$event || 1 })"
+            />
+          </mat-form-field>
+          <mat-form-field class="unit" subscriptSizing="dynamic">
+            <mat-select name="unit" aria-label="Unit" [ngModel]="custom().unit" (ngModelChange)="updateCustom({ unit: $event })">
+              <mat-option value="DAILY">{{ custom().interval === 1 ? 'day' : 'days' }}</mat-option>
+              <mat-option value="WEEKLY">{{ custom().interval === 1 ? 'week' : 'weeks' }}</mat-option>
+              <mat-option value="MONTHLY">{{ custom().interval === 1 ? 'month' : 'months' }}</mat-option>
+              <mat-option value="YEARLY">{{ custom().interval === 1 ? 'year' : 'years' }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        @if (custom().unit === 'WEEKLY') {
+          <div class="days" role="group" aria-label="Repeat on">
+            @for (code of weekOrder; track code) {
+              <button
+                type="button"
+                class="day-toggle"
+                [class.on]="custom().days.includes(code)"
+                [attr.aria-pressed]="custom().days.includes(code)"
+                [attr.aria-label]="code"
+                (click)="toggleDay(code)"
+              >
+                {{ dayNames[code] }}
+              </button>
+            }
+          </div>
+        }
+
+        @if (custom().unit === 'MONTHLY') {
+          <mat-radio-group class="stack" name="monthlyBy" [ngModel]="custom().monthlyBy" (ngModelChange)="updateCustom({ monthlyBy: $event })">
+            <mat-radio-button value="day">On the same day of the month</mat-radio-button>
+            <mat-radio-button value="weekday">On the same weekday of the month</mat-radio-button>
+          </mat-radio-group>
+        }
+
+        <div class="ends">
+          <span class="label">Ends</span>
+          <mat-radio-group class="stack" name="repeatEnd" [ngModel]="custom().end" (ngModelChange)="updateCustom({ end: $event })">
+            <mat-radio-button value="never">Never</mat-radio-button>
+            <div class="row">
+              <mat-radio-button value="on">On</mat-radio-button>
+              <mat-form-field class="day" subscriptSizing="dynamic">
+                <input
+                  matInput
+                  type="date"
+                  name="until"
+                  aria-label="Ends on"
+                  [min]="date()"
+                  [disabled]="custom().end !== 'on'"
+                  [ngModel]="custom().until"
+                  (ngModelChange)="updateCustom({ until: $event })"
+                />
+              </mat-form-field>
+            </div>
+            <div class="row">
+              <mat-radio-button value="after">After</mat-radio-button>
+              <mat-form-field class="count" subscriptSizing="dynamic">
+                <input
+                  matInput
+                  type="number"
+                  min="1"
+                  max="999"
+                  name="count"
+                  aria-label="Number of times"
+                  [disabled]="custom().end !== 'after'"
+                  [ngModel]="custom().count"
+                  (ngModelChange)="updateCustom({ count: +$event || 1 })"
+                />
+              </mat-form-field>
+              <span>times</span>
+            </div>
+          </mat-radio-group>
+        </div>
+      </fieldset>
+    }
+
+    <!-- Notification -->
+    <mat-form-field class="full">
+      <mat-label>Notification</mat-label>
+      <mat-icon matPrefix>notifications</mat-icon>
+      <mat-select name="notify" data-testid="event-notify" [ngModel]="notifyChoice()" (ngModelChange)="notifyChoice.set($event)">
+        @for (preset of notifyPresets; track preset.label) {
+          <mat-option [value]="preset.minutes ?? 'none'">{{ preset.label }}</mat-option>
+        }
+        <mat-option value="custom">Custom…</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    @if (notifyChoice() === 'custom') {
+      <div class="row custom-notify" data-testid="custom-notify">
+        <div class="stepper">
+          <button type="button" mat-icon-button aria-label="One less" data-testid="notify-minus" (click)="step(-1)" [disabled]="customAmount() <= 0">
+            <mat-icon>remove</mat-icon>
+          </button>
+          <mat-form-field class="count" subscriptSizing="dynamic">
+            <input
+              matInput
+              type="number"
+              min="0"
+              step="1"
+              name="notifyAmount"
+              aria-label="How many"
+              data-testid="notify-amount"
+              [ngModel]="customAmount()"
+              (ngModelChange)="setAmount($event)"
+            />
+          </mat-form-field>
+          <button type="button" mat-icon-button aria-label="One more" data-testid="notify-plus" (click)="step(1)">
+            <mat-icon>add</mat-icon>
+          </button>
+        </div>
+        <mat-form-field class="unit" subscriptSizing="dynamic">
+          <mat-select name="notifyUnit" aria-label="Unit" data-testid="notify-unit" [ngModel]="customUnit()" (ngModelChange)="customUnit.set($event)">
+            <mat-option value="minutes">minutes</mat-option>
+            <mat-option value="hours">hours</mat-option>
+            <mat-option value="days">days</mat-option>
+            <mat-option value="weeks">weeks</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <span>before</span>
+      </div>
+    }
+    @if (notifyHint(); as hint) {
+      <p class="small" [class.error]="notifyTooFar()" [class.muted]="!notifyTooFar()" data-testid="notify-hint">{{ hint }}</p>
+    }
+
+    <mat-form-field class="full">
+      <mat-label>Notes</mat-label>
+      <textarea matInput name="notes" rows="2" [ngModel]="notes()" (ngModelChange)="notes.set($event)"></textarea>
+    </mat-form-field>
+
+    <div class="links">
+    @if (sprintTasks().length > 0) {
+      <mat-form-field>
+        <mat-label>From the board</mat-label>
+        <mat-select name="task" data-testid="event-task" [ngModel]="taskId()" (ngModelChange)="pickTask($event)">
+          <mat-option [value]="null">No task</mat-option>
+          @for (task of sprintTasks(); track task.id) {
+            <mat-option [value]="task.id">{{ task.key }} {{ task.title }}{{ task.column === 'in_progress' ? ' (in progress)' : '' }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+
+    @if (goals().length > 0) {
+      <mat-form-field>
+        <mat-label>Goal</mat-label>
+        <mat-select name="goal" [ngModel]="goalId()" (ngModelChange)="goalId.set($event)">
+          <mat-option [value]="null">No goal</mat-option>
+          @for (goal of goals(); track goal.id) {
+            <mat-option [value]="goal.id">{{ goal.key }} {{ goal.title }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+    </div>
+
+    @if (error(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button [mat-dialog-close]="false">Cancel</button>
+  <button mat-flat-button type="submit" form="event-form" data-testid="event-save" [disabled]="!canSave()">
+    {{ saving() ? 'Saving…' : 'Save' }}
+  </button>
+</mat-dialog-actions>

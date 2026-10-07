@@ -191,4 +191,11 @@
     margin: 1rem auto;
     padding: 0 1rem 2rem;
   }
+
+  // The planner is a calendar: like Google Calendar it uses the whole window, not a reading column.
+  &:has(app-planner) {
+    max-width: none;
+    margin: 1rem 0 0;
+    padding-bottom: 0.75rem;
+  }
 }

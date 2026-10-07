@@ -29,19 +29,27 @@ public abstract class PlannerToolBase : IPersonaTool
     public virtual Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
         Task.FromResult<string?>(null);
 
-    /// <summary>Checks that the 'itemId' in the input names a planner item that exists.</summary>
+    /// <summary>
+    /// Checks that the 'itemId' in the input names a planner item that exists and, for an event that
+    /// repeats, an 'occurrenceDate' that is one of its days: caught here, not after the user confirms.
+    /// </summary>
     protected static async Task RequirePlannerItemAsync(
         IPlannerService planner, JsonElement input, CancellationToken ct)
     {
         var id = RequireInt(input, "itemId");
-        if (await planner.GetAsync(id, ct) is null)
+        var occurrence = GetDate(input, "occurrenceDate");
+        var item = await planner.GetAsync(id, occurrence, ct)
+            ?? throw new PlannerValidationException(occurrence is null
+                ? $"Planner item {id} does not exist. Use an id from get_planner."
+                : $"Planner item {id} has no occurrence on {occurrence:yyyy-MM-dd}. Use an id and occurrenceDate from get_planner.");
+        if (item.Recurrence is not null && occurrence is null)
             throw new PlannerValidationException(
-                $"Planner item {id} does not exist. Use an id from get_planner.");
+                $"“{item.Title}” repeats ({item.RecurrenceText}): pass occurrenceDate, the date of the day you mean, from get_planner.");
     }
 
     /// <summary>"“Gym” on 2026-09-23", for a confirmation card; null when the id names no item.</summary>
     protected static async Task<string?> DescribePlannerItemAsync(IPlannerService planner, JsonElement input, CancellationToken ct) =>
-        GetInt(input, "itemId") is int id && await planner.GetAsync(id, ct) is { } item
+        GetInt(input, "itemId") is int id && await planner.GetAsync(id, GetDate(input, "occurrenceDate"), ct) is { } item
             ? $"“{item.Title}” on {item.Date:yyyy-MM-dd}"
             : null;
 
@@ -100,8 +108,10 @@ public class GetPlannerTool(IPlannerService planner, IInstanceConfigService conf
         "Reads the user's daily planner: what they intend to do on a given day. Call it with no " +
         "arguments for today. Pass 'date' for another single day, or 'from'+'to' for a range " +
         "(e.g. a week). Dates are the user's local dates. Each item has a status " +
-        "(planned/done/skipped) and may link to a goal. NOT the backlog or the sprint board: for " +
-        "those use get_plan or get_board.";
+        "(planned/done/skipped) and may link to a goal. A timed item has a scheduledTime and endTime; one " +
+        "without is all day. An item that repeats shows recurrenceText (like \"Weekly on Saturday\"); " +
+        "each day it falls on is its own entry with an occurrenceDate. NOT the backlog or the sprint " +
+        "board: for those use get_plan or get_board.";
     public override string InputSchemaJson => """
         {
           "type": "object",
@@ -145,9 +155,11 @@ public class AddPlannerItemTool(
 {
     public override string Name => "add_planner_item";
     public override string Description =>
-        "Adds an item to the user's planner for a given day. Optionally schedule a time. To plan a day's " +
-        "work on a sprint-board task, pass its taskKey (like \"TASK-7\" from get_board); the title can then " +
-        "be left out. Otherwise goalKey (like \"GOAL-3\") links the item to a goal.";
+        "Adds an event to the user's planner for a given day: all day, or from scheduledTime to endTime. " +
+        "A timed event notifies the user's phone 30 minutes before unless notifyBeforeMinutes says " +
+        "otherwise. It can repeat. To plan a day's work on a sprint-board task, pass its taskKey (like " +
+        "\"TASK-7\" from get_board); the title can then be left out. Otherwise goalKey (like " +
+        "\"GOAL-3\") links the item to a goal.";
     public override string InputSchemaJson => """
         {
           "type": "object",
@@ -155,7 +167,11 @@ public class AddPlannerItemTool(
             "title": { "type": "string", "description": "What the task is." },
             "date": { "type": "string", "description": "Leave it out for today. For another day, its ISO date (e.g. 2026-07-21), copied from the dates in your instructions." },
             "notes": { "type": "string", "description": "Optional detail." },
-            "scheduledTime": { "type": "string", "description": "Optional 24-hour time, e.g. 09:30." },
+            "scheduledTime": { "type": "string", "description": "Optional start, 24-hour time, e.g. 09:30. Leave it out for an all-day item." },
+            "endTime": { "type": "string", "description": "Optional end, 24-hour time later than scheduledTime, e.g. 10:30. Leave it out unless the user gave one." },
+            "repeat": { "type": "string", "enum": ["none", "daily", "weekly", "weekdays", "monthly", "yearly"], "description": "none (leave it out) unless the user asked for it to repeat. weekdays is Monday to Friday." },
+            "repeatUntil": { "type": "string", "description": "Optional last day of the repeat, ISO date. Only with repeat." },
+            "notifyBeforeMinutes": { "type": "integer", "description": "Minutes before the start to notify the phone. Leave it out for the usual 30; -1 for no notification." },
             "taskKey": { "type": "string", "description": "Optional sprint-board task this is a day's work on." },
             "goalKey": { "type": "string", "description": "Optional goal this item contributes to." }
           }
@@ -165,11 +181,33 @@ public class AddPlannerItemTool(
     private async Task<DateOnly> DayAsync(JsonElement input, CancellationToken ct) =>
         GetDate(input, "date") ?? Common.UserClock.Today((await configService.GetOrCreateAsync(ct)).TimeZone);
 
+    /// <summary>Repeat words that mean it does not repeat; qwen2.5:3b fills the field with them.</summary>
+    private static readonly string[] NoRepeat = ["", "none", "never", "no", "once", "does not repeat", "not", "null"];
+
     public override async Task<string> CompleteInputAsync(JsonElement input, CancellationToken ct = default)
     {
-        if (GetString(input, "date") is not null) return input.GetRawText();
         var completed = JsonNode.Parse(input.GetRawText())!.AsObject();
-        completed["date"] = (await DayAsync(input, ct)).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        // A small model fills optional fields it was not asked for: an empty time, an end with no
+        // start, a repeat of "none". Refusing those made it ask the user for a start time or a
+        // period instead of proposing "Buy milk" (accuracy suite, 2026-10-07: 8/10). They are
+        // dropped here, before the card, so the card shows only what will be saved.
+        foreach (var field in new[] { "scheduledTime", "endTime", "repeatUntil", "notes", "goalKey", "taskKey" })
+        {
+            if (completed[field] is JsonValue v && v.TryGetValue<string>(out var text) && string.IsNullOrWhiteSpace(text))
+                completed.Remove(field);
+        }
+        if (GetString(input, "repeat") is { } repeat && NoRepeat.Contains(repeat.Trim().ToLowerInvariant()))
+            completed.Remove("repeat");
+        if (!completed.ContainsKey("scheduledTime")) completed.Remove("endTime");
+        if (!completed.ContainsKey("repeat")) completed.Remove("repeatUntil");
+        input = JsonDocument.Parse(completed.ToJsonString()).RootElement.Clone();
+
+        if (GetString(input, "date") is null)
+            completed["date"] = (await DayAsync(input, ct)).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        // A timed event gets the usual heads-up unless one was chosen, so the card shows it.
+        if (GetInt(input, "notifyBeforeMinutes") is null && GetString(input, "scheduledTime") is not null)
+            completed["notifyBeforeMinutes"] = PlannerEvents.DefaultNotifyBeforeMinutes;
         return completed.ToJsonString();
     }
 
@@ -178,12 +216,59 @@ public class AddPlannerItemTool(
         // An unreadable day is what the card would promise wrongly, so it is caught here rather
         // than after the user has confirmed it.
         if (GetString(input, "date") is not null) RequireDate(input, "date");
+        // The times, the alert and the repeat are checked here so a card that could not be saved is
+        // never shown.
+        var day = await DayAsync(input, ct);
+        var start = GetTime(input, "scheduledTime");
+        var end = GetTime(input, "endTime");
+        if (end is not null && start is null)
+            throw new PlannerValidationException("'endTime' needs a 'scheduledTime'; leave both out for an all-day item.");
+        if (end is TimeOnly e && start is TimeOnly s && e <= s)
+            throw new PlannerValidationException("'endTime' must be later than 'scheduledTime'.");
+        _ = RepeatRule(input, day);
+        if (GetInt(input, "notifyBeforeMinutes") is int minutes && minutes != -1) CheckNotify(minutes);
         // Something to do: a title, or a board task that lends its own. qwen2.5:3b proposed
         // {"date":"2026-10-01"} and nothing else, a card that would only fail once confirmed
         // (accuracy suite, 2026-10-01).
         if (string.IsNullOrWhiteSpace(GetString(input, "title")) && GetString(input, "taskKey") is null)
             throw new PlannerValidationException("'title' is required: what the user plans to do (or a taskKey from get_board).");
         await ResolveLinksAsync(input, ct);
+    }
+
+    private static void CheckNotify(int minutes)
+    {
+        if (minutes is < 0 or > PlannerEvents.MaxNotifyBeforeMinutes)
+            throw new PlannerValidationException(string.Create(
+                CultureInfo.InvariantCulture,
+                $"'notifyBeforeMinutes' must be 0 to {PlannerEvents.MaxNotifyBeforeMinutes:N0} (at most 4 weeks), or -1 for no notification."));
+    }
+
+    /// <summary>The repeat as rule text from the simple words the model is given, or null when it does not repeat.</summary>
+    private static string? RepeatRule(JsonElement input, DateOnly day)
+    {
+        var until = GetDate(input, "repeatUntil");
+        var repeat = GetString(input, "repeat");
+        if (repeat is not null && NoRepeat.Contains(repeat.Trim().ToLowerInvariant())) repeat = null;
+        if (repeat is null)
+        {
+            if (until is not null) throw new PlannerValidationException("'repeatUntil' only goes with 'repeat'.");
+            return null;
+        }
+
+        var frequency = repeat.Trim().ToLowerInvariant() switch
+        {
+            "daily" => "FREQ=DAILY",
+            "weekly" => "FREQ=WEEKLY",
+            "weekdays" => "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+            "monthly" => "FREQ=MONTHLY",
+            "yearly" => "FREQ=YEARLY",
+            _ => throw new PlannerValidationException("'repeat' must be daily, weekly, weekdays, monthly or yearly."),
+        };
+        if (until is DateOnly last && last < day)
+            throw new PlannerValidationException("'repeatUntil' is before the first day.");
+        return until is DateOnly end
+            ? string.Create(CultureInfo.InvariantCulture, $"{frequency};UNTIL={end:yyyyMMdd}")
+            : frequency;
     }
 
     /// <summary>Turns the optional task and goal keys into ids, refusing keys that name nothing.</summary>
@@ -209,14 +294,19 @@ public class AddPlannerItemTool(
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var (taskId, goalId) = await ResolveLinksAsync(input, ct);
+        var day = await DayAsync(input, ct);
+        var notify = GetInt(input, "notifyBeforeMinutes");
 
         return Ok(await planner.CreateAsync(new CreatePlannerItemRequest(
             Title: GetString(input, "title") ?? string.Empty,
-            Date: await DayAsync(input, ct),
+            Date: day,
             Notes: GetString(input, "notes"),
             ScheduledTime: GetTime(input, "scheduledTime"),
             GoalId: goalId,
-            TaskId: taskId), ct));
+            TaskId: taskId,
+            EndTime: GetTime(input, "endTime"),
+            NotifyBeforeMinutes: notify == -1 ? null : notify,
+            Recurrence: RepeatRule(input, day)), ct));
     }
 }
 
@@ -224,12 +314,14 @@ public class UpdatePlannerItemStatusTool(IPlannerService planner) : PlannerToolB
 {
     public override string Name => "update_planner_item_status";
     public override string Description =>
-        "Marks a planner task as done, skipped, or back to planned. Use get_planner to find the item id.";
+        "Marks a planner task as done, skipped, or back to planned. Use get_planner to find the item id. " +
+        "For an item that repeats, also pass its occurrenceDate from get_planner.";
     public override string InputSchemaJson => """
         {
           "type": "object",
           "properties": {
             "itemId": { "type": "integer", "description": "Planner item id." },
+            "occurrenceDate": { "type": "string", "description": "Only for an item that repeats: the occurrenceDate shown by get_planner." },
             "status": { "type": "string", "enum": ["planned", "done", "skipped"] }
           },
           "required": ["itemId", "status"]
@@ -245,7 +337,7 @@ public class UpdatePlannerItemStatusTool(IPlannerService planner) : PlannerToolB
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var id = RequireInt(input, "itemId");
-        var updated = await planner.UpdateStatusAsync(id, RequireString(input, "status"), ct);
+        var updated = await planner.UpdateStatusAsync(id, RequireString(input, "status"), GetDate(input, "occurrenceDate"), ct);
         return updated is null
             ? throw new PlannerValidationException($"Planner item {id} does not exist.")
             : Ok(updated);
@@ -256,12 +348,14 @@ public class MovePlannerItemTool(IPlannerService planner) : PlannerToolBase
 {
     public override string Name => "move_planner_item";
     public override string Description =>
-        "Moves a planner task to a different day (e.g. pushing today's unfinished task to tomorrow).";
+        "Moves a planner task to a different day (e.g. pushing today's unfinished task to tomorrow). " +
+        "For an item that repeats this moves just that day, named by its occurrenceDate from get_planner.";
     public override string InputSchemaJson => """
         {
           "type": "object",
           "properties": {
             "itemId": { "type": "integer", "description": "Planner item id." },
+            "occurrenceDate": { "type": "string", "description": "Only for an item that repeats: the occurrenceDate shown by get_planner." },
             "date": { "type": "string", "description": "New day, ISO date (e.g. 2026-07-22)." }
           },
           "required": ["itemId", "date"]
@@ -277,7 +371,9 @@ public class MovePlannerItemTool(IPlannerService planner) : PlannerToolBase
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         var id = RequireInt(input, "itemId");
-        var moved = await planner.MoveAsync(id, RequireDate(input, "date"), ct);
+        var occurrence = GetDate(input, "occurrenceDate");
+        var moved = await planner.MoveAsync(
+            id, RequireDate(input, "date"), occurrence is null ? null : new PlannerTarget(PlannerEditScope.This, occurrence), ct);
         return moved is null
             ? throw new PlannerValidationException($"Planner item {id} does not exist.")
             : Ok(moved);

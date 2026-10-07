@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api/personaos_api.dart';
 import 'layout.dart';
+import 'planner_calendar.dart';
 import 'push_service.dart';
 import 'reminder_alarms.dart';
 import 'screens/alarm_screen.dart';
@@ -382,6 +383,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _api = PersonaOsApi(serverUrl: widget.serverUrl);
     _branding = _fetchBranding();
     WidgetsBinding.instance.addObserver(this);
+    // A planner event's notification opens the planner on that day.
+    PushService.instance.onOpenPlannerDay = (date) => appNavigatorKey.currentState?.push(MaterialPageRoute<void>(
+          builder: (_) => PlannerScreen(api: _api, initialDate: parseDay(date), initialView: CalendarView.day),
+        ));
   }
 
   @override

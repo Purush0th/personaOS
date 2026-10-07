@@ -38,6 +38,14 @@ class PushService {
   String _assistantNickname = 'PersonaOS';
   StreamSubscription<String>? _tokenRefresh;
   StreamSubscription<RemoteMessage>? _foreground;
+  StreamSubscription<RemoteMessage>? _opened;
+
+  /// Opens the planner on a day: set by the signed-in home screen, called when a planner event's
+  /// notification is tapped.
+  void Function(String date)? onOpenPlannerDay;
+
+  /// The type the server puts on a planner event's notification.
+  static const plannerAlert = 'planner_alert';
 
   /// Starts push for a signed-in session. Safe to call on every sign-in: the listeners are
   /// attached once, but the token is re-registered each time, because the server may have
@@ -114,6 +122,16 @@ class PushService {
           unawaited(_showInForeground(message));
         }
       });
+
+      // A planner event's notification, tapped while the app was in the background or closed,
+      // opens the planner on that day. Shown in the foreground, the same tap arrives through the
+      // local notifications plugin with a "planner:" payload.
+      _opened = FirebaseMessaging.onMessageOpenedApp.listen(_openFromPush);
+      ReminderAlarms.instance.onOtherTap = (payload) {
+        if (payload.startsWith('planner:')) onOpenPlannerDay?.call(payload.substring('planner:'.length));
+      };
+      final launchedBy = await messaging.getInitialMessage();
+      if (launchedBy != null) _openFromPush(launchedBy);
     }
 
     final token = await messaging.getToken();
@@ -187,14 +205,21 @@ class PushService {
         ));
   }
 
+  void _openFromPush(RemoteMessage message) {
+    final date = message.data['date'];
+    if (message.data['type'] == plannerAlert && date is String) onOpenPlannerDay?.call(date);
+  }
+
   Future<void> _showInForeground(RemoteMessage message) async {
     final notification = message.notification;
     if (notification == null) return;
+    final date = message.data['date'];
 
     await _local.show(
       id: notification.hashCode,
       title: notification.title,
       body: notification.body,
+      payload: message.data['type'] == plannerAlert && date is String ? 'planner:$date' : null,
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           channelId,
@@ -210,6 +235,7 @@ class PushService {
   Future<void> dispose() async {
     await _tokenRefresh?.cancel();
     await _foreground?.cancel();
+    await _opened?.cancel();
     _started = false;
   }
 }

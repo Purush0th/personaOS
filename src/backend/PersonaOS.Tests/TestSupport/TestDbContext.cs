@@ -22,6 +22,8 @@ public class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(
     public DbSet<WorkItemComment> WorkItemComments => Set<WorkItemComment>();
     public DbSet<WorkItemAttachment> WorkItemAttachments => Set<WorkItemAttachment>();
     public DbSet<PlannerItem> PlannerItems => Set<PlannerItem>();
+    public DbSet<PlannerOccurrence> PlannerOccurrences => Set<PlannerOccurrence>();
+    public DbSet<PlannerAlertLog> PlannerAlertLogs => Set<PlannerAlertLog>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<ProactiveJobRun> ProactiveJobRuns => Set<ProactiveJobRun>();

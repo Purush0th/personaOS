@@ -6,6 +6,7 @@ using PersonaOS.Application.Common;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
 using PersonaOS.Application.Memories;
+using PersonaOS.Application.Planner;
 using PersonaOS.Domain;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Domain.Services;
@@ -166,20 +167,21 @@ public class SystemPromptBuilder(
 
     private async Task<string> PlannerAsync(Fragments fragments, DateOnly today, CancellationToken ct)
     {
-        var items = await db.PlannerItems.AsNoTracking()
-            .Where(i => i.Date == today)
-            .OrderBy(i => i.ScheduledTime == null)
-            .ThenBy(i => i.ScheduledTime)
-            .ThenBy(i => i.SortOrder)
-            .Select(i => new { i.Title, i.Status, i.ScheduledTime })
-            .ToListAsync(ct);
+        var events = await db.EventsAsync(today, today, ct: ct);
 
-        return items.Count == 0
+        return events.Count == 0
             ? string.Empty
-            : fragments.Render("planner", ("items", items
-                .Select(i => $"{(i.ScheduledTime is TimeOnly time ? time.ToString("HH:mm", CultureInfo.InvariantCulture) + " " : string.Empty)}{i.Title} [{i.Status}]")
+            : fragments.Render("planner", ("items", events
+                .Select(e => $"{TimeRange(e)}{e.Title} [{e.Status}]")
                 .ToList()));
     }
+
+    /// <summary>"09:30-10:30 " for a timed event, nothing for an all-day one.</summary>
+    private static string TimeRange(PlannerOccurrenceView e) => e.Start is TimeOnly start
+        ? string.Create(
+            CultureInfo.InvariantCulture,
+            $"{start:HH:mm}-{PlannerCalendar.EffectiveEnd(start, e.End):HH:mm} ")
+        : string.Empty;
 
     private async Task<string> RemindersAsync(Fragments fragments, InstanceConfig config, CancellationToken ct)
     {

@@ -27,6 +27,12 @@ public class FakePushSender : IPushSender
     public int SendCount { get; private set; }
     public List<string> SentBodies { get; } = new();
 
+    /// <summary>The title of every notification sent (not data-only messages), in order.</summary>
+    public List<string> SentTitles { get; } = new();
+
+    /// <summary>The data of every notification sent (not data-only messages), in order.</summary>
+    public List<IReadOnlyDictionary<string, string>?> SentNotificationData { get; } = new();
+
     /// <summary>Every data-only payload sent, in order.</summary>
     public List<IReadOnlyDictionary<string, string>> SentData { get; } = new();
 
@@ -39,6 +45,8 @@ public class FakePushSender : IPushSender
     {
         SendCount++;
         SentBodies.Add(body);
+        SentTitles.Add(title);
+        SentNotificationData.Add(data);
         return Task.FromResult(ResultsFor(tokens));
     }
 
