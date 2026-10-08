@@ -153,6 +153,7 @@ class PlannerItem {
     this.recurrenceText,
     String? occurrenceDate,
     this.isChanged = false,
+    this.endDate,
   }) : occurrenceDate = occurrenceDate ?? date;
 
   factory PlannerItem.fromJson(Map<String, dynamic> json) => PlannerItem(
@@ -173,6 +174,7 @@ class PlannerItem {
         recurrenceText: json['recurrenceText'] as String?,
         occurrenceDate: json['occurrenceDate'] as String?,
         isChanged: json['isChanged'] as bool? ?? false,
+        endDate: json['endDate'] as String?,
       );
 
   final int id;
@@ -211,8 +213,39 @@ class PlannerItem {
   /// This occurrence was changed on its own.
   final bool isChanged;
 
+  /// The last day (yyyy-MM-dd): the same as [date] unless the event lasts several days. An older
+  /// server sends none.
+  final String? endDate;
+
   bool get isAllDay => scheduledTime == null;
   bool get repeats => recurrence != null;
+
+  /// The last day: [date] unless the event lasts several days.
+  String get lastDay => endDate != null && endDate!.compareTo(date) > 0 ? endDate! : date;
+
+  bool get isMultiDay => lastDay != date;
+
+  /// The same event moved or changed, for showing a change before the server has it.
+  PlannerItem copyWith({String? date, String? endDate, String? scheduledTime, String? endTime}) => PlannerItem(
+    id: id,
+    title: title,
+    date: date ?? this.date,
+    scheduledTime: scheduledTime ?? this.scheduledTime,
+    status: status,
+    goalTitle: goalTitle,
+    goalKey: goalKey,
+    taskKey: taskKey,
+    endTime: endTime ?? this.endTime,
+    notes: notes,
+    goalId: goalId,
+    taskId: taskId,
+    notifyBeforeMinutes: notifyBeforeMinutes,
+    recurrence: recurrence,
+    recurrenceText: recurrenceText,
+    occurrenceDate: occurrenceDate,
+    isChanged: isChanged,
+    endDate: endDate ?? this.endDate,
+  );
 }
 
 /// Which events of a repeating series a change or delete applies to.
@@ -625,7 +658,8 @@ class PersonaOsApi {
         .toList();
   }
 
-  /// The events from [from] to [to] (inclusive, yyyy-MM-dd), repeats expanded, in day order.
+  /// The events from [from] to [to] (inclusive, yyyy-MM-dd), repeats expanded, in day order. An event
+  /// over several days comes once, under its first day in the range.
   Future<List<PlannerItem>> getPlannerRange(String from, String to) async {
     final days = await _get('/api/planner?from=$from&to=$to') as List<dynamic>;
     return [
@@ -634,10 +668,12 @@ class PersonaOsApi {
     ];
   }
 
-  /// Creates an event. Times are "HH:mm"; no [scheduledTime] means all day.
+  /// Creates an event. Times are "HH:mm"; no [scheduledTime] means all day. [endDate] is the last day
+  /// of an event over several days.
   Future<void> createEvent({
     required String title,
     required String date,
+    String? endDate,
     String? notes,
     String? scheduledTime,
     String? endTime,
@@ -649,6 +685,7 @@ class PersonaOsApi {
     await _post('/api/planner/items', {
       'title': title,
       'date': date,
+      'endDate': ?endDate,
       'notes': ?notes,
       'scheduledTime': ?scheduledTime,
       'endTime': ?endTime,

@@ -48,11 +48,12 @@ public sealed class ConfigurablePushSender(ILoggerFactory loggerFactory)
         string title,
         string body,
         IReadOnlyDictionary<string, string>? data = null,
+        string channel = PushChannels.Reminders,
         CancellationToken ct = default)
     {
         var sender = _current;
         return sender is not null
-            ? sender.SendAsync(tokens, title, body, data, ct)
+            ? sender.SendAsync(tokens, title, body, data, channel, ct)
             : Task.FromResult(NotConfigured(tokens));
     }
 

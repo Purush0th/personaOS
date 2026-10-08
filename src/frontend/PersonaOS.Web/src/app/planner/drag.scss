@@ -1,0 +1,39 @@
+// Dragging an event, shared by the time grid and the month: the whole view shows a grabbing hand
+// and selects no text, the event stays faintly where it was, and a copy shows where it would land.
+
+.dragging {
+  cursor: grabbing;
+  user-select: none;
+
+  * {
+    cursor: grabbing;
+  }
+}
+
+.lifted {
+  opacity: 0.35;
+}
+
+.ghost {
+  z-index: 3;
+  pointer-events: none;
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: -1px;
+  box-shadow: var(--mat-sys-level3);
+}
+
+// The time grid's ghost spans its day column.
+.event.ghost {
+  left: 1px;
+  width: calc(100% - 6px);
+}
+
+// The bottom edge of a timed event in the time grid: drag it to change the end.
+.resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  cursor: ns-resize;
+}

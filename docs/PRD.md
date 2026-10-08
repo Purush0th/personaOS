@@ -242,15 +242,21 @@ Full rules: [sprint-board.md](sprint-board.md). In short:
 
 - The planner is a **calendar**, after Google Calendar: Day, 4 days, Week, Month, Year and
   Schedule views on web and phone, with its view menu (and keyboard shortcuts on the web).
-  The board stays the **weekly** commitment. An item is an **event**: a day, all day or a
-  start and end time, a status (planned, done, skipped), optionally a linked sprint task.
+  The board stays the **weekly** commitment. An item is an **event**: a day (or a first and
+  last day, for a trip or a conference), all day or a start and end time, a status (planned,
+  done, skipped), optionally a linked sprint task. An event over several days is a bar across
+  the top of Day and Week and across its days in Month, and is on each of its days in Schedule.
+- Events can be **dragged**, as in Google Calendar: to another time or day, and by the bottom
+  edge to change the end (web with a mouse; the phone by a long press, in Day, 4 days and
+  Week). A repeating event asks which events the move is for.
 - Events can **repeat** (daily, weekly on chosen days, monthly by day or weekday, yearly,
   every weekday, every N, ending never, on a date or after N times; RFC 5545 RRULE text).
   A repeating event is one series; changing or deleting one occurrence asks This event /
   This and following / All events.
 - An event can **notify** the phone once, a chosen time before it starts (5 minutes to 4 weeks,
   or a custom number and unit), as an ordinary notification, not an alarm. Reminders stay
-  separate and alarm-grade. An all-day event counts from 9:00.
+  separate and alarm-grade. An all-day event counts from 9:00. Event notifications have their
+  own Android channel, so they can be muted apart from reminders and briefs.
 - Marking a planner item done does not finish its task; the user moves the card.
 
 ### 3.5 Reminders

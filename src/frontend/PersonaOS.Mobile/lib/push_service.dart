@@ -24,10 +24,16 @@ class PushService {
 
   static final PushService instance = PushService._();
 
-  /// Must match the `ChannelId` the server puts on Android notifications (FcmPushSender). A
+  /// Must match the channel the server puts on Android notifications (`PushChannels`). A
   /// message naming a channel that does not exist on the device falls back to a default
   /// channel with default importance — no heads-up banner, easy to miss.
   static const channelId = 'reminders';
+  static const _channelName = 'Reminders and briefs';
+
+  /// Planner events about to begin, in a channel of their own so they can be muted (or made
+  /// quieter) in the phone's settings without touching reminders. Must match `PushChannels`.
+  static const plannerChannelId = 'planner_events';
+  static const _plannerChannelName = 'Event notifications';
 
   final _local = FlutterLocalNotificationsPlugin();
 
@@ -193,16 +199,22 @@ class PushService {
     // Deliberately no initialize() here. The plugin is initialised exactly once, at startup, by
     // ReminderAlarms — and a second initialize() replaces the response callbacks it registered,
     // which would silently break Snooze, Dismiss and opening a ringing alarm.
-    await _local
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(const AndroidNotificationChannel(
-          channelId,
-          'Reminders and briefs',
-          description: 'Reminders you set, and scheduled briefs from your assistant.',
-          // High, so a reminder shows as a heads-up banner rather than sitting silently in the
-          // shade — a reminder that is not noticed has not been delivered.
-          importance: Importance.high,
-        ));
+    final android = _local.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await android?.createNotificationChannel(const AndroidNotificationChannel(
+      channelId,
+      _channelName,
+      description: 'Reminders you set, and scheduled briefs from your assistant.',
+      // High, so a reminder shows as a heads-up banner rather than sitting silently in the
+      // shade — a reminder that is not noticed has not been delivered.
+      importance: Importance.high,
+    ));
+    await android?.createNotificationChannel(const AndroidNotificationChannel(
+      plannerChannelId,
+      _plannerChannelName,
+      description: 'Planner events about to begin, as set on each event.',
+      // High too: "starts in 5 minutes" is no use read afterwards.
+      importance: Importance.high,
+    ));
   }
 
   void _openFromPush(RemoteMessage message) {
@@ -214,16 +226,17 @@ class PushService {
     final notification = message.notification;
     if (notification == null) return;
     final date = message.data['date'];
+    final planner = message.data['type'] == plannerAlert;
 
     await _local.show(
       id: notification.hashCode,
       title: notification.title,
       body: notification.body,
-      payload: message.data['type'] == plannerAlert && date is String ? 'planner:$date' : null,
-      notificationDetails: const NotificationDetails(
+      payload: planner && date is String ? 'planner:$date' : null,
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          channelId,
-          'Reminders and briefs',
+          planner ? plannerChannelId : channelId,
+          planner ? _plannerChannelName : _channelName,
           importance: Importance.high,
           priority: Priority.high,
         ),

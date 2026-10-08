@@ -113,6 +113,7 @@ public class PlannerAlertDispatcher(
                     ["occurrenceDate"] = e.OriginalDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     ["date"] = e.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 },
+                PushChannels.PlannerEvents,
                 ct);
 
             foreach (var failed in results.Where(r => r.TokenInvalid)) invalidTokens.Add(failed.Token);
@@ -157,19 +158,25 @@ public class PlannerAlertDispatcher(
         await db.SaveChangesAsync(ct);
     }
 
-    /// <summary>"Starts in 30 minutes · 9:30 am", "Starts now · 9:30 am", or "All day tomorrow".</summary>
+    /// <summary>
+    /// "Starts in 30 minutes · 9:30 am", "Starts now · 9:30 am", "All day tomorrow", and for an event
+    /// over several days "From today to Wed 14 Oct" or "Starts in 1 hour · 9:30 am · until Wed 14 Oct".
+    /// </summary>
     public static string Body(PlannerOccurrenceView e, int minutesBefore, DateOnly today)
     {
+        var until = e.IsMultiDay ? e.EndDate.ToString("ddd d MMM", CultureInfo.InvariantCulture) : null;
         if (e.Start is not TimeOnly start)
         {
             var when = e.Date == today ? "today"
                 : e.Date == today.AddDays(1) ? "tomorrow"
                 : "on " + e.Date.ToString("ddd d MMM", CultureInfo.InvariantCulture);
-            return $"All day {when}";
+            if (until is null) return $"All day {when}";
+            return $"From {(when.StartsWith("on ", StringComparison.Ordinal) ? when[3..] : when)} to {until}";
         }
 
         var time = start.ToString("h:mm tt", CultureInfo.InvariantCulture).ToLowerInvariant();
-        return minutesBefore == 0 ? $"Starts now · {time}" : $"Starts in {Lead(minutesBefore)} · {time}";
+        var body = minutesBefore == 0 ? $"Starts now · {time}" : $"Starts in {Lead(minutesBefore)} · {time}";
+        return until is null ? body : $"{body} · until {until}";
     }
 
     /// <summary>"30 minutes", "2 hours", "1 day", "2 weeks"; the largest unit that divides it evenly.</summary>

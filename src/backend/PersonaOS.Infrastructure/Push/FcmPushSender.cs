@@ -44,6 +44,7 @@ public sealed class FcmPushSender : IPushSender, IDisposable
         string title,
         string body,
         IReadOnlyDictionary<string, string>? data = null,
+        string channel = PushChannels.Reminders,
         CancellationToken ct = default) =>
         SendInBatchesAsync(tokens, data, new AndroidConfig
         {
@@ -52,7 +53,9 @@ public sealed class FcmPushSender : IPushSender, IDisposable
             Priority = Priority.High,
             Notification = new AndroidNotification
             {
-                ChannelId = "reminders",
+                // An app that does not have this channel (one older than it) shows the
+                // notification in a default channel instead.
+                ChannelId = channel,
                 // Must be set explicitly. In FirebaseAdmin 3.6 EventTimestamp is a NON-nullable
                 // DateTime, so leaving it unset still serialises `event_time` as
                 // 0001-01-01T00:00:00Z — and Android then dated the notification about two

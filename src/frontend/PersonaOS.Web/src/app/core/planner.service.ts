@@ -11,9 +11,11 @@ export interface PlannerItemDto {
   title: string;
   notes: string | null;
   date: string;
+  /** The last day: the same as `date` unless the event lasts several days. */
+  endDate?: string | null;
   /** Start, `HH:mm:ss`; null means all day. */
   scheduledTime: string | null;
-  /** End of a timed event (an hour after the start when none was set); null for all day. */
+  /** End of a timed event (an hour after the start when none was set; on `endDate`); null for all day. */
   endTime: string | null;
   sortOrder: number;
   status: PlannerStatus;
@@ -56,6 +58,8 @@ export interface EventTarget {
 export interface EventFields {
   title: string;
   date: string;
+  /** The last day of an event over several days; the same day, or absent, for one day. */
+  endDate?: string | null;
   notes?: string | null;
   scheduledTime?: string | null;
   endTime?: string | null;
@@ -65,11 +69,15 @@ export interface EventFields {
   taskId?: number | null;
 }
 
-/** A partial change; the clear flags remove a value (null alone means "leave it"). */
+/**
+ * A partial change; the clear flags remove a value (null alone means "leave it"). A new `date`
+ * keeps the number of days the event lasts; `endDate` sets its last day.
+ */
 export interface EventChange {
   title?: string;
   notes?: string;
   date?: string;
+  endDate?: string;
   scheduledTime?: string;
   clearScheduledTime?: boolean;
   endTime?: string;
@@ -90,7 +98,10 @@ export class PlannerService {
     return firstValueFrom(this.http.get<PlannerDay>(`/api/planner?date=${date}`));
   }
 
-  /** The days from `from` to `to` (inclusive) that have events, repeats expanded. */
+  /**
+   * The days from `from` to `to` (inclusive) that have events, repeats expanded. An event over
+   * several days is listed once, on its first day in the range.
+   */
   getRange(from: string, to: string): Promise<PlannerDay[]> {
     return firstValueFrom(this.http.get<PlannerDay[]>(`/api/planner?from=${from}&to=${to}`));
   }

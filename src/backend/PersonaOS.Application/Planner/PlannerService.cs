@@ -27,8 +27,10 @@ public class PlannerService(IAppDbContext db) : IPlannerService
             throw new PlannerValidationException($"Date range must span at most {MaxRangeDays} days.");
 
         var views = await db.EventsAsync(from, to, withLinks: true, ct: ct);
+        // An event over several days is listed once, so a client that lays out by each item's own
+        // days does not see it twice; one that started before the range is listed on its first day.
         return views
-            .GroupBy(v => v.Date)
+            .GroupBy(v => v.Date < from ? from : v.Date)
             .OrderBy(g => g.Key)
             .Select(g => new PlannerDay(g.Key, g.Select(Map).ToList()))
             .ToList();
@@ -62,7 +64,8 @@ public class PlannerService(IAppDbContext db) : IPlannerService
         var title = RequireTitle(string.IsNullOrWhiteSpace(request.Title) && task is not null ? task.Title : request.Title);
         var goalId = request.GoalId ?? task?.GoalId;
         await RequireGoalExistsAsync(goalId, ct);
-        CheckTimes(request.ScheduledTime, request.EndTime);
+        var endDate = LastDay(request.Date, request.EndDate);
+        CheckTimes(request.ScheduledTime, request.EndTime, multiDay: endDate is not null);
         CheckNotify(request.NotifyBeforeMinutes);
 
         var item = new PlannerItem
@@ -70,6 +73,7 @@ public class PlannerService(IAppDbContext db) : IPlannerService
             Title = title,
             Notes = request.Notes?.Trim(),
             Date = request.Date,
+            EndDate = endDate,
             ScheduledTime = request.ScheduledTime,
             EndTime = request.EndTime,
             NotifyBeforeMinutes = request.NotifyBeforeMinutes,
@@ -114,8 +118,17 @@ public class PlannerService(IAppDbContext db) : IPlannerService
         var wasRecurring = item.Recurrence is not null;
         var oldDate = item.Date;
         var oldRule = item.Recurrence;
-        // The occurrence the person was looking at: moving it moves the whole series by as much.
-        var anchor = occurrence ?? item.Date;
+        var span = PlannerCalendar.SpanDays(item);
+        // The occurrence the person was looking at, on the day they saw it (it may have been moved
+        // on its own): moving it moves the whole series by as much.
+        var anchor = item.Date;
+        if (wasRecurring && occurrence is DateOnly original)
+        {
+            anchor = await db.PlannerOccurrences.AsNoTracking()
+                .Where(c => c.ItemId == item.Id && c.OriginalDate == original)
+                .Select(c => c.Date)
+                .FirstOrDefaultAsync(ct) ?? original;
+        }
 
         if (wasRecurring && request.ClearRecurrence)
         {
@@ -128,6 +141,10 @@ public class PlannerService(IAppDbContext db) : IPlannerService
         {
             item.Date = wasRecurring ? item.Date.AddDays(requested.DayNumber - anchor.DayNumber) : requested;
         }
+
+        // A new last day is counted from the day the person was looking at, like a new first day.
+        if (request.EndDate is DateOnly end) span = SpanFrom(request.Date ?? anchor, end);
+        item.EndDate = span == 0 ? null : item.Date.AddDays(span);
 
         await ApplyFieldsAsync(item, request, ct);
 
@@ -169,20 +186,36 @@ public class PlannerService(IAppDbContext db) : IPlannerService
 
         if (request.Title is not null) change.Title = RequireTitle(request.Title);
         if (request.Notes is not null) change.Notes = request.Notes.Trim();
-        if (request.Date is DateOnly date) change.Date = date == occurrence ? null : date;
 
+        // The days: moving keeps the number of days it lasts; a new last day sets it.
+        var span = PlannerCalendar.SpanDays(item);
+        var wasOn = change.Date ?? occurrence;
+        var lastDay = change.EndDate is DateOnly own && own >= wasOn ? own : wasOn.AddDays(span);
+        if (request.Date is DateOnly date) change.Date = date == occurrence ? null : date;
+        var isOn = change.Date ?? occurrence;
+        lastDay = request.EndDate is DateOnly newLast
+            ? isOn.AddDays(SpanFrom(isOn, newLast))
+            : lastDay.AddDays(isOn.DayNumber - wasOn.DayNumber);
+        change.EndDate = lastDay == isOn.AddDays(span) ? null : lastDay;
+        var multiDay = lastDay > isOn;
+
+        var (currentStart, currentEnd) = change.AllDay switch
+        {
+            true => ((TimeOnly?)null, (TimeOnly?)null),
+            false => (change.ScheduledTime, change.EndTime),
+            _ => (item.ScheduledTime, item.EndTime),
+        };
         if (request.ScheduledTime is not null || request.ClearScheduledTime || request.EndTime is not null || request.ClearEndTime)
         {
-            var (currentStart, currentEnd) = change.AllDay switch
-            {
-                true => ((TimeOnly?)null, (TimeOnly?)null),
-                false => (change.ScheduledTime, change.EndTime),
-                _ => (item.ScheduledTime, item.EndTime),
-            };
-            var (start, end) = ResolveTimes(currentStart, currentEnd, request);
+            var (start, end) = ResolveTimes(currentStart, currentEnd, request, multiDay);
             change.AllDay = start is null;
             change.ScheduledTime = start;
             change.EndTime = end;
+        }
+        else
+        {
+            // Made longer or shorter, its times must still make sense.
+            CheckTimes(currentStart, currentEnd, multiDay);
         }
 
         change.UpdatedAtUtc = DateTime.UtcNow;
@@ -200,6 +233,7 @@ public class PlannerService(IAppDbContext db) : IPlannerService
     {
         var rule = RuleOf(item);
         var newStart = request.Date ?? occurrence;
+        var span = request.EndDate is DateOnly end ? SpanFrom(newStart, end) : PlannerCalendar.SpanDays(item);
 
         string? newRecurrence;
         if (request.ClearRecurrence)
@@ -214,6 +248,7 @@ public class PlannerService(IAppDbContext db) : IPlannerService
             Title = item.Title,
             Notes = item.Notes,
             Date = newStart,
+            EndDate = span == 0 ? null : newStart.AddDays(span),
             ScheduledTime = item.ScheduledTime,
             EndTime = item.EndTime,
             NotifyBeforeMinutes = item.NotifyBeforeMinutes,
@@ -239,6 +274,8 @@ public class PlannerService(IAppDbContext db) : IPlannerService
                 thisOne.ScheduledTime = thisOne.EndTime = null;
             }
 
+            // Its own last day was counted from where it was; the new series sets where it is.
+            if (request.EndDate is not null || request.Date is not null || thisOne.Date is not null) thisOne.EndDate = null;
             thisOne.Date = null;
             if (IsEmpty(thisOne) || newRecurrence is null)
             {
@@ -323,7 +360,9 @@ public class PlannerService(IAppDbContext db) : IPlannerService
             return await UpdateAsync(id, new UpdatePlannerItemRequest(Date: date), target ?? new PlannerTarget(PlannerEditScope.This), ct);
         }
 
+        var span = PlannerCalendar.SpanDays(item);
         item.Date = date;
+        item.EndDate = span == 0 ? null : date.AddDays(span);
         item.SortOrder = await NextSortOrderAsync(date, ct);
         item.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
@@ -360,7 +399,7 @@ public class PlannerService(IAppDbContext db) : IPlannerService
             // Whatever was changed on it before no longer matters.
             change.IsCancelled = true;
             change.Title = change.Notes = change.Status = null;
-            change.Date = null;
+            change.Date = change.EndDate = null;
             change.ScheduledTime = change.EndTime = null;
             change.AllDay = null;
             change.UpdatedAtUtc = DateTime.UtcNow;
@@ -402,14 +441,14 @@ public class PlannerService(IAppDbContext db) : IPlannerService
         db.PlannerAlertLogs.RemoveRange(logs);
     }
 
-    /// <summary>The title, notes, times, alert and links of an update, on a tracked item.</summary>
+    /// <summary>The title, notes, times, alert and links of an update, on a tracked item whose days are already set.</summary>
     private async Task ApplyFieldsAsync(PlannerItem item, UpdatePlannerItemRequest request, CancellationToken ct)
     {
         if (request.Title is not null) item.Title = RequireTitle(request.Title);
         if (request.Notes is not null) item.Notes = request.Notes.Trim();
         if (request.SortOrder is int sortOrder) item.SortOrder = sortOrder;
 
-        (item.ScheduledTime, item.EndTime) = ResolveTimes(item.ScheduledTime, item.EndTime, request);
+        (item.ScheduledTime, item.EndTime) = ResolveTimes(item.ScheduledTime, item.EndTime, request, multiDay: item.EndDate is not null);
 
         if (request.ClearGoal)
         {
@@ -442,10 +481,12 @@ public class PlannerService(IAppDbContext db) : IPlannerService
     }
 
     /// <summary>
-    /// The start and end after a change. Moving the start keeps the length; going all-day drops the
-    /// end; an end needs a start and must come after it.
+    /// The start and end after a change. Moving the start keeps the length (over several days the
+    /// end is on another day and stays put); going all-day drops the end; an end needs a start and,
+    /// on the same day, must come after it.
     /// </summary>
-    private static (TimeOnly? Start, TimeOnly? End) ResolveTimes(TimeOnly? start, TimeOnly? end, UpdatePlannerItemRequest request)
+    private static (TimeOnly? Start, TimeOnly? End) ResolveTimes(
+        TimeOnly? start, TimeOnly? end, UpdatePlannerItemRequest request, bool multiDay)
     {
         var newStart = start;
         var newEnd = end;
@@ -458,7 +499,7 @@ public class PlannerService(IAppDbContext db) : IPlannerService
         else if (request.ScheduledTime is TimeOnly moved)
         {
             newStart = moved;
-            if (request.EndTime is null && !request.ClearEndTime && start is TimeOnly was && end is TimeOnly wasEnd && wasEnd > was)
+            if (!multiDay && request.EndTime is null && !request.ClearEndTime && start is TimeOnly was && end is TimeOnly wasEnd && wasEnd > was)
                 newEnd = PlannerCalendar.WithinDay(moved, (int)(wasEnd - was).TotalMinutes);
             else if (start is null)
                 newEnd = null;
@@ -467,18 +508,33 @@ public class PlannerService(IAppDbContext db) : IPlannerService
         if (request.ClearEndTime) newEnd = null;
         else if (request.EndTime is TimeOnly given) newEnd = given;
 
-        CheckTimes(newStart, newEnd);
+        CheckTimes(newStart, newEnd, multiDay);
         return (newStart, newEnd);
     }
 
-    private static void CheckTimes(TimeOnly? start, TimeOnly? end)
+    private static void CheckTimes(TimeOnly? start, TimeOnly? end, bool multiDay)
     {
-        if (end is null) return;
-        if (start is null)
+        if (end is not null && start is null)
             throw new PlannerValidationException("An end time needs a start time; leave both out for an all-day event.");
-        if (end <= start)
+        if (multiDay)
+        {
+            if (start is not null && end is null)
+                throw new PlannerValidationException("An event over several days with a start time needs an end time too.");
+            return;
+        }
+        if (end is not null && end <= start)
             throw new PlannerValidationException("The end time must be after the start time.");
     }
+
+    /// <summary>The last day of a new event: null when it ends on the day it starts.</summary>
+    private static DateOnly? LastDay(DateOnly date, DateOnly? endDate) =>
+        SpanFrom(date, endDate ?? date) == 0 ? null : endDate;
+
+    /// <summary>How many days after <paramref name="first"/> the event ends; an end before the start is refused.</summary>
+    private static int SpanFrom(DateOnly first, DateOnly last) =>
+        last >= first
+            ? last.DayNumber - first.DayNumber
+            : throw new PlannerValidationException("The end day must be on or after the start day.");
 
     private static void CheckNotify(int? minutes)
     {
@@ -540,8 +596,8 @@ public class PlannerService(IAppDbContext db) : IPlannerService
     }
 
     private static bool IsEmpty(PlannerOccurrence c) =>
-        !c.IsCancelled && c.Title is null && c.Notes is null && c.Date is null && c.ScheduledTime is null
-        && c.EndTime is null && c.AllDay is null && c.Status is null;
+        !c.IsCancelled && c.Title is null && c.Notes is null && c.Date is null && c.EndDate is null
+        && c.ScheduledTime is null && c.EndTime is null && c.AllDay is null && c.Status is null;
 
     private async Task<int> NextSortOrderAsync(DateOnly date, CancellationToken ct)
     {
@@ -586,11 +642,12 @@ public class PlannerService(IAppDbContext db) : IPlannerService
             goal is null ? null : ItemKeys.Goal(goal.Number),
             i.TaskId,
             i.Task is null ? null : ItemKeys.Task(i.Task.Number),
-            EndTime: PlannerCalendar.EffectiveEnd(view.Start, view.End),
+            EndTime: view.EffectiveEnd,
             NotifyBeforeMinutes: i.NotifyBeforeMinutes,
             Recurrence: i.Recurrence,
             RecurrenceText: recurrenceText,
             OccurrenceDate: view.OriginalDate,
-            IsChanged: view.IsChanged);
+            IsChanged: view.IsChanged,
+            EndDate: view.EndDate);
     }
 }

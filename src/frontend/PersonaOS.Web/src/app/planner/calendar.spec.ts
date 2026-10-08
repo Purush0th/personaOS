@@ -1,7 +1,8 @@
 import { PlannerItemDto } from '../core/planner.service';
+import { describeWhen } from './event-peek';
 import {
-  customRule, defaultCustomRepeat, formatRange, formatTime, hourLabel, layoutDay, leadText, monthGrid, notifyAt, parseCustom,
-  repeatOptions, startOfWeek, stepAnchor, viewRange, viewTitle,
+  customRule, daysBetween, defaultCustomRepeat, eventsByDay, formatRange, formatTime, hourLabel, layoutBars, layoutDay, leadText,
+  monthGrid, movedTo, notifyAt, parseCustom, repeatOptions, snap, startOfWeek, stepAnchor, viewRange, viewTitle,
 } from './calendar';
 
 function item(id: number, start: string | null, end: string | null): PlannerItemDto {
@@ -142,6 +143,55 @@ describe('calendar', () => {
       expect(notifyAt(sat, '10:00:00', 30)).toEqual(new Date(2026, 9, 3, 9, 30));
       expect(notifyAt(sat, null, 60)).toEqual(new Date(2026, 9, 3, 8, 0));
       expect(notifyAt(sat, '10:00', 1440)).toEqual(new Date(2026, 9, 2, 10, 0));
+    });
+  });
+  describe('several days', () => {
+    // Friday 9 to Sunday 11 October.
+    const trip = { ...item(1, null, null), date: '2026-10-09', endDate: '2026-10-11', occurrenceDate: '2026-10-09' };
+    const week = daysBetween('2026-10-05', '2026-10-11');
+
+    it('is under every day it covers, within the range', () => {
+      const byDay = eventsByDay([trip], '2026-10-10', '2026-10-31');
+      expect([...byDay.keys()]).toEqual(['2026-10-10', '2026-10-11']);
+    });
+
+    it('is a bar across its days, cut square where it runs past the days shown', () => {
+      const [bar] = layoutBars(week, [trip]);
+      expect(bar).toEqual(jasmine.objectContaining({ start: 4, span: 3, lane: 0, startsBefore: false, endsAfter: false }));
+
+      const [cut] = layoutBars(daysBetween('2026-10-10', '2026-10-16'), [trip]);
+      expect(cut).toEqual(jasmine.objectContaining({ start: 0, span: 2, startsBefore: true, endsAfter: false }));
+
+      // Weekends hidden: only the Friday is shown, and it goes on past it.
+      const [weekdays] = layoutBars(week.slice(0, 5), [trip]);
+      expect(weekdays).toEqual(jasmine.objectContaining({ start: 4, span: 1, endsAfter: true }));
+    });
+
+    it('stacks overlapping bars in lanes, the longest first', () => {
+      const saturday = { ...item(2, null, null), date: '2026-10-10' };
+      const monday = { ...item(3, null, null), date: '2026-10-05' };
+      const lanes = layoutBars(week, [saturday, monday, trip]).map(b => [b.item.id, b.lane]);
+      expect(lanes).toEqual([[3, 0], [1, 0], [2, 1]]);
+    });
+
+    it('describes its days in the quick view', () => {
+      expect(describeWhen(trip)).toBe('Friday, 9 October – Sunday, 11 October');
+      const timed = { ...trip, scheduledTime: '18:00:00', endTime: '09:00:00', endDate: '2026-10-10' };
+      expect(describeWhen(timed)).toBe('Friday, 9 October, 6pm – Saturday, 10 October, 9am');
+    });
+  });
+
+  describe('dragging', () => {
+    it('snaps to quarter hours', () => {
+      expect(snap(7)).toBe(0);
+      expect(snap(8)).toBe(15);
+      expect(snap(-22)).toBe(-15);
+    });
+
+    it('moves a timed event keeping its length, cut at midnight', () => {
+      const meeting = item(1, '09:00:00', '10:30:00');
+      expect(movedTo(meeting, '2026-10-03', 14 * 60)).toEqual({ scheduledTime: '14:00', endTime: '15:30' });
+      expect(movedTo(meeting, '2026-10-04', 23 * 60)).toEqual({ scheduledTime: '23:00', endTime: '23:59', date: '2026-10-04' });
     });
   });
 });

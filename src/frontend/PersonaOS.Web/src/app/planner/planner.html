@@ -55,9 +55,10 @@
     @case ('month') {
       <app-month-view
         [anchor]="anchor()"
-        [itemsByDay]="itemsByDay()"
+        [items]="visibleItems()"
         [showWeekends]="options().showWeekends"
         (open)="openEvent($event)"
+        (move)="moveEvent($event)"
         (openDay)="openDay($event)"
         (create)="createEvent({ date: $event, start: null })"
       />
@@ -71,8 +72,10 @@
     @default {
       <app-time-grid
         [days]="gridDays()"
+        [items]="visibleItems()"
         [itemsByDay]="itemsByDay()"
         (open)="openEvent($event)"
+        (move)="moveEvent($event)"
         (create)="createEvent($event)"
         (openDay)="openDay($event)"
       />

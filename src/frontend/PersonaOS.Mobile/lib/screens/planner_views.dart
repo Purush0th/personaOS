@@ -1,36 +1,84 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
 import '../planner_calendar.dart';
 import 'planner_event.dart';
 
-/// The events of the loaded range by day (`yyyy-MM-dd`).
+/// The events of the loaded range by day (`yyyy-MM-dd`); one over several days is under each.
 typedef EventsByDay = Map<String, List<PlannerItem>>;
+
+/// An event dragged somewhere else or made longer or shorter: the event and the change, in the
+/// server's field names.
+typedef EventMoved = void Function(PlannerItem item, Map<String, Object?> change);
 
 /// The height of one hour in the time grid.
 const hourHeight = 52.0;
 
-/// The Day, 4 days and Week views: a column per day, an all-day strip, the hours below with the
-/// events placed by time and side by side where they overlap, and a red line at the current
-/// time. Tapping an empty slot makes an event at that half hour.
+/// The height of one lane of bars in the strip above the hours.
+const _barHeight = 20.0;
+
+enum _DragKind { move, resize, bar }
+
+/// A long-press drag in progress: what is dragged, how, and where it would land now.
+class _Drag {
+  _Drag({
+    required this.kind,
+    required this.item,
+    required this.fromDay,
+    required this.origin,
+    required this.startMinutes,
+    required this.endMinutes,
+  }) : day = fromDay,
+       start = startMinutes,
+       end = endMinutes;
+
+  final _DragKind kind;
+  final PlannerItem item;
+
+  /// The day under the finger when the press began, and the global point it began at.
+  final DateTime fromDay;
+  final Offset origin;
+  final int startMinutes;
+  final int endMinutes;
+
+  DateTime day;
+  int start;
+  int end;
+}
+
+/// The Day, 4 days and Week views: a column per day, a strip on top for all-day events and events
+/// over several days (bars across their days), the hours below with the events placed by time and
+/// side by side where they overlap, and a red line at the current time. Tapping an empty slot
+/// makes an event at that half hour.
+///
+/// As in Google Calendar's phone app, a long press picks an event up: drag it to another time or
+/// day, or pick it up by its bottom edge to change the end; a bar on top moves along the days.
 class TimeGridView extends StatefulWidget {
   const TimeGridView({
     super.key,
     required this.days,
+    required this.items,
     required this.events,
     required this.onOpen,
     required this.onCreate,
     required this.onOpenDay,
+    required this.onMove,
   });
 
   final List<DateTime> days;
+
+  /// The visible events of the loaded range, once each.
+  final List<PlannerItem> items;
   final EventsByDay events;
   final ValueChanged<PlannerItem> onOpen;
   final void Function(DateTime day, String? start) onCreate;
   final ValueChanged<DateTime> onOpenDay;
+  final EventMoved onMove;
 
   @override
   State<TimeGridView> createState() => _TimeGridViewState();
@@ -38,10 +86,15 @@ class TimeGridView extends StatefulWidget {
 
 class _TimeGridViewState extends State<TimeGridView> {
   late final ScrollController _scroll;
+  final _headings = GlobalKey();
   Timer? _tick;
   DateTime _now = DateTime.now();
+  _Drag? _drag;
 
   static const _gutter = 44.0;
+
+  /// The bottom of a timed event that picks up its end rather than the whole event.
+  static const _edge = 14.0;
 
   @override
   void initState() {
@@ -62,17 +115,84 @@ class _TimeGridViewState extends State<TimeGridView> {
 
   List<PlannerItem> _on(DateTime day) => widget.events[localYmd(day)] ?? const [];
 
+  // --- Dragging ------------------------------------------------------------------------
+
+  /// The day column under a point on the screen (the nearest one at the edges).
+  DateTime _dayAt(Offset global) {
+    final box = _headings.currentContext!.findRenderObject()! as RenderBox;
+    final local = box.globalToLocal(global);
+    final width = (box.size.width - _gutter) / widget.days.length;
+    final column = ((local.dx - _gutter) / width).floor().clamp(0, widget.days.length - 1);
+    return widget.days[column];
+  }
+
+  void _pickUp(_DragKind kind, PlannerItem item, Offset global, {int start = 0, int end = 0}) {
+    unawaited(HapticFeedback.mediumImpact());
+    setState(
+      () => _drag = _Drag(
+        kind: kind,
+        item: item,
+        fromDay: _dayAt(global),
+        origin: global,
+        startMinutes: start,
+        endMinutes: end,
+      ),
+    );
+  }
+
+  void _dragTo(Offset global) {
+    final drag = _drag;
+    if (drag == null) return;
+    final shift = snap((global.dy - drag.origin.dy) / hourHeight * 60);
+    final length = drag.endMinutes - drag.startMinutes;
+    setState(() {
+      switch (drag.kind) {
+        case _DragKind.bar:
+          drag.day = _dayAt(global);
+        case _DragKind.move:
+          drag.day = _dayAt(global);
+          drag.start = (drag.startMinutes + shift).clamp(0, 24 * 60 - snapMinutes);
+          drag.end = math.min(drag.start + length, 24 * 60 - 1);
+        case _DragKind.resize:
+          drag.end = (drag.endMinutes + shift).clamp(drag.startMinutes + snapMinutes, 24 * 60 - 1);
+      }
+    });
+  }
+
+  void _drop() {
+    final drag = _drag;
+    setState(() => _drag = null);
+    if (drag == null) return;
+    final item = drag.item;
+    switch (drag.kind) {
+      case _DragKind.bar:
+        final shift = dayDiff(drag.fromDay, drag.day);
+        if (shift != 0) widget.onMove(item, {'date': localYmd(addDays(parseDay(item.date), shift))});
+      case _DragKind.move:
+        if (!sameDay(drag.day, drag.fromDay) || drag.start != drag.startMinutes) {
+          widget.onMove(item, movedTo(item, drag.day, drag.start));
+        }
+      case _DragKind.resize:
+        if (drag.end != drag.endMinutes) widget.onMove(item, {'endTime': timeOf(drag.end)});
+    }
+  }
+
+  void _cancel() => setState(() => _drag = null);
+
+  bool _lifted(PlannerItem item) => identical(_drag?.item, item);
+
+  // --- Layout --------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final allDay = [for (final d in widget.days) _on(d).where((i) => i.isAllDay).toList()];
-    final hasAllDay = allDay.any((l) => l.isNotEmpty);
 
     return Column(
       children: [
         // Day headings.
         Row(
+          key: _headings,
           children: [
             const SizedBox(width: _gutter),
             for (final day in widget.days)
@@ -113,34 +233,7 @@ class _TimeGridViewState extends State<TimeGridView> {
               ),
           ],
         ),
-        if (hasAllDay)
-          Container(
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(width: _gutter),
-                for (var i = 0; i < widget.days.length; i++)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(1, 0, 1, 4),
-                      child: Column(
-                        children: [
-                          for (final item in allDay[i])
-                            _EventChip(
-                              item: item,
-                              past: dayOnly(widget.days[i]).isBefore(dayOnly(_now)),
-                              onTap: () => widget.onOpen(item),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+        _strip(context),
         Expanded(
           child: SingleChildScrollView(
             controller: _scroll,
@@ -175,11 +268,85 @@ class _TimeGridViewState extends State<TimeGridView> {
     );
   }
 
+  /// All-day events and events over several days, as bars across the days they cover.
+  Widget _strip(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final bars = layoutBars(widget.days, widget.items.where(isBar));
+    if (bars.isEmpty) return const SizedBox.shrink();
+    final lanes = bars.fold(0, (most, b) => math.max(most, b.lane + 1));
+    final today = dayOnly(_now);
+
+    // Where a dragged bar would land: the same lane, shifted by the days dragged.
+    PlacedBar? ghost;
+    final drag = _drag;
+    if (drag != null && drag.kind == _DragKind.bar) {
+      final shift = dayDiff(drag.fromDay, drag.day);
+      final item = drag.item;
+      final moved = item.copyWith(
+        date: localYmd(addDays(parseDay(item.date), shift)),
+        endDate: localYmd(addDays(parseDay(item.lastDay), shift)),
+      );
+      ghost = layoutBars(widget.days, [moved]).firstOrNull;
+      ghost?.lane = bars.where((b) => identical(b.item, item)).firstOrNull?.lane ?? 0;
+    }
+
+    return Container(
+      height: lanes * (_barHeight + 2) + 4,
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = (constraints.maxWidth - _gutter) / widget.days.length;
+          Positioned place(PlacedBar bar, Widget child) => Positioned(
+            left: _gutter + bar.start * width + (bar.startsBefore ? 0 : 1),
+            width: bar.span * width - (bar.startsBefore ? 0 : 1) - (bar.endsAfter ? 0 : 2),
+            top: bar.lane * (_barHeight + 2),
+            height: _barHeight,
+            child: child,
+          );
+          return Stack(
+            children: [
+              for (var i = 0; i < widget.days.length; i++)
+                Positioned(
+                  left: _gutter + i * width,
+                  top: 0,
+                  bottom: 0,
+                  child: VerticalDivider(width: 1, thickness: 1, color: scheme.outlineVariant),
+                ),
+              for (final bar in bars)
+                place(
+                  bar,
+                  GestureDetector(
+                    onLongPressStart: (d) => _pickUp(_DragKind.bar, bar.item, d.globalPosition),
+                    onLongPressMoveUpdate: (d) => _dragTo(d.globalPosition),
+                    onLongPressEnd: (_) => _drop(),
+                    onLongPressCancel: _cancel,
+                    child: Opacity(
+                      opacity: _lifted(bar.item) ? 0.35 : 1,
+                      child: _Bar(
+                        bar: bar,
+                        past: parseDay(bar.item.lastDay).isBefore(today),
+                        onTap: () => widget.onOpen(bar.item),
+                      ),
+                    ),
+                  ),
+                ),
+              if (ghost != null) place(ghost, IgnorePointer(child: _Ghost(title: ghost.item.title))),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Widget _dayColumn(BuildContext context, DateTime day) {
     final scheme = Theme.of(context).colorScheme;
     final placed = layoutDay(_on(day));
     final isToday = sameDay(day, _now);
     final nowMinutes = _now.hour * 60 + _now.minute;
+    final drag = _drag;
+    final ghost = drag != null && drag.kind != _DragKind.bar && sameDay(drag.day, day) ? drag : null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -205,16 +372,51 @@ class _TimeGridViewState extends State<TimeGridView> {
                     child: Divider(height: 1, thickness: 1, color: scheme.outlineVariant),
                   ),
                 for (final e in placed)
+                  () {
+                    final height = ((e.endMinutes - e.startMinutes) / 60 * hourHeight - 2).clamp(16.0, double.infinity);
+                    final start = minutesOf(e.item.scheduledTime!);
+                    final end = e.item.endTime == null ? start + 60 : minutesOf(e.item.endTime!);
+                    return Positioned(
+                      top: e.startMinutes / 60 * hourHeight,
+                      height: height,
+                      left: width * e.column / e.columns + 1,
+                      width: width / e.columns - 3,
+                      child: GestureDetector(
+                        // Held near its bottom edge, the end moves; anywhere else, the whole event.
+                        onLongPressStart: (d) => _pickUp(
+                          height >= 2 * _edge && d.localPosition.dy >= height - _edge ? _DragKind.resize : _DragKind.move,
+                          e.item,
+                          d.globalPosition,
+                          start: start,
+                          end: end > start ? end : start + 60,
+                        ),
+                        onLongPressMoveUpdate: (d) => _dragTo(d.globalPosition),
+                        onLongPressEnd: (_) => _drop(),
+                        onLongPressCancel: _cancel,
+                        child: Opacity(
+                          opacity: _lifted(e.item) ? 0.35 : 1,
+                          child: _EventBlock(
+                            event: e,
+                            narrow: width / e.columns < 72,
+                            past: dayOnly(day).isBefore(dayOnly(_now)) || (isToday && e.endMinutes <= nowMinutes),
+                            onTap: () => widget.onOpen(e.item),
+                          ),
+                        ),
+                      ),
+                    );
+                  }(),
+                if (ghost != null)
                   Positioned(
-                    top: e.startMinutes / 60 * hourHeight,
-                    height: ((e.endMinutes - e.startMinutes) / 60 * hourHeight - 2).clamp(16, double.infinity),
-                    left: width * e.column / e.columns + 1,
-                    width: width / e.columns - 3,
-                    child: _EventBlock(
-                      event: e,
-                      narrow: width / e.columns < 72,
-                      past: dayOnly(day).isBefore(dayOnly(_now)) || (isToday && e.endMinutes <= nowMinutes),
-                      onTap: () => widget.onOpen(e.item),
+                    top: ghost.start / 60 * hourHeight,
+                    height: ((ghost.end - ghost.start) / 60 * hourHeight - 2).clamp(16.0, double.infinity),
+                    left: 1,
+                    right: 2,
+                    child: IgnorePointer(
+                      child: _Ghost(
+                        key: const Key('drag-ghost'),
+                        title: ghost.item.title,
+                        time: formatRange(timeOf(ghost.start), timeOf(ghost.end)),
+                      ),
                     ),
                   ),
                 if (isToday)
@@ -315,63 +517,125 @@ class _EventBlock extends StatelessWidget {
   }
 }
 
-class _EventChip extends StatelessWidget {
-  const _EventChip({required this.item, required this.past, required this.onTap});
+/// An event in the strip on top: a bar over its days. An end that runs past the days shown is
+/// square, as Google Calendar draws it.
+class _Bar extends StatelessWidget {
+  const _Bar({required this.bar, required this.past, required this.onTap});
 
-  final PlannerItem item;
+  final PlacedBar bar;
   final bool past;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Opacity(
-    opacity: past ? 0.6 : 1,
-    child: Padding(
-      padding: const EdgeInsets.only(bottom: 2),
+  Widget build(BuildContext context) {
+    final item = bar.item;
+    final fg = eventTextColor(context, item);
+    const round = Radius.circular(4);
+    return Opacity(
+      opacity: past ? 0.6 : 1,
       child: Material(
         key: Key('event-${item.id}-${item.occurrenceDate}'),
         color: eventColor(context, item),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.horizontal(
+          left: bar.startsBefore ? Radius.zero : round,
+          right: bar.endsAfter ? Radius.zero : round,
+        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            child: Text(
-              item.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                color: eventTextColor(context, item),
-                decoration: item.status != 'planned' ? TextDecoration.lineThrough : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                // A timed event over several days says when it starts, on the day it starts.
+                item.scheduledTime != null && !bar.startsBefore
+                    ? '${formatTime(item.scheduledTime!)} ${item.title}'
+                    : item.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: fg,
+                  decoration: item.status != 'planned' ? TextDecoration.lineThrough : null,
+                ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
-/// The Month view: whole weeks from the week of the 1st, all-day events as bars, timed ones as a
-/// dot and the title, "+N" when a day is full. Tapping a day opens it.
+/// Where a dragged event would land.
+class _Ghost extends StatelessWidget {
+  const _Ghost({super.key, required this.title, this.time});
+
+  final String title;
+  final String? time;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 6,
+      color: scheme.primaryContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: BorderSide(color: scheme.primary, width: 2),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.topLeft,
+            maxHeight: double.infinity,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: scheme.onPrimaryContainer),
+                ),
+                if (time != null)
+                  Text(time!, maxLines: 1, style: TextStyle(fontSize: 10, color: scheme.onPrimaryContainer)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The Month view: whole weeks from the week of the 1st. An all-day event, or one over several
+/// days, is a bar across its days; a timed one is a dot and its title; "+N" when a day is full.
+/// Tapping a day opens it.
 class MonthGridView extends StatelessWidget {
   const MonthGridView({
     super.key,
     required this.anchor,
-    required this.events,
+    required this.items,
     required this.showWeekends,
     required this.onOpen,
     required this.onOpenDay,
   });
 
   final DateTime anchor;
-  final EventsByDay events;
+
+  /// The visible events of the loaded range, once each.
+  final List<PlannerItem> items;
   final bool showWeekends;
   final ValueChanged<PlannerItem> onOpen;
   final ValueChanged<DateTime> onOpenDay;
 
-  static const _maxInCell = 3;
+  static const _numberHeight = 24.0;
+  static const _laneHeight = 14.0;
 
   @override
   Widget build(BuildContext context) {
@@ -403,12 +667,34 @@ class MonthGridView extends StatelessWidget {
               ),
           ],
         ),
-        for (final week in weeks)
-          Expanded(
-            child: Row(
+        for (final week in weeks) Expanded(child: _week(context, week, today)),
+      ],
+    );
+  }
+
+  Widget _week(BuildContext context, List<DateTime> days, DateTime today) {
+    final scheme = Theme.of(context).colorScheme;
+    final bars = layoutBars(days, items);
+    final used = bars.fold(0, (most, b) => math.max(most, b.lane + 1));
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth / days.length;
+        // As many lanes as fit; when they do not all fit, one row is left for "+N".
+        final fit = math.max(0, ((constraints.maxHeight - _numberHeight) / _laneHeight).floor());
+        final lanes = used <= fit ? used : math.max(0, fit - 1);
+        final more = [
+          for (var i = 0; i < days.length; i++)
+            bars.where((b) => b.lane >= lanes && b.start <= i && i < b.start + b.span).length,
+        ];
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final day in week)
+                for (final day in days)
                   Expanded(
                     child: InkWell(
                       key: Key('month-day-${localYmd(day)}'),
@@ -420,12 +706,21 @@ class MonthGridView extends StatelessWidget {
                             left: BorderSide(color: scheme.outlineVariant, width: 0.5),
                           ),
                         ),
-                        padding: const EdgeInsets.all(1),
-                        child: ClipRect(
-                          child: OverflowBox(
-                            alignment: Alignment.topCenter,
-                            maxHeight: double.infinity,
-                            child: _cell(context, day, today),
+                        alignment: Alignment.topCenter,
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(shape: BoxShape.circle, color: day == today ? scheme.primary : null),
+                          child: Text(
+                            '${day.day}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: day == today
+                                  ? scheme.onPrimary
+                                  : (day.month == anchor.month ? scheme.onSurface : scheme.outline),
+                            ),
                           ),
                         ),
                       ),
@@ -433,79 +728,80 @@ class MonthGridView extends StatelessWidget {
                   ),
               ],
             ),
-          ),
-      ],
+            for (final bar in bars.where((b) => b.lane < lanes))
+              Positioned(
+                left: bar.start * width + (bar.startsBefore ? 0 : 1),
+                width: bar.span * width - (bar.startsBefore ? 0 : 1) - (bar.endsAfter ? 0 : 2),
+                top: _numberHeight + bar.lane * _laneHeight,
+                height: _laneHeight - 1,
+                child: GestureDetector(
+                  onTap: () => onOpen(bar.item),
+                  child: _monthEvent(context, bar, today),
+                ),
+              ),
+            for (var i = 0; i < days.length; i++)
+              if (more[i] > 0)
+                Positioned(
+                  left: i * width + 2,
+                  width: width - 2,
+                  top: _numberHeight + lanes * _laneHeight,
+                  child: IgnorePointer(
+                    child: Text('+${more[i]}', style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant)),
+                  ),
+                ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _cell(BuildContext context, DateTime day, DateTime today) {
+  Widget _monthEvent(BuildContext context, PlacedBar bar, DateTime today) {
     final scheme = Theme.of(context).colorScheme;
-    final items = events[localYmd(day)] ?? const <PlannerItem>[];
-    final sorted = [...items.where((i) => i.isAllDay), ...items.where((i) => !i.isAllDay)];
-    final fits = sorted.length > _maxInCell + 1 ? _maxInCell : sorted.length;
-    final isToday = day == today;
-    final inMonth = day.month == anchor.month;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Center(
-          child: Container(
-            width: 22,
-            height: 22,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: isToday ? scheme.primary : null),
-            child: Text(
-              '${day.day}',
-              style: TextStyle(
-                fontSize: 11,
-                color: isToday ? scheme.onPrimary : (inMonth ? scheme.onSurface : scheme.outline),
+    final item = bar.item;
+    final filled = isBar(item);
+    const round = Radius.circular(3);
+    return Opacity(
+      opacity: parseDay(item.lastDay).isBefore(today) ? 0.6 : 1,
+      child: Container(
+        key: Key('event-${item.id}-${item.occurrenceDate}'),
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: filled
+            ? BoxDecoration(
+                color: eventColor(context, item),
+                borderRadius: BorderRadius.horizontal(
+                  left: bar.startsBefore ? Radius.zero : round,
+                  right: bar.endsAfter ? Radius.zero : round,
+                ),
+              )
+            : null,
+        child: Row(
+          children: [
+            if (!filled)
+              Container(
+                width: 5,
+                height: 5,
+                margin: const EdgeInsets.only(right: 2),
+                decoration: BoxDecoration(
+                  color: item.goalKey == null ? scheme.primary : eventColor(context, item),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            Expanded(
+              child: Text(
+                item.title,
+                maxLines: 1,
+                overflow: TextOverflow.clip,
+                softWrap: false,
+                style: TextStyle(
+                  fontSize: 9.5,
+                  color: filled ? eventTextColor(context, item) : scheme.onSurface,
+                  decoration: item.status != 'planned' ? TextDecoration.lineThrough : null,
+                ),
               ),
             ),
-          ),
+          ],
         ),
-        for (final item in sorted.take(fits))
-          GestureDetector(
-            onTap: () => onOpen(item),
-            child: Container(
-              key: Key('event-${item.id}-${item.occurrenceDate}'),
-              margin: const EdgeInsets.only(top: 1),
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              decoration: item.isAllDay
-                  ? BoxDecoration(color: eventColor(context, item), borderRadius: BorderRadius.circular(3))
-                  : null,
-              child: Row(
-                children: [
-                  if (!item.isAllDay)
-                    Container(
-                      width: 5,
-                      height: 5,
-                      margin: const EdgeInsets.only(right: 2),
-                      decoration: BoxDecoration(
-                        color: item.goalKey == null ? scheme.primary : eventColor(context, item),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  Expanded(
-                    child: Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.clip,
-                      softWrap: false,
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        color: item.isAllDay ? eventTextColor(context, item) : scheme.onSurface,
-                        decoration: item.status != 'planned' ? TextDecoration.lineThrough : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        if (sorted.length > fits)
-          Text('+${sorted.length - fits}', style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant)),
-      ],
+      ),
     );
   }
 }
@@ -607,7 +903,8 @@ class YearGridView extends StatelessWidget {
   }
 }
 
-/// The Schedule view: the days ahead that have events, as a list. Empty days are left out.
+/// The Schedule view: the days ahead that have events, as a list. Empty days are left out; an
+/// event over several days is on each of them, titled "(Day 2/3)".
 class ScheduleListView extends StatelessWidget {
   const ScheduleListView({
     super.key,
@@ -621,6 +918,23 @@ class ScheduleListView extends StatelessWidget {
   final EventsByDay events;
   final ValueChanged<PlannerItem> onOpen;
   final ValueChanged<DateTime> onOpenDay;
+
+  /// "8:30 – 9:30am", "All day"; over several days "From 6pm" on the first, "Until 9am" on the last.
+  static String _time(PlannerItem item, DateTime day) {
+    final start = item.scheduledTime;
+    final end = item.endTime;
+    if (start == null || end == null) return 'All day';
+    if (!item.isMultiDay) return formatRange(start, end);
+    if (localYmd(day) == item.date) return 'From ${formatTime(start)}';
+    if (localYmd(day) == item.lastDay) return 'Until ${formatTime(end)}';
+    return 'All day';
+  }
+
+  static String _title(PlannerItem item, DateTime day) {
+    if (!item.isMultiDay) return item.title;
+    final span = dayOfSpan(item, day);
+    return '${item.title} (Day ${span.n}/${span.of})';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -685,7 +999,7 @@ class ScheduleListView extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(0, 2, 12, 2),
                         child: Material(
-                          key: Key('event-${item.id}-${item.occurrenceDate}'),
+                          key: Key('event-${item.id}-${item.occurrenceDate}-${localYmd(day)}'),
                           color: eventColor(context, item),
                           borderRadius: BorderRadius.circular(8),
                           child: InkWell(
@@ -699,7 +1013,7 @@ class ScheduleListView extends StatelessWidget {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          item.title,
+                                          _title(item, day),
                                           style: theme.textTheme.bodyMedium?.copyWith(
                                             color: eventTextColor(context, item),
                                             fontWeight: FontWeight.w600,
@@ -707,9 +1021,7 @@ class ScheduleListView extends StatelessWidget {
                                           ),
                                         ),
                                         Text(
-                                          item.isAllDay
-                                              ? 'All day'
-                                              : formatRange(item.scheduledTime!, item.endTime ?? item.scheduledTime!),
+                                          _time(item, day),
                                           style: theme.textTheme.bodySmall?.copyWith(
                                             color: eventTextColor(context, item),
                                           ),

@@ -1,4 +1,4 @@
-<div class="grid" [style.--days]="columns().length">
+<div class="grid" [style.--days]="columns().length" [class.dragging]="drag()?.started">
   <!-- Day headings -->
   <div class="head">
     <div class="gutter zone">{{ zone }}</div>
@@ -10,27 +10,45 @@
     }
   </div>
 
-  <!-- All-day strip -->
-  @if (hasAllDay()) {
-    <div class="all-day-row">
+  <!-- All-day events and events over several days, as bars across their days -->
+  @if (barLanes() > 0) {
+    <div class="all-day-row" [style.--lanes]="barLanes()">
       <div class="gutter"></div>
-      @for (col of columns(); track col.date) {
-        <div class="all-day" (click)="create.emit({ date: col.date, start: null })">
-          @for (item of col.allDay; track item.id + item.occurrenceDate) {
-            <button
-              type="button"
-              class="chip"
-              data-testid="event"
-              [class.goal]="hue(item) !== null"
-              [style.--hue]="hue(item)"
-              [class.past]="isPast(col.date, null)"
-              [class.done]="item.status !== 'planned'"
-              [attr.aria-label]="label(item)"
-              (click)="$event.stopPropagation(); open.emit(item)"
-            >
-              {{ item.title }}
-            </button>
+      @for (col of columns(); track col.date; let i = $index) {
+        <div class="all-day" [style.grid-column]="i + 2" (click)="create.emit({ date: col.date, start: null })"></div>
+      }
+      @for (bar of bars(); track bar.item.id + bar.item.occurrenceDate) {
+        <button
+          type="button"
+          class="chip"
+          data-testid="event"
+          [class.goal]="hue(bar.item) !== null"
+          [style.--hue]="hue(bar.item)"
+          [class.past]="isPast(columns()[bar.start + bar.span - 1].date, null)"
+          [class.done]="bar.item.status !== 'planned'"
+          [class.cut-start]="bar.startsBefore"
+          [class.cut-end]="bar.endsAfter"
+          [class.lifted]="isDragged(bar.item)"
+          [style.grid-column]="bar.start + 2 + ' / span ' + bar.span"
+          [style.grid-row]="bar.lane + 1"
+          [attr.aria-label]="label(bar.item)"
+          (pointerdown)="press($event, bar.item, 'bar', columns()[bar.start].date)"
+          (click)="$event.stopPropagation(); open.emit(bar.item)"
+        >
+          @if (barTime(bar); as time) {
+            <span class="bar-time">{{ time }}</span>
           }
+          <span class="title">{{ bar.item.title }}</span>
+        </button>
+      }
+      @if (barGhost(); as ghost) {
+        <div
+          class="chip ghost"
+          aria-hidden="true"
+          [style.grid-column]="ghost.start + 2 + ' / span ' + ghost.span"
+          [style.grid-row]="ghost.lane + 1"
+        >
+          <span class="title">{{ ghost.item.title }}</span>
         </div>
       }
     </div>
@@ -63,16 +81,31 @@
               [class.compact]="compact(event)"
               [class.past]="isPast(col.date, event)"
               [class.done]="event.item.status !== 'planned'"
+              [class.lifted]="isDragged(event.item)"
               [style.top.px]="top(event.startMinutes)"
               [style.height.px]="height(event)"
               [style.left]="'calc(' + (event.column / event.columns) * 100 + '% + 1px)'"
               [style.width]="'calc(' + 100 / event.columns + '% - 6px)'"
               [attr.aria-label]="label(event.item)"
+              (pointerdown)="press($event, event.item, 'move', col.date)"
               (click)="$event.stopPropagation(); open.emit(event.item)"
             >
               <span class="title">{{ event.item.title }}</span>
               <span class="time">{{ compact(event) ? formatTime(event.item.scheduledTime!) : formatRange(event.item.scheduledTime!, event.item.endTime!) }}</span>
+              <span
+                class="resize"
+                aria-hidden="true"
+                title="Drag to change the end"
+                (pointerdown)="press($event, event.item, 'resize', col.date)"
+              ></span>
             </button>
+          }
+
+          @if (ghostIn(col.date); as ghost) {
+            <div class="event ghost" aria-hidden="true" [style.top.px]="ghost.top" [style.height.px]="ghost.height">
+              <span class="title">{{ drag()!.item.title }}</span>
+              <span class="time">{{ ghost.label }}</span>
+            </div>
           }
 
           @if (col.isToday) {

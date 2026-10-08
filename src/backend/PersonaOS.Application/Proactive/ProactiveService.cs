@@ -124,7 +124,7 @@ public class ProactiveService(
             title: config.AssistantNickname,
             body: FirstLine(summary),
             data: new Dictionary<string, string> { ["type"] = "proactive" },
-            ct);
+            ct: ct);
 
         var invalid = results.Where(r => r.TokenInvalid).Select(r => r.Token).ToHashSet();
         if (invalid.Count > 0)

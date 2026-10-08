@@ -150,4 +150,74 @@ void main() {
       expect(formatMoment(DateTime(2026, 10, 2, 10)), 'Fri 2 Oct, 10:00 am');
     });
   });
+  group('several days', () {
+    // Friday 9 to Sunday 11 October.
+    final trip = PlannerItem(
+      id: 1,
+      title: 'Goa trip',
+      date: '2026-10-09',
+      endDate: '2026-10-11',
+      scheduledTime: null,
+      status: 'planned',
+      goalTitle: null,
+    );
+    final week = daysBetween(DateTime(2026, 10, 5), DateTime(2026, 10, 11));
+
+    test('is under every day it covers, within the range', () {
+      final byDay = eventsByDay([trip], DateTime(2026, 10, 10), DateTime(2026, 10, 31));
+      expect(byDay.keys, ['2026-10-10', '2026-10-11']);
+      expect(dayOfSpan(trip, DateTime(2026, 10, 10)), (n: 2, of: 3));
+    });
+
+    test('is a bar across its days, cut square where it runs past the days shown', () {
+      final bar = layoutBars(week, [trip]).single;
+      expect([bar.start, bar.span, bar.lane, bar.startsBefore, bar.endsAfter], [4, 3, 0, false, false]);
+
+      final cut = layoutBars(daysBetween(DateTime(2026, 10, 10), DateTime(2026, 10, 16)), [trip]).single;
+      expect([cut.start, cut.span, cut.startsBefore], [0, 2, true]);
+
+      // Weekends hidden: only the Friday is shown, and it goes on past it.
+      final weekdays = layoutBars(week.take(5).toList(), [trip]).single;
+      expect([weekdays.start, weekdays.span, weekdays.endsAfter], [4, 1, true]);
+    });
+
+    test('stacks overlapping bars in lanes, the longest first', () {
+      final saturday = PlannerItem(id: 2, title: 'Sat', date: '2026-10-10', scheduledTime: null, status: 'planned', goalTitle: null);
+      final monday = PlannerItem(id: 3, title: 'Mon', date: '2026-10-05', scheduledTime: null, status: 'planned', goalTitle: null);
+      final lanes = [for (final b in layoutBars(week, [saturday, monday, trip])) (b.item.id, b.lane)];
+      expect(lanes, [(3, 0), (1, 0), (2, 1)]);
+    });
+
+    test('is not laid out among the hours, and says its days', () {
+      final conference = PlannerItem(
+        id: 4,
+        title: 'Conference',
+        date: '2026-10-09',
+        endDate: '2026-10-10',
+        scheduledTime: '18:00:00',
+        endTime: '09:00:00',
+        status: 'planned',
+        goalTitle: null,
+      );
+      expect(layoutDay([conference]), isEmpty);
+      expect(describeWhen(trip), 'Friday, 9 October – Sunday, 11 October');
+      expect(describeWhen(conference), 'Friday, 9 October, 6pm – Saturday, 10 October, 9am');
+    });
+  });
+
+  group('dragging', () {
+    test('snaps to quarter hours', () {
+      expect([snap(7), snap(8), snap(-22)], [0, 15, -15]);
+    });
+
+    test('moves a timed event keeping its length, cut at midnight', () {
+      final meeting = _item(1, '09:00:00', '10:30:00');
+      expect(movedTo(meeting, DateTime(2026, 10, 3), 14 * 60), {'scheduledTime': '14:00', 'endTime': '15:30'});
+      expect(movedTo(meeting, DateTime(2026, 10, 4), 23 * 60), {
+        'date': '2026-10-04',
+        'scheduledTime': '23:00',
+        'endTime': '23:59',
+      });
+    });
+  });
 }

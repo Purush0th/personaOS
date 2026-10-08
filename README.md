@@ -21,7 +21,7 @@ data never leaves your machine except for the calls it makes to whichever model 
 |---|---|
 | **Chat** | Streaming conversation, with your profile and context in every prompt |
 | **Goals** | Yearly → quarterly → monthly hierarchy with progress that rolls up automatically |
-| **Planner** | A calendar (day, week, month, year, schedule): repeating events and a phone notification before each |
+| **Planner** | A calendar (day, week, month, year, schedule): events over one or several days, repeating, dragged to move, and a phone notification before each |
 | **Reminders** | Scheduled push notifications, created conversationally ("remind me tomorrow at 9") |
 | **Memory** | Remembers what you tell it across conversations; you can see, edit and delete every memory |
 | **Proactive** | An optional morning brief and evening rollup, pushed to your phone |

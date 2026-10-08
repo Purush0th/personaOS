@@ -11,6 +11,20 @@ namespace PersonaOS.Application.Common.Interfaces;
 public record PushResult(string Token, bool Success, bool TokenInvalid = false, string? Error = null);
 
 /// <summary>
+/// The Android notification channels the phone app creates. Each can be muted on its own in the
+/// phone's settings, so a notification goes in the one the person would expect to mute it with.
+/// The names must match the app's (push_service.dart).
+/// </summary>
+public static class PushChannels
+{
+    /// <summary>Reminders and the assistant's briefs and nudges.</summary>
+    public const string Reminders = "reminders";
+
+    /// <summary>"Starts in 30 minutes": planner events about to begin.</summary>
+    public const string PlannerEvents = "planner_events";
+}
+
+/// <summary>
 /// Push-notification port. The FCM adapter lives in Infrastructure; when push is not
 /// configured, a no-op implementation reports "not configured" so reminder delivery
 /// degrades gracefully instead of crashing the dispatcher.
@@ -21,11 +35,13 @@ public interface IPushSender
     bool IsConfigured { get; }
 
     /// <summary>Sends one notification to each token; one result per token.</summary>
+    /// <param name="channel">The Android notification channel it goes in: one of <see cref="PushChannels"/>.</param>
     Task<IReadOnlyList<PushResult>> SendAsync(
         IReadOnlyList<string> tokens,
         string title,
         string body,
         IReadOnlyDictionary<string, string>? data = null,
+        string channel = PushChannels.Reminders,
         CancellationToken ct = default);
 
     /// <summary>

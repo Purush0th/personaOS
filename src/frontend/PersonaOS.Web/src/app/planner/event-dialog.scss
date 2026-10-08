@@ -26,6 +26,11 @@ mat-dialog-content {
   width: 10.5rem;
 }
 
+/* The start and the end are one block: the two rows sit closer than the rest. */
+.row.when {
+  margin-bottom: 0.5rem;
+}
+
 .time {
   width: 7.5rem;
 }

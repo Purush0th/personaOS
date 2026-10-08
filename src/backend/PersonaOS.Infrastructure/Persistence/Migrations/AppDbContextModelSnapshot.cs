@@ -538,6 +538,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("Date")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("TEXT");
+
                     b.Property<TimeOnly?>("EndTime")
                         .HasColumnType("TEXT");
 
@@ -598,6 +601,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateOnly?>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("EndDate")
                         .HasColumnType("TEXT");
 
                     b.Property<TimeOnly?>("EndTime")

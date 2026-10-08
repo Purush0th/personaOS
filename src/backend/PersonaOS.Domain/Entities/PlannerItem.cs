@@ -27,8 +27,17 @@ public class PlannerItem
     public TimeOnly? ScheduledTime { get; set; }
 
     /// <summary>
-    /// The end time of day, later than the start on the same day. Null on a timed event means "no
-    /// end set" and it is shown as <see cref="PlannerEvents.DefaultDurationMinutes"/> long.
+    /// The last day of an event that lasts several days; null when it ends on <see cref="Date"/>.
+    /// For a repeating event, the last day of its first occurrence: every occurrence lasts as many
+    /// days.
+    /// </summary>
+    public DateOnly? EndDate { get; set; }
+
+    /// <summary>
+    /// The end time of day: later than the start on the same day, or any time on
+    /// <see cref="EndDate"/> for an event over several days (which needs one). Null on a timed
+    /// one-day event means "no end set" and it is shown as
+    /// <see cref="PlannerEvents.DefaultDurationMinutes"/> long.
     /// </summary>
     public TimeOnly? EndTime { get; set; }
 
@@ -107,6 +116,12 @@ public class PlannerOccurrence
 
     /// <summary>Moved to this day.</summary>
     public DateOnly? Date { get; set; }
+
+    /// <summary>
+    /// Ends on this day (made longer or shorter than the series); null means it lasts as many days
+    /// as the series' occurrences do, from whichever day it is on.
+    /// </summary>
+    public DateOnly? EndDate { get; set; }
 
     public TimeOnly? ScheduledTime { get; set; }
     public TimeOnly? EndTime { get; set; }

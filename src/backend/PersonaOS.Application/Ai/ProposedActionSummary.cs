@@ -123,10 +123,17 @@ public static class ProposedActionSummary
         return ToolPayloadText.Truncate(sb.ToString(), 500);
     }
 
-    /// <summary>"until 10:30", "repeats weekly until 2026-12-31", "notify 30 minutes before", for an add_planner_item card.</summary>
+    /// <summary>
+    /// "until 10:30", "until 2026-10-14 17:00", "repeats weekly until 2026-12-31", "notify 30 minutes
+    /// before", for an add_planner_item card.
+    /// </summary>
     private static IEnumerable<string> EventDetails(JsonElement input)
     {
-        if (ToolPayloadText.FirstValue(input, ["endTime"]) is { } end) yield return "until " + end;
+        var endTime = ToolPayloadText.FirstValue(input, ["endTime"]);
+        if (ToolPayloadText.FirstValue(input, ["endDate"]) is { } endDate)
+            yield return endTime is null ? "until " + endDate : $"until {endDate} {endTime}";
+        else if (endTime is not null)
+            yield return "until " + endTime;
         if (ToolPayloadText.FirstValue(input, ["scheduledTime"]) is null) yield return "all day";
 
         if (ToolPayloadText.FirstValue(input, ["repeat"]) is { } repeat)

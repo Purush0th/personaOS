@@ -50,6 +50,11 @@ $gutter-narrow: 2.75rem;
   padding-bottom: 0.25rem;
 }
 
+.head,
+.all-day-row {
+  padding-right: var(--scrollbar, 0px);
+}
+
 .zone {
   align-self: end;
   padding: 0 0.4rem 0.3rem 0;
@@ -99,17 +104,19 @@ $gutter-narrow: 2.75rem;
   }
 }
 
+// The strip on top: one lane per row, a bar spanning the columns of its days. The day cells
+// behind the bars take the clicks that create an all-day event.
 .all-day-row {
+  grid-template-rows: repeat(var(--lanes), minmax(1.375rem, auto));
+  row-gap: 2px;
+  padding-bottom: 4px;
   border-bottom: 1px solid var(--mat-sys-outline-variant);
 }
 
 .all-day {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 2px 4px 4px;
+  grid-row: 1 / -1;
+  margin-bottom: -4px;
   border-left: 1px solid var(--mat-sys-outline-variant);
-  min-height: 1.5rem;
   cursor: pointer;
 }
 
@@ -190,10 +197,42 @@ $gutter-narrow: 2.75rem;
 }
 
 .chip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0 4px;
   padding: 2px 8px;
   white-space: nowrap;
-  text-overflow: ellipsis;
+
+  .title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bar-time {
+    flex: none;
+    font: var(--mat-sys-label-small);
+  }
+
+  // Begun before the first day shown, or going on after the last: the end is cut square and runs
+  // to the edge, as Google Calendar draws it.
+  &.cut-start {
+    margin-left: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+
+  &.cut-end {
+    margin-right: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
 }
+
+// Dragging, the ghost and the bottom edge that changes the end: in drag.scss.
 
 .event {
   position: absolute;

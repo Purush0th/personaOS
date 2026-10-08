@@ -109,7 +109,7 @@ public class GetPlannerTool(IPlannerService planner, IInstanceConfigService conf
         "arguments for today. Pass 'date' for another single day, or 'from'+'to' for a range " +
         "(e.g. a week). Dates are the user's local dates. Each item has a status " +
         "(planned/done/skipped) and may link to a goal. A timed item has a scheduledTime and endTime; one " +
-        "without is all day. An item that repeats shows recurrenceText (like \"Weekly on Saturday\"); " +
+        "without is all day. An item over several days has an endDate after its date and is listed once. An item that repeats shows recurrenceText (like \"Weekly on Saturday\"); " +
         "each day it falls on is its own entry with an occurrenceDate. NOT the backlog or the sprint " +
         "board: for those use get_plan or get_board.";
     public override string InputSchemaJson => """
@@ -156,6 +156,7 @@ public class AddPlannerItemTool(
     public override string Name => "add_planner_item";
     public override string Description =>
         "Adds an event to the user's planner for a given day: all day, or from scheduledTime to endTime. " +
+        "An event over several days (a trip, a conference) also has an endDate. " +
         "A timed event notifies the user's phone 30 minutes before unless notifyBeforeMinutes says " +
         "otherwise. It can repeat. To plan a day's work on a sprint-board task, pass its taskKey (like " +
         "\"TASK-7\" from get_board); the title can then be left out. Otherwise goalKey (like " +
@@ -169,6 +170,7 @@ public class AddPlannerItemTool(
             "notes": { "type": "string", "description": "Optional detail." },
             "scheduledTime": { "type": "string", "description": "Optional start, 24-hour time, e.g. 09:30. Leave it out for an all-day item." },
             "endTime": { "type": "string", "description": "Optional end, 24-hour time later than scheduledTime, e.g. 10:30. Leave it out unless the user gave one." },
+            "endDate": { "type": "string", "description": "Only for an event over several days: its last day, ISO date after 'date'. With a scheduledTime it needs an endTime (on that day)." },
             "repeat": { "type": "string", "enum": ["none", "daily", "weekly", "weekdays", "monthly", "yearly"], "description": "none (leave it out) unless the user asked for it to repeat. weekdays is Monday to Friday." },
             "repeatUntil": { "type": "string", "description": "Optional last day of the repeat, ISO date. Only with repeat." },
             "notifyBeforeMinutes": { "type": "integer", "description": "Minutes before the start to notify the phone. Leave it out for the usual 30; -1 for no notification." },
@@ -192,7 +194,7 @@ public class AddPlannerItemTool(
         // start, a repeat of "none". Refusing those made it ask the user for a start time or a
         // period instead of proposing "Buy milk" (accuracy suite, 2026-10-07: 8/10). They are
         // dropped here, before the card, so the card shows only what will be saved.
-        foreach (var field in new[] { "scheduledTime", "endTime", "repeatUntil", "notes", "goalKey", "taskKey" })
+        foreach (var field in new[] { "scheduledTime", "endTime", "endDate", "repeatUntil", "notes", "goalKey", "taskKey" })
         {
             if (completed[field] is JsonValue v && v.TryGetValue<string>(out var text) && string.IsNullOrWhiteSpace(text))
                 completed.Remove(field);
@@ -203,8 +205,12 @@ public class AddPlannerItemTool(
         if (!completed.ContainsKey("repeat")) completed.Remove("repeatUntil");
         input = JsonDocument.Parse(completed.ToJsonString()).RootElement.Clone();
 
+        var day = await DayAsync(input, ct);
+        // A last day that is not after the first is the model filling the field in, not a long event.
+        if (GetString(input, "endDate") is { } last && (!DateOnly.TryParse(last, CultureInfo.InvariantCulture, out var lastDay) || lastDay <= day))
+            completed.Remove("endDate");
         if (GetString(input, "date") is null)
-            completed["date"] = (await DayAsync(input, ct)).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            completed["date"] = day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         // A timed event gets the usual heads-up unless one was chosen, so the card shows it.
         if (GetInt(input, "notifyBeforeMinutes") is null && GetString(input, "scheduledTime") is not null)
             completed["notifyBeforeMinutes"] = PlannerEvents.DefaultNotifyBeforeMinutes;
@@ -221,9 +227,15 @@ public class AddPlannerItemTool(
         var day = await DayAsync(input, ct);
         var start = GetTime(input, "scheduledTime");
         var end = GetTime(input, "endTime");
+        var lastDay = GetDate(input, "endDate");
         if (end is not null && start is null)
             throw new PlannerValidationException("'endTime' needs a 'scheduledTime'; leave both out for an all-day item.");
-        if (end is TimeOnly e && start is TimeOnly s && e <= s)
+        if (lastDay is DateOnly l && l < day)
+            throw new PlannerValidationException("'endDate' is the last day: on or after 'date'.");
+        var multiDay = lastDay is DateOnly over && over > day;
+        if (multiDay && start is not null && end is null)
+            throw new PlannerValidationException("An event over several days with a 'scheduledTime' needs an 'endTime' on its 'endDate'.");
+        if (!multiDay && end is TimeOnly e && start is TimeOnly s && e <= s)
             throw new PlannerValidationException("'endTime' must be later than 'scheduledTime'.");
         _ = RepeatRule(input, day);
         if (GetInt(input, "notifyBeforeMinutes") is int minutes && minutes != -1) CheckNotify(minutes);
@@ -306,7 +318,8 @@ public class AddPlannerItemTool(
             TaskId: taskId,
             EndTime: GetTime(input, "endTime"),
             NotifyBeforeMinutes: notify == -1 ? null : notify,
-            Recurrence: RepeatRule(input, day)), ct));
+            Recurrence: RepeatRule(input, day),
+            EndDate: GetDate(input, "endDate")), ct));
     }
 }
 
