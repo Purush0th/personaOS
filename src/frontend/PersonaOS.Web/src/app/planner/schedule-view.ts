@@ -3,11 +3,12 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { goalHue } from '../core/board.service';
 import { todayLocal } from '../core/local-date';
 import { PlannerItemDto } from '../core/planner.service';
-import { formatRange, monthName, parseDay, shortWeekday } from './calendar';
+import { dayOfSpan, formatRange, formatTime, isMultiDay, lastDayOf, monthName, parseDay, shortWeekday } from './calendar';
 
 /**
  * The Schedule view: the days ahead that have events, as a list, the way Google Calendar's
- * Schedule reads. Empty days are left out.
+ * Schedule reads. Empty days are left out; an event over several days is on each of them,
+ * titled "(Day 2/3)".
  */
 @Component({
   selector: 'app-schedule-view',
@@ -31,8 +32,8 @@ import { formatRange, monthName, parseDay, shortWeekday } from './calendar';
                 (click)="open.emit(item)"
               >
                 <span class="dot"></span>
-                <span class="time">{{ time(item) }}</span>
-                <span class="title">{{ item.title }}</span>
+                <span class="time">{{ time(item, day.date) }}</span>
+                <span class="title">{{ title(item, day.date) }}</span>
                 @if (item.recurrenceText) {
                   <span class="repeat muted" aria-label="Repeats">↻</span>
                 }
@@ -172,8 +173,19 @@ export class ScheduleView {
       })
   );
 
-  protected time(item: PlannerItemDto): string {
-    return item.scheduledTime && item.endTime ? formatRange(item.scheduledTime, item.endTime) : 'All day';
+  /** "8:30 – 9:30am", "All day"; over several days "From 6pm" on the first, "Until 9am" on the last. */
+  protected time(item: PlannerItemDto, day: string): string {
+    if (!item.scheduledTime || !item.endTime) return 'All day';
+    if (!isMultiDay(item)) return formatRange(item.scheduledTime, item.endTime);
+    if (day === item.date) return `From ${formatTime(item.scheduledTime)}`;
+    if (day === lastDayOf(item)) return `Until ${formatTime(item.endTime)}`;
+    return 'All day';
+  }
+
+  protected title(item: PlannerItemDto, day: string): string {
+    if (!isMultiDay(item)) return item.title;
+    const { n, of } = dayOfSpan(item, day);
+    return `${item.title} (Day ${n}/${of})`;
   }
 
   protected hue(item: PlannerItemDto): number | null {

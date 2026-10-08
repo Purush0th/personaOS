@@ -230,6 +230,16 @@ public class SystemPromptBuilderTests
     }
 
     [Fact]
+    public async Task An_event_over_several_days_is_listed_with_its_first_and_last_day()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var prompt = await BuildAsync(c => c.TimeZone = "UTC", db => db.PlannerItems.Add(
+            new PlannerItem { Title = "Goa trip", Date = today.AddDays(-1), EndDate = today.AddDays(1) }));
+
+        Assert.Contains($"- {today.AddDays(-1):yyyy-MM-dd} to {today.AddDays(1):yyyy-MM-dd} Goa trip [planned]", prompt);
+    }
+
+    [Fact]
     public async Task Lists_upcoming_reminders_in_the_users_zone()
     {
         var prompt = await BuildAsync(seed: SeedEverything);

@@ -175,13 +175,129 @@ String formatRange(String start, String end) {
 /// The label of an hour row: "7 AM", "12 PM".
 String hourLabel(int hour) => '${hour % 12 == 0 ? 12 : hour % 12} ${hour < 12 ? 'AM' : 'PM'}';
 
-/// "Saturday, 3 October · 8:30 – 9:30am", or "… · All day".
+/// "Saturday, 3 October · 8:30 – 9:30am", or "… · All day"; over several days "Friday, 9 October –
+/// Sunday, 11 October", or with times "Friday, 9 October, 6pm – Saturday, 10 October, 9am".
 String describeWhen(PlannerItem item) {
-  final d = parseDay(item.date);
-  final day = '${weekdayName(d)}, ${d.day} ${monthNames[d.month - 1]}';
+  String dayName(String ymd) {
+    final d = parseDay(ymd);
+    return '${weekdayName(d)}, ${d.day} ${monthNames[d.month - 1]}';
+  }
+
   final start = item.scheduledTime;
   final end = item.endTime;
-  return '$day · ${start != null && end != null ? formatRange(start, end) : 'All day'}';
+  if (item.isMultiDay) {
+    return start != null && end != null
+        ? '${dayName(item.date)}, ${formatTime(start)} – ${dayName(item.lastDay)}, ${formatTime(end)}'
+        : '${dayName(item.date)} – ${dayName(item.lastDay)}';
+  }
+  return '${dayName(item.date)} · ${start != null && end != null ? formatRange(start, end) : 'All day'}';
+}
+
+// --- Several days ------------------------------------------------------------------------
+
+/// Drawn as a bar across the top of the time grid: all day, or over several days (timed or not).
+bool isBar(PlannerItem item) => item.isAllDay || item.isMultiDay;
+
+/// Days from [a] to [b] (negative when [b] is earlier).
+int dayDiff(DateTime a, DateTime b) => DateTime.utc(b.year, b.month, b.day).difference(DateTime.utc(a.year, a.month, a.day)).inDays;
+
+/// Which of its days [day] is, and how many it has: "(Day 2/3)" as Google Calendar titles it.
+({int n, int of}) dayOfSpan(PlannerItem item, DateTime day) {
+  final first = parseDay(item.date);
+  return (n: dayDiff(first, day) + 1, of: dayDiff(first, parseDay(item.lastDay)) + 1);
+}
+
+/// Each event under every day it covers (yyyy-MM-dd), so a day's list, count or dot includes an
+/// event that began earlier. Days outside [from]…[to] are left out.
+Map<String, List<PlannerItem>> eventsByDay(Iterable<PlannerItem> items, DateTime from, DateTime to) {
+  final byDay = <String, List<PlannerItem>>{};
+  for (final item in items) {
+    final first = parseDay(item.date);
+    final last = parseDay(item.lastDay);
+    for (var d = first.isBefore(from) ? dayOnly(from) : first; !d.isAfter(last) && !d.isAfter(to); d = addDays(d, 1)) {
+      (byDay[localYmd(d)] ??= []).add(item);
+    }
+  }
+  return byDay;
+}
+
+/// An event drawn as a bar over a row of days: its first column, how many it spans, and its lane.
+class PlacedBar {
+  PlacedBar(this.item, this.start, this.span, {required this.startsBefore, required this.endsAfter});
+
+  final PlannerItem item;
+  final int start;
+  final int span;
+  int lane = 0;
+
+  /// It began before the first day shown, or goes on after the last: that end is cut square.
+  final bool startsBefore;
+  final bool endsAfter;
+}
+
+/// Places events on a row of days in lanes, as Google Calendar stacks them: the earliest first,
+/// the longest first among those, all-day before timed, each in the first lane free over all its
+/// days. [days] may skip some (weekends hidden).
+List<PlacedBar> layoutBars(List<DateTime> days, Iterable<PlannerItem> items) {
+  final ymd = [for (final d in days) localYmd(d)];
+  final placed = <PlacedBar>[];
+  for (final item in items) {
+    final last = item.lastDay;
+    final start = ymd.indexWhere((d) => d.compareTo(item.date) >= 0 && d.compareTo(last) <= 0);
+    if (start < 0) continue;
+    var end = start;
+    while (end + 1 < ymd.length && ymd[end + 1].compareTo(last) <= 0) {
+      end++;
+    }
+    placed.add(
+      PlacedBar(
+        item,
+        start,
+        end - start + 1,
+        startsBefore: item.date.compareTo(ymd[start]) < 0,
+        endsAfter: last.compareTo(ymd[end]) > 0,
+      ),
+    );
+  }
+
+  placed.sort((a, b) {
+    if (a.start != b.start) return a.start.compareTo(b.start);
+    if (a.span != b.span) return b.span.compareTo(a.span);
+    if (a.item.isAllDay != b.item.isAllDay) return a.item.isAllDay ? -1 : 1;
+    return (a.item.scheduledTime ?? '').compareTo(b.item.scheduledTime ?? '');
+  });
+
+  final taken = <List<bool>>[];
+  for (final bar in placed) {
+    var lane = 0;
+    while (lane < taken.length && taken[lane].sublist(bar.start, bar.start + bar.span).any((t) => t)) {
+      lane++;
+    }
+    if (lane == taken.length) taken.add(List.filled(days.length, false));
+    for (var i = bar.start; i < bar.start + bar.span; i++) {
+      taken[lane][i] = true;
+    }
+    bar.lane = lane;
+  }
+  return placed;
+}
+
+// --- Dragging ----------------------------------------------------------------------------
+
+/// Dragged events snap to quarter hours, as in Google Calendar.
+const snapMinutes = 15;
+
+int snap(num minutes) => (minutes / snapMinutes).round() * snapMinutes;
+
+/// The change that moves a timed event to [date] at [start] (minutes), keeping its length (cut at
+/// midnight), in the server's field names.
+Map<String, Object?> movedTo(PlannerItem item, DateTime date, int start) {
+  final length = minutesOf(item.endTime ?? item.scheduledTime!) - minutesOf(item.scheduledTime!);
+  return {
+    if (localYmd(date) != item.date) 'date': localYmd(date),
+    'scheduledTime': timeOf(start),
+    'endTime': timeOf(start + (length > 0 ? length : 60)),
+  };
 }
 
 // --- Laying out a day --------------------------------------------------------------------
@@ -202,11 +318,12 @@ const minEventMinutes = 20;
 
 /// Places a day's timed events side by side where they overlap, as Google Calendar does: each run
 /// of overlapping events shares the width, and an event takes the first column free at its start.
+/// One over several days is not here: it is a bar across the top.
 List<PlacedEvent> layoutDay(List<PlannerItem> items) {
   final timed =
       [
         for (final item in items)
-          if (item.scheduledTime != null)
+          if (!isBar(item))
             () {
               final start = minutesOf(item.scheduledTime!);
               final end = math.max(

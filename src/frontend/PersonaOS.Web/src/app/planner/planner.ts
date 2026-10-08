@@ -10,14 +10,16 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
+import { apiError } from '../core/board.service';
 import { Confirm } from '../core/confirm';
-import { todayLocal } from '../core/local-date';
-import { PlannerItemDto, PlannerService } from '../core/planner.service';
-import { CalendarView, VIEWS, daysBetween, isWeekend, stepAnchor, viewRange, viewTitle } from './calendar';
+import { shiftLocalDate, todayLocal } from '../core/local-date';
+import { EventChange, PlannerItemDto, PlannerService } from '../core/planner.service';
+import { CalendarView, VIEWS, dayDiff, daysBetween, eventsByDay, isWeekend, stepAnchor, viewRange, viewTitle } from './calendar';
 import { EventDialog, EventDialogData } from './event-dialog';
 import { EventPeek } from './event-peek';
 import { MonthView } from './month-view';
 import { ScheduleView } from './schedule-view';
+import { ScopeDialog } from './scope-dialog';
 import { TimeGrid } from './time-grid';
 import { YearView } from './year-view';
 
@@ -87,16 +89,17 @@ export class Planner implements OnInit {
     return daysBetween(from, to);
   });
 
-  /** The loaded events by day, without the ones the options hide. */
-  protected readonly itemsByDay = computed(() => {
+  /** The loaded events, without the ones the options hide. */
+  protected readonly visibleItems = computed(() => {
     const { showSkipped, showCompleted } = this.options();
-    const byDay = new Map<string, PlannerItemDto[]>();
-    for (const item of this.items()) {
-      if (!showSkipped && item.status === 'skipped') continue;
-      if (!showCompleted && item.status === 'done') continue;
-      byDay.set(item.date, [...(byDay.get(item.date) ?? []), item]);
-    }
-    return byDay;
+    return this.items().filter(item =>
+      (showSkipped || item.status !== 'skipped') && (showCompleted || item.status !== 'done'));
+  });
+
+  /** The visible events under every day they cover (an event over several days is under each). */
+  protected readonly itemsByDay = computed(() => {
+    const { from, to } = viewRange(this.view(), this.anchor());
+    return eventsByDay(this.visibleItems(), from, to);
   });
 
   /**
@@ -178,6 +181,27 @@ export class Planner implements OnInit {
     if (changed) await this.reload();
   }
 
+  /**
+   * An event dragged to another time or day, or made longer or shorter. It is shown there at
+   * once; for a repeating event the change waits for which events it is for, and a cancelled
+   * choice or a refused change puts it back.
+   */
+  protected async moveEvent(moved: { item: PlannerItemDto; change: EventChange }): Promise<void> {
+    const { item, change } = moved;
+    this.items.update(items => items.map(i => (i === item ? preview(i, change) : i)));
+    try {
+      if (item.recurrence) {
+        const scope = await ScopeDialog.ask(this.dialog, { action: 'edit' });
+        if (scope) await this.planner.update(item.id, change, { scope, occurrence: item.occurrenceDate });
+      } else {
+        await this.planner.update(item.id, change);
+      }
+    } catch (e: unknown) {
+      this.confirm.error(apiError(e).message ?? 'Could not move the event.');
+    }
+    await this.reload();
+  }
+
   protected async createEvent(at?: { date: string; start: string | null }): Promise<void> {
     const data: EventDialogData = at ?? { date: this.view() === 'year' || this.view() === 'month' ? todayLocal() : this.anchor(), start: '09:00' };
     const saved = await firstValueFrom(
@@ -215,6 +239,20 @@ export class Planner implements OnInit {
       await this.createEvent();
     }
   }
+}
+
+/** The event as it will look after `change`, to show while the change is being saved. */
+function preview(item: PlannerItemDto, change: EventChange): PlannerItemDto {
+  const date = change.date ?? item.date;
+  const shift = (day: string | null | undefined) =>
+    day && change.date ? shiftLocalDate(day, dayDiff(item.date, change.date)) : day;
+  return {
+    ...item,
+    date,
+    endDate: shift(item.endDate),
+    scheduledTime: change.scheduledTime ?? item.scheduledTime,
+    endTime: change.endTime ?? item.endTime,
+  };
 }
 
 function loadOptions(): CalendarOptions {

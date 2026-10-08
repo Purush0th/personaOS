@@ -176,12 +176,23 @@ public class SystemPromptBuilder(
                 .ToList()));
     }
 
-    /// <summary>"09:30-10:30 " for a timed event, nothing for an all-day one.</summary>
-    private static string TimeRange(PlannerOccurrenceView e) => e.Start is TimeOnly start
-        ? string.Create(
-            CultureInfo.InvariantCulture,
-            $"{start:HH:mm}-{PlannerCalendar.EffectiveEnd(start, e.End):HH:mm} ")
-        : string.Empty;
+    /// <summary>
+    /// "09:30-10:30 " for a timed event, nothing for an all-day one; over several days, its first and
+    /// last day too: "2026-10-10 09:00 to 2026-10-14 17:00 ", "2026-10-10 to 2026-10-14 ".
+    /// </summary>
+    private static string TimeRange(PlannerOccurrenceView e)
+    {
+        if (e.IsMultiDay)
+        {
+            return e.Start is TimeOnly first
+                ? string.Create(CultureInfo.InvariantCulture, $"{e.Date:yyyy-MM-dd} {first:HH:mm} to {e.EndDate:yyyy-MM-dd} {e.EffectiveEnd:HH:mm} ")
+                : string.Create(CultureInfo.InvariantCulture, $"{e.Date:yyyy-MM-dd} to {e.EndDate:yyyy-MM-dd} ");
+        }
+
+        return e.Start is TimeOnly start
+            ? string.Create(CultureInfo.InvariantCulture, $"{start:HH:mm}-{e.EffectiveEnd:HH:mm} ")
+            : string.Empty;
+    }
 
     private async Task<string> RemindersAsync(Fragments fragments, InstanceConfig config, CancellationToken ct)
     {

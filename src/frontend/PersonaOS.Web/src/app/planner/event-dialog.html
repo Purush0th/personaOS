@@ -15,25 +15,40 @@
       />
     </mat-form-field>
 
-    <div class="row">
+    <!-- When: the first day and start, the last day and end (a later day for an event over several days). -->
+    <div class="row when">
       <mat-form-field class="day" subscriptSizing="dynamic">
-        <mat-label>Day</mat-label>
+        <mat-label>Start day</mat-label>
         <input matInput type="date" name="date" data-testid="event-date" [ngModel]="date()" (ngModelChange)="setDate($event)" required />
       </mat-form-field>
-
       @if (!allDay()) {
         <mat-form-field class="time" subscriptSizing="dynamic">
           <mat-label>Start</mat-label>
           <input matInput type="time" name="start" data-testid="event-start" [ngModel]="start()" (ngModelChange)="setStart($event)" />
         </mat-form-field>
-        <span class="dash" aria-hidden="true">–</span>
+      }
+      <mat-checkbox name="allDay" data-testid="event-all-day" [ngModel]="allDay()" (ngModelChange)="setAllDay($event)">All day</mat-checkbox>
+    </div>
+    <div class="row">
+      <mat-form-field class="day" subscriptSizing="dynamic">
+        <mat-label>End day</mat-label>
+        <input
+          matInput
+          type="date"
+          name="endDate"
+          data-testid="event-end-date"
+          [min]="date()"
+          [ngModel]="endDate()"
+          (ngModelChange)="setEndDate($event)"
+          required
+        />
+      </mat-form-field>
+      @if (!allDay()) {
         <mat-form-field class="time" subscriptSizing="dynamic">
           <mat-label>End</mat-label>
           <input matInput type="time" name="end" data-testid="event-end" [ngModel]="end()" (ngModelChange)="end.set($event)" />
         </mat-form-field>
       }
-
-      <mat-checkbox name="allDay" data-testid="event-all-day" [ngModel]="allDay()" (ngModelChange)="setAllDay($event)">All day</mat-checkbox>
     </div>
     @if (timeError(); as message) {
       <p class="error small">{{ message }}</p>

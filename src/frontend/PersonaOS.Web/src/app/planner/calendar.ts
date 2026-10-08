@@ -4,7 +4,7 @@
  * on Monday, as the planner's repeat rules do.
  */
 import { shiftLocalDate, toLocalDate } from '../core/local-date';
-import { PlannerItemDto } from '../core/planner.service';
+import { EventChange, PlannerItemDto } from '../core/planner.service';
 
 export type CalendarView = 'day' | 'week' | 'month' | 'year' | 'schedule' | '4day';
 
@@ -197,6 +197,109 @@ export function isAllDay(item: PlannerItemDto): boolean {
   return item.scheduledTime === null;
 }
 
+// --- Several days ----------------------------------------------------------------------
+
+/** The last day of an event: its own day unless it lasts several. */
+export function lastDayOf(item: PlannerItemDto): string {
+  return item.endDate && item.endDate > item.date ? item.endDate : item.date;
+}
+
+export function isMultiDay(item: PlannerItemDto): boolean {
+  return lastDayOf(item) > item.date;
+}
+
+/** Drawn as a bar across the top of Day and Week: all day, or over several days (timed or not). */
+export function isBar(item: PlannerItemDto): boolean {
+  return item.scheduledTime === null || isMultiDay(item);
+}
+
+/** Days from `a` to `b` (negative when `b` is earlier). */
+export function dayDiff(a: string, b: string): number {
+  return Math.round((parseDay(b).getTime() - parseDay(a).getTime()) / 86_400_000);
+}
+
+/** Which of its days `day` is, and how many it has: "(Day 2/3)" as Google Calendar titles it. */
+export function dayOfSpan(item: PlannerItemDto, day: string): { n: number; of: number } {
+  return { n: dayDiff(item.date, day) + 1, of: dayDiff(item.date, lastDayOf(item)) + 1 };
+}
+
+/**
+ * Each loaded event under every day it covers, so a day's cell, count or list includes an event
+ * that began earlier. Days outside `from`…`to` are left out.
+ */
+export function eventsByDay(items: PlannerItemDto[], from: string, to: string): Map<string, PlannerItemDto[]> {
+  const byDay = new Map<string, PlannerItemDto[]>();
+  for (const item of items) {
+    const first = item.date < from ? from : item.date;
+    const last = lastDayOf(item) > to ? to : lastDayOf(item);
+    for (let day = first; day <= last; day = shiftLocalDate(day, 1)) {
+      byDay.set(day, [...(byDay.get(day) ?? []), item]);
+    }
+  }
+  return byDay;
+}
+
+/** An event drawn as a bar over a row of days: its first column, how many it spans, and its lane. */
+export interface PlacedBar {
+  item: PlannerItemDto;
+  start: number;
+  span: number;
+  lane: number;
+  /** It began before the first day shown, or goes on after the last: the bar's end is cut square. */
+  startsBefore: boolean;
+  endsAfter: boolean;
+}
+
+/**
+ * Places events on a row of days (a week, or the days of the Day and Week views) in lanes, as
+ * Google Calendar stacks them: the earliest first, the longest first among those, all-day before
+ * timed, each in the first lane free over all its days. `days` may skip some (weekends hidden).
+ */
+export function layoutBars(days: string[], items: PlannerItemDto[]): PlacedBar[] {
+  const placed: PlacedBar[] = [];
+  for (const item of items) {
+    const last = lastDayOf(item);
+    const start = days.findIndex(d => d >= item.date && d <= last);
+    if (start < 0) continue;
+    let end = start;
+    while (end + 1 < days.length && days[end + 1] <= last) end++;
+    placed.push({ item, start, span: end - start + 1, lane: 0, startsBefore: item.date < days[start], endsAfter: last > days[end] });
+  }
+
+  placed.sort((a, b) =>
+    a.start - b.start
+    || b.span - a.span
+    || Number(a.item.scheduledTime !== null) - Number(b.item.scheduledTime !== null)
+    || (a.item.scheduledTime ?? '').localeCompare(b.item.scheduledTime ?? ''));
+
+  const taken: boolean[][] = [];
+  for (const bar of placed) {
+    let lane = 0;
+    while (taken[lane]?.slice(bar.start, bar.start + bar.span).some(Boolean)) lane++;
+    taken[lane] ??= [];
+    for (let i = bar.start; i < bar.start + bar.span; i++) taken[lane][i] = true;
+    bar.lane = lane;
+  }
+  return placed;
+}
+
+// --- Dragging --------------------------------------------------------------------------
+
+/** Dragged events snap to quarter hours, as in Google Calendar. */
+export const SNAP_MINUTES = 15;
+
+export function snap(minutes: number): number {
+  return Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
+}
+
+/** The change that moves a timed event to `date` at `start`, keeping its length (cut at midnight). */
+export function movedTo(item: PlannerItemDto, date: string, start: number): EventChange {
+  const length = minutesOf(item.endTime ?? item.scheduledTime!) - minutesOf(item.scheduledTime!);
+  const change: EventChange = { scheduledTime: timeOf(start), endTime: timeOf(start + (length > 0 ? length : 60)) };
+  if (date !== item.date) change.date = date;
+  return change;
+}
+
 // --- Laying out a day ------------------------------------------------------------------
 
 /** A timed event placed in a day column: its top and height in minutes, and its share of the width. */
@@ -214,10 +317,11 @@ export const MIN_EVENT_MINUTES = 20;
 /**
  * Places a day's timed events side by side where they overlap, as Google Calendar does: each run
  * of overlapping events shares the width, and an event takes the first column free at its start.
+ * One over several days is not here: it is a bar across the top.
  */
 export function layoutDay(items: PlannerItemDto[]): PlacedEvent[] {
   const timed = items
-    .filter(i => i.scheduledTime !== null)
+    .filter(i => !isBar(i))
     .map(item => {
       const start = minutesOf(item.scheduledTime!);
       const end = Math.max(item.endTime ? minutesOf(item.endTime) : start + 60, start + MIN_EVENT_MINUTES);

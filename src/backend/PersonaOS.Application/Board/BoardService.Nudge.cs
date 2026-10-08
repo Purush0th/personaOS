@@ -79,7 +79,7 @@ public partial class BoardService
         {
             var results = await pushSender.SendAsync(
                 tokens, config.AssistantNickname, body,
-                new Dictionary<string, string> { ["type"] = "board" }, ct);
+                new Dictionary<string, string> { ["type"] = "board" }, ct: ct);
             return results.Any(r => r.Success);
         }
         catch (Exception ex)

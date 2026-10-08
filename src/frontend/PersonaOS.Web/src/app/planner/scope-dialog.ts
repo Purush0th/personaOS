@@ -41,6 +41,11 @@ export interface ScopeRequest {
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
+    /* Three choices always fit; the radios' touch targets reach a few pixels past the content,
+       which drew a scrollbar for nothing. */
+    mat-dialog-content {
+      overflow: visible;
+    }
     .choices {
       display: flex;
       flex-direction: column;
