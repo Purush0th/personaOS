@@ -40,9 +40,15 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
 
         if (config.IsEnabled(InstanceConfig.Modules.Planner))
         {
+            // An event over several days shows its start on its first day and its last day throughout.
             var items = (await db.EventsAsync(localDate, localDate, ct: ct))
                 .Where(e => e.Status == PlannerItemStatuses.Planned)
-                .Select(e => new { e.Title, ScheduledTime = e.Start })
+                .Select(e => new
+                {
+                    e.Title,
+                    ScheduledTime = e.Date == localDate ? e.Start : null,
+                    Until = e.IsMultiDay ? e.EndDate : (DateOnly?)null,
+                })
                 .ToList();
 
             if (items.Count > 0)
@@ -54,6 +60,7 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
                     sb.Append("\n• ");
                     if (item.ScheduledTime is TimeOnly t) sb.Append(t.ToString("HH:mm", CultureInfo.InvariantCulture)).Append(" — ");
                     sb.Append(item.Title);
+                    if (item.Until is DateOnly until) sb.Append(" (until ").Append(until.ToString("ddd d MMM", CultureInfo.InvariantCulture)).Append(')');
                 }
             }
         }
@@ -141,7 +148,9 @@ public class ProactiveBriefComposer(IAppDbContext db) : IProactiveBriefComposer
     {
         if (!config.IsEnabled(InstanceConfig.Modules.Planner)) return null;
 
+        // An event over several days is open until its last day, so it is rolled up on that day only.
         var items = (await db.EventsAsync(localDate, localDate, ct: ct))
+            .Where(e => e.EndDate == localDate)
             .Select(e => new { e.Title, e.Status })
             .ToList();
 

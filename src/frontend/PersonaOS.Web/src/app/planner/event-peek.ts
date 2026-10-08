@@ -9,7 +9,7 @@ import { firstValueFrom } from 'rxjs';
 import { apiError } from '../core/board.service';
 import { Confirm } from '../core/confirm';
 import { PlannerItemDto, PlannerService, PlannerStatus } from '../core/planner.service';
-import { formatRange, notifyLabel, parseDay, weekdayName, monthName } from './calendar';
+import { formatRange, formatTime, isMultiDay, lastDayOf, notifyLabel, parseDay, weekdayName, monthName } from './calendar';
 import { EventDialog, EventDialogData } from './event-dialog';
 import { ScopeDialog } from './scope-dialog';
 
@@ -182,10 +182,21 @@ export class EventPeek {
   }
 }
 
-/** "Saturday, 3 October · 8:30 – 9:30am", or "Saturday, 3 October · All day". */
+/**
+ * "Saturday, 3 October · 8:30 – 9:30am", "Saturday, 3 October · All day"; over several days
+ * "Friday, 9 October – Sunday, 11 October", or with times "Friday, 9 October, 6pm – Saturday, 10 October, 9am".
+ */
 export function describeWhen(item: PlannerItemDto): string {
-  const d = parseDay(item.date);
-  const day = `${weekdayName(item.date)}, ${d.getDate()} ${monthName(d.getMonth())}`;
+  const dayName = (day: string) => {
+    const d = parseDay(day);
+    return `${weekdayName(day)}, ${d.getDate()} ${monthName(d.getMonth())}`;
+  };
+  if (isMultiDay(item)) {
+    const last = lastDayOf(item);
+    return item.scheduledTime && item.endTime
+      ? `${dayName(item.date)}, ${formatTime(item.scheduledTime)} – ${dayName(last)}, ${formatTime(item.endTime)}`
+      : `${dayName(item.date)} – ${dayName(last)}`;
+  }
   const time = item.scheduledTime && item.endTime ? formatRange(item.scheduledTime, item.endTime) : 'All day';
-  return `${day} · ${time}`;
+  return `${dayName(item.date)} · ${time}`;
 }

@@ -286,7 +286,7 @@ Color eventTextColor(BuildContext context, PlannerItem item) {
 }
 
 /// Creates or edits a planner event, full screen as on Google Calendar's phone app: title, all
-/// day or start and end, repeat (presets and custom), notification (presets and a custom number
+/// day or start and end (on a later day for an event over several days), repeat (presets and custom), notification (presets and a custom number
 /// with its unit), notes, a board task (new events) and a goal. Pops true once saved.
 class EventEditorPage extends StatefulWidget {
   const EventEditorPage({super.key, required this.api, this.item, this.date, this.start, this.boardEnabled = false});
@@ -309,6 +309,9 @@ class _EventEditorPageState extends State<EventEditorPage> {
   final _title = TextEditingController();
   final _notes = TextEditingController();
   late DateTime _date;
+
+  /// The last day: [_date] unless the event lasts several days.
+  late DateTime _endDate;
   late bool _allDay;
   late String _start; // HH:mm
   late String _end;
@@ -335,6 +338,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
     _title.text = item?.title ?? '';
     _notes.text = item?.notes ?? '';
     _date = item != null ? parseDay(item.date) : dayOnly(widget.date ?? DateTime.now());
+    _endDate = item != null ? parseDay(item.lastDay) : _date;
     _allDay = item != null ? item.isAllDay : false;
     _start = (item?.scheduledTime ?? widget.start ?? '09:00').substring(0, 5);
     _end = item?.endTime?.substring(0, 5) ?? timeOf(minutesOf(_start) + 60);
@@ -381,8 +385,10 @@ class _EventEditorPageState extends State<EventEditorPage> {
 
   String? get _recurrence => _custom ? _customRepeat.rule(_date) : _rule;
 
+  bool get _multiDay => _endDate.isAfter(_date);
+
   String? get _timeError =>
-      !_allDay && minutesOf(_end) <= minutesOf(_start) ? 'The end must be after the start.' : null;
+      !_allDay && !_multiDay && minutesOf(_end) <= minutesOf(_start) ? 'The end must be after the start.' : null;
 
   bool get _notifyTooFar => (_notify ?? 0) > maxNotifyMinutes;
 
@@ -406,6 +412,8 @@ class _EventEditorPageState extends State<EventEditorPage> {
     setState(() {
       // "Weekly on Saturday" follows the day: keep the same kind of choice for the new day.
       final index = repeatOptions(_date).indexWhere((o) => o.rule == _rule && !o.custom);
+      // The last day moves with the first, so the event keeps its length.
+      _endDate = addDays(dayOnly(picked), dayDiff(_date, _endDate));
       _date = dayOnly(picked);
       if (_rule != null && index > 0) {
         final options = repeatOptions(_date).where((o) => !o.custom).toList();
@@ -413,6 +421,20 @@ class _EventEditorPageState extends State<EventEditorPage> {
       }
     });
   }
+
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate,
+      firstDate: _date,
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => _endDate = dayOnly(picked));
+  }
+
+  /// "Wed, 30 Sep 2026", short enough to share a row with a time on a small phone.
+  static String _dayLabel(DateTime d) =>
+      '${weekdayName(d).substring(0, 3)}, ${d.day} ${monthNames[d.month - 1].substring(0, 3)} ${d.year}';
 
   Future<void> _pickTime({required bool start}) async {
     final current = minutesOf(start ? _start : _end);
@@ -424,10 +446,11 @@ class _EventEditorPageState extends State<EventEditorPage> {
     final value = timeOf(picked.hour * 60 + picked.minute);
     setState(() {
       if (start) {
-        // Moving the start keeps the length, as Google Calendar does.
+        // Moving the start keeps the length, as Google Calendar does (over several days the end
+        // is on another day and stays).
         final length = minutesOf(_end) - minutesOf(_start);
         _start = value;
-        _end = timeOf(minutesOf(value) + (length > 0 ? length : 60));
+        if (!_multiDay) _end = timeOf(minutesOf(value) + (length > 0 ? length : 60));
       } else {
         _end = value;
       }
@@ -525,6 +548,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
         await widget.api.createEvent(
           title: _title.text.trim(),
           date: localYmd(_date),
+          endDate: _multiDay ? localYmd(_endDate) : null,
           notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
           scheduledTime: _allDay ? null : _start,
           endTime: _allDay ? null : _end,
@@ -553,6 +577,10 @@ class _EventEditorPageState extends State<EventEditorPage> {
     if (title != item.title) change['title'] = title;
     if (notes != (item.notes ?? '')) change['notes'] = notes;
     if (localYmd(_date) != item.date) change['date'] = localYmd(_date);
+    // The server keeps the length when only the first day moves; a different length is sent.
+    if (dayDiff(_date, _endDate) != dayDiff(parseDay(item.date), parseDay(item.lastDay))) {
+      change['endDate'] = localYmd(_endDate);
+    }
 
     final oldStart = item.scheduledTime?.substring(0, 5);
     final oldEnd = item.endTime?.substring(0, 5);
@@ -654,34 +682,34 @@ class _EventEditorPageState extends State<EventEditorPage> {
                 if (!_editing) _notify = value ? null : defaultNotifyMinutes;
               }),
             ),
+            // The start and the end, each a day and (unless all day) a time, as the phone app has them.
             ListTile(
               key: const Key('event-date'),
               leading: const SizedBox(width: 24),
-              title: Text('${weekdayName(_date)}, ${_date.day} ${monthNames[_date.month - 1]} ${_date.year}'),
-              onTap: _pickDate,
-            ),
-            if (!_allDay)
-              ListTile(
-                leading: const SizedBox(width: 24),
-                title: Row(
-                  children: [
-                    TextButton(
+              title: Text(_dayLabel(_date)),
+              trailing: _allDay
+                  ? null
+                  : TextButton(
                       key: const Key('event-start'),
                       onPressed: () => _pickTime(start: true),
                       child: Text(formatTime(_start)),
                     ),
-                    const Text('–'),
-                    TextButton(
+              onTap: _pickDate,
+            ),
+            ListTile(
+              key: const Key('event-end-date'),
+              leading: const SizedBox(width: 24),
+              title: Text(_dayLabel(_endDate)),
+              trailing: _allDay
+                  ? null
+                  : TextButton(
                       key: const Key('event-end'),
                       onPressed: () => _pickTime(start: false),
                       child: Text(formatTime(_end)),
                     ),
-                  ],
-                ),
-                subtitle: _timeError == null
-                    ? null
-                    : Text(_timeError!, style: TextStyle(color: theme.colorScheme.error)),
-              ),
+              subtitle: _timeError == null ? null : Text(_timeError!, style: TextStyle(color: theme.colorScheme.error)),
+              onTap: _pickEndDate,
+            ),
             const Divider(height: 1),
             ListTile(
               key: const Key('event-repeat'),

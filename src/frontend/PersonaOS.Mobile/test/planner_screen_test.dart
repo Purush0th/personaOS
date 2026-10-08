@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaos_mobile/api/personaos_api.dart';
@@ -5,6 +6,7 @@ import 'package:personaos_mobile/date_utils.dart';
 import 'package:personaos_mobile/planner_calendar.dart';
 import 'package:personaos_mobile/screens/planner_event.dart';
 import 'package:personaos_mobile/screens/planner_screen.dart';
+import 'package:personaos_mobile/screens/planner_views.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A planner server in memory: records the ranges asked for and the changes sent.
@@ -18,7 +20,7 @@ class _Api extends PersonaOsApi {
   @override
   Future<List<PlannerItem>> getPlannerRange(String from, String to) async {
     ranges.add('$from..$to');
-    return events.where((e) => e.date.compareTo(from) >= 0 && e.date.compareTo(to) <= 0).toList();
+    return events.where((e) => e.lastDay.compareTo(from) >= 0 && e.date.compareTo(to) <= 0).toList();
   }
 
   @override
@@ -28,6 +30,7 @@ class _Api extends PersonaOsApi {
   Future<void> createEvent({
     required String title,
     required String date,
+    String? endDate,
     String? notes,
     String? scheduledTime,
     String? endTime,
@@ -36,7 +39,7 @@ class _Api extends PersonaOsApi {
     int? goalId,
     int? taskId,
   }) async =>
-      calls.add('create $title $date $scheduledTime-$endTime notify=$notifyBeforeMinutes repeat=$recurrence');
+      calls.add('create $title $date${endDate == null ? '' : '..$endDate'} $scheduledTime-$endTime notify=$notifyBeforeMinutes repeat=$recurrence');
 
   @override
   Future<void> updateEvent(int id, Map<String, Object?> change, {EditScope? scope, String? occurrence}) async =>
@@ -51,11 +54,21 @@ class _Api extends PersonaOsApi {
       calls.add('delete $id scope=${scope?.wire} occurrence=$occurrence');
 }
 
-PlannerItem _event(int id, String title, String date, {String? start, String? end, String? rule, String status = 'planned'}) =>
+PlannerItem _event(
+  int id,
+  String title,
+  String date, {
+  String? start,
+  String? end,
+  String? rule,
+  String status = 'planned',
+  String? endDate,
+}) =>
     PlannerItem(
       id: id,
       title: title,
       date: date,
+      endDate: endDate,
       scheduledTime: start,
       endTime: end,
       status: status,
@@ -237,5 +250,105 @@ void main() {
     await tester.tap(find.byKey(const Key('notify-minus')));
     await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(find.byKey(const Key('notify-done'))).onPressed, isNotNull);
+  });
+  Future<void> pickView(WidgetTester tester, String view) async {
+    await tester.tap(find.byKey(const Key('planner-view-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('view-$view')));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('a trip over several days is one bar on top, and each of its days in the schedule', (tester) async {
+    final last = localYmd(addDays(DateTime.now(), 2));
+    await open(tester, [_event(1, 'Goa trip', today, endDate: last)]);
+
+    await pickView(tester, 'fourDay');
+    expect(find.text('Goa trip'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await pickView(tester, 'schedule');
+    expect(find.text('Goa trip (Day 1/3)'), findsOneWidget);
+    expect(find.text('Goa trip (Day 2/3)'), findsOneWidget);
+    expect(find.text('Goa trip (Day 3/3)'), findsOneWidget);
+  });
+
+  testWidgets('a long press picks an event up and drops it an hour later', (tester) async {
+    final api = await open(tester, [_event(1, 'Call', today, start: '09:00:00', end: '10:00:00')]);
+
+    final finger = await tester.startGesture(tester.getCenter(find.byKey(Key('event-1-$today'))));
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    await finger.moveBy(const Offset(0, hourHeight));
+    await tester.pump();
+    expect(find.byKey(const Key('drag-ghost')), findsOneWidget);
+    expect(find.text('10 – 11am'), findsOneWidget);
+    await finger.up();
+    await tester.pumpAndSettle();
+
+    expect(api.calls.single, 'update 1 {scheduledTime: 10:00, endTime: 11:00} scope=null occurrence=null');
+  });
+
+  testWidgets('held by its bottom edge, an event gets a later end', (tester) async {
+    final api = await open(tester, [_event(1, 'Call', today, start: '09:00:00', end: '10:00:00')]);
+
+    final block = tester.getRect(find.byKey(Key('event-1-$today')));
+    final finger = await tester.startGesture(Offset(block.center.dx, block.bottom - 4));
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    await finger.moveBy(const Offset(0, hourHeight / 2));
+    await tester.pump();
+    await finger.up();
+    await tester.pumpAndSettle();
+
+    expect(api.calls.single, 'update 1 {endTime: 10:30} scope=null occurrence=null');
+  });
+
+  testWidgets('dragging one of a repeating event asks which events, and cancelling puts it back', (tester) async {
+    final api = await open(tester, [_event(4, 'Orders', today, start: '09:00:00', end: '10:00:00', rule: 'FREQ=WEEKLY')]);
+
+    Future<void> drag() async {
+      final finger = await tester.startGesture(tester.getCenter(find.byKey(Key('event-4-$today'))));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      await finger.moveBy(const Offset(0, hourHeight));
+      await tester.pump();
+      await finger.up();
+      await tester.pumpAndSettle();
+    }
+
+    await drag();
+    expect(find.text('Edit recurring event'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(api.calls, isEmpty);
+    expect(find.text('9 – 10am'), findsOneWidget);
+
+    await drag();
+    await tester.tap(find.byKey(const Key('scope-ok')));
+    await tester.pumpAndSettle();
+    expect(api.calls.single, 'update 4 {scheduledTime: 10:00, endTime: 11:00} scope=this occurrence=$today');
+  });
+
+  testWidgets('a bar on top moves along the days', (tester) async {
+    final api = await open(tester, [_event(1, 'Trip', today)]);
+    await pickView(tester, 'fourDay');
+
+    final columns = tester.getSize(find.byKey(Key('day-head-$today'))).width;
+    final finger = await tester.startGesture(tester.getCenter(find.byKey(Key('event-1-$today'))));
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    await finger.moveBy(Offset(columns, 0));
+    await tester.pump();
+    await finger.up();
+    await tester.pumpAndSettle();
+
+    expect(api.calls.single, 'update 1 {date: ${localYmd(addDays(DateTime.now(), 1))}} scope=null occurrence=null');
+  });
+
+  testWidgets('the editor shows the first and the last day of an event over several days', (tester) async {
+    tall(tester);
+    final api = _Api([]);
+    final trip = _event(1, 'Goa trip', '2026-10-09', endDate: '2026-10-11');
+    await tester.pumpWidget(MaterialApp(home: EventEditorPage(api: api, item: trip)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fri, 9 Oct 2026'), findsOneWidget);
+    expect(find.text('Sun, 11 Oct 2026'), findsOneWidget);
   });
 }

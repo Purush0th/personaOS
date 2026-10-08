@@ -32,7 +32,7 @@ so Google's default, one constant, easy to change). One session, backend then we
 Design (decided here, so later sessions need not rediscover it):
 - **Event** = `PlannerItem`. New: `EndTime`, `NotifyBeforeMinutes` (null = none), `Recurrence`
   (an RFC 5545 RRULE subset: FREQ DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, BYDAY, BYMONTHDAY, COUNT,
-  UNTIL). No start time = all-day. Events stay inside one day; multi-day events are not in this round.
+  UNTIL). No start time = all-day. Events stay inside one day; multi-day events came later (C5).
   Times are the install's local time, as before.
 - **A repeating item is one row** (the series); occurrences are expanded on read, never stored.
   `PlannerOccurrence` holds a change to one occurrence (moved, retitled, cancelled, done/skipped).
@@ -90,9 +90,7 @@ Design (decided here, so later sessions need not rediscover it):
       narrow week columns. Tests: `planner_calendar_test` (15), `planner_screen_test` (10),
       phone 229 pass. Not yet on a real phone.
       Note: an installed old app gets an error marking a repeating event done (it sends no
-      occurrence); one-off events work as before.: Day, Week, 4 days, Month, Year, Schedule; toolbar and dropdown with
-      shortcuts and the three toggles; event dialog with repeat and alert pickers; scope dialog.
-- [ ] **C3. Phone calendar**: the same views for a phone, event editor, tap on a notification.
+      occurrence); one-off events work as before.
 - [x] **C4. Accuracy and docs** (2026-10-07). Suite on qwen2.5:3b, 5 runs: 61/65 twice (the
       2026-10-01 single run was 64/65; the other misses are the known flakes: board read flagged,
       asks for a key, download link, 17:00 for "7pm" once). Real regression found and fixed: the
@@ -101,6 +99,46 @@ Design (decided here, so later sessions need not rediscover it):
       `add_planner_item` drops empty/unusable optional fields before the card and `repeat` takes
       "none": planner scenario 28/30 over three runs (remaining misses: no title at all, the
       refusal that predates this work). PRD §3.4 and the module table, README updated.
+- [x] **C5. Calendar follow-ups** (2026-10-08). Owner picked all three: event notifications get
+      their own Android channel; drag to move and resize (web, and the phone by long-press);
+      multi-day events, drawn as a bar across the top of Day and Week (timed ones over several
+      days too). Done:
+      **Multi-day.** `PlannerItem.EndDate` and `PlannerOccurrence.EndDate` (migration
+      `PlannerMultiDay`, two nullable columns). Null means the event ends on its day; a series'
+      occurrences all last as long as its first; one occurrence can be made longer or shorter on
+      its own (its `EndDate`, kept when it is moved). A new first day keeps the length; `endDate`
+      on an update sets the last day, counted from the day the person was looking at. A timed
+      event over several days needs an end time, which may be earlier in the day than the start.
+      `PlannerQueries.EventsAsync` finds events that began before the range; `GET /api/planner`
+      lists each once, on its first day in the range (so a client never sees it twice; an old app
+      shows it on that day only); a single day's read includes every event covering it. Prompt:
+      "2026-10-10 to 2026-10-14 Goa trip"; morning brief "(until Wed 14 Oct)"; the evening rollup
+      counts an event on its last day only; notification "From today to Sun 11 Oct" or "… · until
+      Sat 10 Oct". Chat tool `add_planner_item` takes `endDate` (dropped when not after `date`);
+      card "until 2026-10-11". Also fixed: an "All events" move from an occurrence that had been
+      moved on its own shifted the series by the wrong number of days (now counted from where it
+      is shown). Web and phone: bars in lanes across their days (cut square past the edge of the
+      view), Month lanes with "N more" / "+N", Schedule "(Day 2/3)" with "From 6pm" / "Until
+      9am", quick view "Friday, 9 October – Sunday, 11 October", editor with a start day and an
+      end day.
+      **Drag.** Web (`drag.ts`, `drag.scss`): mouse or pen (a finger scrolls), 4 px threshold,
+      15-minute snap; a timed event to another time or day, its bottom 8 px to change the end,
+      a top bar or a Month event to other days; a ghost shows where it lands; the change shows at
+      once and a repeating event asks the scope (Cancel puts it back). Found by trying it: the
+      click the browser sends after a drag opened "New event" where the drag ended (now
+      swallowed); the scope dialog drew a scrollbar for 4 px; the header and the strip were
+      misaligned with the hours by the scrollbar width; Month times spilled into the next
+      column at 390 px. Phone: long press (with a haptic) in Day, 4 days and Week, the same
+      moves; no autoscroll while dragging and no drag in Month (Google's phone app has none
+      there either).
+      **Channel.** `IPushSender.SendAsync(channel)` with `PushChannels.Reminders` /
+      `PlannerEvents`; the phone creates "Event notifications" (`planner_events`, high). An app
+      older than this shows them in a default channel.
+      Tests: backend 857 (`PlannerMultiDayTests`, tool and prompt cases), web 144, phone 241
+      (`planner_calendar_test`, `planner_screen_test`: long-press move, resize, scope, bar).
+      SQLite smoke 16/16 (`EndDate` queries) and the earlier calendar smoke still pass.
+      Accuracy suite (qwen2.5:3b, 5 runs): 63/65, planner scenario 5/5; the two misses are in
+      unrelated scenarios (board read via get_sprint_report once, a delete_goal refusal once).
 
 ## Maturity: phone UX, accuracy, engineering standards (owner, 2026-10-01)
 

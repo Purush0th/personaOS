@@ -11,8 +11,8 @@ import 'planner_views.dart';
 
 /// The planner as a calendar, after Google Calendar's phone app: Schedule, Day, 4 days, Week,
 /// Month and Year; the title opens a date picker, Today comes back, a swipe steps a period, the
-/// view menu holds the three toggles, and the button adds an event. The view and toggles are
-/// remembered on this phone.
+/// view menu holds the three toggles, and the button adds an event. In Day, 4 days and Week a long
+/// press picks an event up to drag it. The view and toggles are remembered on this phone.
 class PlannerScreen extends StatefulWidget {
   const PlannerScreen({super.key, required this.api, this.boardEnabled = false, this.initialDate, this.initialView});
 
@@ -100,14 +100,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
     }
   }
 
-  EventsByDay get _events {
-    final byDay = <String, List<PlannerItem>>{};
-    for (final item in _items) {
-      if (!_showSkipped && item.status == 'skipped') continue;
-      if (!_showCompleted && item.status == 'done') continue;
-      (byDay[item.date] ??= []).add(item);
-    }
-    return byDay;
+  /// The loaded events, without the ones the toggles hide.
+  List<PlannerItem> get _visible => [
+    for (final item in _items)
+      if ((_showSkipped || item.status != 'skipped') && (_showCompleted || item.status != 'done')) item,
+  ];
+
+  /// The visible events under every day they cover.
+  EventsByDay _byDay(List<PlannerItem> visible) {
+    final range = viewRange(_view, _anchor);
+    return eventsByDay(visible, range.from, range.to);
   }
 
   void _go(CalendarView view, DateTime anchor) {
@@ -133,6 +135,36 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Future<void> _open(PlannerItem item) async {
     if (await showEventQuickView(context, widget.api, item)) await _reload();
+  }
+
+  /// An event dragged to another time or day, or made longer or shorter. It shows there at once;
+  /// for a repeating event the change waits for which events it is for, and a cancelled choice or
+  /// a refused change puts it back.
+  Future<void> _move(PlannerItem item, Map<String, Object?> change) async {
+    setState(() => _items = [for (final i in _items) identical(i, item) ? _preview(i, change) : i]);
+    try {
+      if (item.repeats) {
+        final scope = await askScope(context, delete: false);
+        if (scope != null) await widget.api.updateEvent(item.id, change, scope: scope, occurrence: item.occurrenceDate);
+      } else {
+        await widget.api.updateEvent(item.id, change);
+      }
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+    await _reload();
+  }
+
+  /// The event as it will look after [change], to show while the change is saved.
+  static PlannerItem _preview(PlannerItem item, Map<String, Object?> change) {
+    final date = change['date'] as String?;
+    final shift = date == null ? 0 : dayDiff(parseDay(item.date), parseDay(date));
+    return item.copyWith(
+      date: date,
+      endDate: shift == 0 ? null : localYmd(addDays(parseDay(item.lastDay), shift)),
+      scheduledTime: change['scheduledTime'] as String?,
+      endTime: change['endTime'] as String?,
+    );
   }
 
   Future<void> _create({DateTime? day, String? start}) async {
@@ -276,12 +308,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Widget _body() {
-    final events = _events;
+    final visible = _visible;
+    final events = _byDay(visible);
     switch (_view) {
       case CalendarView.month:
         return MonthGridView(
           anchor: _anchor,
-          events: events,
+          items: visible,
           showWeekends: _showWeekends,
           onOpen: _open,
           onOpenDay: (day) => _go(CalendarView.day, day),
@@ -305,10 +338,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
         return TimeGridView(
           key: ValueKey('${_view.name}-${localYmd(_anchor)}-$_showWeekends'),
           days: _gridDays,
+          items: visible,
           events: events,
           onOpen: _open,
           onCreate: (day, start) => _create(day: day, start: start),
           onOpenDay: (day) => _go(CalendarView.day, day),
+          onMove: (item, change) => unawaited(_move(item, change)),
         );
     }
   }

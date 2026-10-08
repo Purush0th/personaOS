@@ -114,8 +114,42 @@ public class PlannerToolsTests
         Assert.Equal("all day", PersonaOS.Application.Ai.ProposedActionSummary.Describe("add_planner_item", completed.GetRawText()).Split(" · ")[^1]);
     }
 
+    [Fact]
+    public async Task An_event_over_several_days_is_saved_with_its_last_day_and_the_card_shows_it()
+    {
+        var db = TestDbContext.Create();
+        var tool = AddTool(db);
+
+        var allDay = Input(await tool.CompleteInputAsync(Input("""{"title":"Goa trip","date":"2026-10-09","endDate":"2026-10-11"}""")));
+        var timed = await tool.CompleteInputAsync(Input("""{"title":"Conference","date":"2026-10-09","scheduledTime":"18:00","endTime":"09:00","endDate":"2026-10-10"}"""));
+        await tool.ValidateAsync(allDay);
+        await tool.ValidateAsync(Input(timed));
+        await tool.ExecuteAsync(allDay);
+
+        Assert.Equal(new DateOnly(2026, 10, 11), (await db.PlannerItems.SingleAsync()).EndDate);
+        Assert.Equal(
+            "Add planner item “Goa trip” — 2026-10-09 · until 2026-10-11 · all day",
+            PersonaOS.Application.Ai.ProposedActionSummary.Describe("add_planner_item", allDay.GetRawText()));
+        Assert.Contains("until 2026-10-10 09:00", PersonaOS.Application.Ai.ProposedActionSummary.Describe("add_planner_item", timed));
+    }
+
+    [Theory]
+    [InlineData("""{"title":"Buy milk","date":"2026-10-09","endDate":"2026-10-09"}""")]
+    [InlineData("""{"title":"Buy milk","date":"2026-10-09","endDate":"2026-10-01"}""")]
+    [InlineData("""{"title":"Buy milk","date":"2026-10-09","endDate":"tomorrow"}""")]
+    [InlineData("""{"title":"Buy milk","date":"2026-10-09","endDate":""}""")]
+    public async Task A_last_day_that_is_not_after_the_first_is_dropped(string json)
+    {
+        var tool = AddTool(TestDbContext.Create());
+
+        var completed = await tool.CompleteInputAsync(Input(json));
+
+        Assert.DoesNotContain("endDate", completed);
+    }
+
     [Theory]
     [InlineData("""{"title":"x","scheduledTime":"10:00","endTime":"09:00"}""", "later than")]
+    [InlineData("""{"title":"x","date":"2026-10-09","scheduledTime":"18:00","endDate":"2026-10-10"}""", "needs an 'endTime'")]
     [InlineData("""{"title":"x","repeat":"hourly"}""", "daily, weekly")]
     [InlineData("""{"title":"x","repeatUntil":"2026-12-01"}""", "only goes with")]
     [InlineData("""{"title":"x","date":"2026-10-10","repeat":"daily","repeatUntil":"2026-10-01"}""", "before the first day")]

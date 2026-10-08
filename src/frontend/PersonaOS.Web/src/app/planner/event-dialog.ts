@@ -14,10 +14,11 @@ import { BoardService, BoardTask, apiError } from '../core/board.service';
 import { BrandingService } from '../core/branding.service';
 import { Goal, GoalsService } from '../core/goals.service';
 import { EventChange, EventFields, PlannerItemDto, PlannerService } from '../core/planner.service';
+import { shiftLocalDate } from '../core/local-date';
 import {
   CustomRepeat, DEFAULT_NOTIFY_MINUTES, MAX_NOTIFY_MINUTES, NOTIFY_PRESETS, NOTIFY_UNIT_MINUTES, NotifyUnit, RepeatOption,
-  WEEK_ORDER, customRule, defaultCustomRepeat, formatMoment, largestUnit, leadText, minutesOf, notifyAt, parseCustom,
-  repeatOptions, timeOf,
+  WEEK_ORDER, customRule, dayDiff, defaultCustomRepeat, formatMoment, largestUnit, lastDayOf, leadText, minutesOf, notifyAt,
+  parseCustom, repeatOptions, timeOf,
 } from './calendar';
 import { ScopeDialog } from './scope-dialog';
 
@@ -33,7 +34,8 @@ export interface EventDialogData {
 type NotifyChoice = number | 'none' | 'custom';
 
 /**
- * Creates or edits a planner event, Google Calendar style: title, day, all day or a start and end,
+ * Creates or edits a planner event, Google Calendar style: title, first and last day, all day or a
+ * start and end,
  * repeat (presets and a custom editor), notification (presets and a custom number with its unit),
  * notes and a goal. Saving a repeating event asks which events the change is for.
  */
@@ -64,6 +66,8 @@ export class EventDialog implements OnInit {
 
   protected readonly title = signal(this.data.item?.title ?? '');
   protected readonly date = signal(this.data.item?.date ?? this.data.date ?? '');
+  /** The last day: the first, unless the event lasts several days. */
+  protected readonly endDate = signal(this.data.item ? lastDayOf(this.data.item) : (this.data.date ?? ''));
   protected readonly allDay = signal(this.data.item ? this.data.item.scheduledTime === null : !this.data.start);
   protected readonly start = signal(this.initialStart());
   protected readonly end = signal(this.initialEnd());
@@ -110,11 +114,14 @@ export class EventDialog implements OnInit {
     return `${prefix}You will be notified ${at}.`;
   });
 
-  protected readonly timeError = computed(() =>
-    !this.allDay() && this.start() && this.end() && minutesOf(this.end()) <= minutesOf(this.start())
+  protected readonly multiDay = computed(() => !!this.endDate() && this.endDate() > this.date());
+
+  protected readonly timeError = computed(() => {
+    if (this.endDate() && this.date() && this.endDate() < this.date()) return 'The end day must be on or after the start day.';
+    return !this.multiDay() && !this.allDay() && this.start() && this.end() && minutesOf(this.end()) <= minutesOf(this.start())
       ? 'The end must be after the start.'
-      : null
-  );
+      : null;
+  });
 
   /** The rule the form describes now, or null for no repeat. */
   protected readonly rule = computed<string | null>(() => {
@@ -124,8 +131,8 @@ export class EventDialog implements OnInit {
   });
 
   protected readonly canSave = computed(
-    () => !!this.title().trim() && !!this.date() && !this.timeError() && !this.notifyTooFar() && !this.saving()
-      && (this.allDay() || !!this.start())
+    () => !!this.title().trim() && !!this.date() && !!this.endDate() && !this.timeError() && !this.notifyTooFar()
+      && !this.saving() && (this.allDay() || (!!this.start() && !!this.end()))
   );
 
   async ngOnInit(): Promise<void> {
@@ -169,12 +176,16 @@ export class EventDialog implements OnInit {
     return timeOf(minutesOf(this.initialStart()) + 60);
   }
 
-  /** Moving the start keeps the length, as Google Calendar does. */
+  /** Moving the start keeps the length, as Google Calendar does (over several days the end stays). */
   protected setStart(value: string): void {
     if (!value) return;
     const length = minutesOf(this.end()) - minutesOf(this.start());
     this.start.set(value);
-    this.end.set(timeOf(minutesOf(value) + (length > 0 ? length : 60)));
+    if (!this.multiDay()) this.end.set(timeOf(minutesOf(value) + (length > 0 ? length : 60)));
+  }
+
+  protected setEndDate(value: string): void {
+    if (value) this.endDate.set(value);
   }
 
   protected setAllDay(value: boolean): void {
@@ -201,11 +212,14 @@ export class EventDialog implements OnInit {
     }
   }
 
+  /** A new first day moves the last day by as much, so the event keeps its length. */
   protected setDate(value: string): void {
     if (!value) return;
     const choice = this.repeatChoice();
     const index = this.repeatChoices().findIndex(o => o.rule === choice);
+    const days = this.date() && this.endDate() ? Math.max(0, dayDiff(this.date(), this.endDate())) : 0;
     this.date.set(value);
+    this.endDate.set(shiftLocalDate(value, days));
     // "Weekly on Saturday" follows the day: keep the same kind of choice for the new day.
     if (choice !== null && choice !== 'custom' && index >= 0) {
       const options = this.repeatChoices();
@@ -274,6 +288,7 @@ export class EventDialog implements OnInit {
     return {
       title: this.title().trim(),
       date: this.date(),
+      endDate: this.multiDay() ? this.endDate() : null,
       notes: this.notes().trim() || null,
       scheduledTime: this.allDay() ? null : this.start(),
       endTime: this.allDay() ? null : this.end(),
@@ -291,6 +306,8 @@ export class EventDialog implements OnInit {
     if (f.title !== item.title) change.title = f.title;
     if ((f.notes ?? '') !== (item.notes ?? '')) change.notes = f.notes ?? '';
     if (f.date !== item.date) change.date = f.date;
+    // The server keeps the length when only the first day moves; a different length is sent.
+    if (dayDiff(f.date, f.endDate ?? f.date) !== dayDiff(item.date, lastDayOf(item))) change.endDate = f.endDate ?? f.date;
 
     const oldStart = item.scheduledTime?.slice(0, 5) ?? null;
     const oldEnd = item.endTime?.slice(0, 5) ?? null;
