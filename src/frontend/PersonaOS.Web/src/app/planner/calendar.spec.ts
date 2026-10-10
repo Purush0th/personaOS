@@ -139,9 +139,9 @@ describe('calendar', () => {
       expect(leadText(10080)).toBe('1 week');
     });
 
-    it('works out when the phone is notified, all day counting from 9 am', () => {
+    it('works out when the phone is notified, all day counting from 12 am', () => {
       expect(notifyAt(sat, '10:00:00', 30)).toEqual(new Date(2026, 9, 3, 9, 30));
-      expect(notifyAt(sat, null, 60)).toEqual(new Date(2026, 9, 3, 8, 0));
+      expect(notifyAt(sat, null, 60)).toEqual(new Date(2026, 9, 2, 23, 0));
       expect(notifyAt(sat, '10:00', 1440)).toEqual(new Date(2026, 9, 2, 10, 0));
     });
   });

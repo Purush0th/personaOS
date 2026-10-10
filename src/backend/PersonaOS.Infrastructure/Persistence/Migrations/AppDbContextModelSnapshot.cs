@@ -504,6 +504,9 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("AtStart")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("ItemId")
                         .HasColumnType("INTEGER");
 
@@ -520,7 +523,7 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SentAtUtc");
 
-                    b.HasIndex("ItemId", "OccurrenceDate", "StartUtc")
+                    b.HasIndex("ItemId", "OccurrenceDate", "StartUtc", "AtStart")
                         .IsUnique();
 
                     b.ToTable("PlannerAlertLogs");
