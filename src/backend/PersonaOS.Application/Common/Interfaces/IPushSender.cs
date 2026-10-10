@@ -36,12 +36,14 @@ public interface IPushSender
 
     /// <summary>Sends one notification to each token; one result per token.</summary>
     /// <param name="channel">The Android notification channel it goes in: one of <see cref="PushChannels"/>.</param>
+    /// <param name="tag">A notification with the same tag replaces this one on the phone; null for none.</param>
     Task<IReadOnlyList<PushResult>> SendAsync(
         IReadOnlyList<string> tokens,
         string title,
         string body,
         IReadOnlyDictionary<string, string>? data = null,
         string channel = PushChannels.Reminders,
+        string? tag = null,
         CancellationToken ct = default);
 
     /// <summary>

@@ -115,7 +115,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             cfg.HasKey(x => x.Id);
             cfg.HasOne(x => x.Item).WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
-            cfg.HasIndex(x => new { x.ItemId, x.OccurrenceDate, x.StartUtc }).IsUnique();
+            cfg.HasIndex(x => new { x.ItemId, x.OccurrenceDate, x.StartUtc, x.AtStart }).IsUnique();
             cfg.HasIndex(x => x.SentAtUtc);
         });
 

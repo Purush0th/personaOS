@@ -59,7 +59,7 @@ public class PlannerAlertDispatcherTests
     }
 
     [Fact]
-    public async Task An_event_that_has_started_is_not_announced()
+    public async Task An_event_that_has_started_gets_only_the_start_notification()
     {
         // The server was down over the alert time and came back after the start.
         var rig = await SetupAsync();
@@ -67,7 +67,60 @@ public class PlannerAlertDispatcherTests
 
         rig.Clock.Now = At(10, 1);
 
+        Assert.Equal(1, await rig.Dispatcher.DispatchDueAsync());
+        Assert.Equal("Starts now · 10:00 am", rig.Push.SentBodies.Single());
+    }
+
+    [Fact]
+    public async Task When_it_starts_a_second_notification_comes_beside_the_first()
+    {
+        // Owner, 2026-10-10: Google Calendar also notifies when the event starts.
+        var rig = await SetupAsync();
+        await TenOClockAsync(rig.Planner);
+
+        rig.Clock.Now = At(9, 30);
+        await rig.Dispatcher.DispatchDueAsync();
+        rig.Clock.Now = At(9, 59);
         Assert.Equal(0, await rig.Dispatcher.DispatchDueAsync());
+        rig.Clock.Now = At(10, 0);
+        Assert.Equal(1, await rig.Dispatcher.DispatchDueAsync());
+        rig.Clock.Now = At(10, 3);
+        Assert.Equal(0, await rig.Dispatcher.DispatchDueAsync());
+
+        Assert.Equal(["Starts in 30 minutes · 10:00 am", "Starts now · 10:00 am"], rig.Push.SentBodies);
+        // Owner: keep both on the phone, so they are tagged apart.
+        Assert.Equal(2, rig.Push.SentTags.Distinct().Count());
+        Assert.Equal(rig.Push.SentTags, rig.Push.SentNotificationData.Select(d => d!["tag"]));
+    }
+
+    [Fact]
+    public async Task A_start_missed_by_more_than_five_minutes_is_not_announced()
+    {
+        var rig = await SetupAsync();
+        await TenOClockAsync(rig.Planner);
+
+        rig.Clock.Now = At(10, 6);
+
+        Assert.Equal(0, await rig.Dispatcher.DispatchDueAsync());
+    }
+
+    [Fact]
+    public async Task An_all_day_event_starts_at_midnight_and_its_heads_up_counts_back_from_then()
+    {
+        // Owner, 2026-10-10: "All day event also can notify at 12AM".
+        var rig = await SetupAsync();
+        await rig.Planner.CreateAsync(new CreatePlannerItemRequest("Durga Puja", Sat3Oct, NotifyBeforeMinutes: 60));
+
+        rig.Clock.Now = At(22, 59, Sat3Oct.AddDays(-1));
+        Assert.Equal(0, await rig.Dispatcher.DispatchDueAsync());
+        rig.Clock.Now = At(23, 0, Sat3Oct.AddDays(-1));
+        Assert.Equal(1, await rig.Dispatcher.DispatchDueAsync());
+        rig.Clock.Now = At(0, 0);
+        Assert.Equal(1, await rig.Dispatcher.DispatchDueAsync());
+        rig.Clock.Now = At(9, 0);
+        Assert.Equal(0, await rig.Dispatcher.DispatchDueAsync());
+
+        Assert.Equal(["All day tomorrow", "All day today"], rig.Push.SentBodies);
     }
 
     [Fact]
@@ -94,14 +147,18 @@ public class PlannerAlertDispatcherTests
     }
 
     [Fact]
-    public async Task No_alert_means_no_notification()
+    public async Task No_heads_up_means_only_the_start_notification()
     {
         var rig = await SetupAsync();
         await TenOClockAsync(rig.Planner, notify: null);
 
         rig.Clock.Now = At(9, 59);
-
         Assert.Equal(0, await rig.Dispatcher.DispatchDueAsync());
+
+        // Every event is still notified when it starts (owner, 2026-10-10).
+        rig.Clock.Now = At(10, 0);
+        Assert.Equal(1, await rig.Dispatcher.DispatchDueAsync());
+        Assert.Equal("Starts now · 10:00 am", rig.Push.SentBodies.Single());
     }
 
     [Fact]
@@ -112,7 +169,9 @@ public class PlannerAlertDispatcherTests
         await rig.Planner.UpdateStatusAsync(item.Id, PlannerItemStatuses.Done);
 
         rig.Clock.Now = At(9, 40);
+        Assert.Equal(0, await rig.Dispatcher.DispatchDueAsync());
 
+        rig.Clock.Now = At(10, 0);
         Assert.Equal(0, await rig.Dispatcher.DispatchDueAsync());
     }
 
@@ -170,20 +229,6 @@ public class PlannerAlertDispatcherTests
 
         Assert.Equal(1, await rig.Dispatcher.DispatchDueAsync());
         Assert.Equal(2, rig.Push.SendCount);
-    }
-
-    [Fact]
-    public async Task An_all_day_event_counts_from_nine_in_the_morning()
-    {
-        var rig = await SetupAsync();
-        await rig.Planner.CreateAsync(new CreatePlannerItemRequest("Durga Puja", Sat3Oct, NotifyBeforeMinutes: 60));
-
-        rig.Clock.Now = At(7, 59);
-        Assert.Equal(0, await rig.Dispatcher.DispatchDueAsync());
-
-        rig.Clock.Now = At(8, 0);
-        Assert.Equal(1, await rig.Dispatcher.DispatchDueAsync());
-        Assert.Equal("All day today", rig.Push.SentBodies.Single());
     }
 
     [Fact]
