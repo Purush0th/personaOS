@@ -42,8 +42,9 @@ public class PlannerItem
     public TimeOnly? EndTime { get; set; }
 
     /// <summary>
-    /// Minutes before the start to send a notification to the phone; null means no notification.
-    /// An all-day event counts from <see cref="PlannerEvents.AllDayAlertReference"/>.
+    /// Minutes before the start to send a heads-up to the phone; null means none. Every event is
+    /// also notified when it starts, whatever this says. An all-day event starts at
+    /// <see cref="PlannerEvents.AllDayAlertReference"/>.
     /// </summary>
     public int? NotifyBeforeMinutes { get; set; }
 
@@ -90,8 +91,11 @@ public static class PlannerEvents
     /// <summary>The lead a new event starts with when the person does not choose one.</summary>
     public const int DefaultNotifyBeforeMinutes = 30;
 
-    /// <summary>The time of day an all-day event's notification counts from.</summary>
-    public static readonly TimeOnly AllDayAlertReference = new(9, 0);
+    /// <summary>
+    /// When an all-day event starts for its notifications: midnight, so it is notified at 12 AM and
+    /// a heads-up counts back from then (owner, 2026-10-10; it was 9:00 before).
+    /// </summary>
+    public static readonly TimeOnly AllDayAlertReference = TimeOnly.MinValue;
 }
 
 /// <summary>
@@ -136,8 +140,9 @@ public class PlannerOccurrence
 }
 
 /// <summary>
-/// Remembers that the notification for one occurrence, at one start time, was sent, so it goes out
-/// once. Moving the occurrence changes the start time and so allows a new notification.
+/// Remembers that a notification for one occurrence, at one start time, was sent, so it goes out
+/// once: the heads-up before the start, and separately the one at the start. Moving the occurrence
+/// changes the start time and so allows new notifications.
 /// </summary>
 public class PlannerAlertLog
 {
@@ -150,6 +155,9 @@ public class PlannerAlertLog
 
     /// <summary>The start the notification was sent for.</summary>
     public DateTime StartUtc { get; set; }
+
+    /// <summary>The notification at the start ("Starts now"), not the heads-up before it.</summary>
+    public bool AtStart { get; set; }
 
     public DateTime SentAtUtc { get; set; } = DateTime.UtcNow;
 }

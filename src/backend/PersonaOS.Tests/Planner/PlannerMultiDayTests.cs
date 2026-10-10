@@ -214,9 +214,11 @@ public class PlannerMultiDayTests
         await planner.CreateAsync(new CreatePlannerItemRequest(
             "Conference", Oct9, ScheduledTime: new TimeOnly(9, 0), EndTime: new TimeOnly(13, 0), EndDate: Oct10, NotifyBeforeMinutes: 30));
 
-        Assert.Equal(2, await dispatcher.DispatchDueAsync());
+        Assert.Equal(1, await dispatcher.DispatchDueAsync());
+        clock.Now = new DateTimeOffset(2026, 10, 9, 0, 0, 0, TimeSpan.Zero);
+        Assert.Equal(1, await dispatcher.DispatchDueAsync());
 
-        Assert.Equal(["From today to Sun 11 Oct", "Starts in 30 minutes · 9:00 am · until Sat 10 Oct"], push.SentBodies.Order());
+        Assert.Equal(["Starts in 30 minutes · 9:00 am · until Sat 10 Oct", "From today to Sun 11 Oct"], push.SentBodies);
         Assert.All(push.SentChannels, c => Assert.Equal(PushChannels.PlannerEvents, c));
     }
 

@@ -253,9 +253,11 @@ Full rules: [sprint-board.md](sprint-board.md). In short:
   every weekday, every N, ending never, on a date or after N times; RFC 5545 RRULE text).
   A repeating event is one series; changing or deleting one occurrence asks This event /
   This and following / All events.
-- An event can **notify** the phone once, a chosen time before it starts (5 minutes to 4 weeks,
-  or a custom number and unit), as an ordinary notification, not an alarm. Reminders stay
-  separate and alarm-grade. An all-day event counts from 9:00. Event notifications have their
+- Every event **notifies** the phone when it starts ("Starts now"; an all-day event at 12 AM),
+  whatever else is set, as on Google Calendar. An event can also have one heads-up, a chosen
+  time before (5 minutes to 4 weeks, or a custom number and unit, counted from 12 AM for an
+  all-day event); the two stay as separate notifications. These are ordinary
+  notifications, not alarms. Reminders stay separate and alarm-grade. Event notifications have their
   own Android channel, so they can be muted apart from reminders and briefs.
 - Marking a planner item done does not finish its task; the user moves the card.
 

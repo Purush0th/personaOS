@@ -227,9 +227,13 @@ class PushService {
     if (notification == null) return;
     final date = message.data['date'];
     final planner = message.data['type'] == plannerAlert;
+    // The server tags each of an event's notifications (the heads-up and "Starts now" apart), and
+    // Android draws one with a tag under id 0. The same tag here means a resent heads-up replaces
+    // the old one whether that was drawn by the system or by this app.
+    final tag = planner ? message.data['tag'] as String? : null;
 
     await _local.show(
-      id: notification.hashCode,
+      id: tag == null ? notification.hashCode : 0,
       title: notification.title,
       body: notification.body,
       payload: planner && date is String ? 'planner:$date' : null,
@@ -239,6 +243,7 @@ class PushService {
           planner ? _plannerChannelName : _channelName,
           importance: Importance.high,
           priority: Priority.high,
+          tag: tag,
         ),
       ),
     );

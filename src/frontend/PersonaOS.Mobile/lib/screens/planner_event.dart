@@ -629,11 +629,13 @@ class _EventEditorPageState extends State<EventEditorPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
-    final notifyHint = _notify == null
-        ? null
+    // Every event is notified when it starts; the choice here is a heads-up before that.
+    final notifyHint = _notify == null || _notify == 0
+        ? 'You will be notified when it starts.'
         : _notifyTooFar
         ? 'Too far ahead: the most is 4 weeks before.'
-        : 'You will be notified ${formatMoment(notifyAt(_date, _allDay ? null : _start, _notify!))}.';
+        : '${_allDay ? 'All-day events start at 12:00 am. ' : ''}'
+              'You will be notified ${formatMoment(notifyAt(_date, _allDay ? null : _start, _notify!))}, and when it starts.';
 
     return Scaffold(
       appBar: AppBar(
@@ -721,9 +723,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
               key: const Key('event-notify'),
               leading: const Icon(Icons.notifications_outlined),
               title: Text(notifyLabel(_notify)),
-              subtitle: notifyHint == null
-                  ? null
-                  : Text(notifyHint, style: TextStyle(color: _notifyTooFar ? theme.colorScheme.error : muted)),
+              subtitle: Text(notifyHint, style: TextStyle(color: _notifyTooFar ? theme.colorScheme.error : muted)),
               onTap: _pickNotify,
             ),
             const Divider(height: 1),
@@ -1001,7 +1001,7 @@ class CustomNotifyDialog extends StatefulWidget {
 
   final DateTime day;
 
-  /// Start "HH:mm", or null for an all-day event (counts from 9 am).
+  /// Start "HH:mm", or null for an all-day event (counts from 12 am).
   final String? start;
   final int initialMinutes;
 
@@ -1022,7 +1022,7 @@ class _CustomNotifyDialogState extends State<CustomNotifyDialog> {
     final at = formatMoment(notifyAt(widget.day, widget.start, _minutes));
     final hint = _tooFar
         ? 'Too far ahead: ${leadText(_minutes)} before would be $at. The most is 4 weeks (40,320 minutes) before.'
-        : '${widget.start == null ? 'All-day events count from 9:00 am. ' : ''}You will be notified $at.';
+        : '${widget.start == null ? 'All-day events start at 12:00 am. ' : ''}You will be notified $at.';
     return AlertDialog(
       key: const Key('custom-notify'),
       title: const Text('Custom notification'),

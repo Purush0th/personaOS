@@ -36,6 +36,9 @@ public class FakePushSender : IPushSender
     /// <summary>The Android channel of every notification sent (not data-only messages), in order.</summary>
     public List<string> SentChannels { get; } = new();
 
+    /// <summary>The tag of every notification sent (not data-only messages), in order.</summary>
+    public List<string?> SentTags { get; } = new();
+
     /// <summary>Every data-only payload sent, in order.</summary>
     public List<IReadOnlyDictionary<string, string>> SentData { get; } = new();
 
@@ -45,9 +48,11 @@ public class FakePushSender : IPushSender
         string body,
         IReadOnlyDictionary<string, string>? data = null,
         string channel = PushChannels.Reminders,
+        string? tag = null,
         CancellationToken ct = default)
     {
         SendCount++;
+        SentTags.Add(tag);
         SentBodies.Add(body);
         SentTitles.Add(title);
         SentNotificationData.Add(data);

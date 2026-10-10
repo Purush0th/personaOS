@@ -143,9 +143,9 @@ void main() {
       expect(notifyLabel(null), 'No notification');
     });
 
-    test('works out when the phone is notified, all day counting from 9 am', () {
+    test('works out when the phone is notified, all day counting from 12 am', () {
       expect(notifyAt(sat, '10:00:00', 30), DateTime(2026, 10, 3, 9, 30));
-      expect(notifyAt(sat, null, 60), DateTime(2026, 10, 3, 8));
+      expect(notifyAt(sat, null, 60), DateTime(2026, 10, 2, 23));
       expect(notifyAt(sat, '10:00', 1440), DateTime(2026, 10, 2, 10));
       expect(formatMoment(DateTime(2026, 10, 2, 10)), 'Fri 2 Oct, 10:00 am');
     });

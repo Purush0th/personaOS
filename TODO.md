@@ -139,6 +139,24 @@ Design (decided here, so later sessions need not rediscover it):
       SQLite smoke 16/16 (`EndDate` queries) and the earlier calendar smoke still pass.
       Accuracy suite (qwen2.5:3b, 5 runs): 63/65, planner scenario 5/5; the two misses are in
       unrelated scenarios (board read via get_sprint_report once, a delete_goal refusal once).
+- [x] **C6. A notification when an event starts** (2026-10-10). Owner,
+      after trying C5 on the phone: "when its start no notification receives - usually google will
+      notify like the event is started". First cut: a timed event with a notification also gets
+      "Starts now" at its start, replacing the heads-up on the phone. Done: `PlannerAlertDispatcher` sends the
+      heads-up before the start and "Starts now · 10:00 am" from the start to 5 minutes after;
+      `PlannerAlertLog.AtStart` (migration `PlannerStartAlert`) keeps each to once. Both carry
+      the FCM tag `planner-<id>-<occurrence>` (`IPushSender.SendAsync(tag)`), so the second
+      replaces the first; the phone uses the same tag for one it shows in the foreground. Editor
+      hints say "…, and when it starts". Then the owner widened it (same day): every event is
+      notified at its start, even with "No notification" (that choice means no heads-up; the start
+      notification is not an option in the list), and an all-day event starts at 12 AM:
+      `PlannerEvents.AllDayAlertReference` is now midnight (was 9:00), so its heads-up counts back
+      from 12 AM ("1 hour before" = 11 PM the night before), web and phone hints alike; the
+      editor says "You will be notified when it starts." with no heads-up. Tests: backend 859
+      (start for every event, all-day at midnight and 11 PM, the 5-minute limit, done).
+      Owner then chose to keep both on the phone rather than "Starts now" replacing the heads-up:
+      the tags are now `planner-<id>-<day>-before` / `-start` (also sent as data `tag`, which the
+      app uses for one it shows while open), so only a resent heads-up replaces an old one.
 
 ## Maturity: phone UX, accuracy, engineering standards (owner, 2026-10-01)
 

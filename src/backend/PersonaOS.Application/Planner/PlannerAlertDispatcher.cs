@@ -18,13 +18,17 @@ public interface IPlannerAlertDispatcher
 }
 
 /// <summary>
-/// Notifies the phone shortly before a planner event starts, as an ordinary push notification (the
-/// system draws it; it is not an alarm, which is what reminders are for).
+/// Notifies the phone when a planner event starts, and beforehand when the event asks for a
+/// heads-up, as ordinary push notifications (the system draws them; they are not alarms, which
+/// are what reminders are for). Every event is notified at its start, as Google Calendar does,
+/// whatever its heads-up setting (owner, 2026-10-10); an all-day event starts at 12 AM. The
+/// heads-up and the start notification stay as two notifications on the phone (owner's choice);
+/// each has its own tag, so a new heads-up for a moved event replaces the stale one.
 ///
-/// An event is notified once per start time: <see cref="PlannerAlertLog"/> remembers it, and moving
-/// the event gives it a new start and so a new notification. Events that are done or skipped, or
-/// that have already begun, are not notified; a server that was down over the alert time still
-/// sends it if the event is yet to start.
+/// Each is sent once per start time: <see cref="PlannerAlertLog"/> remembers it, and moving the
+/// event gives it a new start and so new notifications. Events that are done or skipped are not
+/// notified. A server that was down over the alert time still sends the heads-up if the event is
+/// yet to start, and the start notification up to five minutes after the start.
 /// </summary>
 public class PlannerAlertDispatcher(
     IAppDbContext db,
@@ -33,7 +37,7 @@ public class PlannerAlertDispatcher(
     TimeProvider time,
     ILogger<PlannerAlertDispatcher> logger) : IPlannerAlertDispatcher
 {
-    /// <summary>An alert with no lead time is sent at the start and is still worth sending this long after.</summary>
+    /// <summary>A notification at the start is still worth sending this long after it.</summary>
     private static readonly TimeSpan AtStartGrace = TimeSpan.FromMinutes(5);
 
     /// <summary>Records of sent notifications are kept this long, then dropped.</summary>
@@ -44,11 +48,11 @@ public class PlannerAlertDispatcher(
         var config = await configService.GetOrCreateAsync(ct);
         if (!config.IsConfigured || !config.IsEnabled(InstanceConfig.Modules.Planner)) return 0;
 
+        // The longest heads-up decides how far ahead to look; with none, only starts are due.
         var lead = await db.PlannerItems.AsNoTracking()
             .Where(i => i.NotifyBeforeMinutes != null)
             .Select(i => i.NotifyBeforeMinutes)
-            .MaxAsync(ct);
-        if (lead is null) return 0;
+            .MaxAsync(ct) ?? 0;
 
         var zone = UserClock.Zone(config.TimeZone);
         var nowUtc = time.GetUtcNow().UtcDateTime;
@@ -57,18 +61,22 @@ public class PlannerAlertDispatcher(
         // Days that can hold an event whose alert is due: started up to a day ago (a late tick), or
         // starting within the longest lead from now. A day either side covers all-day events and zones.
         var from = DateOnly.FromDateTime(localNow).AddDays(-1);
-        var to = DateOnly.FromDateTime(localNow.AddMinutes(lead.Value)).AddDays(1);
+        var to = DateOnly.FromDateTime(localNow.AddMinutes(lead)).AddDays(1);
         var events = await db.EventsAsync(from, to, ct: ct);
 
-        var due = new List<(PlannerOccurrenceView Event, DateTime StartUtc)>();
+        var due = new List<(PlannerOccurrenceView Event, DateTime StartUtc, bool AtStart)>();
         foreach (var e in events)
         {
-            if (e.Item.NotifyBeforeMinutes is not int minutes || e.Status != PlannerItemStatuses.Planned) continue;
+            if (e.Status != PlannerItemStatuses.Planned) continue;
 
             var startUtc = PlannerCalendar.StartUtc(e.Date, e.Start, zone);
-            var alertAt = startUtc.AddMinutes(-minutes);
-            var lastWorthwhile = minutes == 0 ? startUtc + AtStartGrace : startUtc;
-            if (alertAt <= nowUtc && nowUtc < lastWorthwhile) due.Add((e, startUtc));
+            // The heads-up, between the alert time and the start, when the event has one.
+            if (e.Item.NotifyBeforeMinutes is > 0 and var minutes
+                && startUtc.AddMinutes(-minutes) <= nowUtc && nowUtc < startUtc)
+                due.Add((e, startUtc, AtStart: false));
+            // Every event when it starts.
+            if (startUtc <= nowUtc && nowUtc < startUtc + AtStartGrace)
+                due.Add((e, startUtc, AtStart: true));
         }
 
         await PruneLogsAsync(nowUtc, ct);
@@ -77,11 +85,11 @@ public class PlannerAlertDispatcher(
         var itemIds = due.Select(d => d.Event.Item.Id).Distinct().ToList();
         var sent = (await db.PlannerAlertLogs.AsNoTracking()
                 .Where(l => itemIds.Contains(l.ItemId))
-                .Select(l => new { l.ItemId, l.OccurrenceDate, l.StartUtc })
+                .Select(l => new { l.ItemId, l.OccurrenceDate, l.StartUtc, l.AtStart })
                 .ToListAsync(ct))
-            .Select(l => (l.ItemId, l.OccurrenceDate, l.StartUtc.Ticks))
+            .Select(l => (l.ItemId, l.OccurrenceDate, l.StartUtc.Ticks, l.AtStart))
             .ToHashSet();
-        due = due.Where(d => !sent.Contains((d.Event.Item.Id, d.Event.OriginalDate, d.StartUtc.Ticks))).ToList();
+        due = due.Where(d => !sent.Contains((d.Event.Item.Id, d.Event.OriginalDate, d.StartUtc.Ticks, d.AtStart))).ToList();
         if (due.Count == 0) return 0;
 
         if (!pushSender.IsConfigured)
@@ -100,21 +108,28 @@ public class PlannerAlertDispatcher(
         var delivered = 0;
         var invalidTokens = new HashSet<string>();
         var today = DateOnly.FromDateTime(localNow);
-        foreach (var (e, startUtc) in due)
+        foreach (var (e, startUtc, atStart) in due)
         {
+            var occurrence = e.OriginalDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            // The heads-up and "Starts now" are tagged apart, so both stay on the phone.
+            var tag = string.Create(
+                CultureInfo.InvariantCulture, $"planner-{e.Item.Id}-{occurrence}-{(atStart ? "start" : "before")}");
             var results = await pushSender.SendAsync(
                 tokens,
                 e.Title,
-                Body(e, e.Item.NotifyBeforeMinutes!.Value, today),
+                Body(e, atStart ? 0 : e.Item.NotifyBeforeMinutes ?? 0, today),
                 new Dictionary<string, string>
                 {
                     ["type"] = "planner_alert",
                     ["itemId"] = e.Item.Id.ToString(CultureInfo.InvariantCulture),
-                    ["occurrenceDate"] = e.OriginalDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    ["occurrenceDate"] = occurrence,
                     ["date"] = e.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    // For the app to show it under the same tag when it is open.
+                    ["tag"] = tag,
                 },
                 PushChannels.PlannerEvents,
-                ct);
+                tag,
+                ct: ct);
 
             foreach (var failed in results.Where(r => r.TokenInvalid)) invalidTokens.Add(failed.Token);
 
@@ -125,13 +140,14 @@ public class PlannerAlertDispatcher(
                     ItemId = e.Item.Id,
                     OccurrenceDate = e.OriginalDate,
                     StartUtc = startUtc,
+                    AtStart = atStart,
                     SentAtUtc = nowUtc,
                 });
                 delivered++;
             }
             else
             {
-                // Not marked sent: the next pass tries again until the event starts.
+                // Not marked sent: the next pass tries again while it is still worth sending.
                 logger.LogWarning(
                     "Planner alert for event {Id} on {Date} was not delivered: {Error}",
                     e.Item.Id, e.Date, results.FirstOrDefault(r => r.Error is not null)?.Error ?? "unknown error");

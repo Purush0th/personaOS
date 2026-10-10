@@ -487,7 +487,7 @@ export const MAX_NOTIFY_MINUTES = 4 * 10080;
 export const DEFAULT_NOTIFY_MINUTES = 30;
 
 /** The time of day an all-day event's notification counts from. */
-export const ALL_DAY_ALERT_REFERENCE = '09:00';
+export const ALL_DAY_ALERT_REFERENCE = '00:00';
 
 /** The notification choices: the owner's list, then "Custom…". Null is no notification. */
 export const NOTIFY_PRESETS: { minutes: number | null; label: string }[] = [
@@ -526,7 +526,7 @@ export function notifyLabel(minutes: number | null): string {
 }
 
 /**
- * When the phone would be notified for an event on `day` at `start` (all day counts from 9 am),
+ * When the phone would be notified for an event on `day` at `start` (all day counts from 12 am),
  * `minutes` before. Local time.
  */
 export function notifyAt(day: string, start: string | null, minutes: number): Date {

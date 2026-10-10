@@ -522,7 +522,7 @@ const maxNotifyMinutes = 4 * 10080;
 const defaultNotifyMinutes = 30;
 
 /// The time of day an all-day event's notification counts from.
-const allDayAlertReference = '09:00';
+const allDayAlertReference = '00:00';
 
 /// The notification choices, the owner's list. Null is no notification; "Custom…" follows them.
 const notifyPresets = <({int? minutes, String label})>[
@@ -560,7 +560,7 @@ String notifyLabel(int? minutes) => switch (minutes) {
   final m => '${leadText(m)} before',
 };
 
-/// When the phone would be notified for an event on [day] at [start] (all day counts from 9 am).
+/// When the phone would be notified for an event on [day] at [start] (all day counts from 12 am).
 DateTime notifyAt(DateTime day, String? start, int minutes) {
   final at = minutesOf(start ?? allDayAlertReference);
   return DateTime(day.year, day.month, day.day, at ~/ 60, at % 60 - minutes);
