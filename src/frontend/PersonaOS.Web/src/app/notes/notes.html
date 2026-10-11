@@ -1,0 +1,92 @@
+<header class="page-head">
+  <h1>Notes</h1>
+  <span class="spacer"></span>
+  <label class="search">
+    <mat-icon aria-hidden="true">search</mat-icon>
+    <input
+      type="search"
+      name="search"
+      placeholder="Search"
+      aria-label="Search notes"
+      data-testid="notes-search"
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+      (keyup.enter)="reload()"
+      (search)="reload()"
+    />
+  </label>
+</header>
+
+<div class="progress">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<div class="take">
+  <textarea
+    name="draft"
+    rows="1"
+    placeholder="Take a note…"
+    aria-label="Take a note"
+    data-testid="note-draft"
+    autofocus
+    #draftBox
+    [maxLength]="maxLength"
+    (input)="draft.set(draftBox.value)"
+    (keydown)="onDraftKey($event)"
+  ></textarea>
+  @if (draft().trim()) {
+    <button mat-flat-button data-testid="note-add" (click)="add()">Save</button>
+  }
+</div>
+<p class="muted small hint">Enter saves · Shift+Enter for a new line</p>
+
+<section class="cards" data-testid="notes">
+  @for (note of items(); track note.id) {
+    <article class="note" [class.editing]="editing() === note.id" data-testid="note">
+      @if (editing() === note.id) {
+        <textarea
+          class="edit"
+          name="edit"
+          aria-label="Edit note"
+          data-testid="note-edit"
+          [maxlength]="maxLength"
+          [ngModel]="editText()"
+          (ngModelChange)="editText.set($event)"
+          (keydown)="onEditKey($event, note)"
+          (blur)="saveEdit(note)"
+          #editBox
+        ></textarea>
+      } @else {
+        <button type="button" class="text" [attr.aria-label]="'Edit note: ' + note.text" (click)="edit(note)">{{ note.text }}</button>
+      }
+      <div class="actions">
+        @if (branding.isEnabled('board')) {
+          <button
+            mat-icon-button
+            matTooltip="Move to backlog"
+            aria-label="Move to backlog"
+            data-testid="note-to-backlog"
+            (click)="toBacklog(note)"
+          >
+            <mat-icon>move_to_inbox</mat-icon>
+          </button>
+        }
+        <button mat-icon-button matTooltip="Delete" aria-label="Delete note" data-testid="note-delete" (click)="remove(note)">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+    </article>
+  } @empty {
+    @if (!loading()) {
+      <p class="muted empty">
+        @if (search().trim()) {
+          No notes contain “{{ search().trim() }}”.
+        } @else {
+          Notes you take appear here. Move them to the backlog when you are ready to work on them.
+        }
+      </p>
+    }
+  }
+</section>

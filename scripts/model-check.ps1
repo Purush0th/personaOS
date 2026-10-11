@@ -284,6 +284,21 @@ try {
             }
         },
         @{
+            # Notes (2026-10-10): a note from chat is saved straight away, no card.
+            Name  = 'saves a note'
+            Say   = 'Note down: call the plumber about the balcony leak'
+            Check = {
+                param($d)
+                $used = Tools-Used $d
+                # Leave nothing behind: the note saved without a card goes too.
+                $notes = Invoke-Api -Method Get -Path '/api/notes?search=plumber' -Token $token
+                foreach ($n in @($notes)) { Invoke-Api -Method Delete -Path "/api/notes/$($n.id)" -Token $token | Out-Null }
+                if ($used -notcontains 'create_note') { return "did not save a note (ran: $($used -join ','); proposed: $((Proposed-Tools $d) -join ','))" }
+                if (-not (@($notes) | Where-Object { $_.text -match 'plumber' })) { return 'the note was not saved' }
+                return ''
+            }
+        },
+        @{
             # qwen2.5 told a user to install PersonaOS from the App Store, which does not list it.
             Name  = 'real download link'
             Say   = 'Where can I download PersonaOS?'

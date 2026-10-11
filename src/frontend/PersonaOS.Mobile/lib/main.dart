@@ -17,6 +17,7 @@ import 'screens/chat_screen.dart';
 import 'screens/goals_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/memories_screen.dart';
+import 'screens/notes_screen.dart';
 import 'screens/planner_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
@@ -576,6 +577,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       title: 'Reminders',
                       subtitle: 'Nudges at the right time',
                       onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
+                    ),
+                  if (enabled('notes'))
+                    _ModuleCard(
+                      icon: Icons.sticky_note_2_outlined,
+                      title: 'Notes',
+                      subtitle: 'Jot things down for later',
+                      onTap: () => _openAfterLogin((_) => NotesScreen(api: _api, boardEnabled: enabled('board'))),
                     ),
                   if (enabled('memory'))
                     _ModuleCard(

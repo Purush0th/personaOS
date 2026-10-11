@@ -17,6 +17,7 @@ const _modules = <String, String>{
   'board': 'Sprint board',
   'planner': 'Planner',
   'reminders': 'Reminders',
+  'notes': 'Notes',
   'memory': 'Memory',
   'voice': 'Voice',
   'proactive': 'Proactive briefs',

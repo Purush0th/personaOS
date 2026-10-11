@@ -85,6 +85,7 @@ Each module can be switched off per install; its UI disappears, its endpoints re
 | `board` | on | A one-person Scrum board: tasks, value points, weekly sprints, backlog, reports |
 | `planner` | on | A calendar of events (repeats, notifications); items can come from the sprint |
 | `reminders` | on | Scheduled alarms and push notifications, created in chat or by hand |
+| `notes` | on | Quick notes to deal with later, as in Google Keep; moved to the backlog when ready |
 | `memory` | on | Cross-device personal memory stored by the server: facts, preferences, project context and decisions, retrievable in chat |
 | `voice` | on | Push-to-talk and hands-free voice on the phone, with read-back |
 | `proactive` | **off** | Morning brief and evening rollup pushed to the phone |
@@ -271,6 +272,17 @@ Full rules: [sprint-board.md](sprint-board.md). In short:
 - **Push is bring-your-own Firebase:** the admin uploads their own project's two files in web
   Settings. The app carries no Firebase config; the service-account key is encrypted at rest and
   never returned by any endpoint.
+
+### 3.5b Notes
+
+- A **note** is plain text (a line or a few), jotted down to deal with later, after Google
+  Keep: a "Take a note…" box on top (Enter, or the phone keyboard's send key, saves and keeps
+  the box ready for the next) and the notes as cards, the latest edited first.
+- Notes are **not a permanent place**: each moves to the board's **backlog** in one action (its
+  first line the task's title, the rest the description; the note is removed), or is deleted
+  (with an undo). No tags, pins, done state, reminders or offline mode (owner, 2026-10-10).
+- In chat, "note …" saves a note straight away with a receipt (no card); reading the notes and
+  moving one to the backlog are tools too, the move a card like every other board change.
 
 ### 3.6 Documents (removed 2026-10-01)
 

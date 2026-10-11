@@ -1,0 +1,149 @@
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  h1 {
+    font: var(--mat-sys-headline-small);
+    margin: 0;
+  }
+
+  .spacer {
+    flex: 1;
+  }
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.75rem;
+  height: 2.5rem;
+  border-radius: 1.25rem;
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface-variant);
+
+  input {
+    width: 12rem;
+    max-width: 50vw;
+    border: none;
+    outline: none;
+    background: none;
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-body-medium);
+  }
+}
+
+.progress {
+  height: 4px;
+}
+
+// The "Take a note…" box, centred as in Keep.
+.take {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: 40rem;
+  margin: 0.75rem auto 0;
+  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container);
+  box-shadow: var(--mat-sys-level1);
+
+  textarea {
+    flex: 1;
+    min-height: 1.5rem;
+    border: none;
+    outline: none;
+    resize: none;
+    field-sizing: content;
+    max-height: 40vh;
+    background: none;
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-body-large);
+  }
+}
+
+.hint {
+  max-width: 40rem;
+  margin: 0.3rem auto 1.25rem;
+  padding-left: 1rem;
+}
+
+// The notes as cards, the latest first, read left to right as in Keep.
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  align-items: start;
+  gap: 0.75rem;
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface);
+
+  &:hover,
+  &:focus-within {
+    box-shadow: var(--mat-sys-level1);
+
+    .actions {
+      opacity: 1;
+    }
+  }
+
+  &.editing {
+    border-color: var(--mat-sys-primary);
+  }
+
+  .text {
+    padding: 0.75rem 1rem 0.25rem;
+    border: none;
+    background: none;
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-body-medium);
+    text-align: left;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    cursor: text;
+    // A long note shows its start; editing shows it all.
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 14;
+    overflow: hidden;
+  }
+
+  .edit {
+    margin: 0.5rem 0.5rem 0;
+    padding: 0.25rem 0.5rem;
+    border: none;
+    outline: none;
+    resize: none;
+    field-sizing: content;
+    min-height: 3rem;
+    background: none;
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-body-medium);
+  }
+
+  // Shown on hover and focus, as Keep shows its tools; always shown where there is no hover.
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    opacity: 0;
+    transition: opacity 120ms;
+
+    @media (hover: none) {
+      opacity: 1;
+    }
+  }
+}
+
+.empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  grid-column: 1 / -1;
+}
