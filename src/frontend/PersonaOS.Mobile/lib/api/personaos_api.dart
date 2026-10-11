@@ -400,6 +400,24 @@ class ChatMode {
   static ChatMode of(String id) => all.firstWhere((m) => m.id == id, orElse: () => all.first);
 }
 
+/// Something jotted down to deal with later.
+class NoteDto {
+  NoteDto({required this.id, required this.text, required this.updatedAtUtc});
+
+  factory NoteDto.fromJson(Map<String, dynamic> json) => NoteDto(
+        id: json['id'] as int,
+        text: json['text'] as String? ?? '',
+        updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
+      );
+
+  /// The longest note the server accepts: a thought, not a document.
+  static const maxLength = 2000;
+
+  final int id;
+  final String text;
+  final DateTime updatedAtUtc;
+}
+
 /// Something the assistant remembers across conversations.
 class MemoryDto {
   MemoryDto({
@@ -1025,6 +1043,27 @@ class PersonaOsApi {
     }
     return response.bodyBytes;
   }
+
+  // --- Notes ---------------------------------------------------------------
+
+  /// Every note, the latest edited first.
+  Future<List<NoteDto>> getNotes() async {
+    final data = await _get('/api/notes') as List<dynamic>;
+    return data.map((e) => NoteDto.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<NoteDto> createNote(String text) async =>
+      NoteDto.fromJson(await _post('/api/notes', {'text': text}) as Map<String, dynamic>);
+
+  Future<NoteDto> updateNote(int id, String text) async =>
+      NoteDto.fromJson(await _put('/api/notes/$id', {'text': text}) as Map<String, dynamic>);
+
+  Future<void> deleteNote(int id) => _delete('/api/notes/$id');
+
+  /// Makes the note a task in the backlog (its first line the title) and removes the note;
+  /// returns the task's key, like "TASK-12".
+  Future<String> moveNoteToBacklog(int id) async =>
+      ((await _post('/api/notes/$id/to-backlog', <String, Object?>{})) as Map<String, dynamic>)['key'] as String;
 
   // --- Memories ------------------------------------------------------------
 

@@ -27,6 +27,7 @@ public interface IAppDbContext
     DbSet<ProactiveJobRun> ProactiveJobRuns { get; }
     DbSet<PendingAction> PendingActions { get; }
     DbSet<Memory> Memories { get; }
+    DbSet<Note> Notes { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

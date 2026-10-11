@@ -155,6 +155,7 @@ public class InstanceConfig
         public const string Proactive = "proactive";
         public const string Board = "board";
         public const string Memory = "memory";
+        public const string Notes = "notes";
     }
 
     /// <summary>Sensible defaults applied when a fresh instance is created.</summary>
@@ -166,6 +167,7 @@ public class InstanceConfig
         [Modules.Voice] = true,
         [Modules.Board] = true,
         [Modules.Memory] = true,
+        [Modules.Notes] = true,
         [Modules.Proactive] = false,
     };
 }

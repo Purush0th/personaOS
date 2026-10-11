@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<IChatContext, ChatContext>();
         services.AddScoped<PersonaOS.Application.Speech.ISpeechService, PersonaOS.Application.Speech.SpeechService>();
         services.AddScoped<PersonaOS.Application.Memories.IMemoryService, PersonaOS.Application.Memories.MemoryService>();
+        services.AddScoped<PersonaOS.Application.Notes.INoteService, PersonaOS.Application.Notes.NoteService>();
 
         services.AddScoped<IPersonaToolRegistry, PersonaToolRegistry>();
         services.AddScoped<IPersonaTool, GetGoalsTool>();
@@ -80,6 +81,9 @@ public static class DependencyInjection
         services.AddScoped<IPersonaTool, PersonaOS.Application.Memories.Tools.CreateMemoryTool>();
         services.AddScoped<IPersonaTool, PersonaOS.Application.Memories.Tools.UpdateMemoryTool>();
         services.AddScoped<IPersonaTool, PersonaOS.Application.Memories.Tools.DeleteMemoryTool>();
+        services.AddScoped<IPersonaTool, PersonaOS.Application.Notes.Tools.GetNotesTool>();
+        services.AddScoped<IPersonaTool, PersonaOS.Application.Notes.Tools.CreateNoteTool>();
+        services.AddScoped<IPersonaTool, PersonaOS.Application.Notes.Tools.MoveNoteToBacklogTool>();
 
         return services;
     }

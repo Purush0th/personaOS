@@ -29,6 +29,7 @@ public class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(
     public DbSet<ProactiveJobRun> ProactiveJobRuns => Set<ProactiveJobRun>();
     public DbSet<PendingAction> PendingActions => Set<PendingAction>();
     public DbSet<Memory> Memories => Set<Memory>();
+    public DbSet<Note> Notes => Set<Note>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
         base.SaveChangesAsync(cancellationToken);

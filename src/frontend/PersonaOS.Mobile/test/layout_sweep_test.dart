@@ -7,6 +7,7 @@ import 'package:personaos_mobile/screens/chat_screen.dart';
 import 'package:personaos_mobile/screens/conversations_screen.dart';
 import 'package:personaos_mobile/screens/goals_screen.dart';
 import 'package:personaos_mobile/screens/memories_screen.dart';
+import 'package:personaos_mobile/screens/notes_screen.dart';
 import 'package:personaos_mobile/screens/planner_screen.dart';
 import 'package:personaos_mobile/screens/reminders_screen.dart';
 import 'package:personaos_mobile/screens/settings_screen.dart';
@@ -45,6 +46,17 @@ class _Api extends PersonaOsApi {
 
   @override
   Future<bool> getMemoryAutoSave() async => true;
+
+  @override
+  Future<List<NoteDto>> getNotes() async => [
+        NoteDto(id: 1, text: 'Call the plumber about the balcony leak', updatedAtUtc: DateTime.utc(2026, 10, 10)),
+        NoteDto(
+          id: 2,
+          text: 'Fix the balcony door\nThe hinge squeaks when it opens, and the lock sticks in the rain.',
+          updatedAtUtc: DateTime.utc(2026, 10, 10),
+        ),
+        NoteDto(id: 3, text: 'Buy AA batteries', updatedAtUtc: DateTime.utc(2026, 10, 10)),
+      ];
 
   @override
   Future<InstanceSettings> getSettings() async => InstanceSettings.fromJson({
@@ -90,6 +102,7 @@ void main() {
     'planner': (api) => PlannerScreen(api: api),
     'reminders': (api) => RemindersScreen(api: api),
     'memories': (api) => MemoriesScreen(api: api),
+    'notes': (api) => NotesScreen(api: api, boardEnabled: true),
     'settings': (api) => SettingsScreen(api: api),
     'conversations': (api) => ConversationsScreen(api: api, assistantNickname: 'Juno'),
     'chat': (api) => ChatScreen(api: api, assistantNickname: 'Juno'),

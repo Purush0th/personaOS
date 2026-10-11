@@ -30,6 +30,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ProactiveJobRun> ProactiveJobRuns => Set<ProactiveJobRun>();
     public DbSet<PendingAction> PendingActions => Set<PendingAction>();
     public DbSet<Memory> Memories => Set<Memory>();
+    public DbSet<Note> Notes => Set<Note>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,6 +44,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // A memory outlives the conversation it came from: deleting the thread only drops the link.
             cfg.HasOne(x => x.SourceConversation).WithMany()
                 .HasForeignKey(x => x.SourceConversationId).OnDelete(DeleteBehavior.SetNull);
+            cfg.HasIndex(x => x.UpdatedAtUtc);
+        });
+
+        modelBuilder.Entity<Note>(cfg =>
+        {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Text).HasMaxLength(Note.MaxLength).IsRequired();
             cfg.HasIndex(x => x.UpdatedAtUtc);
         });
 
