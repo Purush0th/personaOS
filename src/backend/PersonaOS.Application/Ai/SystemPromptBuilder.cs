@@ -40,6 +40,7 @@ public class SystemPromptBuilder(
         (InstanceConfig.Modules.Board, "a sprint board (tasks with value points, in weekly sprints)"),
         (InstanceConfig.Modules.Planner, "a daily planner"),
         (InstanceConfig.Modules.Reminders, "reminders"),
+        (InstanceConfig.Modules.Notes, "notes (things the user jots down to deal with later)"),
         (InstanceConfig.Modules.Memory, "a memory of what the user told you in earlier conversations"),
         (InstanceConfig.Modules.Voice, "voice input and read-back"),
         (InstanceConfig.Modules.Proactive, "proactive morning and evening briefs"),

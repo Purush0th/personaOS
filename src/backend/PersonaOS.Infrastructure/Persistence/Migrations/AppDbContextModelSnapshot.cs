@@ -437,6 +437,30 @@ namespace PersonaOS.Infrastructure.Persistence.Migrations
                     b.ToTable("Memories");
                 });
 
+            modelBuilder.Entity("PersonaOS.Domain.Entities.Note", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedAtUtc");
+
+                    b.ToTable("Notes");
+                });
+
             modelBuilder.Entity("PersonaOS.Domain.Entities.PendingAction", b =>
                 {
                     b.Property<int>("Id")

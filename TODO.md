@@ -158,6 +158,40 @@ Design (decided here, so later sessions need not rediscover it):
       the tags are now `planner-<id>-<day>-before` / `-start` (also sent as data `tag`, which the
       app uses for one it shows while open), so only a resent heads-up replaces an old one.
 
+## Notes (owner, 2026-10-10)
+
+Owner: "Notes where to capture simple todo like items where i can jot down things popup in my
+mind. later i can work on it ... Something like Google keep." Then: "no complexity. No offline
+support and keep it simple stupid notes". Answers: a note from chat saves without a card;
+module named Notes; no home-screen widget for now; no tags ("we should move the items to
+backlogs asap / notes are not permanent place").
+
+Design: a note is plain text (one line or a few), newest edited first. Add, edit, delete, and
+**Move to backlog** (a board task: first line the title, the rest its description; the note is
+removed). Module `notes`, on by default (existing installs switched on by the migration). Chat
+tools `create_note` (saved straight away, receipted), `get_notes`, `move_note_to_backlog` (a
+card, as every other board change). No offline, pins, done state, tags, share target or
+shortcuts.
+
+- [x] **N1. Notes** (2026-10-11). Server: `Note` (text, 2,000 characters at most), migration
+      `Notes` (switches the module on for existing installs), `NoteService` (list with search,
+      create, update, delete, move to backlog: first line the title, cut at a word past 200
+      characters with the whole note kept as the description; refused while the board is off),
+      `NotesController` (`/api/notes`, `POST /api/notes/{id}/to-backlog`), chat tools
+      `create_note` (no card), `get_notes`, `move_note_to_backlog` (card, offered only with the
+      board on). Web: `/notes` in the nav, "Take a note…" (Enter saves, Shift+Enter new line),
+      cards in a grid read left to right, click to edit in place (Ctrl+Enter or leaving saves,
+      Escape cancels, emptied = deleted), Move to backlog and Delete on hover (Undo), search.
+      Phone: Notes card on home, the box on top (keyboard send key saves and keeps the
+      keyboard), cards two to a row, tap for a full-screen editor (back saves; bar: move to
+      backlog, delete), long press for the same two, Undo, search. Found by trying it in the
+      browser: typing the next note while one saved was wiped when the save answered, and
+      with fast typing the box did not clear (a bound value changed and changed back before a
+      redraw); the box is now cleared and read directly. Tests: backend 871 (`NoteTests`),
+      web 149 (`notes.spec`), phone 253 (`notes_screen_test`, layout sweep). Accuracy suite: new
+      scenario "saves a note" 5/5 and 3/3; full suite 40/42 (planner once, then 10/10 on its own;
+      download link once, a known flake).
+
 ## Maturity: phone UX, accuracy, engineering standards (owner, 2026-10-01)
 
 Owner: "focus on feature and UI polishing and ux for phone, esp the full screen and quick looks
