@@ -107,8 +107,9 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::error::Set the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD secrets: without them the APK cannot update the installed app."
+          # All four: an empty password showed up only as "keystore password was incorrect".
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Set all of ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (one is missing or empty): without them the APK cannot update the installed app."
             exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > app/release.jks
@@ -144,7 +145,10 @@ jobs:
       # Self-hosters upgrade by pulling the compose file, so ship it as an asset.
       - name: Stage release assets
         run: |
-          cp deploy/docker-compose.yml deploy/.env.example deploy/import-data.sh dist/
+          # GitHub renames an attachment that starts with a dot (".env.example" became
+          # "Default.env.example"), so it is published without the dot.
+          cp deploy/docker-compose.yml deploy/import-data.sh dist/
+          cp deploy/.env.example dist/env.example
           mv dist/app-release.apk dist/personaos-${GITHUB_REF_NAME}.apk
 
       - uses: softprops/action-gh-release@v2
@@ -152,7 +156,7 @@ jobs:
           generate_release_notes: true
           files: |
             dist/docker-compose.yml
-            dist/.env.example
+            dist/env.example
             dist/import-data.sh
             dist/personaos-*.apk
           body: |
@@ -161,8 +165,8 @@ jobs:
             ```bash
             mkdir personaos && cd personaos
             curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/docker-compose.yml
-            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/.env.example
-            cp .env.example .env   # set JWT_SIGNING_KEY
+            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/env.example
+            cp env.example .env   # set JWT_SIGNING_KEY
             docker compose up -d
             ```
 

@@ -22,19 +22,17 @@ class ChatEvent {
   });
 
   factory ChatEvent.fromJson(Map<String, dynamic> json) => ChatEvent(
-        type: json['type'] as String,
-        text: json['text'] as String?,
-        conversationId: json['conversationId'] as int?,
-        error: json['error'] as String?,
-        actions: (json['actions'] as List<dynamic>?)
-            ?.map((a) => ToolReceipt.fromJson(a as Map<String, dynamic>))
-            .toList(),
-        pending: (json['pending'] as List<dynamic>?)
-            ?.map((a) => PendingAction.fromJson(a as Map<String, dynamic>))
-            .toList(),
-        unverifiedClaim: json['unverifiedClaim'] as bool? ?? false,
-        unknownItems: _stringList(json['unknownItems']),
-      );
+    type: json['type'] as String,
+    text: json['text'] as String?,
+    conversationId: json['conversationId'] as int?,
+    error: json['error'] as String?,
+    actions: (json['actions'] as List<dynamic>?)?.map((a) => ToolReceipt.fromJson(a as Map<String, dynamic>)).toList(),
+    pending: (json['pending'] as List<dynamic>?)
+        ?.map((a) => PendingAction.fromJson(a as Map<String, dynamic>))
+        .toList(),
+    unverifiedClaim: json['unverifiedClaim'] as bool? ?? false,
+    unknownItems: _stringList(json['unknownItems']),
+  );
 
   final String type; // start | delta | tool | done | error
   final String? text;
@@ -54,8 +52,7 @@ class ChatEvent {
   final List<String> unknownItems;
 }
 
-List<String> _stringList(Object? json) =>
-    (json as List<dynamic>?)?.map((e) => e as String).toList() ?? const [];
+List<String> _stringList(Object? json) => (json as List<dynamic>?)?.map((e) => e as String).toList() ?? const [];
 
 /// A data-changing action the assistant proposed.
 ///
@@ -74,13 +71,13 @@ class PendingAction {
   });
 
   factory PendingAction.fromJson(Map<String, dynamic> json) => PendingAction(
-        id: json['id'] as String,
-        tool: json['tool'] as String,
-        summary: json['summary'] as String? ?? '',
-        status: json['status'] as String? ?? 'pending',
-        resultSummary: json['resultSummary'] as String?,
-        resultOk: json['resultOk'] as bool?,
-      );
+    id: json['id'] as String,
+    tool: json['tool'] as String,
+    summary: json['summary'] as String? ?? '',
+    status: json['status'] as String? ?? 'pending',
+    resultSummary: json['resultSummary'] as String?,
+    resultOk: json['resultOk'] as bool?,
+  );
 
   final String id;
   final String tool;
@@ -105,11 +102,11 @@ class ToolReceipt {
   ToolReceipt({required this.tool, required this.label, required this.ok, this.summary});
 
   factory ToolReceipt.fromJson(Map<String, dynamic> json) => ToolReceipt(
-        tool: json['tool'] as String,
-        label: json['label'] as String? ?? json['tool'] as String,
-        ok: json['ok'] as bool? ?? true,
-        summary: json['summary'] as String?,
-      );
+    tool: json['tool'] as String,
+    label: json['label'] as String? ?? json['tool'] as String,
+    ok: json['ok'] as bool? ?? true,
+    summary: json['summary'] as String?,
+  );
 
   final String tool;
 
@@ -157,25 +154,25 @@ class PlannerItem {
   }) : occurrenceDate = occurrenceDate ?? date;
 
   factory PlannerItem.fromJson(Map<String, dynamic> json) => PlannerItem(
-        id: json['id'] as int,
-        title: json['title'] as String,
-        date: json['date'] as String,
-        scheduledTime: json['scheduledTime'] as String?,
-        status: json['status'] as String,
-        goalTitle: json['goalTitle'] as String?,
-        goalKey: json['goalKey'] as String?,
-        taskKey: json['taskKey'] as String?,
-        endTime: json['endTime'] as String?,
-        notes: json['notes'] as String?,
-        goalId: json['goalId'] as int?,
-        taskId: json['taskId'] as int?,
-        notifyBeforeMinutes: json['notifyBeforeMinutes'] as int?,
-        recurrence: json['recurrence'] as String?,
-        recurrenceText: json['recurrenceText'] as String?,
-        occurrenceDate: json['occurrenceDate'] as String?,
-        isChanged: json['isChanged'] as bool? ?? false,
-        endDate: json['endDate'] as String?,
-      );
+    id: json['id'] as int,
+    title: json['title'] as String,
+    date: json['date'] as String,
+    scheduledTime: json['scheduledTime'] as String?,
+    status: json['status'] as String,
+    goalTitle: json['goalTitle'] as String?,
+    goalKey: json['goalKey'] as String?,
+    taskKey: json['taskKey'] as String?,
+    endTime: json['endTime'] as String?,
+    notes: json['notes'] as String?,
+    goalId: json['goalId'] as int?,
+    taskId: json['taskId'] as int?,
+    notifyBeforeMinutes: json['notifyBeforeMinutes'] as int?,
+    recurrence: json['recurrence'] as String?,
+    recurrenceText: json['recurrenceText'] as String?,
+    occurrenceDate: json['occurrenceDate'] as String?,
+    isChanged: json['isChanged'] as bool? ?? false,
+    endDate: json['endDate'] as String?,
+  );
 
   final int id;
   final String title;
@@ -273,14 +270,14 @@ class Reminder {
   });
 
   factory Reminder.fromJson(Map<String, dynamic> json) => Reminder(
-        id: json['id'] as int,
-        message: json['message'] as String,
-        dueAtLocal: DateTime.parse(json['dueAtLocal'] as String),
-        dueAtUtc: parseServerUtc(json['dueAtUtc'] as String),
-        status: json['status'] as String,
-        goalTitle: json['goalTitle'] as String?,
-        plannerItemTitle: json['plannerItemTitle'] as String?,
-      );
+    id: json['id'] as int,
+    message: json['message'] as String,
+    dueAtLocal: DateTime.parse(json['dueAtLocal'] as String),
+    dueAtUtc: parseServerUtc(json['dueAtUtc'] as String),
+    status: json['status'] as String,
+    goalTitle: json['goalTitle'] as String?,
+    plannerItemTitle: json['plannerItemTitle'] as String?,
+  );
 
   final int id;
   final String message;
@@ -296,19 +293,14 @@ class Reminder {
 
 /// One conversation in the history list.
 class ConversationSummary {
-  ConversationSummary({
-    required this.id,
-    required this.publicId,
-    required this.title,
-    required this.updatedAtUtc,
-  });
+  ConversationSummary({required this.id, required this.publicId, required this.title, required this.updatedAtUtc});
 
   factory ConversationSummary.fromJson(Map<String, dynamic> json) => ConversationSummary(
-        id: json['id'] as int,
-        publicId: json['publicId'] as String? ?? '',
-        title: json['title'] as String? ?? 'Untitled',
-        updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
-      );
+    id: json['id'] as int,
+    publicId: json['publicId'] as String? ?? '',
+    title: json['title'] as String? ?? 'Untitled',
+    updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
+  );
 
   final int id;
   final String publicId;
@@ -328,17 +320,17 @@ class ChatMessageDto {
   });
 
   factory ChatMessageDto.fromJson(Map<String, dynamic> json) => ChatMessageDto(
-        role: json['role'] as String,
-        content: json['content'] as String? ?? '',
-        toolActions: (json['toolActions'] as List<dynamic>?)
-            ?.map((a) => ToolReceipt.fromJson(a as Map<String, dynamic>))
-            .toList(),
-        pendingActions: (json['pendingActions'] as List<dynamic>?)
-            ?.map((a) => PendingAction.fromJson(a as Map<String, dynamic>))
-            .toList(),
-        unverifiedClaim: json['unverifiedClaim'] as bool? ?? false,
-        unknownItems: _stringList(json['unknownItems']),
-      );
+    role: json['role'] as String,
+    content: json['content'] as String? ?? '',
+    toolActions: (json['toolActions'] as List<dynamic>?)
+        ?.map((a) => ToolReceipt.fromJson(a as Map<String, dynamic>))
+        .toList(),
+    pendingActions: (json['pendingActions'] as List<dynamic>?)
+        ?.map((a) => PendingAction.fromJson(a as Map<String, dynamic>))
+        .toList(),
+    unverifiedClaim: json['unverifiedClaim'] as bool? ?? false,
+    unknownItems: _stringList(json['unknownItems']),
+  );
 
   final String role; // user | assistant
   final String content;
@@ -354,21 +346,16 @@ class ChatMessageDto {
 
 /// A conversation with its full message history.
 class ConversationDetail {
-  ConversationDetail({
-    required this.id,
-    required this.title,
-    required this.messages,
-    this.mode = 'chat',
-  });
+  ConversationDetail({required this.id, required this.title, required this.messages, this.mode = 'chat'});
 
   factory ConversationDetail.fromJson(Map<String, dynamic> json) => ConversationDetail(
-        id: json['id'] as int,
-        title: json['title'] as String? ?? 'Untitled',
-        messages: (json['messages'] as List<dynamic>? ?? [])
-            .map((m) => ChatMessageDto.fromJson(m as Map<String, dynamic>))
-            .toList(),
-        mode: ChatMode.parse(json['mode'] as String?),
-      );
+    id: json['id'] as int,
+    title: json['title'] as String? ?? 'Untitled',
+    messages: (json['messages'] as List<dynamic>? ?? [])
+        .map((m) => ChatMessageDto.fromJson(m as Map<String, dynamic>))
+        .toList(),
+    mode: ChatMode.parse(json['mode'] as String?),
+  );
 
   final int id;
   final String title;
@@ -405,10 +392,10 @@ class NoteDto {
   NoteDto({required this.id, required this.text, required this.updatedAtUtc});
 
   factory NoteDto.fromJson(Map<String, dynamic> json) => NoteDto(
-        id: json['id'] as int,
-        text: json['text'] as String? ?? '',
-        updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
-      );
+    id: json['id'] as int,
+    text: json['text'] as String? ?? '',
+    updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
+  );
 
   /// The longest note the server accepts: a thought, not a document.
   static const maxLength = 2000;
@@ -430,13 +417,13 @@ class MemoryDto {
   });
 
   factory MemoryDto.fromJson(Map<String, dynamic> json) => MemoryDto(
-        id: json['id'] as int,
-        content: json['content'] as String? ?? '',
-        category: json['category'] as String? ?? 'fact',
-        updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
-        sourceConversationId: json['sourceConversationId'] as String?,
-        sourceConversationTitle: json['sourceConversationTitle'] as String?,
-      );
+    id: json['id'] as int,
+    content: json['content'] as String? ?? '',
+    category: json['category'] as String? ?? 'fact',
+    updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
+    sourceConversationId: json['sourceConversationId'] as String?,
+    sourceConversationTitle: json['sourceConversationTitle'] as String?,
+  );
 
   /// What kind of thing a memory is, in the order the screens list them.
   static const categories = ['fact', 'preference', 'project', 'decision'];
@@ -471,14 +458,14 @@ class SpeechStatus {
   });
 
   factory SpeechStatus.fromJson(Map<String, dynamic> json) => SpeechStatus(
-        speechToText: json['speechToText'] as bool? ?? false,
-        textToSpeech: json['textToSpeech'] as bool? ?? false,
-        baseUrl: json['baseUrl'] as String?,
-        sttModel: json['sttModel'] as String?,
-        ttsModel: json['ttsModel'] as String?,
-        ttsVoice: json['ttsVoice'] as String?,
-        hasApiKey: json['hasApiKey'] as bool? ?? false,
-      );
+    speechToText: json['speechToText'] as bool? ?? false,
+    textToSpeech: json['textToSpeech'] as bool? ?? false,
+    baseUrl: json['baseUrl'] as String?,
+    sttModel: json['sttModel'] as String?,
+    ttsModel: json['ttsModel'] as String?,
+    ttsVoice: json['ttsVoice'] as String?,
+    hasApiKey: json['hasApiKey'] as bool? ?? false,
+  );
 
   final bool speechToText;
   final bool textToSpeech;
@@ -512,11 +499,11 @@ class FcmClientOptions {
   });
 
   factory FcmClientOptions.fromJson(Map<String, dynamic> json) => FcmClientOptions(
-        apiKey: json['apiKey'] as String,
-        appId: json['appId'] as String,
-        messagingSenderId: json['messagingSenderId'] as String,
-        projectId: json['projectId'] as String,
-      );
+    apiKey: json['apiKey'] as String,
+    appId: json['appId'] as String,
+    messagingSenderId: json['messagingSenderId'] as String,
+    projectId: json['projectId'] as String,
+  );
 
   final String apiKey;
   final String appId;
@@ -541,16 +528,15 @@ class InstanceSettings {
   });
 
   factory InstanceSettings.fromJson(Map<String, dynamic> json) => InstanceSettings(
-        assistantNickname: json['assistantNickname'] as String? ?? '',
-        personaTemplate: json['personaTemplate'] as String? ?? '',
-        aiProvider: json['aiProvider'] as String? ?? 'anthropic',
-        aiModel: json['aiModel'] as String? ?? '',
-        aiBaseUrl: json['aiBaseUrl'] as String? ?? '',
-        timeZone: json['timeZone'] as String? ?? '',
-        features: ((json['features'] as Map<String, dynamic>?) ?? {})
-            .map((k, v) => MapEntry(k, v == true)),
-        hasApiKey: json['hasAnthropicApiKey'] == true,
-      );
+    assistantNickname: json['assistantNickname'] as String? ?? '',
+    personaTemplate: json['personaTemplate'] as String? ?? '',
+    aiProvider: json['aiProvider'] as String? ?? 'anthropic',
+    aiModel: json['aiModel'] as String? ?? '',
+    aiBaseUrl: json['aiBaseUrl'] as String? ?? '',
+    timeZone: json['timeZone'] as String? ?? '',
+    features: ((json['features'] as Map<String, dynamic>?) ?? {}).map((k, v) => MapEntry(k, v == true)),
+    hasApiKey: json['hasAnthropicApiKey'] == true,
+  );
 
   final String assistantNickname;
   final String personaTemplate;
@@ -566,10 +552,8 @@ class InstanceSettings {
 class ConnectionTest {
   ConnectionTest({required this.ok, required this.message});
 
-  factory ConnectionTest.fromJson(Map<String, dynamic> json) => ConnectionTest(
-        ok: json['ok'] == true,
-        message: json['message'] as String? ?? '',
-      );
+  factory ConnectionTest.fromJson(Map<String, dynamic> json) =>
+      ConnectionTest(ok: json['ok'] == true, message: json['message'] as String? ?? '');
 
   final bool ok;
   final String message;
@@ -638,29 +622,18 @@ class PersonaOsApi {
 
   /// Under [parentId] in the slot given (its dates follow), or detached when [parentId] is null.
   Future<void> moveGoal(int id, {int? parentId, int? year, int? quarter, int? month}) =>
-      _put('/api/goals/$id/parent', {
-        'parentId': parentId,
-        'year': ?year,
-        'quarter': ?quarter,
-        'month': ?month,
-      });
+      _put('/api/goals/$id/parent', {'parentId': parentId, 'year': ?year, 'quarter': ?quarter, 'month': ?month});
 
   /// Title, description (empty clears it) and priority; null leaves a field as it is.
-  Future<void> updateGoal(int id, {String? title, String? description, String? priority}) =>
-      _put('/api/goals/$id', {
-        'title': ?title,
-        if (description != null && description.trim().isEmpty)
-          'clearDescription': true
-        else
-          'description': ?description,
-        'priority': ?priority,
-      });
+  Future<void> updateGoal(int id, {String? title, String? description, String? priority}) => _put('/api/goals/$id', {
+    'title': ?title,
+    if (description != null && description.trim().isEmpty) 'clearDescription': true else 'description': ?description,
+    'priority': ?priority,
+  });
 
-  Future<void> setGoalProgress(int id, int progress) =>
-      _put('/api/goals/$id', {'progress': progress});
+  Future<void> setGoalProgress(int id, int progress) => _put('/api/goals/$id', {'progress': progress});
 
-  Future<void> setGoalStatus(int id, String status) =>
-      _put('/api/goals/$id/status', {'status': status});
+  Future<void> setGoalStatus(int id, String status) => _put('/api/goals/$id/status', {'status': status});
 
   /// Deletes a goal; its tasks are kept ('keep'), deleted ('delete'), or reassigned
   /// ('reassign', with [reassign] mapping each task key to a monthly goal key or null).
@@ -671,9 +644,7 @@ class PersonaOsApi {
 
   Future<List<PlannerItem>> getPlannerDay(String date) async {
     final data = await _get('/api/planner?date=$date') as Map<String, dynamic>;
-    return (data['items'] as List<dynamic>)
-        .map((e) => PlannerItem.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return (data['items'] as List<dynamic>).map((e) => PlannerItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// The events from [from] to [to] (inclusive, yyyy-MM-dd), repeats expanded, in day order. An event
@@ -739,8 +710,7 @@ class PersonaOsApi {
   Future<void> setPlannerStatus(int id, String status, {String? occurrence}) =>
       _put('/api/planner/items/$id/status${occurrence == null ? '' : '?occurrence=$occurrence'}', {'status': status});
 
-  Future<void> movePlannerItem(int id, String date) =>
-      _put('/api/planner/items/$id/date', {'date': date});
+  Future<void> movePlannerItem(int id, String date) => _put('/api/planner/items/$id/date', {'date': date});
 
   Future<void> deletePlannerItem(int id, {EditScope? scope, String? occurrence}) =>
       _delete('/api/planner/items/$id${_target(scope, occurrence)}');
@@ -751,12 +721,10 @@ class PersonaOsApi {
   // --- Sprint board --------------------------------------------------------
 
   /// The running sprint's board. Its sprint is null when nothing is running.
-  Future<BoardView> getBoard() async =>
-      BoardView.fromJson(await _get('/api/board') as Map<String, dynamic>);
+  Future<BoardView> getBoard() async => BoardView.fromJson(await _get('/api/board') as Map<String, dynamic>);
 
   /// The plan: sprints to come and the backlog, for picking where a task goes.
-  Future<PlanView> getPlan() async =>
-      PlanView.fromJson(await _get('/api/board/plan') as Map<String, dynamic>);
+  Future<PlanView> getPlan() async => PlanView.fromJson(await _get('/api/board/plan') as Map<String, dynamic>);
 
   /// Started sprints, newest first; [count] is how many (the server allows two years of them).
   Future<SprintReport> getSprintReport({int count = 104}) async =>
@@ -771,19 +739,18 @@ class PersonaOsApi {
 
   /// A blank [name] clears it; a new [startsOn] moves the end to the first Sunday after it.
   Future<void> updateSprint(String key, {String? name, String? startsOn}) => _put('/api/board/sprints/$key', {
-        if (name != null && name.trim().isEmpty) 'clearName': true else 'name': ?name,
-        'startsOn': ?startsOn,
-      });
+    if (name != null && name.trim().isEmpty) 'clearName': true else 'name': ?name,
+    'startsOn': ?startsOn,
+  });
 
   Future<void> startSprint(String key) => _post('/api/board/sprints/$key/start', const {});
 
   /// Unfinished work moves to [moveUnfinishedToSprintKey], or to the next planned sprint when it
   /// is null, or to the backlog with [toBacklog].
-  Future<void> completeSprint(String key, {String? moveUnfinishedToSprintKey, bool toBacklog = false}) =>
-      _post('/api/board/sprints/$key/complete', {
-        'moveUnfinishedToSprintKey': ?moveUnfinishedToSprintKey,
-        'toBacklog': toBacklog,
-      });
+  Future<void> completeSprint(String key, {String? moveUnfinishedToSprintKey, bool toBacklog = false}) => _post(
+    '/api/board/sprints/$key/complete',
+    {'moveUnfinishedToSprintKey': ?moveUnfinishedToSprintKey, 'toBacklog': toBacklog},
+  );
 
   /// Only a planned sprint can go; its tasks return to the backlog.
   Future<void> deleteSprint(String key) => _delete('/api/board/sprints/$key');
@@ -796,31 +763,32 @@ class PersonaOsApi {
     int? goalId,
     String? sprintKey,
     bool acknowledgeScopeChange = false,
-  }) =>
-      _post('/api/board/tasks', {
-        'title': title,
-        'priority': ?priority,
-        'points': ?points,
-        'goalId': ?goalId,
-        'sprintKey': ?sprintKey,
-        'acknowledgeScopeChange': acknowledgeScopeChange,
-      });
+  }) => _post('/api/board/tasks', {
+    'title': title,
+    'priority': ?priority,
+    'points': ?points,
+    'goalId': ?goalId,
+    'sprintKey': ?sprintKey,
+    'acknowledgeScopeChange': acknowledgeScopeChange,
+  });
 
   /// [description] null leaves it as it is; an empty one clears it.
-  Future<void> updateTask(String key,
-          {String? title, int? points, int? goalId, String? description, String? priority}) =>
-      _put('/api/board/tasks/$key', {
-        'title': ?title,
-        'priority': ?priority,
-        'points': ?points,
-        'clearPoints': points == null,
-        'goalId': ?goalId,
-        'clearGoal': goalId == null,
-        if (description != null && description.trim().isEmpty)
-          'clearDescription': true
-        else
-          'description': ?description,
-      });
+  Future<void> updateTask(
+    String key, {
+    String? title,
+    int? points,
+    int? goalId,
+    String? description,
+    String? priority,
+  }) => _put('/api/board/tasks/$key', {
+    'title': ?title,
+    'priority': ?priority,
+    'points': ?points,
+    'clearPoints': points == null,
+    'goalId': ?goalId,
+    'clearGoal': goalId == null,
+    if (description != null && description.trim().isEmpty) 'clearDescription': true else 'description': ?description,
+  });
 
   /// One task as it is now, for a quick view or its page.
   Future<BoardTask> getTask(String key) async =>
@@ -834,7 +802,12 @@ class PersonaOsApi {
   }
 
   /// Uploads a file as multipart/form-data, the shape the server's `IFormFile` expects.
-  Future<void> uploadAttachment(String itemType, String key, {required String filePath, required String fileName}) async {
+  Future<void> uploadAttachment(
+    String itemType,
+    String key, {
+    required String filePath,
+    required String fileName,
+  }) async {
     final request = http.MultipartRequest('POST', Uri.parse('$serverUrl/api/items/$itemType/$key/attachments'));
     if (_token != null) request.headers['Authorization'] = 'Bearer $_token';
     request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
@@ -869,35 +842,55 @@ class PersonaOsApi {
 
   // --- Push and speech setup (admin) --------------------------------------
 
-  Future<PushStatus> getPushStatus() async => PushStatus.fromJson(await _get('/api/setup/push') as Map<String, dynamic>);
+  Future<PushStatus> getPushStatus() async =>
+      PushStatus.fromJson(await _get('/api/setup/push') as Map<String, dynamic>);
 
   /// The two Firebase files' contents; the server checks they belong to the same project.
   Future<PushStatus> setPushConfig({required String serviceAccountJson, required String googleServicesJson}) async =>
-      PushStatus.fromJson(await _put('/api/setup/push', {
-        'serviceAccountJson': serviceAccountJson,
-        'googleServicesJson': googleServicesJson,
-      }) as Map<String, dynamic>);
+      PushStatus.fromJson(
+        await _put('/api/setup/push', {
+              'serviceAccountJson': serviceAccountJson,
+              'googleServicesJson': googleServicesJson,
+            })
+            as Map<String, dynamic>,
+      );
 
   Future<void> clearPushConfig() => _delete('/api/setup/push');
 
   /// Blank fields clear; a null field is left as it is (the key included).
-  Future<SpeechStatus> updateSpeech({String? baseUrl, String? sttModel, String? ttsModel, String? ttsVoice, String? apiKey}) async =>
-      SpeechStatus.fromJson(await _put('/api/speech', {
-        'baseUrl': ?baseUrl,
-        'sttModel': ?sttModel,
-        'ttsModel': ?ttsModel,
-        'ttsVoice': ?ttsVoice,
-        'apiKey': ?apiKey,
-      }) as Map<String, dynamic>);
+  Future<SpeechStatus> updateSpeech({
+    String? baseUrl,
+    String? sttModel,
+    String? ttsModel,
+    String? ttsVoice,
+    String? apiKey,
+  }) async => SpeechStatus.fromJson(
+    await _put('/api/speech', {
+          'baseUrl': ?baseUrl,
+          'sttModel': ?sttModel,
+          'ttsModel': ?ttsModel,
+          'ttsVoice': ?ttsVoice,
+          'apiKey': ?apiKey,
+        })
+        as Map<String, dynamic>,
+  );
 
-  Future<ConnectionTest> testSpeech({String? baseUrl, String? sttModel, String? ttsModel, String? ttsVoice, String? apiKey}) async =>
-      ConnectionTest.fromJson(await _post('/api/speech/test', {
-        'baseUrl': ?baseUrl,
-        'sttModel': ?sttModel,
-        'ttsModel': ?ttsModel,
-        'ttsVoice': ?ttsVoice,
-        'apiKey': ?apiKey,
-      }) as Map<String, dynamic>);
+  Future<ConnectionTest> testSpeech({
+    String? baseUrl,
+    String? sttModel,
+    String? ttsModel,
+    String? ttsVoice,
+    String? apiKey,
+  }) async => ConnectionTest.fromJson(
+    await _post('/api/speech/test', {
+          'baseUrl': ?baseUrl,
+          'sttModel': ?sttModel,
+          'ttsModel': ?ttsModel,
+          'ttsVoice': ?ttsVoice,
+          'apiKey': ?apiKey,
+        })
+        as Map<String, dynamic>,
+  );
 
   // --- Comments on tasks and goals ([itemType] is "task" or "goal") -------
 
@@ -920,21 +913,19 @@ class PersonaOsApi {
     String? sprintKey,
     int? index,
     bool acknowledgeScopeChange = false,
-  }) =>
-      _put('/api/board/tasks/$key/move', {
-        'column': column,
-        'sprintKey': ?sprintKey,
-        'index': ?index,
-        'acknowledgeScopeChange': acknowledgeScopeChange,
-      });
+  }) => _put('/api/board/tasks/$key/move', {
+    'column': column,
+    'sprintKey': ?sprintKey,
+    'index': ?index,
+    'acknowledgeScopeChange': acknowledgeScopeChange,
+  });
 
   Future<void> deleteTask(String key) => _delete('/api/board/tasks/$key');
 
   // --- Reminders -----------------------------------------------------------
 
   Future<List<Reminder>> getReminders({bool includeCompleted = false}) async {
-    final data =
-        await _get('/api/reminders?includeCompleted=$includeCompleted') as List<dynamic>;
+    final data = await _get('/api/reminders?includeCompleted=$includeCompleted') as List<dynamic>;
     return data.map((e) => Reminder.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -973,19 +964,13 @@ class PersonaOsApi {
 
   /// Registers this device's push token. Idempotent: re-sending a known token only refreshes it.
   Future<void> registerDevice(String token, {required String platform, String? deviceName}) =>
-      _post('/api/devices', {
-        'token': token,
-        'platform': platform,
-        'deviceName': ?deviceName,
-      });
+      _post('/api/devices', {'token': token, 'platform': platform, 'deviceName': ?deviceName});
 
   // --- Conversations -------------------------------------------------------
 
   Future<List<ConversationSummary>> getConversations() async {
     final data = await _get('/api/chat/conversations') as List<dynamic>;
-    return data
-        .map((e) => ConversationSummary.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return data.map((e) => ConversationSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<ConversationDetail> getConversation(String idOrPublicId) async {
@@ -993,8 +978,7 @@ class PersonaOsApi {
     return ConversationDetail.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<void> deleteConversation(String idOrPublicId) =>
-      _delete('/api/chat/conversations/$idOrPublicId');
+  Future<void> deleteConversation(String idOrPublicId) => _delete('/api/chat/conversations/$idOrPublicId');
 
   // --- Speech (the server's optional speech service) ----------------------
 
@@ -1002,10 +986,13 @@ class PersonaOsApi {
       SpeechStatus.fromJson(await _get('/api/speech') as Map<String, dynamic>);
 
   /// Uploads a recording and returns what the server's speech service heard.
-  Future<String> transcribe(String filePath) async {
+  /// [language] is the speaker's language ("en"): without it whisper guesses for each recording,
+  /// and on a short one it guessed Chinese and wrote Chinese characters (owner, 2026-10-24).
+  Future<String> transcribe(String filePath, {String? language}) async {
     final request = http.MultipartRequest('POST', Uri.parse('$serverUrl/api/speech/transcribe'));
     if (_token != null) request.headers['Authorization'] = 'Bearer $_token';
     request.files.add(await http.MultipartFile.fromPath('audio', filePath));
+    if (language != null && language.isNotEmpty) request.fields['language'] = language;
 
     final http.Response response;
     try {
@@ -1072,13 +1059,13 @@ class PersonaOsApi {
     return data.map((e) => MemoryDto.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<MemoryDto> createMemory(String content, String category) async =>
-      MemoryDto.fromJson(await _post('/api/memories', {'content': content, 'category': category})
-          as Map<String, dynamic>);
+  Future<MemoryDto> createMemory(String content, String category) async => MemoryDto.fromJson(
+    await _post('/api/memories', {'content': content, 'category': category}) as Map<String, dynamic>,
+  );
 
-  Future<MemoryDto> updateMemory(int id, String content, String category) async =>
-      MemoryDto.fromJson(await _put('/api/memories/$id', {'content': content, 'category': category})
-          as Map<String, dynamic>);
+  Future<MemoryDto> updateMemory(int id, String content, String category) async => MemoryDto.fromJson(
+    await _put('/api/memories/$id', {'content': content, 'category': category}) as Map<String, dynamic>,
+  );
 
   Future<void> deleteMemory(int id) => _delete('/api/memories/$id');
 
@@ -1087,8 +1074,7 @@ class PersonaOsApi {
       ((await _get('/api/memories/settings')) as Map<String, dynamic>)['autoSave'] as bool? ?? true;
 
   Future<bool> setMemoryAutoSave(bool autoSave) async =>
-      ((await _put('/api/memories/settings', {'autoSave': autoSave})) as Map<String, dynamic>)['autoSave']
-          as bool? ??
+      ((await _put('/api/memories/settings', {'autoSave': autoSave})) as Map<String, dynamic>)['autoSave'] as bool? ??
       autoSave;
 
   // --- Settings ------------------------------------------------------------
@@ -1099,8 +1085,7 @@ class PersonaOsApi {
   }
 
   /// Sends only the fields given; the server leaves anything omitted untouched.
-  Future<void> updateSettings(Map<String, Object?> changes) =>
-      _put('/api/setup', changes);
+  Future<void> updateSettings(Map<String, Object?> changes) => _put('/api/setup', changes);
 
   /// What the assistant knows about the user; sent with every message.
   Future<String> getAboutMe() async =>
@@ -1122,11 +1107,7 @@ class PersonaOsApi {
       final request = http.Request('POST', Uri.parse('$serverUrl/api/chat'))
         ..headers['Content-Type'] = 'application/json'
         ..headers['Authorization'] = 'Bearer $_token'
-        ..body = jsonEncode({
-          'message': message,
-          'conversationId': ?conversationId,
-          'mode': ?mode,
-        });
+        ..body = jsonEncode({'message': message, 'conversationId': ?conversationId, 'mode': ?mode});
 
       final response = await client.send(request);
       if (response.statusCode == 401) {
@@ -1136,9 +1117,7 @@ class PersonaOsApi {
       }
 
       // Parse the SSE wire format: "event: x" / "data: {...}" / blank line.
-      final lines = response.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter());
+      final lines = response.stream.transform(utf8.decoder).transform(const LineSplitter());
       await for (final line in lines) {
         if (line.startsWith('data: ')) {
           final payload = line.substring(6);
@@ -1153,27 +1132,21 @@ class PersonaOsApi {
   // --- Authed request helpers ---------------------------------------------
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        if (_token != null) 'Authorization': 'Bearer $_token',
-      };
+    'Content-Type': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
 
-  Future<dynamic> _get(String path) => _send(
-      () => http.get(Uri.parse('$serverUrl$path'), headers: _headers));
+  Future<dynamic> _get(String path) => _send(() => http.get(Uri.parse('$serverUrl$path'), headers: _headers));
 
-  Future<dynamic> _post(String path, Object body) => _send(() => http.post(
-      Uri.parse('$serverUrl$path'),
-      headers: _headers,
-      body: jsonEncode(body)));
+  Future<dynamic> _post(String path, Object body) =>
+      _send(() => http.post(Uri.parse('$serverUrl$path'), headers: _headers, body: jsonEncode(body)));
 
-  Future<dynamic> _put(String path, Object body) => _send(() => http.put(
-      Uri.parse('$serverUrl$path'),
-      headers: _headers,
-      body: jsonEncode(body)));
+  Future<dynamic> _put(String path, Object body) =>
+      _send(() => http.put(Uri.parse('$serverUrl$path'), headers: _headers, body: jsonEncode(body)));
 
-  Future<dynamic> _delete(String path, [Object? body]) => _send(() => http.delete(
-      Uri.parse('$serverUrl$path'),
-      headers: _headers,
-      body: body == null ? null : jsonEncode(body)));
+  Future<dynamic> _delete(String path, [Object? body]) => _send(
+    () => http.delete(Uri.parse('$serverUrl$path'), headers: _headers, body: body == null ? null : jsonEncode(body)),
+  );
 
   /// Runs a request, maps 401 to a cleared session, and turns any non-2xx into
   /// an [ApiException] carrying the server's `error` message when present.
