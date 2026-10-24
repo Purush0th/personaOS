@@ -121,6 +121,12 @@ public class InstanceConfig
     /// <summary>The speech service's key, encrypted under its own Data Protection purpose. Null for keyless servers.</summary>
     public string? SpeechApiKeyEncrypted { get; set; }
 
+    /// <summary>
+    /// Install a new release by itself, through the updater container, soon after it is published.
+    /// Off by default: a self-hoster chooses when their server changes.
+    /// </summary>
+    public bool AutoInstallUpdates { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 

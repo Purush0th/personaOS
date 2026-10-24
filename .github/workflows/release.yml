@@ -22,6 +22,12 @@ jobs:
         id: version
         run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      # Image names must be lowercase, and the owner is "Purush0th": every release up to
+      # v0.1.0-alpha.8 failed here ("repository name must be lowercase").
+      - name: Image namespace
+        id: owner
+        run: echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
       # QEMU + buildx so images are multi-arch — SQLite makes ARM (Raspberry Pi,
       # Apple Silicon) a first-class target, so publish for it too.
       - uses: docker/setup-qemu-action@v3
@@ -38,10 +44,12 @@ jobs:
           context: .
           file: src/backend/Dockerfile
           platforms: linux/amd64,linux/arm64
+          # The API reports this version, and the update check compares it with the releases.
+          build-args: VERSION=${{ steps.version.outputs.value }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/personaos-api:${{ steps.version.outputs.value }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/personaos-api:latest
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/personaos-api:${{ steps.version.outputs.value }}
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/personaos-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -52,10 +60,34 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/personaos-web:${{ steps.version.outputs.value }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/personaos-web:latest
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/personaos-web:${{ steps.version.outputs.value }}
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/personaos-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # The speech service (compose profile "speech"): NVIDIA GPUs, so x86-64 only.
+      - name: Build and push whisper
+        uses: docker/build-push-action@v6
+        with:
+          context: deploy/speech/whisper
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/personaos-whisper:${{ steps.version.outputs.value }}
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/personaos-whisper:latest
+          cache-from: type=gha,scope=whisper
+          cache-to: type=gha,mode=max,scope=whisper
+
+      # Applies a release from Settings → Updates (compose profile "updater").
+      - name: Build and push updater
+        uses: docker/build-push-action@v6
+        with:
+          context: deploy/updater
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/personaos-updater:${{ steps.version.outputs.value }}
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/personaos-updater:latest
 
   apk:
     runs-on: ubuntu-latest
@@ -64,11 +96,13 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      # The app's version is the release's, so the phone can tell it is behind.
       - name: Build release APK
         working-directory: src/frontend/PersonaOS.Mobile
         run: |
           flutter pub get
-          flutter build apk --release
+          flutter build apk --release --build-name="${GITHUB_REF_NAME#v}" --build-number="${GITHUB_RUN_NUMBER}" \
+            --dart-define=APP_VERSION="${GITHUB_REF_NAME#v}"
       - uses: actions/upload-artifact@v4
         with:
           name: personaos-apk
@@ -87,7 +121,7 @@ jobs:
       # Self-hosters upgrade by pulling the compose file, so ship it as an asset.
       - name: Stage release assets
         run: |
-          cp deploy/docker-compose.yml deploy/.env.example dist/
+          cp deploy/docker-compose.yml deploy/.env.example deploy/import-data.sh dist/
           mv dist/app-release.apk dist/personaos-${GITHUB_REF_NAME}.apk
 
       - uses: softprops/action-gh-release@v2
@@ -96,6 +130,7 @@ jobs:
           files: |
             dist/docker-compose.yml
             dist/.env.example
+            dist/import-data.sh
             dist/personaos-*.apk
           body: |
             ## Install

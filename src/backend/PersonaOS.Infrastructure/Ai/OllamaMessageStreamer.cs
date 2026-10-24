@@ -197,6 +197,9 @@ public class OllamaMessageStreamer(HttpClient http) : IAiMessageStreamer
             }).ToArray());
         }
 
+        // Constrained decoding: Ollama only lets the model write what the schema allows.
+        if (request.ResponseSchemaJson is { } schema) body["format"] = JsonNode.Parse(schema);
+
         var options = request.ModelOptions;
         if (options.Think is bool think) body["think"] = think;
         if (options.KeepAlive is { } keepAlive) body["keep_alive"] = keepAlive;

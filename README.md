@@ -213,6 +213,24 @@ speaks with its own voice but speech-to-text reports that it could not hear you.
 
 ## Updating
 
+**From the app (Linux servers).** The `updater` service installs a release when you press
+**Update now** in Settings → Updates, or by itself when **Install updates automatically** is on
+(within about 15 minutes of a release). It backs your data volume up to `backups/` next to the
+compose file first, pulls the release, restarts, checks the server answers with the new version,
+and puts the previous version back if it does not. To turn it on, in `.env`:
+
+```bash
+COMPOSE_PROFILES=updater          # add it to any profiles you already use, e.g. speech,updater
+PERSONAOS_DIR=/opt/personaos      # the folder with docker-compose.yml and .env, as an absolute path
+PERSONAOS_VERSION=1.2.0           # the release you run; the updater changes this line
+```
+
+then `docker compose up -d`. The updater is the only service with access to Docker (it mounts the
+Docker socket), so it publishes no port and accepts nothing but a release version, which the API
+checks against the published releases first. A server on a pre-release follows pre-releases.
+
+**By hand.**
+
 ```bash
 cd personaos/deploy
 docker compose pull && docker compose up -d
@@ -221,6 +239,28 @@ docker compose pull && docker compose up -d
 Database migrations run automatically on start; your data and settings are preserved. To pin a
 version for reproducible upgrades, set `PERSONAOS_VERSION` in `.env` — and to roll back, set it
 to the previous version and run the same command.
+
+**The phone app** tells you when a newer one is out and where to download it, once the server is
+up to date.
+
+## Moving to another server
+
+On the old server, stop PersonaOS and pack the data volume (database, attachments, and the keys that
+decrypt your stored API keys, so keep the file private):
+
+```bash
+docker compose stop
+docker run --rm -v personaos_api-data:/data:ro -v "$PWD:/out" alpine:3.20 \
+  tar czf /out/personaos-data.tar.gz -C /data --exclude=./backups .
+```
+
+Install on the new server as above, copy `.env` and the archive across, then from the compose folder:
+
+```bash
+./import-data.sh personaos-data.tar.gz
+```
+
+Point the phone at the new address (Settings → Server) and delete the archive.
 
 ## Your data & backups
 

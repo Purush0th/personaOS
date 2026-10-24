@@ -16,22 +16,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// What the web app could do and the phone could not: attachments, goal editing, the planner's
 /// day picker and links, the speech service setup, the theme choice and the update notice.
 Map<String, dynamic> _goalJson({String status = 'active'}) => {
-      'id': 4,
-      'key': 'GOAL-4',
-      'title': 'October',
-      'periodType': 'month',
-      'slot': 'Oct 2026',
-      'periodStart': '2026-10-01',
-      'periodEnd': '2026-10-31',
-      'status': status,
-      'priority': 'high',
-      'progress': 0,
-      'effectiveProgress': 50,
-      'taskCount': 0,
-      'doneTaskCount': 0,
-      'description': 'Get the paperwork done.',
-      'tasks': <Map<String, dynamic>>[],
-    };
+  'id': 4,
+  'key': 'GOAL-4',
+  'title': 'October',
+  'periodType': 'month',
+  'slot': 'Oct 2026',
+  'periodStart': '2026-10-01',
+  'periodEnd': '2026-10-31',
+  'status': status,
+  'priority': 'high',
+  'progress': 0,
+  'effectiveProgress': 50,
+  'taskCount': 0,
+  'doneTaskCount': 0,
+  'description': 'Get the paperwork done.',
+  'tasks': <Map<String, dynamic>>[],
+};
 
 class ParityApi extends PersonaOsApi {
   ParityApi() : super(serverUrl: 'http://fake');
@@ -93,15 +93,25 @@ class ParityApi extends PersonaOsApi {
   }
 
   @override
-  Future<SpeechStatus> updateSpeech(
-      {String? baseUrl, String? sttModel, String? ttsModel, String? ttsVoice, String? apiKey}) async {
+  Future<SpeechStatus> updateSpeech({
+    String? baseUrl,
+    String? sttModel,
+    String? ttsModel,
+    String? ttsVoice,
+    String? apiKey,
+  }) async {
     calls.add('speech $baseUrl $sttModel key=${apiKey ?? '(kept)'}');
     return SpeechStatus(speechToText: true, textToSpeech: false, baseUrl: baseUrl, sttModel: sttModel, hasApiKey: true);
   }
 
   @override
-  Future<ConnectionTest> testSpeech(
-      {String? baseUrl, String? sttModel, String? ttsModel, String? ttsVoice, String? apiKey}) async {
+  Future<ConnectionTest> testSpeech({
+    String? baseUrl,
+    String? sttModel,
+    String? ttsModel,
+    String? ttsVoice,
+    String? apiKey,
+  }) async {
     calls.add('test speech $baseUrl');
     return ConnectionTest(ok: true, message: 'Speech-to-text works.');
   }
@@ -118,7 +128,11 @@ void main() {
 
   Future<void> pump(WidgetTester tester, Widget child, {bool scrolls = true}) async {
     tall(tester);
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: scrolls ? SingleChildScrollView(child: child) : child)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: scrolls ? SingleChildScrollView(child: child) : child),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -165,7 +179,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(api.calls, contains('goal 4 completed'));
 
-      await pump(tester, GoalView(api: api, goal: Goal.fromJson(_goalJson(status: 'completed'))), scrolls: false);
+      await pump(
+        tester,
+        GoalView(
+          api: api,
+          goal: Goal.fromJson(_goalJson(status: 'completed')),
+        ),
+        scrolls: false,
+      );
       await tester.tap(find.text('Reopen'));
       await tester.pumpAndSettle();
       expect(api.calls, contains('goal 4 active'));
@@ -230,7 +251,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Save speech'));
       await tester.pumpAndSettle();
 
-      expect(api.calls, containsAll(['test speech http://speech:8000/v1', 'speech http://speech:8000/v1 whisper-1 key=(kept)']));
+      expect(
+        api.calls,
+        containsAll(['test speech http://speech:8000/v1', 'speech http://speech:8000/v1 whisper-1 key=(kept)']),
+      );
       expect(saved?.speechToText, isTrue);
     });
   });
@@ -251,9 +275,56 @@ void main() {
       expect(isNewer('0.9.2', '0.9.3'), isFalse);
     });
 
-    MockClient release(String tag, {int status = 200}) => MockClient((_) async => http.Response(
-        jsonEncode({'tag_name': tag, 'name': 'PersonaOS $tag', 'html_url': 'https://github.com/o/r/releases/tag/$tag'}),
-        status));
+    test('prereleases compare as releases do', () {
+      // A plain dotted compare read "0-alpha" as 0 and could not tell alpha.9 from alpha.10.
+      expect(isNewer('0.1.0-alpha.10', '0.1.0-alpha.9'), isTrue);
+      expect(isNewer('0.1.0', '0.1.0-rc.1'), isTrue);
+      expect(isNewer('0.1.0-beta', '0.1.0-alpha.12'), isTrue);
+      expect(isNewer('0.1.0-alpha.9', '0.1.0'), isFalse);
+    });
+
+    Map<String, dynamic> tagged(String tag, {bool prerelease = false, bool apk = false}) => {
+      'tag_name': tag,
+      'name': 'PersonaOS $tag',
+      'html_url': 'https://github.com/o/r/releases/tag/$tag',
+      'prerelease': prerelease,
+      'assets': [
+        if (apk) {'name': 'personaos-$tag.apk', 'browser_download_url': 'https://x/$tag.apk'},
+      ],
+    };
+
+    MockClient release(String tag, {int status = 200}) =>
+        MockClient((_) async => http.Response(jsonEncode([tagged(tag)]), status));
+
+    test('a server on a prerelease is offered the newer prerelease', () async {
+      final client = MockClient(
+        (_) async => http.Response(
+          jsonEncode([tagged('v0.1.0-alpha.10', prerelease: true), tagged('v0.1.0-alpha.9', prerelease: true)]),
+          200,
+        ),
+      );
+
+      final update = await checkForUpdate(currentVersion: '0.1.0-alpha.9', repository: 'o/r', client: client);
+
+      expect(update?.version, '0.1.0-alpha.10');
+      expect(update?.forApp, isFalse);
+    });
+
+    test('with the server up to date, a newer app is offered for download', () async {
+      final client = MockClient(
+        (_) async => http.Response(jsonEncode([tagged('v0.1.0-alpha.10', prerelease: true, apk: true)]), 200),
+      );
+
+      final update = await checkForUpdate(
+        currentVersion: '0.1.0-alpha.10',
+        repository: 'o/r',
+        app: '0.1.0-alpha.9',
+        client: client,
+      );
+
+      expect(update?.forApp, isTrue);
+      expect(update?.appDownloadUrl, 'https://x/v0.1.0-alpha.10.apk');
+    });
 
     test('offers a newer release, and not once it is dismissed', () async {
       final update = await checkForUpdate(currentVersion: '0.9.0', repository: 'o/r', client: release('v0.10.0'));
@@ -266,7 +337,10 @@ void main() {
     test('stays silent when up to date, without a repository, or when GitHub fails', () async {
       expect(await checkForUpdate(currentVersion: '0.10.0', repository: 'o/r', client: release('v0.10.0')), isNull);
       expect(await checkForUpdate(currentVersion: '0.9.0', repository: null, client: release('v0.10.0')), isNull);
-      expect(await checkForUpdate(currentVersion: '0.9.0', repository: 'o/r', client: release('x', status: 404)), isNull);
+      expect(
+        await checkForUpdate(currentVersion: '0.9.0', repository: 'o/r', client: release('x', status: 404)),
+        isNull,
+      );
     });
   });
 }

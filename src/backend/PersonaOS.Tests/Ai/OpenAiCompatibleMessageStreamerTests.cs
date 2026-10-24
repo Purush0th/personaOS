@@ -70,5 +70,19 @@ public class OpenAiCompatibleMessageStreamerTests
         await Text(server, Request());
 
         Assert.False(server.Body!.ContainsKey("temperature"));
+        Assert.False(server.Body.ContainsKey("response_format"));
+    }
+
+    [Fact]
+    public async Task Asks_for_a_reply_that_follows_the_schema()
+    {
+        var server = new StubServer("""{"choices":[{"delta":{"content":"{\"intent\":\"question\"}"}}]}""");
+        const string schema = """{"type":"object","properties":{"intent":{"type":"string"}},"required":["intent"]}""";
+
+        await Text(server, Request() with { ResponseSchemaJson = schema });
+
+        var format = server.Body!["response_format"]!;
+        Assert.Equal("json_schema", format["type"]!.GetValue<string>());
+        Assert.Equal("object", format["json_schema"]!["schema"]!["type"]!.GetValue<string>());
     }
 }
