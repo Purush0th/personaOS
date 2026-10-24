@@ -64,9 +64,40 @@
       The key is encrypted on the server and never shown again — uploading replaces it.
     </p>
 
+    @if (testResult(); as result) {
+      <div class="test-result" data-testid="push-test-result">
+        @if (!result.configured) {
+          <p class="error">Push is off, so nothing was sent.</p>
+        } @else if (result.devices.length === 0) {
+          <p class="error">
+            No phone is registered with this server. Open the app on the phone and sign in, then try again.
+          </p>
+        } @else {
+          <p>Sent to {{ result.delivered }} of {{ result.devices.length }} phone(s). Check that it arrived.</p>
+          <ul class="small">
+            @for (device of result.devices; track $index) {
+              <li [class.error]="!device.delivered">
+                {{ device.name }}:
+                @if (device.delivered) {
+                  delivered to Firebase
+                } @else {
+                  {{ device.error ?? 'failed' }}
+                  @if (device.removed) { — no longer registered, so it was removed; sign in on that phone again }
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+
     <div class="actions">
       @if (status()?.configured) {
         <button mat-button type="button" (click)="remove()" [disabled]="busy()">Turn off</button>
+        <button mat-stroked-button type="button" (click)="test()" [disabled]="busy()" data-testid="push-test">
+          <mat-icon>notifications_active</mat-icon>
+          Send test notification
+        </button>
       }
       <button mat-flat-button type="button" (click)="upload()" [disabled]="!canUpload">
         {{ busy() ? 'Saving…' : status()?.configured ? 'Replace Firebase files' : 'Turn on push' }}

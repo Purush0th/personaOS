@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The one folder MainActivity shares with Android's installer: downloaded app updates. -->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>

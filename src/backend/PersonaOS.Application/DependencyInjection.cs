@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IReminderAlarmPublisher, ReminderAlarmPublisher>();
         services.AddScoped<PersonaOS.Application.Profile.IUserProfileService, PersonaOS.Application.Profile.UserProfileService>();
         services.AddScoped<PersonaOS.Application.Push.IPushConfigService, PersonaOS.Application.Push.PushConfigService>();
+        services.AddScoped<PersonaOS.Application.Push.IPushTestService, PersonaOS.Application.Push.PushTestService>();
         services.AddScoped<IReminderDispatcher, ReminderDispatcher>();
         services.AddScoped<IPlannerAlertDispatcher, PlannerAlertDispatcher>();
         services.AddSingleton(TimeProvider.System);
