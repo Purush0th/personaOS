@@ -37,9 +37,9 @@ class _Bubble {
 
   /// The notes shown (and, hands-free, spoken) under the reply, in order.
   List<String> get notes => [
-        if (unverifiedClaim) UnverifiedClaimNote.message,
-        ?UnknownItemsNote.messageFor(unknownItems),
-      ];
+    if (unverifiedClaim) UnverifiedClaimNote.message,
+    ?UnknownItemsNote.messageFor(unknownItems),
+  ];
 }
 
 /// Streaming chat with the assistant. Deltas append to the live bubble.
@@ -79,7 +79,12 @@ class _ChatScreenState extends State<ChatScreen> {
   /// How the assistant works here; sent with each message and kept with the conversation.
   String _mode = 'chat';
 
-  late final VoiceService _voice = widget.voice ?? VoiceService();
+  /// One voice for the whole app session rather than one per visit to the chat: a reply
+  /// being read keeps playing when the user leaves the chat, and the chat opened again
+  /// can still stop it (owner, 2026-10-11).
+  static final VoiceService _appVoice = VoiceService();
+
+  late final VoiceService _voice = widget.voice ?? _appVoice;
   bool _listening = false;
   bool _readBack = false;
 
@@ -107,6 +112,21 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     if (widget.voiceEnabled && widget.voice == null) unawaited(_useServerSpeechIfChosen());
+    unawaited(_openLatestConversation());
+  }
+
+  /// Opens the conversation used most recently, on this phone or the web; a new chat when
+  /// there is none. Every visit used to start an empty chat (owner, 2026-10-11).
+  Future<void> _openLatestConversation() async {
+    final List<ConversationSummary> conversations;
+    try {
+      conversations = await widget.api.getConversations();
+    } catch (_) {
+      return; // An empty chat still works.
+    }
+    // The user may have started typing meanwhile; their new chat wins.
+    if (conversations.isEmpty || !mounted || _bubbles.isNotEmpty || _streaming) return;
+    await _loadConversation(conversations.first);
   }
 
   /// Hands the voice service the server's speech engines the user chose in
@@ -122,8 +142,10 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
       final status = await widget.api.getSpeechStatus();
+      final server = _voice.server;
       _voice
-        ..server ??= ServerSpeech(widget.api)
+        // The voice outlives this screen, so it may hold the API of an earlier sign-in.
+        ..server = server != null && identical(server.api, widget.api) ? server : ServerSpeech(widget.api)
         ..useServerStt = prefs.serverStt && status.speechToText
         ..useServerTts = prefs.serverTts && status.textToSpeech;
     } catch (_) {
@@ -134,7 +156,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     unawaited(_subscription?.cancel());
-    _voice.dispose();
+    // The microphone closes with the screen; a reply being read finishes.
+    unawaited(_voice.release());
     _input.dispose();
     _scroll.dispose();
     super.dispose();
@@ -218,15 +241,13 @@ class _ChatScreenState extends State<ChatScreen> {
           _listening = false;
           _handsFree = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not hear you: $error')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not hear you: $error')));
       },
     );
     if (!ready && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Microphone or speech recognition is unavailable.'),
-      ));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Microphone or speech recognition is unavailable.')));
     }
     return ready;
   }
@@ -241,7 +262,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _send() {
     final text = _input.text.trim();
-    if (text.isEmpty || _streaming) return;
+    // While a conversation loads, a message would land in it and then be wiped by it.
+    if (text.isEmpty || _streaming || _loadingHistory) return;
 
     final assistantBubble = _Bubble(isUser: false, text: '');
     setState(() {
@@ -254,40 +276,44 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _subscription = widget.api
         .streamChat(text, conversationId: _conversationId, mode: _mode)
-        .listen((event) {
-      setState(() {
-        switch (event.type) {
-          case 'start':
-            _conversationId = event.conversationId ?? _conversationId;
-          case 'delta':
-            assistantBubble.text += event.text ?? '';
-          case 'error':
-            assistantBubble.isError = true;
-            assistantBubble.text = event.error ?? 'Something went wrong.';
-            _streaming = false;
-          case 'done':
-            _streaming = false;
-            // Text on 'done' means the server stored something different from the
-            // deltas we streamed — it stripped a tool call the model wrote as prose.
-            // Replace before speaking, or read-back would say the raw JSON aloud.
-            if (event.text != null) assistantBubble.text = event.text!;
-            assistantBubble.actions = event.actions;
-            assistantBubble.pending = event.pending;
-            assistantBubble.unverifiedClaim = event.unverifiedClaim;
-            assistantBubble.unknownItems = event.unknownItems;
-            unawaited(_afterReply(assistantBubble));
-        }
-      });
-      _scrollToBottom();
-    }, onError: (_) {
-      setState(() {
-        assistantBubble.isError = true;
-        assistantBubble.text = 'Connection lost.';
-        _streaming = false;
-      });
-    }, onDone: () {
-      if (mounted && _streaming) setState(() => _streaming = false);
-    });
+        .listen(
+          (event) {
+            setState(() {
+              switch (event.type) {
+                case 'start':
+                  _conversationId = event.conversationId ?? _conversationId;
+                case 'delta':
+                  assistantBubble.text += event.text ?? '';
+                case 'error':
+                  assistantBubble.isError = true;
+                  assistantBubble.text = event.error ?? 'Something went wrong.';
+                  _streaming = false;
+                case 'done':
+                  _streaming = false;
+                  // Text on 'done' means the server stored something different from the
+                  // deltas we streamed — it stripped a tool call the model wrote as prose.
+                  // Replace before speaking, or read-back would say the raw JSON aloud.
+                  if (event.text != null) assistantBubble.text = event.text!;
+                  assistantBubble.actions = event.actions;
+                  assistantBubble.pending = event.pending;
+                  assistantBubble.unverifiedClaim = event.unverifiedClaim;
+                  assistantBubble.unknownItems = event.unknownItems;
+                  unawaited(_afterReply(assistantBubble));
+              }
+            });
+            _scrollToBottom();
+          },
+          onError: (_) {
+            setState(() {
+              assistantBubble.isError = true;
+              assistantBubble.text = 'Connection lost.';
+              _streaming = false;
+            });
+          },
+          onDone: () {
+            if (mounted && _streaming) setState(() => _streaming = false);
+          },
+        );
   }
 
   /// Speaks a finished reply when asked to, then reopens the microphone if the
@@ -315,9 +341,9 @@ class _ChatScreenState extends State<ChatScreen> {
           _handsFree = false;
           _handsFreeAwaitsCard = true;
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Hands-free paused — confirm or discard the change to carry on.'),
-        ));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Hands-free paused — confirm or discard the change to carry on.')));
       }
       return;
     }
@@ -329,10 +355,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _openHistory() async {
     final picked = await Navigator.of(context).push<Object?>(
       MaterialPageRoute<Object?>(
-        builder: (_) => ConversationsScreen(
-          api: widget.api,
-          assistantNickname: widget.assistantNickname,
-        ),
+        builder: (_) => ConversationsScreen(api: widget.api, assistantNickname: widget.assistantNickname),
       ),
     );
     if (picked == null || !mounted) return;
@@ -341,7 +364,11 @@ class _ChatScreenState extends State<ChatScreen> {
       _startNewConversation();
       return;
     }
+    await _loadConversation(picked);
+  }
 
+  /// Replaces the screen with a stored conversation.
+  Future<void> _loadConversation(ConversationSummary picked) async {
     setState(() {
       _bubbles.clear();
       _loadingHistory = true;
@@ -349,31 +376,32 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      final detail = await widget.api.getConversation(
-        picked.publicId.isEmpty ? '${picked.id}' : picked.publicId,
-      );
+      final detail = await widget.api.getConversation(picked.publicId.isEmpty ? '${picked.id}' : picked.publicId);
       if (!mounted) return;
       setState(() {
         _conversationId = detail.id;
         _mode = detail.mode;
         _bubbles
           ..clear()
-          ..addAll(detail.messages.map((m) => _Bubble(
-                isUser: m.role == 'user',
-                text: m.content,
-              )
+          ..addAll(
+            detail.messages.map(
+              (m) => _Bubble(isUser: m.role == 'user', text: m.content)
                 ..actions = m.toolActions
                 ..pending = m.pendingActions
                 ..unverifiedClaim = m.unverifiedClaim
-                ..unknownItems = m.unknownItems));
+                ..unknownItems = m.unknownItems,
+            ),
+          );
         _loadingHistory = false;
       });
       _scrollToBottom();
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _loadingHistory = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      // Offline or the server went away: an empty chat, ready for a new message.
+      if (mounted) setState(() => _loadingHistory = false);
     }
   }
 
@@ -403,9 +431,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() => _resolving.add(action.id));
     try {
-      final updated = confirm
-          ? await widget.api.confirmAction(action.id)
-          : await widget.api.discardAction(action.id);
+      final updated = confirm ? await widget.api.confirmAction(action.id) : await widget.api.discardAction(action.id);
 
       if (!mounted) return;
       setState(() {
@@ -425,9 +451,9 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {
       // Leave the card pending so it can be retried rather than lost.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not reach the server. Try again.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not reach the server. Try again.')));
       }
     } finally {
       if (mounted) setState(() => _resolving.remove(action.id));
@@ -440,18 +466,14 @@ class _ChatScreenState extends State<ChatScreen> {
   /// the change and then talked to a phone that had stopped listening.
   Future<void> _resumeHandsFreeIfWaiting() async {
     if (!_handsFreeAwaitsCard || _handsFree || !mounted) return;
-    final stillWaiting = _bubbles.any(
-      (b) => b.pending?.any((p) => p.isPending) ?? false,
-    );
+    final stillWaiting = _bubbles.any((b) => b.pending?.any((p) => p.isPending) ?? false);
     if (stillWaiting) return;
 
     setState(() {
       _handsFreeAwaitsCard = false;
       _handsFree = true;
     });
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Hands-free resumed — listening.'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hands-free resumed — listening.')));
     await _listenOnce();
   }
 
@@ -461,11 +483,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(widget.assistantNickname),
         actions: [
-          IconButton(
-            tooltip: 'History',
-            icon: const Icon(Icons.history),
-            onPressed: _streaming ? null : _openHistory,
-          ),
+          IconButton(tooltip: 'History', icon: const Icon(Icons.history), onPressed: _streaming ? null : _openHistory),
           IconButton(
             tooltip: 'New chat',
             icon: const Icon(Icons.add_comment_outlined),
@@ -482,84 +500,74 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
         ],
       ),
-      body: ReadableWidth(maxWidth: 960, child: Column(
-        children: [
-          if (_handsFree) _HandsFreeBanner(listening: _listening, speaking: _speaking),
-          Expanded(
-            child: _loadingHistory
-                ? const Center(child: CircularProgressIndicator())
-                : _bubbles.isEmpty
-                ? _EmptyChat(nickname: widget.assistantNickname)
-                : ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _bubbles.length,
-                    itemBuilder: (context, i) =>
-                        _BubbleView(bubble: _bubbles[i], onResolve: _resolveAction, onOpenItem: _openItem),
-                  ),
-          ),
-          _ModeSwitch(
-            mode: _mode,
-            onChanged: _streaming ? null : (mode) => setState(() => _mode = mode),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _input,
-                      minLines: 1,
-                      maxLines: 4,
-                      textInputAction: TextInputAction.send,
-                      decoration: InputDecoration(
-                        hintText: 'Message ${widget.assistantNickname}…',
-                        border: const OutlineInputBorder(),
-                        isDense: true,
+      body: ReadableWidth(
+        maxWidth: 960,
+        child: Column(
+          children: [
+            if (_handsFree) _HandsFreeBanner(listening: _listening, speaking: _speaking),
+            Expanded(
+              child: _loadingHistory
+                  ? const Center(child: CircularProgressIndicator())
+                  : _bubbles.isEmpty
+                  ? _EmptyChat(nickname: widget.assistantNickname)
+                  : ListView.builder(
+                      controller: _scroll,
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _bubbles.length,
+                      itemBuilder: (context, i) =>
+                          _BubbleView(bubble: _bubbles[i], onResolve: _resolveAction, onOpenItem: _openItem),
+                    ),
+            ),
+            _ModeSwitch(mode: _mode, onChanged: _streaming ? null : (mode) => setState(() => _mode = mode)),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _input,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.send,
+                        decoration: InputDecoration(
+                          hintText: 'Message ${widget.assistantNickname}…',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onSubmitted: (_) => _send(),
                       ),
-                      onSubmitted: (_) => _send(),
                     ),
-                  ),
-                  if (widget.voiceEnabled) ...[
-                    const SizedBox(width: 4),
-                    IconButton(
-                      tooltip: _listening ? 'Stop' : 'Speak once',
-                      onPressed: _streaming || _handsFree ? null : _toggleMic,
-                      color: _listening
-                          ? Theme.of(context).colorScheme.error
-                          : null,
-                      icon: Icon(_listening ? Icons.mic : Icons.mic_none),
-                    ),
-                    IconButton(
-                      tooltip: _handsFree ? 'End hands-free' : 'Hands-free',
-                      onPressed: _toggleHandsFree,
-                      color: _handsFree
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                      icon: Icon(_handsFree
-                          ? Icons.record_voice_over
-                          : Icons.graphic_eq),
+                    if (widget.voiceEnabled) ...[
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: _listening ? 'Stop' : 'Speak once',
+                        onPressed: _streaming || _handsFree ? null : _toggleMic,
+                        color: _listening ? Theme.of(context).colorScheme.error : null,
+                        icon: Icon(_listening ? Icons.mic : Icons.mic_none),
+                      ),
+                      IconButton(
+                        tooltip: _handsFree ? 'End hands-free' : 'Hands-free',
+                        onPressed: _toggleHandsFree,
+                        color: _handsFree ? Theme.of(context).colorScheme.primary : null,
+                        icon: Icon(_handsFree ? Icons.record_voice_over : Icons.graphic_eq),
+                      ),
+                    ],
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      onPressed: _streaming ? null : _send,
+                      icon: _streaming
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.send),
                     ),
                   ],
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    onPressed: _streaming ? null : _send,
-                    icon: _streaming
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ],
-      )),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -601,10 +609,7 @@ class _ModeSwitch extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
-          child: Text(
-            ChatMode.of(mode).hint,
-            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-          ),
+          child: Text(ChatMode.of(mode).hint, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
         ),
       ],
     );
@@ -642,10 +647,7 @@ class _HandsFreeBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             'Hands-free · $label',
-            style: TextStyle(
-              color: scheme.onPrimaryContainer,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -674,10 +676,7 @@ class _EmptyChat extends StatelessWidget {
               child: const Icon(Icons.auto_awesome, size: 30),
             ),
             const SizedBox(height: 16),
-            Text(
-              'Say hello to $nickname',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            ),
+            Text('Say hello to $nickname', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text(
               'Ask a question, or start hands-free and just talk.',

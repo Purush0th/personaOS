@@ -12,7 +12,8 @@ public sealed class ChatTurnState(
     IReadOnlyList<string> toolNames,
     string mode = PersonaOS.Domain.Entities.ChatModes.Chat,
     string? userMessage = null,
-    DateOnly? userToday = null)
+    DateOnly? userToday = null,
+    IReadOnlySet<string>? writeTools = null)
 {
     /// <summary>After this many repeated calls the model is stuck, and more rounds only cost time.</summary>
     private const int StuckAfterRepeats = 2;
@@ -32,6 +33,12 @@ public sealed class ChatTurnState(
 
     /// <summary>Tools that change the user's data, so a call becomes a card instead of running.</summary>
     public IReadOnlySet<string> MutatingTools { get; } = mutatingTools;
+
+    /// <summary>
+    /// Every tool offered this turn that changes data, those saved straight away (a note, a memory
+    /// with auto-save on) as well as those behind a card.
+    /// </summary>
+    public IReadOnlySet<string> WriteTools { get; } = writeTools ?? mutatingTools;
 
     /// <summary>Every tool offered this turn; the scrubber only removes calls naming one of these.</summary>
     public IReadOnlyList<string> ToolNames { get; } = toolNames;

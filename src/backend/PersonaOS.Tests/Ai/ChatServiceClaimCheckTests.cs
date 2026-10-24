@@ -219,4 +219,93 @@ public class ChatServiceClaimCheckTests
         Assert.True(done.UnverifiedClaim);
         Assert.Equal(FalseClaim, (await db.ChatMessages.SingleAsync(m => m.Role == ChatRoles.Assistant)).Content);
     }
+
+    [Fact]
+    public async Task The_correction_names_the_tool_the_claim_needs_and_the_users_words()
+    {
+        // Chat dawdsabu (owner, 2026-10-11): told only to "call the right tool", qwen2.5:3b said
+        // "I have scheduled a reminder" again.
+        var (_, chat, streamer) = Setup(new FakeTool("create_reminder", mutates: true));
+        streamer.EnqueueText(FalseClaim).EnqueueText("I haven't done that yet — shall I?");
+
+        await CollectAsync(chat.StreamChatAsync(null, "Remind me to submit the report at 7pm"));
+
+        var correction = streamer.ReceivedTurns[1][^1].Content;
+        Assert.Contains("call create_reminder now", correction);
+        Assert.Contains("Remind me to submit the report at 7pm", correction);
+    }
+
+    [Fact]
+    public async Task A_claim_that_survives_the_correction_gets_one_try_offered_only_its_tool()
+    {
+        var reminder = new FakeTool("create_reminder", mutates: true);
+        var (_, chat, streamer) = Setup(reminder, new FakeTool("get_goals"), new FakeTool("create_goal", mutates: true));
+        streamer
+            .EnqueueText(FalseClaim)
+            .EnqueueText("Your reminder has been set for 19:00.")
+            .EnqueueToolCall("toolu_1", "create_reminder", """{"message":"Submit the report","dueAtLocal":"2026-09-15T19:00"}""")
+            .EnqueueText("Done.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Remind me to submit the report at 7pm"));
+
+        Assert.Equal(["create_reminder"], streamer.ReceivedTools[2].Select(t => t.Name));
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.Single(done.Pending!);
+        Assert.Null(done.UnverifiedClaim);
+        Assert.Equal(EmptyReplyGuard.ProposalOnly, done.Text);
+        Assert.Empty(reminder.Invocations); // A card, not a change: still waiting for Confirm.
+    }
+
+    [Fact]
+    public async Task A_reply_that_proposes_with_no_card_is_corrected()
+    {
+        // Replaying chat dawdsabu: "I have proposed a reminder … waiting for your confirmation", no card.
+        var (_, chat, streamer) = Setup(new FakeTool("create_reminder", mutates: true));
+        streamer
+            .EnqueueText("I have proposed a reminder for you to submit the report at 7 PM. It is waiting for your confirmation.")
+            .EnqueueToolCall("toolu_1", "create_reminder", """{"message":"Submit the report","dueAtLocal":"2026-09-15T19:00"}""")
+            .EnqueueText("Here it is.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Remind me to submit the report at 7pm"));
+
+        Assert.Single(Assert.Single(events, e => e.Type == "done").Pending!);
+    }
+
+    [Fact]
+    public async Task A_claim_a_reply_was_flagged_for_is_left_out_of_the_history()
+    {
+        // The model copied its own flagged "I have scheduled a reminder" three turns running (dawdsabu).
+        var (db, chat, streamer) = Setup(new FakeTool("create_reminder", mutates: true));
+        var conversation = new Conversation { Title = "Milk" };
+        db.Conversations.Add(conversation);
+        await db.SaveChangesAsync();
+        var at = new DateTime(2026, 9, 15, 7, 0, 0, DateTimeKind.Utc);
+        db.ChatMessages.AddRange(
+            new ChatMessage { ConversationId = conversation.Id, Role = ChatRoles.User, Content = "tomorrow 9 a.m.", CreatedAtUtc = at },
+            new ChatMessage
+            {
+                ConversationId = conversation.Id, Role = ChatRoles.Assistant, CreatedAtUtc = at.AddSeconds(1), UnverifiedClaim = true,
+                Content = "I have scheduled a reminder for you to buy milk at 9 AM tomorrow. Anything else?",
+            },
+            new ChatMessage { ConversationId = conversation.Id, Role = ChatRoles.User, Content = "Yes, add a reminder.", CreatedAtUtc = at.AddSeconds(2) },
+            new ChatMessage
+            {
+                ConversationId = conversation.Id, Role = ChatRoles.Assistant, CreatedAtUtc = at.AddSeconds(3), UnverifiedClaim = true,
+                Content = "I have scheduled a reminder for you to buy milk at 9 AM tomorrow.",
+            });
+        await db.SaveChangesAsync();
+        streamer.EnqueueText("Which time would you like?");
+
+        await CollectAsync(chat.StreamChatAsync(conversation.Id, "Remind me to buy milk tomorrow morning 9 a.m."));
+
+        var sent = streamer.ReceivedTurns[0];
+        Assert.DoesNotContain(sent, t => t.Content.Contains("I have scheduled"));
+        Assert.Contains(sent, t => t.Role == ChatRoles.Assistant && t.Content == "Anything else?");
+        // The reply that was nothing but the claim is not sent at all.
+        Assert.Equal(
+            [ChatRoles.User, ChatRoles.Assistant, ChatRoles.User, ChatRoles.User],
+            sent.Select(t => t.Role));
+        // Stored as it was: the user's history still shows what was said, with its warning.
+        Assert.Equal(2, await db.ChatMessages.CountAsync(m => m.Content.Contains("I have scheduled")));
+    }
 }

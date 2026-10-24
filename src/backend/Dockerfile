@@ -16,8 +16,11 @@ COPY src/backend/PersonaOS.Infrastructure/PersonaOS.Infrastructure.csproj src/ba
 RUN dotnet restore src/backend/PersonaOS.Api/PersonaOS.Api.csproj
 
 COPY src/backend/ src/backend/
+# The release this image is, from the tag (.github/workflows/release.yml). The API reports it, and
+# the update check compares it with the published releases; a local build is "0.0.0-dev".
+ARG VERSION=0.0.0-dev
 RUN dotnet publish src/backend/PersonaOS.Api/PersonaOS.Api.csproj \
-    -c Release -o /app/publish --no-restore
+    -c Release -o /app/publish --no-restore -p:Version=${VERSION}
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
@@ -29,7 +32,9 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     DataProtection__KeysPath=/app/data/dp-keys
 
 COPY --from=build /app/publish .
-RUN mkdir -p /app/data/docs-storage /app/data/dp-keys && chown -R app:app /app/data
+# /app/updates is shared with the updater container (deploy/docker-compose.yml): the API writes
+# its requests there, so a fresh volume must start out owned by the API's user.
+RUN mkdir -p /app/data/docs-storage /app/data/dp-keys /app/updates && chown -R app:app /app/data /app/updates
 USER app
 
 EXPOSE 8080

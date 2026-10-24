@@ -88,6 +88,12 @@ public static class DependencyInjection
         services.AddSingleton<IDocumentStorage, FileSystemDocumentStorage>();
         // Nightly self-contained snapshot (db + docs + keyring). See BackupService.
         services.AddHostedService<BackupService>();
+        // Updates: releases from GitHub, applied by the updater container (see FileUpdater).
+        services.AddSingleton<IReleaseFeed>(sp => new PersonaOS.Infrastructure.Updates.GitHubReleaseFeed(
+            new HttpClient { Timeout = TimeSpan.FromSeconds(15) },
+            sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PersonaOS.Infrastructure.Updates.GitHubReleaseFeed>>()));
+        services.AddSingleton<IUpdater, PersonaOS.Infrastructure.Updates.FileUpdater>();
 
         return services;
     }

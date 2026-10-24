@@ -34,6 +34,14 @@ public class OpenAiCompatibleMessageStreamer(HttpClient http) : IAiMessageStream
         var url = $"{request.BaseUrl.TrimEnd('/')}/chat/completions";
         var body = BuildRequestBody(request.Model, request.SystemPrompt, request.Turns, request.Tools);
         if (request.ModelOptions.Temperature is double temperature) body["temperature"] = temperature;
+        if (request.ResponseSchemaJson is { } schema)
+        {
+            body["response_format"] = new JsonObject
+            {
+                ["type"] = "json_schema",
+                ["json_schema"] = new JsonObject { ["name"] = "response", ["strict"] = true, ["schema"] = JsonNode.Parse(schema) },
+            };
+        }
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url)
         {

@@ -57,6 +57,11 @@ public record AiModelOptions(int? ContextTokens = null, bool? Think = null, stri
 }
 
 /// <summary>One call to the model: who to ask, what they have been told, and what they may use.</summary>
+/// <param name="ResponseSchemaJson">
+/// A JSON Schema the reply must follow, for a call that wants data rather than prose. Providers that
+/// can constrain decoding to it do (Ollama's <c>format</c>, OpenAI's <c>response_format</c>); the
+/// others ignore it, so the caller still checks what comes back.
+/// </param>
 public record AiRequest(
     string ApiKey,
     string Model,
@@ -64,7 +69,8 @@ public record AiRequest(
     string SystemPrompt,
     IReadOnlyList<AiChatTurn> Turns,
     IReadOnlyList<AiToolDefinition> Tools,
-    AiModelOptions? Options = null)
+    AiModelOptions? Options = null,
+    string? ResponseSchemaJson = null)
 {
     public AiModelOptions ModelOptions => Options ?? AiModelOptions.Default;
 }

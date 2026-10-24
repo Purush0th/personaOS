@@ -99,11 +99,27 @@ export class Chat implements OnInit {
         this.showEmptyThread();
         // A segment that cannot be a reference is a typo or a dead link; don't leave the
         // user sitting on a nonsense URL.
-        if (slug) void this.router.navigate(['/chat'], { replaceUrl: true });
+        if (slug) void this.router.navigate(['/chat'], { queryParams: { new: 1 }, replaceUrl: true });
+        // "New chat" asks for an empty thread; plain /chat picks up the latest conversation,
+        // where every visit used to start an empty one (owner, 2026-10-11).
+        else if (this.route.snapshot.queryParamMap.has('new')) void this.router.navigate(['/chat'], { replaceUrl: true });
+        else void this.openLatest();
       } else if (ref !== this.conversationPublicId()) {
         void this.load(ref);
       }
     });
+  }
+
+  /** Opens the most recently used conversation, unless the user has started a new one meanwhile. */
+  private async openLatest(): Promise<void> {
+    let latest;
+    try {
+      [latest] = await this.chat.listConversations();
+    } catch {
+      return; // An empty thread still works.
+    }
+    if (!latest || this.streaming() || this.bubbles().length > 0 || this.router.url !== '/chat') return;
+    void this.router.navigate(['/chat', conversationSlug(latest.publicId, latest.id)], { replaceUrl: true });
   }
 
   private showEmptyThread(): void {
@@ -142,9 +158,9 @@ export class Chat implements OnInit {
       }
     } catch {
       // A link to a conversation that no longer exists shouldn't strand the user on a
-      // broken page — fall back to a fresh thread.
+      // broken page — fall back to a fresh thread (not the latest one: that may be this one).
       this.showEmptyThread();
-      void this.router.navigate(['/chat'], { replaceUrl: true });
+      void this.router.navigate(['/chat'], { queryParams: { new: 1 }, replaceUrl: true });
     }
   }
 

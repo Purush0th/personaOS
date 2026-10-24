@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Scores an AI model against the behaviour PersonaOS needs from it: the accuracy suite.
 
@@ -97,6 +97,18 @@ function Proposed-Tools {
     param($Done)
     if ($null -eq $Done.pending) { return @() }
     return @($Done.pending | ForEach-Object { $_.tool })
+}
+
+# A card from $Tool whose summary matches $Expect; '' when there is one, else why not.
+function Expect-Card {
+    param($Done, [string]$Tool, [string]$Expect)
+    $proposed = Proposed-Tools $Done
+    if ($proposed -notcontains $Tool) {
+        return "no $Tool card (proposed: $($proposed -join ','); ran: $((Tools-Used $Done) -join ','))"
+    }
+    $card = $Done.pending | Where-Object { $_.tool -eq $Tool } | Select-Object -First 1
+    if ($card.summary -notmatch $Expect) { return "card misses '$Expect': $($card.summary)" }
+    return ''
 }
 
 # A reply that says it did something. Used where nothing may be done.
@@ -291,10 +303,100 @@ try {
                 param($d)
                 $used = Tools-Used $d
                 # Leave nothing behind: the note saved without a card goes too.
-                $notes = Invoke-Api -Method Get -Path '/api/notes?search=plumber' -Token $token
-                foreach ($n in @($notes)) { Invoke-Api -Method Delete -Path "/api/notes/$($n.id)" -Token $token | Out-Null }
+                # Piped, so a JSON array is unrolled: Windows PowerShell hands it over as one object.
+                $notes = @(Invoke-Api -Method Get -Path '/api/notes?search=plumber' -Token $token | ForEach-Object { $_ })
+                foreach ($n in $notes) { Invoke-Api -Method Delete -Path "/api/notes/$($n.id)" -Token $token | Out-Null }
                 if ($used -notcontains 'create_note') { return "did not save a note (ran: $($used -join ','); proposed: $((Proposed-Tools $d) -join ','))" }
-                if (-not (@($notes) | Where-Object { $_.text -match 'plumber' })) { return 'the note was not saved' }
+                if (-not ($notes | Where-Object { $_.text -match 'plumber' })) { return 'the note was not saved' }
+                return ''
+            }
+        },
+        @{
+            # Owner, 2026-10-11: saved as "Note to self: Prepare dinner ingredients for tomorrow",
+            # and the reply flagged "nothing was saved" over the note.
+            Name  = 'note in the user''s words'
+            Say   = 'Can you add a note to meal prep today?'
+            Check = {
+                param($d)
+                $notes = @(Invoke-Api -Method Get -Path '/api/notes' -Token $token | ForEach-Object { $_ })
+                $saved = @($notes | Where-Object { $_.text -match 'meal|prep|dinner' })
+                foreach ($n in $saved) { Invoke-Api -Method Delete -Path "/api/notes/$($n.id)" -Token $token | Out-Null }
+                if ((Tools-Used $d) -notcontains 'create_note') { return 'did not save a note' }
+                if ($saved.Count -ne 1) { return "saved $($saved.Count) notes" }
+                if ($saved[0].text -notmatch '^meal prep') { return "not in the user's words: $($saved[0].text)" }
+                if ($saved[0].text -match 'tomorrow') { return "changed the day: $($saved[0].text)" }
+                if ($d.unverifiedClaim) { return 'flagged nothing was saved over a saved note' }
+                return ''
+            }
+        },
+        @{
+            # Owner, 2026-10-11: "I've noted that…" with no note saved, then the memory check's own
+            # words ("Nothing worth remembering was said") and "nothing was saved".
+            Name  = 'note to cook today'
+            Say   = 'Add a note to cook today'
+            Check = {
+                param($d)
+                $notes = @(Invoke-Api -Method Get -Path '/api/notes' -Token $token | ForEach-Object { $_ })
+                $saved = @($notes | Where-Object { $_.text -match 'cook' })
+                foreach ($n in $saved) { Invoke-Api -Method Delete -Path "/api/notes/$($n.id)" -Token $token | Out-Null }
+                if ($saved.Count -ne 1) { return "saved $($saved.Count) notes (ran: $((Tools-Used $d) -join ','))" }
+                if ($saved[0].text -notmatch '^cook') { return "not in the user's words: $($saved[0].text)" }
+                if ($d.text -match 'worth remembering|nothing was remembered') { return "repeated the check: $($d.text)" }
+                if ($d.unverifiedClaim) { return 'flagged nothing was saved' }
+                return ''
+            }
+        },
+        # Intent (docs/model-accuracy.md, 2026-10-12): the same intent in different words reaches the
+        # same tool; a request that does not say what to save asks; conversation changes nothing.
+        @{
+            Name  = 'intent: add a task'
+            Say   = 'Add a task to follow up with Ravi tomorrow.'
+            Check = { param($d) Expect-Card $d 'create_task' 'Ravi' }
+        },
+        @{
+            Name  = 'intent: make a to-do'
+            Say   = 'Create a to-do for following up with Ravi.'
+            Check = { param($d) Expect-Card $d 'create_task' 'Ravi' }
+        },
+        @{
+            Name  = 'intent: put it on my board'
+            Say   = "Put 'renew the passport' on my board."
+            Check = { param($d) Expect-Card $d 'create_task' 'passport' }
+        },
+        @{
+            Name  = 'intent: don''t let me forget'
+            Say   = "Don't let me forget to call mum tomorrow at 6pm"
+            Check = { param($d) Expect-Card $d 'create_reminder' '18:00' }
+        },
+        @{
+            Name  = 'intent: ping me'
+            Say   = 'Ping me tomorrow at 8am to take the bins out'
+            Check = { param($d) Expect-Card $d 'create_reminder' '08:00' }
+        },
+        @{
+            Name  = 'intent: on my calendar'
+            Say   = 'I have a dentist appointment tomorrow at 4pm, put it on my calendar'
+            Check = { param($d) Expect-Card $d 'add_planner_item' '(?i)dent' }
+        },
+        @{
+            Name  = 'intent: unclear asks'
+            Say   = 'I need to remember this'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                if ((Tools-Used $d) -match '^create_') { return "saved something: $((Tools-Used $d) -join ',')" }
+                if ($d.text -notmatch '\?') { return 'did not ask what to save' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'intent: thanks changes nothing'
+            Say   = "Thanks, that's all for now"
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                if ((Tools-Used $d) -match '^create_') { return "saved something: $((Tools-Used $d) -join ',')" }
+                if ($d.text -match $claimsDone) { return 'claimed a change' }
                 return ''
             }
         },

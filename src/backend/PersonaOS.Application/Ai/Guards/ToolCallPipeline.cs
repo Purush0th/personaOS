@@ -28,6 +28,7 @@ public sealed class ToolCallPipeline(IPersonaToolRegistry registry, ILogger<Tool
         new OfferedToolGuard(),
         new RepeatedCallGuard(),
         new RelativeDateGuard(),
+        new NoteWordsGuard(),
         new ConfirmationGate(registry),
     ];
 

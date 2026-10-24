@@ -17,6 +17,7 @@ import { ABOUT_ME_MAX_LENGTH, SettingsService, SettingsUpdate } from '../core/se
 import { Memories } from './memories';
 import { PushConfig } from './push-config';
 import { SpeechConfig } from './speech-config';
+import { UpdatesConfig } from './updates-config';
 
 /** Module keys the server accepts; unknown keys are ignored server-side. */
 const MODULES = ['goals', 'board', 'planner', 'reminders', 'notes', 'memory', 'voice', 'proactive'] as const;
@@ -28,6 +29,7 @@ const MODULES = ['goals', 'board', 'planner', 'reminders', 'notes', 'memory', 'v
     Memories,
     PushConfig,
     SpeechConfig,
+    UpdatesConfig,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaos_mobile/api/personaos_api.dart';
 import 'package:personaos_mobile/server_speech.dart';
@@ -21,8 +23,7 @@ class _FakeServer extends ServerSpeech {
     required void Function(String error) onError,
     Duration pauseFor = const Duration(seconds: 2),
     Duration listenFor = const Duration(seconds: 30),
-  }) async =>
-      onFinal(transcript);
+  }) async => onFinal(transcript);
 
   @override
   Future<void> finish() async => finished = true;
@@ -43,6 +44,9 @@ class _Voice extends VoiceService {
 
   @override
   Future<void> speakOnDevice(String text) async => deviceSpoken.add(text);
+
+  @override
+  Future<void> stopOnDevice() async {}
 }
 
 void main() {
@@ -96,4 +100,33 @@ void main() {
     expect(server.spoken, isEmpty);
     expect(voice.deviceSpoken, ['Hello']);
   });
+
+  test("a reply stopped midway is not read again in the phone's voice", () async {
+    // Owner, 2026-10-11: leaving the chat while a reply played cut the server's voice, and the
+    // phone's own voice then started reading the same reply.
+    final server = _StoppableServer();
+    final voice = _Voice()
+      ..server = server
+      ..useServerTts = true;
+
+    final speaking = voice.speak('A long answer');
+    await voice.stopSpeaking();
+    await speaking;
+
+    expect(voice.deviceSpoken, isEmpty);
+  });
+}
+
+/// Plays until stopped, then fails the way a player cut off mid-reply does.
+class _StoppableServer extends _FakeServer {
+  final _stopped = Completer<void>();
+
+  @override
+  Future<void> speak(String text) async {
+    await _stopped.future;
+    throw StateError('Player stopped');
+  }
+
+  @override
+  Future<void> stopSpeaking() async => _stopped.complete();
 }

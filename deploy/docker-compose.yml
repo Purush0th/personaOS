@@ -32,11 +32,14 @@ services:
       # mount Backup__Path on a SEPARATE volume/host path — see docs/BACKUP.md.
       Backup__Enabled: "true"
       Backup__Path: /app/data/backups
+      # Where the API asks the updater (below) to install a release; without an updater it is unused.
+      Updates__Path: /app/updates
       ASPNETCORE_ENVIRONMENT: Production
       # Push notifications are configured in the web app (Settings → Push notifications), by
       # uploading your own Firebase project's files. Nothing to set here.
     volumes:
       - api-data:/app/data
+      - updates:/app/updates
       # Recommended: put backups on a different disk than api-data, e.g.
       # - /srv/personaos-backups:/app/data/backups
     expose:
@@ -65,8 +68,7 @@ services:
   #   (Docker Desktop on Windows has GPU support built in). See README "Voice".
   whisper:
     profiles: ["speech"]
-    build: ./speech/whisper
-    image: personaos-whisper:local
+    image: ghcr.io/purush0th/personaos-whisper:${PERSONAOS_VERSION:-latest}
     environment:
       WHISPER_MODEL: ${WHISPER_MODEL:-large-v3-turbo}
     volumes:
@@ -92,6 +94,53 @@ services:
               capabilities: [gpu]
     restart: unless-stopped
 
+  # --- Optional: the model on this machine (profile "ollama", off by default) -----------------
+  # Ollama in a container, reachable only over the compose network: in Settings → AI provider
+  # choose Ollama with the address http://ollama:11434/v1. Fetch the model once:
+  #   docker compose exec ollama ollama pull qwen2.5:3b-instruct
+  # The settings fit a 6 GB card next to the speech service: one model loaded, one request at a
+  # time, and a context cache at half the memory (flash attention, q8_0).
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama:${OLLAMA_VERSION:-0.40.3}
+    environment:
+      OLLAMA_FLASH_ATTENTION: "1"
+      OLLAMA_KV_CACHE_TYPE: q8_0
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_KEEP_ALIVE: 24h
+    volumes:
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # --- Optional: updates from the app (profile "updater", off by default; Linux) --------------
+  # Lets Settings → Updates install a new release: the API asks, this container backs up the
+  # data volume to ./backups, pulls the release, restarts, checks the API answers and rolls back
+  # if it does not. It is the only service that can control Docker (the socket below), so it
+  # publishes no port and accepts nothing but a version, through the `updates` volume.
+  #   Turn on: add "updater" to COMPOSE_PROFILES in .env, and set PERSONAOS_DIR to this folder
+  #            (it is mounted at the same path inside, so compose finds the same files).
+  updater:
+    profiles: ["updater"]
+    image: ghcr.io/purush0th/personaos-updater:${PERSONAOS_VERSION:-latest}
+    environment:
+      PROJECT_DIR: ${PERSONAOS_DIR:-/opt/personaos}
+      SELF_IMAGE: ghcr.io/purush0th/personaos-updater:${PERSONAOS_VERSION:-latest}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - updates:/updates
+      - ${PERSONAOS_DIR:-/opt/personaos}:${PERSONAOS_DIR:-/opt/personaos}
+    restart: unless-stopped
+
 volumes:
   api-data:
+  updates:
   speech-models:
+  ollama-models:

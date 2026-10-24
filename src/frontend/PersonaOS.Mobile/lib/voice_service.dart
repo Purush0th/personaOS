@@ -18,16 +18,13 @@ String speakableText(String markdown) {
   // Fenced code: unreadable aloud, so drop it rather than spell it out.
   text = text.replaceAll(RegExp(r'```[\s\S]*?```'), ' ');
   // Links: keep the label, drop the URL.
-  text = text.replaceAllMapped(
-      RegExp(r'\[([^\]]+)\]\([^)]*\)'), (m) => m.group(1) ?? '');
+  text = text.replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^)]*\)'), (m) => m.group(1) ?? '');
   // Inline code, bold, strikethrough — markers only, keep the words.
   text = text.replaceAll(RegExp(r'[`*~]'), '');
   // Underscore emphasis, but ONLY around a whole word. Stripping every
   // underscore turns `get_goals` into "getgoals", and the assistant names its
   // tools constantly.
-  text = text.replaceAllMapped(
-      RegExp(r'(?<![A-Za-z0-9_])_([^_\n]+)_(?![A-Za-z0-9_])'),
-      (m) => m.group(1) ?? '');
+  text = text.replaceAllMapped(RegExp(r'(?<![A-Za-z0-9_])_([^_\n]+)_(?![A-Za-z0-9_])'), (m) => m.group(1) ?? '');
   // Headings and blockquote markers at the start of a line.
   text = text.replaceAll(RegExp(r'^\s{0,3}#{1,6}\s*', multiLine: true), '');
   text = text.replaceAll(RegExp(r'^\s{0,3}>\s?', multiLine: true), '');
@@ -73,17 +70,11 @@ class VoiceService {
   /// pack for the current locale accepts `listen`, turns the microphone on, and
   /// then fails asynchronously — so without surfacing the error the caller is
   /// left with a live mic that never produces a word.
-  Future<bool> ensureStt({
-    void Function(String status)? onStatus,
-    void Function(String error)? onError,
-  }) async {
+  Future<bool> ensureStt({void Function(String status)? onStatus, void Function(String error)? onError}) async {
     _onError = onError;
     if (_serverStt) return server!.ensureMic();
     if (_sttReady) return true;
-    _sttReady = await _stt.initialize(
-      onStatus: (s) => onStatus?.call(s),
-      onError: (e) => onError?.call(e.errorMsg),
-    );
+    _sttReady = await _stt.initialize(onStatus: (s) => onStatus?.call(s), onError: (e) => onError?.call(e.errorMsg));
     return _sttReady;
   }
 
@@ -155,16 +146,24 @@ class VoiceService {
   Future<void> speak(String text) async {
     text = speakableText(text);
     if (text.trim().isEmpty) return;
+    final turn = ++_speechTurn;
     if (_serverTts) {
       try {
         await server!.speak(text);
         return;
       } catch (_) {
+        // Stopped on purpose (Stop, or a newer reply took over): not a failure, so the
+        // phone's voice must not start reading it instead. Owner, 2026-10-11: leaving the
+        // chat mid-reply cut the server's voice and the phone's own picked the reply up.
+        if (turn != _speechTurn) return;
         // The server's voice is unavailable: read it with the phone's own instead.
       }
     }
     await speakOnDevice(text);
   }
+
+  /// Counts what has been spoken or stopped, so a reply cut short can tell it was stopped.
+  int _speechTurn = 0;
 
   /// Speaks already-cleaned [text] with the phone's own engine, until it ends.
   @protected
@@ -178,8 +177,20 @@ class VoiceService {
   }
 
   Future<void> stopSpeaking() async {
+    _speechTurn++;
     await server?.stopSpeaking();
-    await _tts.stop();
+    await stopOnDevice();
+  }
+
+  /// Stops the phone's own engine.
+  @protected
+  Future<void> stopOnDevice() => _tts.stop();
+
+  /// Lets go of the microphone without sending anything, and lets a reply being read
+  /// finish: the chat screen closing must not cut the assistant off mid-sentence.
+  Future<void> release() async {
+    if (_sttReady) await _stt.cancel();
+    await server?.cancel();
   }
 
   void dispose() {

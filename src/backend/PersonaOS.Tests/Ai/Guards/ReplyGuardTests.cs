@@ -122,6 +122,50 @@ public class ReplyGuardTests
     }
 
     [Theory]
+    [InlineData("I've noted that.")]
+    [InlineData("I've added a note to meal prep today.")]
+    public async Task Claim_guard_trusts_a_claim_backed_by_a_note_saved_straight_away(string text)
+    {
+        // Owner, 2026-10-11: "I've noted that" above a saved note drew "nothing was saved".
+        var turn = new ChatTurnState("test-model", new HashSet<string>(), ["create_note", "create_memory"],
+            writeTools: new HashSet<string> { "create_note", "create_memory" });
+        turn.RecordExecution(new AiToolCall("1", "create_note", """{"text":"Meal prep today"}"""),
+            new AiToolResult("1", """{"noted":{"noteId":1,"content":"Meal prep today"}}"""));
+
+        var draft = await Review(new ClaimCheckGuard(), Draft(text, turn));
+
+        Assert.Null(draft.UnbackedClaim);
+    }
+
+    [Fact]
+    public async Task Claim_guard_takes_out_a_claim_about_the_backlog_over_a_saved_note()
+    {
+        // qwen2.5:3b, 2026-10-11: "This note has been added to the backlog" over a saved note.
+        var turn = new ChatTurnState("test-model", new HashSet<string>(), ["create_note"],
+            writeTools: new HashSet<string> { "create_note" });
+        turn.RecordExecution(new AiToolCall("1", "create_note", """{"text":"Call the plumber"}"""),
+            new AiToolResult("1", """{"noted":{"noteId":1,"content":"Call the plumber"}}"""));
+
+        var draft = await Review(new ClaimCheckGuard(),
+            Draft("You have noted to call the plumber. This note has been added to the backlog. You can review it later.", turn));
+
+        Assert.Null(draft.UnbackedClaim);
+        Assert.Equal("You have noted to call the plumber. You can review it later.", draft.Text);
+    }
+
+    [Fact]
+    public async Task Claim_guard_still_catches_a_claim_when_only_a_read_ran()
+    {
+        var turn = new ChatTurnState("test-model", new HashSet<string>(), ["get_notes", "create_note"],
+            writeTools: new HashSet<string> { "create_note" });
+        turn.RecordExecution(new AiToolCall("1", "get_notes", "{}"), new AiToolResult("1", """{"notes":[],"total":0}"""));
+
+        var draft = await Review(new ClaimCheckGuard(), Draft("I've added a note to meal prep today.", turn));
+
+        Assert.NotNull(draft.UnbackedClaim);
+    }
+
+    [Theory]
     [InlineData("I've proposed a goal called Learn Rust.")]
     [InlineData("I'll create the Learn Rust goal once you confirm.")]
     [InlineData("I've prepared a card to add the Learn Rust goal.")]

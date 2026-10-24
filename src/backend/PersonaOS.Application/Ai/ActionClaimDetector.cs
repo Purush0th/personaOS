@@ -76,6 +76,30 @@ public static partial class ActionClaimDetector
     [GeneratedRegex(@"(?<=[.!?])\s+|\n+")]
     private static partial Regex SentenceBreak();
 
+    /// <summary>Says a change waits on the user's confirmation: "I have proposed a reminder", "it is waiting for your confirmation".</summary>
+    [GeneratedRegex(@"\bpropos(?:e|ed|ing|al)\b|\bwaiting\s+for\s+(?:your\s+)?confirm|\bpending\s+(?:your\s+)?confirm|\bconfirm\s+it\s+below\b|\bon\s+a\s+card\b", RegexOptions.IgnoreCase)]
+    private static partial Regex SaysProposed();
+
+    /// <summary>
+    /// The first sentence saying a change is proposed and waiting to be confirmed, or null. For a
+    /// turn that proposed nothing, where there is no card to confirm: qwen2.5:3b answered "I have
+    /// proposed a reminder for you to buy milk at 9 AM tomorrow. It is waiting for your
+    /// confirmation." and made no card (owner's chat dawdsabu, replayed, 2026-10-11).
+    /// </summary>
+    public static string? FindProposalClaim(string? reply) =>
+        Sentences(reply)
+            .Select(s => s.Trim())
+            .FirstOrDefault(s => s.Length > 0 && !s.EndsWith('?')
+                && ((DomainObject().IsMatch(s) && SaysProposed().IsMatch(s)) || PointsAtACard().IsMatch(s)));
+
+    /// <summary>
+    /// Sends the user to a card: "confirm it below", "the card below". The model copied the app's
+    /// own line above a card ("Here is the change I would make — confirm it below if it looks
+    /// right.") into a turn that made none.
+    /// </summary>
+    [GeneratedRegex(@"\b(?:confirm\w*|cards?)\b[^.!?]*\bbelow\b", RegexOptions.IgnoreCase)]
+    private static partial Regex PointsAtACard();
+
     /// <summary>
     /// "I'll remember that", "I've noted it", "I will keep that in mind", "Noted!": a promise to
     /// remember. Not "I remember you said…", which is recalling a memory, not saving one.
