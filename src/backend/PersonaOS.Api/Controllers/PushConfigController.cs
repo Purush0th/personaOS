@@ -13,7 +13,7 @@ namespace PersonaOS.Api.Controllers;
 [ApiController]
 [Route("api/setup/push")]
 [Authorize(Roles = "admin")]
-public class PushConfigController(IPushConfigService push) : ControllerBase
+public class PushConfigController(IPushConfigService push, IPushTestService test) : ControllerBase
 {
     /// <summary>The two Firebase files, sent as text. The web page reads each file and posts its contents.</summary>
     public record SetPushConfigRequest(string? ServiceAccountJson, string? GoogleServicesJson);
@@ -27,6 +27,10 @@ public class PushConfigController(IPushConfigService push) : ControllerBase
     [RequestSizeLimit(128_000)] // Both files are a few kilobytes; nothing legitimate is larger.
     public async Task<ActionResult<PushConfigStatus>> Set([FromBody] SetPushConfigRequest request, CancellationToken ct) =>
         Ok(await push.SetAsync(request.ServiceAccountJson ?? string.Empty, request.GoogleServicesJson ?? string.Empty, ct));
+
+    /// <summary>Sends a test notification to every registered phone and says how each took it.</summary>
+    [HttpPost("test")]
+    public async Task<ActionResult<PushTestResult>> Test(CancellationToken ct) => Ok(await test.SendAsync(ct));
 
     /// <summary>Deletes the stored credential and turns push off.</summary>
     [HttpDelete]

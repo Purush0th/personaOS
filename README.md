@@ -240,8 +240,39 @@ Database migrations run automatically on start; your data and settings are prese
 version for reproducible upgrades, set `PERSONAOS_VERSION` in `.env` — and to roll back, set it
 to the previous version and run the same command.
 
-**The phone app** tells you when a newer one is out and where to download it, once the server is
-up to date.
+**The phone app** tells you when a newer one is out, once the server is up to date, and **Update**
+downloads it from the release and opens Android's installer: one tap on Android's own "Update"
+screen (the first time, Android also asks to allow installing apps from PersonaOS). Your settings
+stay. This works only between APKs signed with the same key — see below.
+
+### Signing the phone app
+
+Android installs an update only when it is signed with the same key as the installed app. The
+release workflow signs with a key kept in the repository's secrets, and refuses to build an APK
+without it. Make the key once, keep it safe (lose it and every phone has to reinstall the app),
+and add it to GitHub:
+
+```bash
+keytool -genkeypair -v -keystore personaos-release.jks -keyalg RSA -keysize 4096 -validity 10000 -alias personaos
+base64 -w0 personaos-release.jks > personaos-release.jks.b64      # PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes("personaos-release.jks"))
+gh secret set ANDROID_KEYSTORE_BASE64 < personaos-release.jks.b64
+gh secret set ANDROID_KEYSTORE_PASSWORD
+gh secret set ANDROID_KEY_ALIAS --body personaos
+gh secret set ANDROID_KEY_PASSWORD
+```
+
+To build releases on your own machine with the same key, put it next to the app's Android project
+as `src/frontend/PersonaOS.Mobile/android/key.properties` (ignored by git):
+
+```properties
+storeFile=/absolute/path/to/personaos-release.jks
+storePassword=...
+keyAlias=personaos
+keyPassword=...
+```
+
+An APK signed with another key (a debug build, or one from before this key) cannot be updated in
+place: uninstall it once and install a signed release.
 
 ## Moving to another server
 

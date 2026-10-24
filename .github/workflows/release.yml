@@ -96,6 +96,29 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      # Every release must be signed with the same key, or the app cannot update itself: Android
+      # refuses an update signed differently, and a runner's own debug key is new on every run.
+      # The key lives in the repository's secrets (see README, "Signing the phone app").
+      - name: Release signing key
+        working-directory: src/frontend/PersonaOS.Mobile/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Set the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD secrets: without them the APK cannot update the installed app."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > app/release.jks
+          {
+            echo "storeFile=release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > key.properties
+
       # The app's version is the release's, so the phone can tell it is behind.
       - name: Build release APK
         working-directory: src/frontend/PersonaOS.Mobile
