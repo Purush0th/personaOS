@@ -381,7 +381,18 @@ the chat it always showing new one but the last active one can be preserved if n
       Update and progress, and the one-time "allow installing apps" step. Android's own confirm
       screen cannot be skipped. Phone tests 265. Needs the owner to create the key and set the
       secrets (README, "Signing the phone app"); the first signed APK needs one uninstall.
-- [ ] **U2. Move live to the prod server** (`192.168.2.10`). Needs: a release published with U1;
+- [x] **P3. Whisper wrote Chinese** (2026-10-24): the phone sent no language, so whisper guessed
+      per recording and picked Chinese on short clips. The phone now sends its own language
+      (`PlatformDispatcher.instance.locale.languageCode`) with each recording.
+- [x] **U2. Live on the prod server** (2026-10-24). Fresh install (no data moved, owner's choice) on
+      Windows 11 + Docker Desktop (WSL 2) at `C:\personaos`, Ollama native on Windows
+      (`host.docker.internal:11434`), profiles speech + updater with
+      `PERSONAOS_DIR=/run/desktop/mnt/host/c/personaos`. alpha.9 installed by hand; alpha.10
+      installed by the updater from Settings → Updates (backup in `backups\`, rolled forward,
+      updater replaced itself) — the updater works through Docker Desktop. Push verified with a
+      planner event. The phone needed one uninstall for the new signing key. alpha.10's release
+      attached ".env.example" as "Default.env.example" (GitHub renames dot-files): now `env.example`.
+- [ ] (was U2) Move live to the prod server (`192.168.2.10`). Needs: a release published with U1;
       the owner's prerequisites (Ubuntu, NVIDIA driver, Docker, NVIDIA Container Toolkit); the
       live data packed on the dev PC (Docker there is stopped by the owner; last copy is
       `data/backups/pre-f1f2-2026-10-15`); after import, Settings → AI provider address
