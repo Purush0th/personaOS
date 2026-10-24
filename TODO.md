@@ -17,6 +17,57 @@ Legend: `[ ]` open · `[~]` in progress (claimed) · `[x]` done · `[-]` dropped
 
 ---
 
+## Open items (summary, 2026-10-11)
+
+Everything still open, in one place; details are in the sections below. Keep this list current:
+add a line when something is left open, remove it when it is done.
+
+Waiting for the owner to say so:
+- [ ] Owner to decide: notes from chat (N2) rounds 1–3 not committed; round 3 not deployed.
+      Rounds 1–2 are live; round 3 has the server save a plainly asked note itself and takes out
+      false claims about other modules.
+- [ ] Owner to decide: commit `.continue/rules/personaos.md` and `.continueignore` (local coding
+      agent setup), or add them to `.gitignore`.
+- [ ] Owner to decide: F1 (reminder claims, web toasts, reply audio on the phone, chat reopening
+      the latest conversation) and F2 (intent classification) not committed. Deployed 2026-10-15
+      (backup `data/backups/pre-f1f2-2026-10-15`, no migrations) with
+      `System.Security.Cryptography.Pkcs`/`.Xml` pinned to 10.0.13: new advisories had failed the
+      image's restore. APK `PersonaOS-2026-10-15-arm64.apk` sent.
+
+Not yet tried on the owner's phone:
+- [ ] Phone check: Notes screen (built and tested, not yet tried on the owner's phone).
+- [ ] Phone check: calendar views C1–C4 (built; only widget tests so far).
+- [ ] Phone check: reminder alarm fix (2026-09-23 APK).
+- [ ] Phone check: F1 — a reply keeps playing in the server's voice after leaving the chat, and
+      the chat opens on the latest conversation (needs the next APK).
+
+AI accuracy (qwen2.5:3b):
+- [ ] AI accuracy: planner "no title" scenario fails about 1 in 3 full suite runs since notes
+      (10/10 alone).
+- [ ] AI accuracy: download link scenario flakes now and then.
+- [ ] AI accuracy: the intent check never answers "ambiguous"; "I need to remember this" is read as
+      a reminder, and once in three runs a reminder card with a made-up time followed.
+- [ ] AI accuracy: the model sometimes asks for a task key after being told which tool to call.
+- [ ] AI accuracy: sprint-level column claims ("the tasks are in the backlog, not in the sprint")
+      are not checked.
+
+Release and infrastructure:
+- [ ] Public release: deliberately blocked by the owner until features are mature and
+      hallucination is under control. Do not suggest cutting it.
+- [ ] GitHub workflows (`ci.yml`, `release.yml`) never confirmed passing; the GHCR images the
+      README's compose file pulls do not exist yet. The release failure (uppercase image
+      namespace) is fixed in U1, not yet proven by a release.
+- [ ] Upgrade test from one release to the next (keyring survival) and the `minSupportedClient`
+      gate: need two published releases.
+- [ ] Move live from the dev PC to the prod server (RTX 3050 6 GB, 8 GB RAM, 192.168.2.10): U2.
+- [ ] Rename: "PersonaOS" is taken; candidate names checked 2026-10-03, nothing decided.
+- [ ] Live Anthropic smoke test (chat with tool calls): blocked on a real API key.
+
+Deferred by the owner:
+- [ ] Deferred by the owner: notes widget on the phone ("later").
+
+---
+
 ## Planner as a calendar (owner, 2026-10-03)
 
 Owner: "The planner should look like Google Calendar" (Day, Week, Month, Year views and its view
@@ -191,6 +242,136 @@ shortcuts.
       web 149 (`notes.spec`), phone 253 (`notes_screen_test`, layout sweep). Accuracy suite: new
       scenario "saves a note" 5/5 and 3/3; full suite 40/42 (planner once, then 10/10 on its own;
       download link once, a known flake).
+- [x] **N2. Notes from chat, as the owner found them** (2026-10-11). "Can you add a note to meal
+      prep today?" saved "Note to self: Prepare dinner ingredients for tomorrow", and the reply
+      ("I've noted that…") was flagged "nothing was saved" with an odd sentence from the
+      memory correction round. Causes and fixes: (1) a note saves without a card, so a reworded
+      one went unchecked: `NoteWordsGuard` sends a `create_note` back when fewer than half its
+      telling words are the user's (prefix match, "prep"/"prepare"), with the user's message;
+      the tool's description gives the example. (2) "I've noted that" read as a promise to
+      remember, and a saved note did not count: `ClaimCheckGuard` now treats any change saved
+      straight away this turn (`ChatTurnState.WriteTools`: notes, auto-saved memories) as
+      backing the reply. (3) 2 in 10 notes kept "add a note to" / "note to" in front:
+      `CreateNoteTool.Clean` drops it ("Notes from the meeting" keeps its first word). Accuracy
+      suite: new scenario "note in the user's words" (the owner's sentence; checks the text,
+      the day and no false flag) 10/10, "saves a note" 10/10. Full suite 43/45 (download link
+      once; "knows tomorrow" once answered Tuesday 13th on Sunday 11th, a new miss with no tool
+      involved, worth watching). Backend 889. Deployed (not committed).
+      Then (same day) "Add a note to cook today": no note saved, "I've noted that…", and the
+      memory check's correction asked for create_memory, which the model answered with that
+      check's own words ("Nothing worth remembering was said, so nothing was remembered"). Now a
+      "noted" claim is about a note when notes are on and the user asked for one (or memory is
+      off): `NoteClaimInstruction` asks for create_note with the user's message; the memory
+      check's wording no longer has the phrase the model echoed; the claim is also caught with
+      memory off. `NoteWordsGuard` also drops a leading "Note" the request brought along ("Note
+      meal prep today", 1 in 15) unless the user wrote "note <that word>". Accuracy: new
+      scenario "note to cook today"; the three note scenarios 45/45 over 15 runs; full suite
+      46/48 (planner "missing information" once, the known no-title flake; goals listing once).
+      Backend 894. Deployed; the owner then found it still failing in chat jdeu9b8n: there the
+      model had said "I've noted that…" four times before and copied itself, correction round
+      included (a fresh chat saved every time, which is why the suite passed). Now
+      (`NoteRequest`): when the message plainly asks for a note ("add a note to …", "note: …",
+      "note down that …", "jot down …"; not "add a note to my planner" or to TASK-5) and no note
+      was saved, the server saves it from the user's words and the reply becomes "Noted: “…”."
+      Also, a saved note backs claims about itself but not about another part of the app: "This
+      note has been added to the backlog" (seen once) is taken out of the reply. Checked by
+      sending the owner's messages in one chat, new and continued: 6 of 6 saved, no flag. Full
+      suite 46/48 (planner no-title flake again, 1 in 3 in the full runs since notes but 10/10
+      alone, worth watching; download link). Backend 909.
+
+## Owner feedback F1 (owner, 2026-10-11 evening)
+
+Owner, after trying the phone: start notifications work, faster-whisper and Kokoro are good. Then:
+"the model having hallucinations with reminder (chat dawdsabu) — it is claiming to added a
+reminder but not"; "web can show toasts for notifications"; "when i switched page while the chat
+is playing the audio response the audio stopped and the voice switched to tts"; "Whenever i opened
+the chat it always showing new one but the last active one can be preserved if not new chat is fine".
+
+- [x] **F1a. Reminder claims with no card** (backend). In dawdsabu the owner discarded a 6 PM card
+      and answered "tomorrow 9 a.m."; qwen2.5:3b then said "I have scheduled a reminder" three
+      turns running, the correction round included, and never proposed one. Reproduced locally only
+      with the native Ollama provider the live server uses (`ollama`, which sends `num_ctx` 16k);
+      the OpenAI-compatible endpoint sends no context size, Ollama cut the history short and the
+      model proposed every time (but with made-up titles). Replay script: 1 of 4 runs right, 5 of
+      12 follow-ups with a card. Changes: (1) a claim a reply was flagged for is left out of the
+      history the model reads (`History/TurnRecord`; a reply that was only the claim is not sent);
+      (2) the correction names the tool when the claim names what it changed (`ChangeToolFor`:
+      reminder → create_reminder, event/calendar → add_planner_item, goal, task/backlog) and quotes
+      the user, and "I have noted that you need to remind yourself…" goes there rather than to the
+      memory correction; (3) "I have proposed a reminder… waiting for your confirmation" or "confirm
+      it below" with no card is a claim too (`ActionClaimDetector.FindProposalClaim`); (4) a claim
+      that survives the correction gets one focused try offered only that tool and the last six
+      turns; a card from it replaces the reply with the usual "Here is the change I would make".
+      Tried and dropped: writing "[Done in this reply: …]" records into the history made it worse
+      (0 of 6): the model wrote such records itself instead of calling the tool. Result: 21 of 24
+      follow-ups with a correct "Buy milk — 09:00" card; the misses keep the "nothing was saved"
+      warning. Accuracy suite on the native provider 30/32 (download link 0/2, the known flake).
+      Backend 926. The local dev instance now uses the `ollama` provider like the live one.
+- [x] **F1b. Web toasts for notifications** (web). `core/alert-toasts.ts`: while signed in and the
+      app is open, a toast (with Open) for a pending reminder at its due time, and for each planned
+      event when it starts (all-day at 12 AM) plus the heads-up before it when one is set, as the
+      phone gets them. Reads reminders and today–tomorrow's planner every 5 minutes and when the tab
+      comes back; alerts already past when the app opens are not shown; a tab that slept shows what
+      came due in the last 5 minutes. Timers run outside Angular's zone. Reminder due times come
+      without a zone suffix and are read with `parseUtc` (read bare they were 5.5 hours in the past
+      in India and never shown). Verified headless: "Reminder: Buy milk" and "Starting now: …" at
+      the exact second.
+- [x] **F1c. Reply audio after leaving the chat** (phone). Leaving the chat disposed its voice
+      service, the server's audio stopped, and the cut-off playback was taken for "server voice
+      unavailable", so the phone's own TTS read the reply. Now one voice for the app session: the
+      reply finishes playing, the reopened chat can still stop it, and a reply stopped on purpose
+      never falls back to the phone's voice (`VoiceService._speechTurn`). Leaving still closes the
+      microphone (`release`). Not yet tried on the phone.
+- [x] **F2. Intent classification before every message** (backend, 2026-10-12). From
+      `docs/model-accuracy.md`. Owner: the doc's phrases are examples; "the idea is we need to
+      classify the intent"; classify before every message (option a). Audit first: routing (tool
+      registry, `OfferedToolGuard`), cards (`ConfirmationGate`), receipts, claim checks and duplicate
+      guards already met FR-02/04/05 and AC-05; missing were a classification stage, structured
+      output and asking when unclear. Built: `Ai/Intents/IntentClassifier` (one short call per
+      message where write tools are offered: last 4 messages, temperature 0, answer held to a JSON
+      schema of the intents on offer; one example per intent), `ChatIntents.CreatingTool` (the
+      router: intent to tool, explicit table), an optional `AiRequest.ResponseSchemaJson` (Ollama
+      `format`, OpenAI `response_format`, Anthropic ignores it). The chat model gets a one-line
+      intent hint; when the turn made nothing the intent asked for, the focused try (F1a) runs
+      with that tool, told to ask rather than guess; its question becomes the reply. No focused
+      try after a refusal, after a lookup that answered without claiming anything, or when the
+      reply asks the user something. Measured (qwen2.5:3b, native Ollama): new intent scenarios
+      18/24 before, 23/24 → 30/32 → full suite 70/72 (unclear asks once made a reminder card;
+      download link once); dawdsabu replay 6/6 runs, 18/18 follow-ups with a card. About 0.9 s
+      more per message. Known limits: the classifier never answers "ambiguous" for "I need to
+      remember this" (says create_reminder); the focused try then usually asks, once in three it
+      proposed a reminder with a made-up time. Backend 940. Not committed or deployed.
+- [x] **U1. Updates built into PersonaOS** (2026-10-24). Owner: prod server is `192.168.2.10`
+      (RTX 3050 6 GB, 8 GB RAM), no SSH for Claude, the owner installs the prerequisites;
+      "automated deployment when we push release" as part of the application, "think of how our
+      user will receive the update"; voice on the server. Found: every release since alpha.4
+      failed in `images` ("repository name must be lowercase": owner Purush0th), so no image was
+      ever published; the API reported a constant 0.1.0; checks used GitHub's "latest", which
+      skips prereleases. Built: release workflow (lowercase namespace, `VERSION` build arg into
+      the API, whisper and updater images, APK `--build-name`/`APP_VERSION`, `import-data.sh` as
+      an asset); `ReleaseVersion` (SemVer order); `IReleaseFeed`/`GitHubReleaseFeed` (list, 10-min
+      cache), `IUpdater`/`FileUpdater` (request.json/status.json in the shared `updates` volume),
+      `UpdateService` (prerelease servers follow prereleases; only a newer published release;
+      auto-install skips a rolled-back version), `UpdatesController`, `UpdateCheckService` (15 min),
+      `InstanceConfig.AutoInstallUpdates` (migration `AutoInstallUpdates`); `deploy/updater`
+      (Python on docker-cli: backup tarball to ./backups, set PERSONAOS_VERSION, pull, up
+      --no-deps all but itself, wait for /api/branding to report the version, roll back; a helper
+      container replaces the updater afterwards; "not-set-up" when PERSONAOS_DIR is wrong);
+      compose profiles `updater` and `ollama` (6 GB settings: flash attention, q8_0 cache, one
+      model, one request); web Settings → Updates + banner Update now (polls while updating,
+      reloads on the new version); phone notice for the server, then for a newer app (APK link).
+      `.gitattributes` keeps .sh/.py LF. Tests: backend 960, updater 8 (CI job added), web 164,
+      phone 259. Not committed. GHCR packages may start private: make them public after the first
+      release, or the server needs `docker login ghcr.io`.
+- [ ] **U2. Move live to the prod server** (`192.168.2.10`). Needs: a release published with U1;
+      the owner's prerequisites (Ubuntu, NVIDIA driver, Docker, NVIDIA Container Toolkit); the
+      live data packed on the dev PC (Docker there is stopped by the owner; last copy is
+      `data/backups/pre-f1f2-2026-10-15`); after import, Settings → AI provider address
+      `http://ollama:11434/v1` and speech `http://whisper:8000/v1`; phones to the new address.
+- [x] **F1d. Chat opens the latest conversation** (web and phone). The phone opens the most recently
+      used conversation (on any device) when the chat opens; "New chat" and History work as before.
+      Web: plain `/chat` goes to the latest; "New chat" links to `/chat?new=1` (also used after
+      deleting the open one or a dead link, so it cannot loop). Tests: phone 256, web 160.
 
 ## Maturity: phone UX, accuracy, engineering standards (owner, 2026-10-01)
 

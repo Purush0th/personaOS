@@ -26,6 +26,9 @@ builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.PlannerAlertServi
 // Sends the morning brief / evening rollup at the user's configured local times.
 builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.ProactiveScheduleService>();
 builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.SprintScheduleService>();
+// Updates: the version this build is, and the check that installs a new release when asked to.
+builder.Services.AddSingleton(new PersonaOS.Application.Updates.RunningVersion(PersonaOS.Api.ApiVersionInfo.ApiVersion));
+builder.Services.AddHostedService<PersonaOS.Api.Infrastructure.UpdateCheckService>();
 
 // Data Protection encrypts the Anthropic API key at rest. Persist keys to a
 // configured path (the mounted data volume in Docker) so the ciphertext stays

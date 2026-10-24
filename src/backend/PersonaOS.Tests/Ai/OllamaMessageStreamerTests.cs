@@ -71,6 +71,19 @@ public class OllamaMessageStreamerTests
         Assert.False(server.Body!.ContainsKey("think"));
         Assert.False(server.Body.ContainsKey("options"));
         Assert.False(server.Body.ContainsKey("keep_alive"));
+        Assert.False(server.Body.ContainsKey("format"));
+    }
+
+    [Fact]
+    public async Task Holds_a_reply_to_the_schema_asked_for()
+    {
+        // The intent check: Ollama decodes only what the schema allows.
+        var server = new StubServer(HttpStatusCode.OK, """{"message":{"content":"{\"intent\":\"question\"}"},"done":true}""");
+        const string schema = """{"type":"object","properties":{"intent":{"type":"string","enum":["question"]}},"required":["intent"]}""";
+
+        await Collect(server, Request() with { ResponseSchemaJson = schema });
+
+        Assert.Equal("question", server.Body!["format"]!["properties"]!["intent"]!["enum"]![0]!.GetValue<string>());
     }
 
     [Fact]

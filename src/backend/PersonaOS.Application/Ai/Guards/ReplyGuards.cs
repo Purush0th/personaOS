@@ -129,26 +129,60 @@ public sealed partial class CardInstructionGuard : IReplyGuard
 /// With something proposed, only done-tense claims count ("I've created a goal called Learn Rust"
 /// above a card still waiting), and the model is asked to describe the card instead.
 /// </summary>
-public sealed class ClaimCheckGuard : IReplyGuard
+public sealed partial class ClaimCheckGuard : IReplyGuard
 {
     private const string MemoryTool = "create_memory";
+
+    /// <summary>The parts of the app a note or a memory is not: a claim about one of these is not backed by saving a note.</summary>
+    [GeneratedRegex(@"\b(?:backlog|board|sprints?|tasks?|goals?|reminders?|alarms?|planner|calendar|events?|schedule)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ElsewhereInTheApp();
 
     public string Name => "claim-check";
 
     public ValueTask<string?> ReviewAsync(ReplyDraft draft, CancellationToken ct)
     {
+        // Something saved straight away this turn (a note, an auto-saved memory) backs what the
+        // reply says about it: "I've noted that" above a saved note drew "nothing was saved", and a
+        // correction asking for a memory, whose wording the model then repeated (owner, 2026-10-11).
+        // Not what it says about another part of the app: "This note has been added to the
+        // backlog" over a note (qwen2.5:3b, same day) is taken out, since the receipt shows what
+        // was really saved and a correction round would only cost time.
+        if (draft.Turn.Proposals.Count == 0 && draft.Turn.Receipts.Any(r => r.Ok && draft.Turn.WriteTools.Contains(r.Tool)))
+        {
+            draft.UnbackedClaim = null;
+            var wrong = ReplySentences.Split(draft.Text)
+                .Where(s => ActionClaimDetector.FindClaim(s) is not null && ElsewhereInTheApp().IsMatch(s))
+                .Select(s => s.Trim())
+                .ToHashSet();
+            if (wrong.Count == 0) return ValueTask.FromResult<string?>(null);
+            if (ReplySentences.Without(draft.Text, s => wrong.Contains(s.Trim())) is { Length: > 0 } rest)
+            {
+                draft.Rewrite(rest);
+                return ValueTask.FromResult<string?>($"took out a claim beyond what was saved: \"{wrong.First()}\"");
+            }
+            return ValueTask.FromResult<string?>(null);
+        }
+
         draft.UnbackedClaim = draft.Turn.Proposals.Count == 0
             ? ActionClaimDetector.FindClaim(draft.Text)
             : ActionClaimDetector.FindDoneClaim(draft.Text);
 
-        // "I'll remember that" is a claim too when memory is on and nothing was remembered: the
-        // correction round then asks for the create_memory call it promised.
+        // "I'll remember that" or "I've noted that" is a claim too when memory or notes are on and
+        // nothing was saved: the correction round then asks for the create_memory or create_note
+        // call it promised.
         if (draft.UnbackedClaim is null
-            && draft.Turn.ToolNames.Contains(MemoryTool)
+            && (draft.Turn.ToolNames.Contains(MemoryTool) || draft.Turn.ToolNames.Contains("create_note"))
             && !draft.Turn.Receipts.Any(r => r.Ok && r.Tool is MemoryTool or "update_memory")
             && !draft.Turn.Proposals.Any(p => p.ToolName is MemoryTool or "update_memory"))
         {
             draft.UnbackedClaim = ActionClaimDetector.FindMemoryClaim(draft.Text);
+        }
+
+        // "I have proposed a reminder; it is waiting for your confirmation" with no card under it:
+        // there is nothing to confirm.
+        if (draft.UnbackedClaim is null && draft.Turn.Proposals.Count == 0)
+        {
+            draft.UnbackedClaim = ActionClaimDetector.FindProposalClaim(draft.Text);
         }
 
         return ValueTask.FromResult(draft.UnbackedClaim is null

@@ -16,6 +16,7 @@ import { ConversationSummary } from './core/chat.service';
 import { ConversationsStore } from './core/conversations.store';
 import { ThemeService } from './core/theme.service';
 import { UpdatesService } from './core/updates.service';
+import { AlertToasts } from './core/alert-toasts';
 import { SetupWizard } from './setup/setup-wizard';
 
 interface NavItem {
@@ -67,6 +68,7 @@ export class App implements OnInit {
   protected readonly updates = inject(UpdatesService);
   protected readonly theme = inject(ThemeService);
   protected readonly conversations = inject(ConversationsStore);
+  private readonly alerts = inject(AlertToasts);
 
   protected readonly signedIn = computed(
     () => !!this.brandingService.branding()?.isConfigured && this.auth.isLoggedIn()
@@ -76,8 +78,16 @@ export class App implements OnInit {
 
   constructor() {
     // The history is in the nav, so it loads with the shell rather than with the chat page.
+    // So does the update check: it asks the server, which needs the user signed in.
     effect(() => {
-      if (this.signedIn()) void this.conversations.refresh();
+      if (!this.signedIn()) return;
+      void this.conversations.refresh();
+      void this.updates.check();
+    });
+    // Reminders and events pop up as toasts while the app is open, as they notify the phone.
+    effect(() => {
+      if (this.signedIn()) this.alerts.start();
+      else this.alerts.stop();
     });
   }
 
@@ -97,7 +107,6 @@ export class App implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.brandingService.load();
-    void this.updates.check();
   }
 
   onSetupCompleted(): void {

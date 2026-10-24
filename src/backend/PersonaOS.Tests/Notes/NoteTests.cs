@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using PersonaOS.Application.Ai;
 using PersonaOS.Application.Board;
 using PersonaOS.Application.Notes;
 using PersonaOS.Application.Notes.Tools;
@@ -141,6 +142,21 @@ public class NoteTests
         await Assert.ThrowsAsync<NoteValidationException>(() => tool.ValidateAsync(Input("""{"text":" "}""")));
     }
 
+    [Theory]
+    [InlineData("add a note to meal prep today", "Meal prep today")]
+    [InlineData("Can you add a note to meal prep today?", "Meal prep today")]
+    [InlineData("note to meal prep today", "Meal prep today")]
+    [InlineData("Note: buy milk", "Buy milk")]
+    [InlineData("Jot down a note that the car needs a service", "The car needs a service")]
+    [InlineData("meal prep today", "Meal prep today")]
+    [InlineData("Notes from the meeting with Asha", "Notes from the meeting with Asha")]
+    [InlineData("Note", "Note")]
+    public void A_note_from_chat_loses_the_request_around_it(string text, string saved)
+    {
+        // Owner, 2026-10-11: 2 in 10 notes kept "add a note to" / "note to" in front.
+        Assert.Equal(saved, CreateNoteTool.Clean(text));
+    }
+
     [Fact]
     public async Task Moving_a_note_from_chat_is_a_card_naming_the_note_and_only_offered_with_the_board()
     {
@@ -158,6 +174,96 @@ public class NoteTests
 
         config.Features[InstanceConfig.Modules.Board] = false;
         Assert.False(tool.IsOffered(config));
+    }
+
+    // --- In the chat loop ---------------------------------------------------------------
+
+    private static async Task<(ChatStreamEvent Done, FakeAiMessageStreamer Streamer, Rig Rig)> ChatAsync(
+        string message, Action<FakeAiMessageStreamer> script)
+    {
+        var rig = Setup();
+        var streamer = new FakeAiMessageStreamer();
+        script(streamer);
+        var chat = new ChatContext();
+        var service = TestChat.Create(rig.Db, rig.Config, streamer, chat,
+            new CreateNoteTool(rig.Notes), new GetNotesTool(rig.Notes),
+            new PersonaOS.Application.Memories.Tools.CreateMemoryTool(new PersonaOS.Application.Memories.MemoryService(rig.Db), chat));
+        ChatStreamEvent? done = null;
+        await foreach (var evt in service.StreamChatAsync(null, message)) if (evt.Type == "done") done = evt;
+        return (done!, streamer, rig);
+    }
+
+    [Fact]
+    public async Task A_saved_note_backs_i_have_noted_that_with_no_warning_and_no_second_round()
+    {
+        // Owner, 2026-10-11: the note was saved and the reply still said "nothing was saved".
+        var (done, streamer, rig) = await ChatAsync("Can you add a note to meal prep today?", s => s
+            .EnqueueToolCall("toolu_1", "create_note", """{"text":"Meal prep today"}""")
+            .EnqueueText("I've noted that."));
+
+        Assert.Equal("Meal prep today", (await rig.Db.Notes.SingleAsync()).Text);
+        Assert.Null(done.UnverifiedClaim);
+        Assert.Equal(2, streamer.CallCount);
+    }
+
+    [Fact]
+    public async Task Noted_with_no_note_saved_is_corrected_with_create_note_and_the_users_words_not_a_memory()
+    {
+        // Owner, 2026-10-11: asked to save a memory instead, the model answered "Nothing worth
+        // remembering was said, so nothing was remembered" and no note was saved.
+        var (done, streamer, rig) = await ChatAsync("Add a note to cook today", s => s
+            .EnqueueText("I've noted that you would like to add a note to cook today.")
+            .EnqueueToolCall("toolu_1", "create_note", """{"text":"Cook today"}""")
+            .EnqueueText("Saved the note “Cook today”."));
+
+        var correction = streamer.ReceivedTurns[1][^1].Content;
+        Assert.Contains("create_note", correction);
+        Assert.Contains("Add a note to cook today", correction);
+        Assert.DoesNotContain("create_memory", correction);
+        Assert.Equal("Cook today", (await rig.Db.Notes.SingleAsync()).Text);
+        Assert.Empty(rig.Db.Memories);
+        Assert.Null(done.UnverifiedClaim);
+    }
+
+    [Fact]
+    public async Task A_plainly_asked_note_the_model_never_saves_is_saved_from_the_users_words()
+    {
+        // Owner, chat jdeu9b8n, 2026-10-11: "I've noted that…" four times running, correction and all.
+        var (done, _, rig) = await ChatAsync("Add a note to cook today", s => s
+            .EnqueueText("I've noted that you would like to add a note to cook today.")
+            .EnqueueText("I've noted that you would like to add a note to cook today."));
+
+        Assert.Equal("Cook today", (await rig.Db.Notes.SingleAsync()).Text);
+        Assert.Equal("Noted: “Cook today”.", done.Text);
+        Assert.Equal("create_note", Assert.Single(done.Actions!).Tool);
+        Assert.Null(done.UnverifiedClaim);
+    }
+
+    [Fact]
+    public async Task Without_a_plain_request_for_a_note_nothing_is_saved_for_the_model()
+    {
+        var (_, _, rig) = await ChatAsync("What did I write in my notes?", s => s
+            .EnqueueText("You have no notes yet."));
+
+        Assert.Empty(await rig.Db.Notes.ToListAsync());
+    }
+
+    [Theory]
+    [InlineData("Add a note to cook today", "Cook today")]
+    [InlineData("Can you add a note to meal prep today?", "Meal prep today")]
+    [InlineData("Could you please add a note: renew the car insurance.", "Renew the car insurance")]
+    [InlineData("note: buy milk", "Buy milk")]
+    [InlineData("Note down that the car needs a service", "The car needs a service")]
+    [InlineData("Jot down call the plumber", "Call the plumber")]
+    [InlineData("Make a quick note about the dentist on Monday", "The dentist on Monday")]
+    [InlineData("What did I write in my notes?", null)]
+    [InlineData("Notes from the meeting with Asha", null)]
+    [InlineData("Add a note to my planner for tomorrow", null)]
+    [InlineData("Add a note to TASK-5 about the hinge", null)]
+    [InlineData("Add a note", null)]
+    public void A_plain_request_for_a_note_is_read_from_the_message(string message, string? text)
+    {
+        Assert.Equal(text, NoteRequest.TextOf(message));
     }
 
     [Fact]

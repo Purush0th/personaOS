@@ -1,0 +1,5 @@
+# Scripts that run inside Linux containers or on a Linux server must keep LF line endings: with
+# CRLF, "#!/bin/sh\r" is not a shell and every line ends in a stray carriage return.
+*.sh text eol=lf
+deploy/updater/*.py text eol=lf
+deploy/speech/whisper/*.py text eol=lf

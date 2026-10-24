@@ -104,4 +104,43 @@ public class ActionClaimDetectorTests
 
         Assert.Equal("I've created a new goal titled \"Learn Rust\" for this month.", ActionClaimDetector.FindDoneClaim(reply));
     }
+
+    [Theory]
+    // The owner's chat dawdsabu, replayed (2026-10-11): no card was made under either.
+    [InlineData("I have proposed a reminder for you to buy milk at 9 AM tomorrow. It is waiting for your confirmation.")]
+    [InlineData("Here is the change I would make — confirm it below if it looks right.")]
+    [InlineData("The reminder is pending your confirmation.")]
+    public void A_proposal_with_no_card_is_found(string reply)
+    {
+        Assert.NotNull(ActionClaimDetector.FindProposalClaim(reply));
+    }
+
+    [Theory]
+    [InlineData("Would you like me to propose a reminder for 9 AM?")]
+    [InlineData("You have no reminders at the moment.")]
+    [InlineData("Shall I set it for tomorrow?")]
+    public void A_question_or_a_report_is_not_a_proposal(string reply)
+    {
+        Assert.Null(ActionClaimDetector.FindProposalClaim(reply));
+    }
+
+    [Theory]
+    [InlineData("I have scheduled a reminder for you to buy milk at 09:00 tomorrow.", "create_reminder")]
+    [InlineData("I have noted that you need to remind yourself to buy milk.", "create_reminder")]
+    [InlineData("I've added Standup to your calendar.", "add_planner_item")]
+    [InlineData("I've created a new goal called Learn Rust.", "create_goal")]
+    [InlineData("I've added the task to your backlog.", "create_task")]
+    [InlineData("I've updated your settings.", null)]
+    public void The_tool_a_claim_needs_is_named_by_what_it_changed(string claim, string? tool)
+    {
+        string[] offered = ["create_reminder", "add_planner_item", "create_goal", "create_task", "create_note"];
+
+        Assert.Equal(tool, ChatService.ChangeToolFor(claim, offered));
+    }
+
+    [Fact]
+    public void A_tool_that_is_not_offered_is_never_named()
+    {
+        Assert.Null(ChatService.ChangeToolFor("I have scheduled a reminder.", ["create_goal"]));
+    }
 }

@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace PersonaOS.Api;
 
 /// <summary>
@@ -8,6 +10,17 @@ namespace PersonaOS.Api;
 /// </summary>
 public static class ApiVersionInfo
 {
-    public const string ApiVersion = "0.1.0";
+    /// <summary>
+    /// The release this build is: the image is built with <c>-p:Version=</c> from the release tag
+    /// (src/backend/Dockerfile). A build from a checkout without one reports "0.0.0-dev", which no
+    /// release is older than. It was a constant "0.1.0" in every build, so the update check could
+    /// never tell one release from another.
+    /// </summary>
+    public static readonly string ApiVersion =
+        typeof(ApiVersionInfo).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            .Split('+')[0] is { Length: > 0 } version && version != "1.0.0"
+            ? version
+            : "0.0.0-dev";
+
     public const string MinSupportedClient = "0.1.0";
 }

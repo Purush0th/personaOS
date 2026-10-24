@@ -59,3 +59,19 @@ jobs:
         run: docker build -f src/backend/Dockerfile -t personaos-api:ci .
       - name: Build web image
         run: docker build -t personaos-web:ci src/frontend/PersonaOS.Web
+      - name: Build updater image
+        run: docker build -t personaos-updater:ci deploy/updater
+      # The release workflow publishes this one too; a broken build would only show at release.
+      - name: Build whisper image
+        run: docker build -t personaos-whisper:ci deploy/speech/whisper
+
+  updater:
+    # The updater installs releases on people's servers: its backup, rollback and refusals are
+    # tested against a stand-in docker and API (deploy/updater/test_updater.py).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m unittest deploy/updater/test_updater.py

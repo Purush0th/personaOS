@@ -29,7 +29,9 @@ public static class DependencyInjection
         services.AddScoped<ToolCallPipeline>();
         services.AddScoped<ReplyPipeline>();
         services.AddSingleton<PersonaOS.Application.Ai.History.ConversationSummarizer>();
+        services.AddSingleton<PersonaOS.Application.Ai.Intents.IntentClassifier>();
         services.AddScoped<IChatService, ChatService>();
+        services.AddScoped<PersonaOS.Application.Updates.IUpdateService, PersonaOS.Application.Updates.UpdateService>();
         services.AddScoped<IGoalService, GoalService>();
         services.AddScoped<IBoardService, BoardService>();
         services.AddScoped<PersonaOS.Application.WorkItems.IWorkItemService, PersonaOS.Application.WorkItems.WorkItemService>();

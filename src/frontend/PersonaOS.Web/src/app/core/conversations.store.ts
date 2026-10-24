@@ -31,7 +31,7 @@ export class ConversationsStore {
 
   /**
    * Permanently removes a conversation after asking. If it is the one on screen, the URL returns
-   * to /chat, which the chat page reads as "show an empty thread".
+   * to /chat?new=1, which the chat page reads as "show an empty thread".
    */
   async remove(conversation: ConversationSummary): Promise<void> {
     // Loaded on first use: this store ships with the nav on every page, and the dialog code
@@ -54,7 +54,7 @@ export class ConversationsStore {
 
     await this.refresh();
     if (this.router.url.split(/[?#]/)[0] === `/chat/${this.slug(conversation)}`) {
-      void this.router.navigate(['/chat'], { replaceUrl: true });
+      void this.router.navigate(['/chat'], { queryParams: { new: 1 }, replaceUrl: true });
     }
   }
 }

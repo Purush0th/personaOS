@@ -13,3 +13,13 @@ services:
       context: ../src/frontend/PersonaOS.Web
       dockerfile: Dockerfile
     image: personaos-web:local
+
+  whisper:
+    build: ./speech/whisper
+    image: personaos-whisper:local
+
+  updater:
+    build: ./updater
+    image: personaos-updater:local
+    environment:
+      SELF_IMAGE: personaos-updater:local

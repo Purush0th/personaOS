@@ -67,8 +67,27 @@ public class GetNotesTool(INoteService notes) : NoteToolBase
 /// Saved straight away, with a receipt rather than a card: a note is meant to be quick, nothing is
 /// lost by it, and it is deleted with one tap (owner, 2026-10-10).
 /// </summary>
-public class CreateNoteTool(INoteService notes) : NoteToolBase
+public partial class CreateNoteTool(INoteService notes) : NoteToolBase
 {
+    /// <summary>
+    /// The request around a note, which a small model copies along with it: "add a note to meal
+    /// prep today" saved as is, or "note to meal prep today" (2 in 10 on qwen2.5:3b, 2026-10-11).
+    /// "Note" alone counts only with what joins it to the rest ("note to", "note:"), so a note
+    /// that starts "Notes from the meeting" keeps its first word.
+    /// </summary>
+    [System.Text.RegularExpressions.GeneratedRegex(
+        @"^\s*(?:(?:can|could|would)\s+you\s+)?(?:please\s+)?(?:(?:add|make|create|take|write|jot)\s+(?:down\s+)?(?:a\s+)?notes?\s*(?:down\s*)?(?:that|to|:|-|–)?|notes?\s*(?:down\s*)?(?:that|to|:|-|–))\s+",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex RequestWords();
+
+    /// <summary>The note without the request around it, starting with a capital: "Meal prep today".</summary>
+    public static string Clean(string text)
+    {
+        var note = RequestWords().Replace(text.Trim(), string.Empty, 1).TrimEnd('?', ' ');
+        if (note.Length == 0) return text.Trim();
+        return char.ToUpperInvariant(note[0]) + note[1..];
+    }
+
     public override string Name => "create_note";
 
     public override bool NeedsConfirmation(InstanceConfig config) => false;
@@ -82,7 +101,7 @@ public class CreateNoteTool(INoteService notes) : NoteToolBase
         {
           "type": "object",
           "properties": {
-            "text": { "type": "string", "description": "The note, in the user's words, e.g. \"Call the plumber about the leak\"." }
+            "text": { "type": "string", "description": "What the user asked to note, in their own words, copied: \"add a note to meal prep today\" is \"Meal prep today\". Do not reword it or add to it." }
           },
           "required": ["text"]
         }
@@ -98,7 +117,7 @@ public class CreateNoteTool(INoteService notes) : NoteToolBase
     public override async Task<string> ExecuteAsync(JsonElement input, CancellationToken ct = default)
     {
         await ValidateAsync(input, ct);
-        var saved = await notes.CreateAsync(GetString(input, "text")!, ct);
+        var saved = await notes.CreateAsync(Clean(GetString(input, "text")!), ct);
         return ToolJson.Serialize(new { noted = ForModel(saved) });
     }
 }

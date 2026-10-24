@@ -1,86 +1,127 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
-
-import { BrandingService } from './branding.service';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, NgZone, computed, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 
 /** localStorage key remembering the version the user dismissed. */
 const DISMISSED_KEY = 'personaos.dismissedUpdate';
 
-export interface AvailableUpdate {
+export interface ReleaseInfo {
   version: string;
   name: string;
   notesUrl: string;
+  prerelease: boolean;
+  publishedAt: string;
+  appDownloadUrl: string | null;
 }
 
+export interface UpdaterStatus {
+  heartbeat: string;
+  requestId: string | null;
+  version: string | null;
+  /** idle, requested, backing-up, pulling, restarting, checking, done, failed, rolled-back or not-set-up. */
+  state: string;
+  message: string | null;
+  finishedAt: string | null;
+}
+
+export interface UpdatesView {
+  currentVersion: string;
+  latest: ReleaseInfo | null;
+  updateAvailable: boolean;
+  autoInstall: boolean;
+  /** An updater is running, so Update now can work. */
+  canInstall: boolean;
+  updater: UpdaterStatus | null;
+}
+
+/** The states in which an update is under way. */
+export const WORKING = ['requested', 'backing-up', 'pulling', 'restarting', 'checking'];
+
+/** How often to look again while an update runs. */
+const POLL_MS = 5000;
+
 /**
- * Notify-only update check. Compares the running API version (from /api/branding)
- * against the latest GitHub Release and, if newer, surfaces a dismissible banner.
- * Deliberately fail-silent: a private/absent repo, rate limiting, or being offline
- * simply means no banner — never an error in the user's face.
+ * Updates, from the server (/api/updates): which version runs, the newest release, and installing
+ * it through the updater. The server reads the releases, so prereleases count and the browser makes
+ * no call to GitHub. While an update runs the page asks every few seconds, and reloads once the new
+ * version answers, so the web app itself is the new one too.
  */
 @Injectable({ providedIn: 'root' })
 export class UpdatesService {
-  private readonly branding = inject(BrandingService);
+  private readonly http = inject(HttpClient);
+  private readonly zone = inject(NgZone);
 
-  private readonly latest = signal<AvailableUpdate | null>(null);
-  private readonly dismissedVersion = signal(localStorage.getItem(DISMISSED_KEY));
+  readonly view = signal<UpdatesView | null>(null);
+  private readonly dismissedVersion = signal(readDismissed());
+  private poll: ReturnType<typeof setTimeout> | null = null;
 
-  /** The update to show, or null when up to date / dismissed / check failed. */
+  /** True while the updater works on an update. */
+  readonly working = computed(() => WORKING.includes(this.view()?.updater?.state ?? ''));
+
+  /** The update for the banner, or null when up to date, dismissed, or not known. */
   readonly update = computed(() => {
-    const available = this.latest();
-    if (!available) return null;
-    return available.version === this.dismissedVersion() ? null : available;
+    const view = this.view();
+    if (!view?.updateAvailable || !view.latest) return null;
+    return view.latest.version === this.dismissedVersion() && !this.working() ? null : view.latest;
   });
 
   async check(): Promise<void> {
-    const branding = this.branding.branding();
-    const current = branding?.apiVersion;
-    // The repo comes from the API, so the backend stays the single source of truth.
-    // A second hardcoded copy here is exactly how this banner ended up polling a
-    // repository that does not exist.
-    const repo = branding?.repository;
-    if (!current || !repo) return;
-
     try {
-      const response = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
-        headers: { Accept: 'application/vnd.github+json' },
-      });
-      if (!response.ok) return; // 404 (no public repo/release yet), rate limit, etc.
-
-      const release = (await response.json()) as {
-        tag_name?: string;
-        name?: string;
-        html_url?: string;
-      };
-      const latestVersion = (release.tag_name ?? '').replace(/^v/, '');
-      if (!latestVersion || !isNewer(latestVersion, current)) return;
-
-      this.latest.set({
-        version: latestVersion,
-        name: release.name || `v${latestVersion}`,
-        notesUrl: release.html_url ?? `https://github.com/${repo}/releases`,
-      });
+      this.apply(await firstValueFrom(this.http.get<UpdatesView>('/api/updates')));
     } catch {
-      // Offline or blocked — stay silent.
+      // Offline, signed out, or an older server without updates: no banner, never an error. In
+      // the middle of an update the server is restarting: keep asking until it is back.
+      if (this.working()) this.later();
     }
   }
 
+  /** Asks the server to install `version`; the error's message is for the user. */
+  async install(version: string): Promise<void> {
+    this.apply(await firstValueFrom(this.http.post<UpdatesView>('/api/updates/install', { version })));
+  }
+
+  async setAutoInstall(enabled: boolean): Promise<void> {
+    this.apply(await firstValueFrom(this.http.put<UpdatesView>('/api/updates/auto-install', { enabled })));
+  }
+
   dismiss(): void {
-    const available = this.latest();
+    const available = this.view()?.latest;
     if (!available) return;
     this.dismissedVersion.set(available.version);
-    localStorage.setItem(DISMISSED_KEY, available.version);
+    try {
+      localStorage.setItem(DISMISSED_KEY, available.version);
+    } catch {
+      // Storage blocked: dismissed for this visit only.
+    }
+  }
+
+  private apply(view: UpdatesView): void {
+    const before = this.view()?.currentVersion;
+    this.view.set(view);
+
+    // The server restarted on a new version: load the new web app with it.
+    if (before && before !== view.currentVersion) {
+      location.reload();
+      return;
+    }
+
+    if (this.poll) clearTimeout(this.poll);
+    this.poll = null;
+    if (this.working()) this.later();
+  }
+
+  /** Looks again shortly; the wait is outside Angular's zone, so the page still counts as settled. */
+  private later(): void {
+    this.zone.runOutsideAngular(() => {
+      this.poll = setTimeout(() => this.zone.run(() => void this.check()), POLL_MS);
+    });
   }
 }
 
-/** True when `candidate` is a strictly higher dotted-numeric version than `current`. */
-export function isNewer(candidate: string, current: string): boolean {
-  const a = candidate.split('.').map(n => parseInt(n, 10) || 0);
-  const b = current.split('.').map(n => parseInt(n, 10) || 0);
-  const length = Math.max(a.length, b.length);
-  for (let i = 0; i < length; i++) {
-    const left = a[i] ?? 0;
-    const right = b[i] ?? 0;
-    if (left !== right) return left > right;
+function readDismissed(): string | null {
+  try {
+    return localStorage.getItem(DISMISSED_KEY);
+  } catch {
+    return null;
   }
-  return false;
 }

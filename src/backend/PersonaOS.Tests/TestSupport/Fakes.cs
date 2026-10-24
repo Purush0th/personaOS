@@ -138,9 +138,36 @@ public class FakeAiMessageStreamer : IAiMessageStreamer
     /// </summary>
     public TimeSpan DelayBeforeFirstChunk { get; set; }
 
+    private readonly Queue<string> _structured = new();
+
+    /// <summary>
+    /// Requests for data under a schema (the intent check), kept apart from the chat rounds: they
+    /// are not counted in <see cref="CallCount"/> or <see cref="ReceivedTurns"/>, so a test scripts
+    /// the conversation as before and opts in to the classification it wants.
+    /// </summary>
+    public List<AiRequest> ReceivedStructuredRequests { get; } = new();
+
+    /// <summary>What the next request under a schema answers; unscripted ones get "{}", which reads as no answer.</summary>
+    public FakeAiMessageStreamer EnqueueStructured(string json)
+    {
+        _structured.Enqueue(json);
+        return this;
+    }
+
+    /// <summary>The intent check answers <paramref name="intent"/>.</summary>
+    public FakeAiMessageStreamer EnqueueIntent(string intent) => EnqueueStructured($$"""{"intent":"{{intent}}"}""");
+
     public async IAsyncEnumerable<AiStreamChunk> StreamAsync(
         AiRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
+        if (request.ResponseSchemaJson is not null)
+        {
+            ReceivedStructuredRequests.Add(request);
+            await Task.Yield();
+            yield return new AiStreamChunk(TextDelta: _structured.Count > 0 ? _structured.Dequeue() : "{}");
+            yield break;
+        }
+
         CallCount++;
         // Snapshot: ChatService mutates its list between rounds.
         ReceivedTurns.Add(request.Turns.ToList());
@@ -413,6 +440,7 @@ public static class TestChat
                 TestPrompts.Library(), NullLogger<PersonaOS.Application.Ai.History.ConversationSummarizer>.Instance),
             time,
             chat,
+            new PersonaOS.Application.Ai.Intents.IntentClassifier(NullLogger<PersonaOS.Application.Ai.Intents.IntentClassifier>.Instance),
             NullLogger<ChatService>.Instance);
     }
 }
@@ -429,4 +457,33 @@ public static class TestPrompts
 {
     public static IPromptLibrary Library(IPromptOverrideSource? overrides = null) =>
         new PromptLibrary(overrides ?? new NoPromptOverrides(), new ListLogger<PromptLibrary>());
+}
+
+/// <summary>Releases as a test sets them; nothing is fetched.</summary>
+public class FakeReleaseFeed(params ReleaseInfo[] releases) : IReleaseFeed
+{
+    public List<ReleaseInfo> Releases { get; } = [.. releases];
+
+    public Task<IReadOnlyList<ReleaseInfo>> GetReleasesAsync(CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<ReleaseInfo>>(Releases);
+
+    public static ReleaseInfo Release(string version, bool prerelease = false) =>
+        new(version, $"v{version}", $"https://github.com/x/y/releases/tag/v{version}", prerelease, DateTimeOffset.UnixEpoch, null);
+}
+
+/// <summary>An updater that records what it was asked for; <see cref="Status"/> null means none is set up.</summary>
+public class FakeUpdater : IUpdater
+{
+    public UpdaterStatus? Status { get; set; }
+
+    public List<string> Requested { get; } = [];
+
+    public Task<UpdaterStatus?> GetStatusAsync(CancellationToken ct = default) => Task.FromResult(Status);
+
+    public Task<string> RequestAsync(string version, CancellationToken ct = default)
+    {
+        Requested.Add(version);
+        Status = Status! with { RequestId = $"r{Requested.Count}", Version = version, State = "requested" };
+        return Task.FromResult($"r{Requested.Count}");
+    }
 }

@@ -3,45 +3,65 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// A newer PersonaOS release than the server runs.
+/// This app's version: the release it was built for, passed in by the release build
+/// (`--dart-define=APP_VERSION=...`). A build without it is "0.0.0-dev" and offers no app update.
+const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.0.0-dev');
+
+/// A newer PersonaOS release than the server, or this app, runs.
 class AvailableUpdate {
-  AvailableUpdate({required this.version, required this.name, required this.notesUrl});
+  AvailableUpdate({
+    required this.version,
+    required this.name,
+    required this.notesUrl,
+    this.forApp = false,
+    this.appDownloadUrl,
+  });
 
   final String version;
   final String name;
   final String notesUrl;
+
+  /// The update is for this app (the server is up to date); [appDownloadUrl] is where to get it.
+  final bool forApp;
+  final String? appDownloadUrl;
 }
 
 const _dismissedKey = 'updates.dismissed';
 
-/// Notify-only update check, as the web app's: compares the server's version (from
-/// /api/branding) with the latest GitHub release of its repository. Fail-silent: a private or
-/// missing repository, rate limiting or being offline simply means no notice. A version the user
-/// dismissed is not offered again.
+/// The update to tell the user about, if any. The server comes first: with "Install updates
+/// automatically" it catches up by itself, and otherwise it is updated from Settings → Updates on
+/// the web. Once it is current, a newer app than this one is offered for download. Releases are
+/// read as a list, not GitHub's "latest", which leaves out prereleases; a server or app on a
+/// prerelease follows prereleases. Fail-silent: no repository, rate limiting or being offline
+/// simply means no notice, and a version the user dismissed is not offered again.
 Future<AvailableUpdate?> checkForUpdate({
   required String? currentVersion,
   required String? repository,
+  String app = appVersion,
   http.Client? client,
 }) async {
   if (currentVersion == null || repository == null) return null;
   try {
     final get = client?.get ?? http.get;
     final response = await get(
-      Uri.parse('https://api.github.com/repos/$repository/releases/latest'),
+      Uri.parse('https://api.github.com/repos/$repository/releases?per_page=20'),
       headers: const {'Accept': 'application/vnd.github+json'},
     ).timeout(const Duration(seconds: 8));
     if (response.statusCode != 200) return null;
-    final release = jsonDecode(response.body) as Map<String, dynamic>;
-    final latest = (release['tag_name'] as String? ?? '').replaceFirst(RegExp('^v'), '');
-    if (latest.isEmpty || !isNewer(latest, currentVersion)) return null;
+    final releases = (jsonDecode(response.body) as List<dynamic>).cast<Map<String, dynamic>>();
+
+    AvailableUpdate? found;
+    final forServer = _newest(releases, followPrereleases: isPrerelease(currentVersion));
+    if (forServer != null && isNewer(_version(forServer), currentVersion)) {
+      found = _update(forServer, repository);
+    } else if (app != '0.0.0-dev') {
+      final forApp = _newest(releases, followPrereleases: isPrerelease(app), withApp: true);
+      if (forApp != null && isNewer(_version(forApp), app)) found = _update(forApp, repository, forApp: true);
+    }
+    if (found == null) return null;
+
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getString(_dismissedKey) == latest) return null;
-    final name = release['name'] as String?;
-    return AvailableUpdate(
-      version: latest,
-      name: name == null || name.isEmpty ? 'v$latest' : name,
-      notesUrl: release['html_url'] as String? ?? 'https://github.com/$repository/releases',
-    );
+    return prefs.getString(_dismissedKey) == found.version ? null : found;
   } catch (_) {
     return null;
   }
@@ -52,15 +72,74 @@ Future<void> dismissUpdate(AvailableUpdate update) async {
   await prefs.setString(_dismissedKey, update.version);
 }
 
-/// True when [candidate] is a strictly higher dotted-numeric version than [current].
-bool isNewer(String candidate, String current) {
-  List<int> parts(String v) => v.split('.').map((n) => int.tryParse(n) ?? 0).toList();
-  final a = parts(candidate);
-  final b = parts(current);
-  for (var i = 0; i < (a.length > b.length ? a.length : b.length); i++) {
-    final left = i < a.length ? a[i] : 0;
-    final right = i < b.length ? b[i] : 0;
-    if (left != right) return left > right;
+String _version(Map<String, dynamic> release) => (release['tag_name'] as String? ?? '').replaceFirst(RegExp('^v'), '');
+
+String? _apk(Map<String, dynamic> release) => (release['assets'] as List<dynamic>? ?? [])
+    .cast<Map<String, dynamic>>()
+    .where((a) => (a['name'] as String? ?? '').toLowerCase().endsWith('.apk'))
+    .map((a) => a['browser_download_url'] as String?)
+    .firstOrNull;
+
+Map<String, dynamic>? _newest(
+  List<Map<String, dynamic>> releases, {
+  required bool followPrereleases,
+  bool withApp = false,
+}) {
+  Map<String, dynamic>? best;
+  for (final release in releases) {
+    if (release['draft'] == true || _version(release).isEmpty) continue;
+    if (!followPrereleases && release['prerelease'] == true) continue;
+    if (withApp && _apk(release) == null) continue;
+    if (best == null || isNewer(_version(release), _version(best))) best = release;
   }
-  return false;
+  return best;
+}
+
+AvailableUpdate _update(Map<String, dynamic> release, String repository, {bool forApp = false}) {
+  final name = release['name'] as String?;
+  return AvailableUpdate(
+    version: _version(release),
+    name: name == null || name.isEmpty ? 'v${_version(release)}' : name,
+    notesUrl: release['html_url'] as String? ?? 'https://github.com/$repository/releases',
+    forApp: forApp,
+    appDownloadUrl: forApp ? _apk(release) : null,
+  );
+}
+
+bool isPrerelease(String version) => version.contains('-');
+
+/// True when [candidate] is a strictly higher version than [current], as Semantic Versioning orders
+/// them: 0.1.0-alpha.2 < 0.1.0-alpha.10 < 0.1.0-beta < 0.1.0. Missing parts count as zero.
+bool isNewer(String candidate, String current) => _compare(candidate, current) > 0;
+
+int _compare(String a, String b) {
+  (List<int>, List<String>) split(String v) {
+    final cleaned = v.replaceFirst(RegExp('^v'), '').split('+').first;
+    final dash = cleaned.indexOf('-');
+    final core = dash < 0 ? cleaned : cleaned.substring(0, dash);
+    final pre = dash < 0 ? <String>[] : cleaned.substring(dash + 1).split('.');
+    return (core.split('.').map((n) => int.tryParse(n) ?? 0).toList(), pre);
+  }
+
+  final (coreA, preA) = split(a);
+  final (coreB, preB) = split(b);
+  for (var i = 0; i < 3; i++) {
+    final left = i < coreA.length ? coreA[i] : 0;
+    final right = i < coreB.length ? coreB[i] : 0;
+    if (left != right) return left.compareTo(right);
+  }
+  // A release outranks its own prereleases.
+  if (preA.isEmpty || preB.isEmpty) return preA.isEmpty == preB.isEmpty ? 0 : (preA.isEmpty ? 1 : -1);
+  for (var i = 0; i < preA.length && i < preB.length; i++) {
+    final x = int.tryParse(preA[i]);
+    final y = int.tryParse(preB[i]);
+    final step = switch ((x, y)) {
+      (final int x, final int y) => x.compareTo(y),
+      (int _, null) => -1, // Numbers sort before words.
+      (null, int _) => 1,
+      _ => preA[i].compareTo(preB[i]),
+    };
+    if (step != 0) return step;
+  }
+  return preA.length.compareTo(preB.length);
 }

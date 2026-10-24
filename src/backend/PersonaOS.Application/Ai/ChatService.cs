@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Ai.Guards;
 using PersonaOS.Application.Ai.History;
+using PersonaOS.Application.Ai.Intents;
 using PersonaOS.Application.Ai.Models;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Common.Interfaces;
@@ -30,10 +31,14 @@ public partial class ChatService(
     ConversationSummarizer summarizer,
     TimeProvider time,
     IChatContext chatContext,
+    IntentClassifier intentClassifier,
     ILogger<ChatService> logger) : IChatService
 {
     /// <summary>Stored messages considered for the history window; far more than any context holds.</summary>
     private const int MaxHistoryMessages = 200;
+
+    /// <summary>Turns of the conversation a focused try sees: the last few exchanges, ending with the user's message.</summary>
+    private const int FocusedHistoryTurns = 6;
 
     public async IAsyncEnumerable<ChatStreamEvent> StreamChatAsync(
         int? conversationId,
@@ -78,6 +83,7 @@ public partial class ChatService(
         var profile = ModelProfiles.For(config);
         // Brainstorm and Reflect change nothing, so they are not offered a single write tool.
         var tools = await toolRegistry.GetEnabledToolDefinitionsAsync(ChatModes.Writes(activeMode), ct);
+        var readOnly = (await toolRegistry.GetEnabledToolDefinitionsAsync(includeWrites: false, ct)).Select(t => t.Name).ToHashSet();
         var streamer = streamerFactory.ForProvider(config.AiProvider);
         var model = new AiRequest(apiKey ?? string.Empty, config.AiModel, config.AiBaseUrl, string.Empty, [], tools,
             profile.OptionsFor(config.AiProvider));
@@ -95,8 +101,21 @@ public partial class ChatService(
                 tools.Select(t => t.Name).ToList(),
                 activeMode,
                 userMessage,
-                Common.UserClock.Today(config.TimeZone, time)),
+                Common.UserClock.Today(config.TimeZone, time),
+                tools.Select(t => t.Name).Where(n => !readOnly.Contains(n)).ToHashSet()),
             conversation.Id);
+        // The conversation as the model first saw it, before any round adds to it.
+        var firstTurns = request.Turns.ToList();
+
+        // What the message wants, decided before the chat model answers (IntentClassifier), and
+        // told to it; skipped where nothing can be changed. Owner, 2026-10-12: classify every message.
+        var intent = request.Turn.WriteTools.Count > 0
+            ? await intentClassifier.ClassifyAsync(streamer, request.Model, firstTurns, userMessage, request.Turn.ToolNames, ct)
+            : null;
+        if (intent is not null)
+        {
+            request = request with { Model = request.Model with { SystemPrompt = $"{request.Model.SystemPrompt}\n\n{IntentHint(intent, request.Turn)}" } };
+        }
 
         // The reply, streamed as it is written.
         var first = new ModelRound();
@@ -143,11 +162,16 @@ public partial class ChatService(
         {
             logger.LogWarning("Model {Model} claimed a change that did not happen; asking it to correct.", config.AiModel);
             request.Turns.Add(new AiChatTurn(ChatRoles.Assistant, reply.Text));
+            // "I have noted that you need to remind yourself to buy milk" is about a reminder, not
+            // a memory: asked for create_memory, the model had nothing right to call (dawdsabu).
+            var claimTool = ChangeToolFor(claim, request.Turn.ToolNames);
             request.Turns.Add(new AiChatTurn(ChatRoles.User, reply.ClaimAwaitsConfirmation
                 ? AwaitingCardInstruction(claim)
-                : ActionClaimDetector.FindMemoryClaim(claim) is not null
-                    ? MemoryClaimInstruction(claim)
-                    : ClaimCheckInstruction(claim)));
+                : ActionClaimDetector.FindMemoryClaim(claim) is not null && claimTool is null
+                    ? ClaimIsAboutANote(request.Turn, userMessage)
+                        ? NoteClaimInstruction(claim, userMessage)
+                        : MemoryClaimInstruction(claim)
+                    : ClaimCheckInstruction(claim, claimTool, userMessage)));
 
             var correction = new ModelRound();
             await foreach (var evt in RunToolLoopAsync(request, correction, streamText: false, ct)) yield return evt;
@@ -168,6 +192,49 @@ public partial class ChatService(
             // The "nothing was saved" note is for a claim nothing backs. Above a card it would be
             // wrong (the card is right there, waiting), so a claim that survives is left to it.
             unverifiedClaim = request.Turn.Proposals.Count == 0 && (final == reply || final.UnbackedClaim is not null);
+        }
+
+        // The message asked for something to be made and the turn made nothing: one focused try,
+        // offered only the tool the router gives that intent, and the recent conversation. In chat
+        // dawdsabu (2026-10-11) qwen2.5:3b kept answering "I have scheduled a reminder" with the
+        // whole prompt in front of it, the correction round included, while a short exchange gets
+        // the call right. Without a classification, a claim that survived the correction and names
+        // what it changed picks the tool. A reply that asks the user something is left to them,
+        // unless it also claimed the change: asking for a missing time is right, guessing one is not.
+        if (first.Error is null && request.Turn.Proposals.Count == 0
+            && FocusTool(intent, unverifiedClaim ? final.UnbackedClaim ?? reply.UnbackedClaim : null, final.Text, userMessage, request.Turn) is { } changeTool)
+        {
+            logger.LogWarning("Model {Model} made nothing the message asked for; asking for {Tool} alone.", config.AiModel, changeTool);
+            var focused = request with
+            {
+                Model = request.Model with { Tools = [.. request.Model.Tools.Where(t => t.Name == changeTool)] },
+                Turns = [.. firstTurns.TakeLast(FocusedHistoryTurns),
+                    new AiChatTurn(ChatRoles.User, FocusedChangeInstruction(changeTool, unverifiedClaim ? final.UnbackedClaim ?? reply.UnbackedClaim : null))],
+            };
+            var focus = new ModelRound();
+            await foreach (var evt in RunToolLoopAsync(focused, focus, streamText: false, ct)) yield return evt;
+
+            // The reply is what really happened: a card waiting, or what the tool saved.
+            if (request.Turn.Proposals.Count > 0)
+            {
+                final.Rewrite(EmptyReplyGuard.ProposalOnly);
+                unverifiedClaim = false;
+            }
+            else if (request.Turn.Receipts.LastOrDefault(r => r.Ok && r.Tool == changeTool) is { } saved)
+            {
+                final.Rewrite(saved.Summary is { Length: > 0 } what ? $"{saved.Label}: “{what}”." : $"{saved.Label}.");
+                unverifiedClaim = false;
+            }
+            // Told not to guess, it asked for what is missing instead ("What time should I remind
+            // you?"): that question is the honest reply, over a claim or an answer that skipped it.
+            else if (focus.Error is null
+                && await replyGuards.ReviewAsync(new ReplyDraft(focus.Text.ToString(), request.Turn, isCorrection: true), ct) is
+                    { UnbackedClaim: null, Text: { Length: > 0 } askedBack } question
+                && askedBack.TrimEnd().EndsWith('?'))
+            {
+                final = question;
+                unverifiedClaim = false;
+            }
         }
 
         // The reply promised to look something up and called nothing: one chance to make the call.
@@ -225,6 +292,27 @@ public partial class ChatService(
             }
         }
 
+        // The user plainly asked for a note and none was saved: the note is saved from their own
+        // words. In chat jdeu9b8n qwen2.5:3b answered "I've noted that…" four times running, the
+        // correction round included, copying its own earlier replies (owner, 2026-10-11). A note
+        // is quick to delete and the receipt says what was saved, so nothing is risked by it.
+        if (first.Error is null
+            && request.Turn.ToolNames.Contains("create_note")
+            && request.Turn.Proposals.Count == 0
+            && !request.Turn.Receipts.Any(r => r.Ok && r.Tool == "create_note")
+            && Notes.NoteRequest.TextOf(userMessage) is { } asked)
+        {
+            logger.LogWarning("Model {Model} did not save the note the user asked for; saving it.", config.AiModel);
+            var call = new AiToolCall($"server-note-{Guid.NewGuid():N}", "create_note", JsonSerializer.Serialize(new { text = asked }));
+            var result = await toolRegistry.ExecuteAsync(call, ct);
+            request.Turn.RecordExecution(call, result);
+            if (!result.IsError)
+            {
+                final.Rewrite($"Noted: “{asked}”.");
+                unverifiedClaim = false;
+            }
+        }
+
         // The reply still says a change is on its way, but the change was refused and nothing is
         // waiting: say why, from the check itself. In chat 9wuxkb2b the user asked five times and
         // only ever saw "nothing was saved", never the reason.
@@ -272,6 +360,15 @@ public partial class ChatService(
             .Take(MaxHistoryMessages)
             .OrderBy(m => m.CreatedAtUtc).ThenBy(m => m.Id)
             .ToListAsync(ct);
+
+        // A claim a reply was flagged for goes back without it (see TurnRecord), for the window and
+        // the summary alike; a reply that was nothing but the claim goes back not at all. The
+        // messages are not tracked, so this never reaches the database.
+        foreach (var message in messages.Where(m => m.Role == ChatRoles.Assistant))
+        {
+            message.Content = TurnRecord.ForModel(message.Content, message.UnverifiedClaim);
+        }
+        messages.RemoveAll(m => m.Role == ChatRoles.Assistant && m.Content.Length == 0);
 
         // Room for a summary is always kept, so writing one never pushes the window over.
         var fixedTokens = TokenEstimate.Of(basePrompt) + TokenEstimate.Of(model.Tools) + TokenEstimate.Of(userMessage)

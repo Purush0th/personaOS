@@ -52,10 +52,9 @@ Future<void> main() async {
 final appNavigatorKey = GlobalKey<NavigatorState>();
 
 void _showAlarm(ReminderAlarm alarm) {
-  appNavigatorKey.currentState?.push(MaterialPageRoute<void>(
-    fullscreenDialog: true,
-    builder: (_) => AlarmScreen(alarm: alarm),
-  ));
+  appNavigatorKey.currentState?.push(
+    MaterialPageRoute<void>(fullscreenDialog: true, builder: (_) => AlarmScreen(alarm: alarm)),
+  );
 }
 
 const _kServerUrlPref = 'server_url';
@@ -66,13 +65,13 @@ const _kServerUrlPref = 'server_url';
 /// the address is wrong, or — the usual cause here — the VPN carrying the
 /// connection is switched off.
 String connectionFailureReason(Object error) => switch (error) {
-      final SocketException e when e.osError != null => 'Network error: ${e.osError!.message}.',
-      SocketException _ => 'Could not open a connection to that host.',
-      TimeoutException _ => 'The server did not respond within 8 seconds.',
-      HandshakeException _ => 'TLS failed — if the server is plain HTTP, use http:// not https://.',
-      FormatException _ => 'That does not look like a valid URL.',
-      _ => '$error',
-    };
+  final SocketException e when e.osError != null => 'Network error: ${e.osError!.message}.',
+  SocketException _ => 'Could not open a connection to that host.',
+  TimeoutException _ => 'The server did not respond within 8 seconds.',
+  HandshakeException _ => 'TLS failed — if the server is plain HTTP, use http:// not https://.',
+  FormatException _ => 'That does not look like a valid URL.',
+  _ => '$error',
+};
 
 /// The one brand colour. PersonaOS's identity is fixed, so this is a constant,
 /// not a per-install setting — only the assistant's nickname and persona vary.
@@ -86,10 +85,7 @@ const Color personaOsSeed = Color(0xFF5B5BD6);
 /// added. Surfaces are tinted and borderless, and the shared shapes live here
 /// rather than being repeated at every call site.
 ThemeData _personaOsTheme(Brightness brightness) {
-  final scheme = ColorScheme.fromSeed(
-    seedColor: personaOsSeed,
-    brightness: brightness,
-  );
+  final scheme = ColorScheme.fromSeed(seedColor: personaOsSeed, brightness: brightness);
 
   return ThemeData(
     colorScheme: scheme,
@@ -116,20 +112,12 @@ ThemeData _personaOsTheme(Brightness brightness) {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     ),
-    listTileTheme: const ListTileThemeData(
-      contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-    ),
+    listTileTheme: const ListTileThemeData(contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 6)),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: scheme.surfaceContainerHigh,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: scheme.primary, width: 1.5),
@@ -195,12 +183,14 @@ class _BootstrapperState extends State<_Bootstrapper> {
   @override
   void initState() {
     super.initState();
-    unawaited(SharedPreferences.getInstance().then((prefs) {
-      setState(() {
-        _serverUrl = prefs.getString(_kServerUrlPref);
-        _loaded = true;
-      });
-    }));
+    unawaited(
+      SharedPreferences.getInstance().then((prefs) {
+        setState(() {
+          _serverUrl = prefs.getString(_kServerUrlPref);
+          _loaded = true;
+        });
+      }),
+    );
   }
 
   void _onServerChanged(String? url) {
@@ -214,10 +204,7 @@ class _BootstrapperState extends State<_Bootstrapper> {
     }
     return _serverUrl == null
         ? ServerUrlScreen(onSaved: _onServerChanged)
-        : HomeScreen(
-            serverUrl: _serverUrl!,
-            onForgetServer: () => _onServerChanged(null),
-          );
+        : HomeScreen(serverUrl: _serverUrl!, onForgetServer: () => _onServerChanged(null));
   }
 }
 
@@ -257,9 +244,7 @@ class _ServerUrlScreenState extends State<ServerUrlScreen> {
     });
 
     try {
-      final response = await http
-          .get(Uri.parse('$url/api/branding'))
-          .timeout(const Duration(seconds: 8));
+      final response = await http.get(Uri.parse('$url/api/branding')).timeout(const Duration(seconds: 8));
       if (response.statusCode != 200) {
         throw Exception('HTTP ${response.statusCode}');
       }
@@ -289,10 +274,7 @@ class _ServerUrlScreenState extends State<ServerUrlScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Connect to your server',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            const Text('Connect to your server', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             const Text(
               'Enter the address of your self-hosted PersonaOS server '
@@ -312,10 +294,7 @@ class _ServerUrlScreenState extends State<ServerUrlScreen> {
               onSubmitted: (_) => _connect(),
             ),
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _checking ? null : _connect,
-              child: Text(_checking ? 'Connecting…' : 'Connect'),
-            ),
+            FilledButton(onPressed: _checking ? null : _connect, child: Text(_checking ? 'Connecting…' : 'Connect')),
           ],
         ),
       ),
@@ -334,14 +313,12 @@ class Branding {
   });
 
   factory Branding.fromJson(Map<String, dynamic> json) => Branding(
-        assistantNickname: json['assistantNickname'] as String,
-        isConfigured: json['isConfigured'] as bool,
-        enabledFeatures: (json['enabledFeatures'] as List<dynamic>)
-            .map((e) => e as String)
-            .toList(),
-        apiVersion: json['apiVersion'] as String?,
-        repository: json['repository'] as String?,
-      );
+    assistantNickname: json['assistantNickname'] as String,
+    isConfigured: json['isConfigured'] as bool,
+    enabledFeatures: (json['enabledFeatures'] as List<dynamic>).map((e) => e as String).toList(),
+    apiVersion: json['apiVersion'] as String?,
+    repository: json['repository'] as String?,
+  );
 
   final String assistantNickname;
   final bool isConfigured;
@@ -355,11 +332,7 @@ class Branding {
 /// Placeholder home: greets via the instance's assistant nickname and lists
 /// enabled modules. Replaced by the chat screen in Phase 1.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({
-    super.key,
-    required this.serverUrl,
-    required this.onForgetServer,
-  });
+  const HomeScreen({super.key, required this.serverUrl, required this.onForgetServer});
 
   final String serverUrl;
   final VoidCallback onForgetServer;
@@ -385,9 +358,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _branding = _fetchBranding();
     WidgetsBinding.instance.addObserver(this);
     // A planner event's notification opens the planner on that day.
-    PushService.instance.onOpenPlannerDay = (date) => appNavigatorKey.currentState?.push(MaterialPageRoute<void>(
-          builder: (_) => PlannerScreen(api: _api, initialDate: parseDay(date), initialView: CalendarView.day),
-        ));
+    PushService.instance.onOpenPlannerDay = (date) => appNavigatorKey.currentState?.push(
+      MaterialPageRoute<void>(
+        builder: (_) => PlannerScreen(api: _api, initialDate: parseDay(date), initialView: CalendarView.day),
+      ),
+    );
   }
 
   @override
@@ -406,34 +381,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Opens [builder]'s screen, first routing through login when needed.
   void _openAfterLogin(WidgetBuilder builder) {
     if (_api.isLoggedIn) {
-      Navigator.of(context)
-          .push(MaterialPageRoute<void>(builder: builder));
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: builder));
       return;
     }
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (context) => LoginScreen(
-        api: _api,
-        onLoggedIn: () {
-          // Registering needs a signed-in session, so it happens here rather than at launch.
-          // Not awaited: push setup can prompt for permission and talk to Firebase, and the
-          // user asked to open a screen, not to wait for that.
-          unawaited(PushService.instance.start(_api, assistantNickname: _nickname));
-          Navigator.of(context)
-              .pushReplacement(MaterialPageRoute<void>(builder: builder));
-        },
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => LoginScreen(
+          api: _api,
+          onLoggedIn: () {
+            // Registering needs a signed-in session, so it happens here rather than at launch.
+            // Not awaited: push setup can prompt for permission and talk to Firebase, and the
+            // user asked to open a screen, not to wait for that.
+            unawaited(PushService.instance.start(_api, assistantNickname: _nickname));
+            Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: builder));
+          },
+        ),
       ),
-    ));
+    );
   }
 
   Future<Branding> _fetchBranding() async {
-    final response = await http
-        .get(Uri.parse('${widget.serverUrl}/api/branding'))
-        .timeout(const Duration(seconds: 8));
+    final response = await http.get(Uri.parse('${widget.serverUrl}/api/branding')).timeout(const Duration(seconds: 8));
     final branding = Branding.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
     _nickname = branding.assistantNickname;
-    unawaited(checkForUpdate(currentVersion: branding.apiVersion, repository: branding.repository).then((update) {
-      if (mounted && update != null) setState(() => _update = update);
-    }));
+    unawaited(
+      checkForUpdate(currentVersion: branding.apiVersion, repository: branding.repository).then((update) {
+        if (mounted && update != null) setState(() => _update = update);
+      }),
+    );
     return branding;
   }
 
@@ -457,13 +432,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Scaffold(
       appBar: AppBar(
         title: const Text('PersonaOS'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.link_off),
-            tooltip: 'Change server',
-            onPressed: _forgetServer,
-          ),
-        ],
+        actions: [IconButton(icon: const Icon(Icons.link_off), tooltip: 'Change server', onPressed: _forgetServer)],
       ),
       body: FutureBuilder<Branding>(
         future: _branding,
@@ -487,120 +456,123 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Server needs setup',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text('Server needs setup', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   SizedBox(height: 12),
                   Text('Open the web app on your server to run the Setup Wizard.'),
                 ],
               ),
             );
           }
-          bool enabled(String feature) =>
-              branding.enabledFeatures.contains(feature);
+          bool enabled(String feature) => branding.enabledFeatures.contains(feature);
           final scheme = Theme.of(context).colorScheme;
           return ReadableWidth(
             maxWidth: 960,
             child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            children: [
-              _Hero(nickname: nickname),
-              if (_update != null)
-                Card(
-                  key: const Key('update-notice'),
-                  margin: const EdgeInsets.only(top: 16),
-                  child: ListTile(
-                    leading: const Icon(Icons.system_update_alt),
-                    title: Text('PersonaOS ${_update!.name} is available'),
-                    subtitle: SelectableText(_update!.notesUrl),
-                    trailing: IconButton(
-                      tooltip: 'Dismiss',
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        unawaited(dismissUpdate(_update!));
-                        setState(() => _update = null);
-                      },
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              children: [
+                _Hero(nickname: nickname),
+                if (_update != null)
+                  Card(
+                    key: const Key('update-notice'),
+                    margin: const EdgeInsets.only(top: 16),
+                    child: ListTile(
+                      leading: const Icon(Icons.system_update_alt),
+                      title: Text(
+                        _update!.forApp
+                            ? 'A new app is available: ${_update!.name}'
+                            : 'PersonaOS ${_update!.name} is available',
+                      ),
+                      // The app: where to download it. The server: where it updates.
+                      subtitle: _update!.forApp
+                          ? SelectableText(_update!.appDownloadUrl ?? _update!.notesUrl)
+                          : Text('Update the server from Settings → Updates on the web. ${_update!.notesUrl}'),
+                      trailing: IconButton(
+                        tooltip: 'Dismiss',
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          unawaited(dismissUpdate(_update!));
+                          setState(() => _update = null);
+                        },
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 20),
+                _ModuleCard(
+                  icon: Icons.auto_awesome,
+                  title: 'Chat with $nickname',
+                  subtitle: 'Ask, plan, or talk hands-free',
+                  prominent: true,
+                  onTap: () => _openAfterLogin(
+                    (_) => ChatScreen(api: _api, assistantNickname: nickname, voiceEnabled: enabled('voice')),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 10),
+                  child: Text(
+                    'MODULES',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: scheme.primary,
                     ),
                   ),
                 ),
-              const SizedBox(height: 20),
-              _ModuleCard(
-                icon: Icons.auto_awesome,
-                title: 'Chat with $nickname',
-                subtitle: 'Ask, plan, or talk hands-free',
-                prominent: true,
-                onTap: () => _openAfterLogin((_) => ChatScreen(
-                      api: _api,
-                      assistantNickname: nickname,
-                      voiceEnabled: enabled('voice'),
-                    )),
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 10),
-                child: Text(
-                  'MODULES',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    color: scheme.primary,
-                  ),
+                // Two abreast when there is room: a tablet, or a phone on its side.
+                _ModuleGrid(
+                  children: [
+                    if (enabled('goals'))
+                      _ModuleCard(
+                        icon: Icons.flag_outlined,
+                        title: 'Goals',
+                        subtitle: 'What you are working towards',
+                        onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api, boardEnabled: enabled('board'))),
+                      ),
+                    if (enabled('board'))
+                      _ModuleCard(
+                        icon: Icons.view_kanban_outlined,
+                        title: 'Board',
+                        subtitle: 'The running sprint, card by card',
+                        onTap: () => _openAfterLogin((_) => BoardScreen(api: _api)),
+                      ),
+                    if (enabled('planner'))
+                      _ModuleCard(
+                        icon: Icons.event_note_outlined,
+                        title: 'Planner',
+                        subtitle: 'Your day, item by item',
+                        onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
+                      ),
+                    if (enabled('reminders'))
+                      _ModuleCard(
+                        icon: Icons.alarm,
+                        title: 'Reminders',
+                        subtitle: 'Nudges at the right time',
+                        onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
+                      ),
+                    if (enabled('notes'))
+                      _ModuleCard(
+                        icon: Icons.sticky_note_2_outlined,
+                        title: 'Notes',
+                        subtitle: 'Jot things down for later',
+                        onTap: () => _openAfterLogin((_) => NotesScreen(api: _api, boardEnabled: enabled('board'))),
+                      ),
+                    if (enabled('memory'))
+                      _ModuleCard(
+                        icon: Icons.psychology_outlined,
+                        title: 'Memories',
+                        subtitle: 'What $nickname remembers about you',
+                        onTap: () => _openAfterLogin((_) => MemoriesScreen(api: _api)),
+                      ),
+                    _ModuleCard(
+                      icon: Icons.tune,
+                      title: 'Settings',
+                      subtitle: 'Persona, provider, modules',
+                      onTap: () => _openAfterLogin((_) => SettingsScreen(api: _api)),
+                    ),
+                  ],
                 ),
-              ),
-              // Two abreast when there is room: a tablet, or a phone on its side.
-              _ModuleGrid(
-                children: [
-                  if (enabled('goals'))
-                    _ModuleCard(
-                      icon: Icons.flag_outlined,
-                      title: 'Goals',
-                      subtitle: 'What you are working towards',
-                      onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api, boardEnabled: enabled('board'))),
-                    ),
-                  if (enabled('board'))
-                    _ModuleCard(
-                      icon: Icons.view_kanban_outlined,
-                      title: 'Board',
-                      subtitle: 'The running sprint, card by card',
-                      onTap: () => _openAfterLogin((_) => BoardScreen(api: _api)),
-                    ),
-                  if (enabled('planner'))
-                    _ModuleCard(
-                      icon: Icons.event_note_outlined,
-                      title: 'Planner',
-                      subtitle: 'Your day, item by item',
-                      onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
-                    ),
-                  if (enabled('reminders'))
-                    _ModuleCard(
-                      icon: Icons.alarm,
-                      title: 'Reminders',
-                      subtitle: 'Nudges at the right time',
-                      onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
-                    ),
-                  if (enabled('notes'))
-                    _ModuleCard(
-                      icon: Icons.sticky_note_2_outlined,
-                      title: 'Notes',
-                      subtitle: 'Jot things down for later',
-                      onTap: () => _openAfterLogin((_) => NotesScreen(api: _api, boardEnabled: enabled('board'))),
-                    ),
-                  if (enabled('memory'))
-                    _ModuleCard(
-                      icon: Icons.psychology_outlined,
-                      title: 'Memories',
-                      subtitle: 'What $nickname remembers about you',
-                      onTap: () => _openAfterLogin((_) => MemoriesScreen(api: _api)),
-                    ),
-                  _ModuleCard(
-                    icon: Icons.tune,
-                    title: 'Settings',
-                    subtitle: 'Persona, provider, modules',
-                    onTap: () => _openAfterLogin((_) => SettingsScreen(api: _api)),
-                  ),
-                ],
-              ),
-            ],
+              ],
             ),
           );
         },
@@ -639,10 +611,7 @@ class _Unreachable extends StatelessWidget {
           children: [
             Icon(Icons.cloud_off, size: 48, color: scheme.outline),
             const SizedBox(height: 16),
-            const Text(
-              'Can’t reach your server',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            ),
+            const Text('Can’t reach your server', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Text(
               serverUrl,
@@ -661,10 +630,7 @@ class _Unreachable extends StatelessWidget {
             // common reason to land here.
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(14),
-              ),
+              decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(14)),
               child: Text(
                 'Check that Tailscale is connected, or that you are on the '
                 'same network as your server.',
@@ -682,10 +648,7 @@ class _Unreachable extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            TextButton(
-              onPressed: onChangeServer,
-              child: const Text('Change server'),
-            ),
+            TextButton(onPressed: onChangeServer, child: const Text('Change server')),
           ],
         ),
       ),
@@ -749,15 +712,17 @@ class _ModuleGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      if (constraints.maxWidth < Breakpoints.twoColumns) return Column(children: children);
-      const gap = 10.0;
-      final width = (constraints.maxWidth - gap) / 2;
-      return Wrap(
-        spacing: gap,
-        children: [for (final child in children) SizedBox(width: width, child: child)],
-      );
-    });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < Breakpoints.twoColumns) return Column(children: children);
+        const gap = 10.0;
+        final width = (constraints.maxWidth - gap) / 2;
+        return Wrap(
+          spacing: gap,
+          children: [for (final child in children) SizedBox(width: width, child: child)],
+        );
+      },
+    );
   }
 }
 
@@ -800,16 +765,10 @@ class _ModuleCard extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: prominent
-                        ? scheme.onPrimary.withValues(alpha: 0.18)
-                        : scheme.primaryContainer,
+                    color: prominent ? scheme.onPrimary.withValues(alpha: 0.18) : scheme.primaryContainer,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(
-                    icon,
-                    size: 22,
-                    color: prominent ? scheme.onPrimary : scheme.onPrimaryContainer,
-                  ),
+                  child: Icon(icon, size: 22, color: prominent ? scheme.onPrimary : scheme.onPrimaryContainer),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -818,11 +777,7 @@ class _ModuleCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: foreground,
-                        ),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: foreground),
                       ),
                       if (subtitle != null) ...[
                         const SizedBox(height: 2),
@@ -830,19 +785,14 @@ class _ModuleCard extends StatelessWidget {
                           subtitle!,
                           style: TextStyle(
                             fontSize: 13,
-                            color: prominent
-                                ? scheme.onPrimary.withValues(alpha: 0.8)
-                                : scheme.onSurfaceVariant,
+                            color: prominent ? scheme.onPrimary.withValues(alpha: 0.8) : scheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right,
-                    color: prominent
-                        ? scheme.onPrimary.withValues(alpha: 0.8)
-                        : scheme.outline),
+                Icon(Icons.chevron_right, color: prominent ? scheme.onPrimary.withValues(alpha: 0.8) : scheme.outline),
               ],
             ),
           ),
