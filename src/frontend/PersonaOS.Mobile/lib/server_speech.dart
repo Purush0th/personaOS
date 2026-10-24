@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
@@ -115,7 +116,8 @@ class ServerSpeech {
     }
 
     try {
-      final text = await api.transcribe(path);
+      // The phone's own language, so whisper does not have to guess it.
+      final text = await api.transcribe(path, language: PlatformDispatcher.instance.locale.languageCode);
       onFinal?.call(text);
     } on ApiException catch (e) {
       onError?.call(e.message);
