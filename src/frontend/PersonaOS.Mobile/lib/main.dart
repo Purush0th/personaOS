@@ -23,6 +23,7 @@ import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme_choice.dart';
 import 'update_check.dart';
+import 'update_notice.dart';
 
 /// PersonaOS mobile app.
 ///
@@ -472,29 +473,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: [
                 _Hero(nickname: nickname),
                 if (_update != null)
-                  Card(
-                    key: const Key('update-notice'),
-                    margin: const EdgeInsets.only(top: 16),
-                    child: ListTile(
-                      leading: const Icon(Icons.system_update_alt),
-                      title: Text(
-                        _update!.forApp
-                            ? 'A new app is available: ${_update!.name}'
-                            : 'PersonaOS ${_update!.name} is available',
-                      ),
-                      // The app: where to download it. The server: where it updates.
-                      subtitle: _update!.forApp
-                          ? SelectableText(_update!.appDownloadUrl ?? _update!.notesUrl)
-                          : Text('Update the server from Settings → Updates on the web. ${_update!.notesUrl}'),
-                      trailing: IconButton(
-                        tooltip: 'Dismiss',
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          unawaited(dismissUpdate(_update!));
-                          setState(() => _update = null);
-                        },
-                      ),
-                    ),
+                  UpdateNotice(
+                    update: _update!,
+                    repository: branding.repository ?? '',
+                    onDismiss: () {
+                      unawaited(dismissUpdate(_update!));
+                      setState(() => _update = null);
+                    },
                   ),
                 const SizedBox(height: 20),
                 _ModuleCard(

@@ -8,6 +8,10 @@
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Updating the app from inside it: hands a downloaded release to Android's installer, which
+         still asks the user to confirm (MainActivity). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
     <!-- Fingerprint/face unlock for sign-in (local_auth). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
 
@@ -76,6 +80,16 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Shares only the downloaded-update folder (res/xml/update_paths.xml) with the installer. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_paths" />
+        </provider>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

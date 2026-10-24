@@ -1,8 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// The key releases are signed with: android/key.properties, written by the release workflow from
+// the repository's secrets (or kept on a machine that builds releases). Android installs an update
+// only when it carries the same signature as the installed app, so every release must use this one
+// key; signed with the build machine's throwaway debug key instead, no release could update the last.
+val releaseKey = Properties().apply {
+    rootProject.file("key.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
 
 android {
@@ -32,11 +42,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (!releaseKey.isEmpty) {
+            create("release") {
+                storeFile = file(releaseKey.getProperty("storeFile"))
+                storePassword = releaseKey.getProperty("storePassword")
+                keyAlias = releaseKey.getProperty("keyAlias")
+                keyPassword = releaseKey.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Without key.properties (a developer's machine) the debug key, so `flutter run
+            // --release` works; such an APK cannot update or be updated by a published release.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }
@@ -47,4 +68,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // FileProvider, to hand a downloaded update to Android's installer (MainActivity).
+    implementation("androidx.core:core-ktx:1.13.1")
 }

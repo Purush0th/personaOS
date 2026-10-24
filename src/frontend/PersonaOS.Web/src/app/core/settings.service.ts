@@ -85,11 +85,22 @@ export class SettingsService {
   clearPush(): Promise<void> {
     return firstValueFrom(this.http.delete<void>('/api/setup/push'));
   }
+
+  /** Sends a test notification to every registered phone; says how each took it. */
+  testPush(): Promise<PushTestResult> {
+    return firstValueFrom(this.http.post<PushTestResult>('/api/setup/push/test', {}));
+  }
 }
 
 export interface PushStatus {
   configured: boolean;
   projectId: string | null;
+}
+
+export interface PushTestResult {
+  configured: boolean;
+  delivered: number;
+  devices: { name: string; delivered: boolean; error: string | null; removed: boolean }[];
 }
 
 export interface TestConnection {

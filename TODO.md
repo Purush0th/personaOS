@@ -363,6 +363,24 @@ the chat it always showing new one but the last active one can be preserved if n
       `.gitattributes` keeps .sh/.py LF. Tests: backend 960, updater 8 (CI job added), web 164,
       phone 259. Not committed. GHCR packages may start private: make them public after the first
       release, or the server needs `docker login ghcr.io`.
+- [x] **P1. Send test notification** (2026-10-24). Owner, after a first push worked on the new
+      server: "we need to add test functionality for the firebase". Settings → Push notifications
+      → Send test notification (`POST /api/setup/push/test`, `PushTestService`): one notification
+      to every registered phone, Firebase's answer per phone shown, a token Firebase rejects for
+      good removed; says so when push is off or no phone is registered. Phones register without a
+      name, so they show as "android". Backend 964, web 166. Not committed.
+- [x] **P2. The phone app updates itself** (2026-10-24). Owner: "apk should detect update from
+      github and i can update from the app itself... without manual download and installation".
+      Found: release APKs were signed with the runner's debug key, new on every run, so no release
+      could ever update the last (why alpha.9 needed an uninstall). Now: release signing from
+      `android/key.properties` (written by the release workflow from the ANDROID_KEYSTORE_*/KEY_*
+      secrets; the workflow fails without them); `AppUpdater` downloads the release's APK (only a
+      github.com release of this repository) into cache/updates and hands it through the
+      `personaos/installer` channel (MainActivity, FileProvider `${applicationId}.updates`,
+      REQUEST_INSTALL_PACKAGES) to Android's installer; `UpdateNotice` on the home screen with
+      Update and progress, and the one-time "allow installing apps" step. Android's own confirm
+      screen cannot be skipped. Phone tests 265. Needs the owner to create the key and set the
+      secrets (README, "Signing the phone app"); the first signed APK needs one uninstall.
 - [ ] **U2. Move live to the prod server** (`192.168.2.10`). Needs: a release published with U1;
       the owner's prerequisites (Ubuntu, NVIDIA driver, Docker, NVIDIA Container Toolkit); the
       live data packed on the dev PC (Docker there is stopped by the owner; last copy is

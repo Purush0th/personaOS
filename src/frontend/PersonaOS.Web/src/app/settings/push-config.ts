@@ -5,7 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 
 import { Confirm } from '../core/confirm';
-import { PushStatus, SettingsService } from '../core/settings.service';
+import { PushStatus, PushTestResult, SettingsService } from '../core/settings.service';
 
 /**
  * Bring-your-own Firebase push, configured by uploading the owner's own project files.
@@ -27,6 +27,7 @@ export class PushConfig implements OnInit {
 
   protected readonly status = signal<PushStatus | null>(null);
   protected readonly busy = signal(false);
+  protected readonly testResult = signal<PushTestResult | null>(null);
 
   /** File names only, for display. The contents are held just long enough to upload. */
   protected readonly serviceAccountName = signal<string | null>(null);
@@ -78,6 +79,19 @@ export class PushConfig implements OnInit {
       this.confirm.error(
         (e as { error?: { error?: string } })?.error?.error ?? 'Could not save the Firebase files.'
       );
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** Sends a test notification to every registered phone and shows how each took it. */
+  protected async test(): Promise<void> {
+    this.busy.set(true);
+    this.testResult.set(null);
+    try {
+      this.testResult.set(await this.settings.testPush());
+    } catch {
+      this.confirm.error('Could not send the test notification.');
     } finally {
       this.busy.set(false);
     }
