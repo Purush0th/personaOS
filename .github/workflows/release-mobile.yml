@@ -1,0 +1,71 @@
+name: Release phone app
+
+# The Android app, released apart from the server and web (owner, 2026-10-29), only when it
+# changes. Tag it to publish it:  git tag mobile-v1.2.0 && git push origin mobile-v1.2.0
+# The app finds its updates among these releases; the server tells it the oldest app it supports.
+on:
+  push:
+    tags: ['mobile-v*']
+
+permissions:
+  contents: write   # create the GitHub Release
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Derive version from the tag
+        id: version
+        run: echo "value=${GITHUB_REF_NAME#mobile-v}" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # Every release must be signed with the same key, or the app cannot update itself: Android
+      # refuses an update signed differently, and a runner's own debug key is new on every run.
+      # The key lives in the repository's secrets (see README, "Signing the phone app").
+      - name: Release signing key
+        working-directory: src/frontend/PersonaOS.Mobile/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          # All four: an empty password showed up only as "keystore password was incorrect".
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Set all of ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (one is missing or empty): without them the APK cannot update the installed app."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > app/release.jks
+          {
+            echo "storeFile=release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > key.properties
+
+      # The app's version is the tag's, so it can tell when it is behind.
+      - name: Build release APK
+        working-directory: src/frontend/PersonaOS.Mobile
+        run: |
+          flutter pub get
+          flutter build apk --release --build-name="${{ steps.version.outputs.value }}" --build-number="${GITHUB_RUN_NUMBER}" \
+            --dart-define=APP_VERSION="${{ steps.version.outputs.value }}"
+          mkdir -p dist
+          mv build/app/outputs/flutter-apk/app-release.apk "dist/personaos-app-v${{ steps.version.outputs.value }}.apk"
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          name: PersonaOS app ${{ steps.version.outputs.value }}
+          generate_release_notes: true
+          # The server's release stays "Latest": it is the one with the install steps.
+          make_latest: false
+          prerelease: ${{ contains(steps.version.outputs.value, '-') }}
+          files: src/frontend/PersonaOS.Mobile/dist/personaos-app-v*.apk
+          body: |
+            The PersonaOS Android app. An installed app offers this update itself (home screen,
+            or About → Check for updates); to install it fresh, open the APK below on the phone.

@@ -469,6 +469,11 @@ public class FakeReleaseFeed(params ReleaseInfo[] releases) : IReleaseFeed
 
     public static ReleaseInfo Release(string version, bool prerelease = false) =>
         new(version, $"v{version}", $"https://github.com/x/y/releases/tag/v{version}", prerelease, DateTimeOffset.UnixEpoch, null);
+
+    /// <summary>A phone app release (tag "mobile-v…") with its APK.</summary>
+    public static ReleaseInfo AppRelease(string version, bool prerelease = false) =>
+        new(version, $"mobile-v{version}", $"https://github.com/x/y/releases/tag/mobile-v{version}", prerelease,
+            DateTimeOffset.UnixEpoch, $"https://github.com/x/y/releases/download/mobile-v{version}/app.apk", IsApp: true);
 }
 
 /// <summary>An updater that records what it was asked for; <see cref="Status"/> null means none is set up.</summary>

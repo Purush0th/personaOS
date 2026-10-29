@@ -82,13 +82,15 @@ public sealed class GitHubReleaseFeed(HttpClient http, TimeProvider time, ILogge
                     .FirstOrDefault()
                 : null;
 
+            var isApp = tag.StartsWith(PersonaOsProject.AppTagPrefix, StringComparison.Ordinal);
             releases.Add(new ReleaseInfo(
-                tag.TrimStart('v'),
+                isApp ? tag[PersonaOsProject.AppTagPrefix.Length..] : tag.TrimStart('v'),
                 Text(release, "name") is { Length: > 0 } name ? name : tag,
                 Text(release, "html_url") ?? PersonaOsProject.ReleasesUrl,
                 Bool(release, "prerelease"),
                 DateTimeOffset.TryParse(Text(release, "published_at"), out var published) ? published : DateTimeOffset.MinValue,
-                apk));
+                apk,
+                isApp));
         }
         return releases;
     }

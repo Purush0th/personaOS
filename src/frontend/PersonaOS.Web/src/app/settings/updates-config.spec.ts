@@ -17,11 +17,13 @@ function view(fields: Partial<UpdatesView>): UpdatesView {
       prerelease: true,
       publishedAt: '2026-10-24T05:00:00Z',
       appDownloadUrl: null,
+      isApp: false,
     },
     updateAvailable: true,
     autoInstall: false,
     canInstall: true,
     updater: ALIVE,
+    latestApp: null,
     ...fields,
   };
 }
@@ -70,5 +72,21 @@ describe('UpdatesConfig', () => {
     );
 
     expect(el.querySelector('[data-testid="update-problem"]')?.textContent).toContain('Back on 0.1.0-alpha.9');
+  });
+
+  it('links the newest phone app, which is released apart from the server', async () => {
+    const app = 'https://github.com/x/y/releases/download/mobile-v0.1.0-alpha.14/personaos-app-v0.1.0-alpha.14.apk';
+    const el = await render(
+      view({
+        latestApp: {
+          version: '0.1.0-alpha.14', name: 'PersonaOS app 0.1.0-alpha.14', notesUrl: '', prerelease: true,
+          publishedAt: '2026-10-29T05:00:00Z', appDownloadUrl: app, isApp: true,
+        },
+      })
+    );
+
+    const link = el.querySelector<HTMLAnchorElement>('[data-testid="phone-app"] a');
+    expect(link?.href).toBe(app);
+    expect(link?.textContent).toContain('0.1.0-alpha.14');
   });
 });

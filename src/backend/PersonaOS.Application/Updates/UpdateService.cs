@@ -10,13 +10,15 @@ public sealed record RunningVersion(string Value);
 /// <summary>Where updates stand, for Settings → Updates and the banner.</summary>
 /// <param name="Latest">The newest release this server follows, or null when none could be read.</param>
 /// <param name="CanInstall">An updater is running, so Update now can work.</param>
+/// <param name="LatestApp">The newest phone app release, released apart from the server.</param>
 public sealed record UpdatesView(
     string CurrentVersion,
     ReleaseInfo? Latest,
     bool UpdateAvailable,
     bool AutoInstall,
     bool CanInstall,
-    UpdaterStatus? Updater);
+    UpdaterStatus? Updater,
+    ReleaseInfo? LatestApp = null);
 
 public interface IUpdateService
 {
@@ -57,7 +59,8 @@ public sealed class UpdateService(
     {
         var config = await configService.GetOrCreateAsync(ct);
         var current = ReleaseVersion.Parse(running.Value);
-        var latest = Newest(await feed.GetReleasesAsync(ct), current);
+        var releases = await feed.GetReleasesAsync(ct);
+        var latest = Newest(releases.Where(r => !r.IsApp), current);
         var status = await updater.GetStatusAsync(ct);
         // Running and able to: one that cannot find the compose folder says "not-set-up".
         var alive = status is not null && time.GetUtcNow() - status.Heartbeat < HeartbeatTimeout && status.State != "not-set-up";
@@ -68,7 +71,8 @@ public sealed class UpdateService(
             latest is not null && current is not null && ReleaseVersion.Parse(latest.Version)!.IsNewerThan(current),
             config.AutoInstallUpdates,
             alive,
-            status);
+            status,
+            Newest(releases.Where(r => r.IsApp && r.AppDownloadUrl is not null), current));
     }
 
     public async Task<UpdatesView> InstallAsync(string version, CancellationToken ct = default)
@@ -80,7 +84,9 @@ public sealed class UpdateService(
             throw new UpdateRefusedException("An update is already in progress.");
 
         var wanted = ReleaseVersion.Parse(version);
-        var release = (await feed.GetReleasesAsync(ct)).FirstOrDefault(r => ReleaseVersion.Parse(r.Version) is { } v && v.Equals(wanted));
+        // Only a server release: an app release can carry the same number.
+        var release = (await feed.GetReleasesAsync(ct))
+            .FirstOrDefault(r => !r.IsApp && ReleaseVersion.Parse(r.Version) is { } v && v.Equals(wanted));
         if (wanted is null || release is null)
             throw new UpdateRefusedException($"There is no release {version}.");
         if (ReleaseVersion.Parse(view.CurrentVersion) is { } current && !wanted.IsNewerThan(current))
@@ -110,8 +116,8 @@ public sealed class UpdateService(
         return view.Latest.Version;
     }
 
-    /// <summary>The newest release this server follows: prereleases only when it runs one.</summary>
-    private static ReleaseInfo? Newest(IReadOnlyList<ReleaseInfo> releases, ReleaseVersion? current)
+    /// <summary>The newest of <paramref name="releases"/> this server follows: prereleases only when it runs one.</summary>
+    private static ReleaseInfo? Newest(IEnumerable<ReleaseInfo> releases, ReleaseVersion? current)
     {
         var followsPrereleases = current is null || current.IsPrerelease;
         return releases

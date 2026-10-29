@@ -12,6 +12,8 @@ export interface ReleaseInfo {
   prerelease: boolean;
   publishedAt: string;
   appDownloadUrl: string | null;
+  /** A phone app release ("mobile-v…"), released apart from the server. */
+  isApp: boolean;
 }
 
 export interface UpdaterStatus {
@@ -32,6 +34,8 @@ export interface UpdatesView {
   /** An updater is running, so Update now can work. */
   canInstall: boolean;
   updater: UpdaterStatus | null;
+  /** The newest phone app release, released apart from the server. */
+  latestApp: ReleaseInfo | null;
 }
 
 /** The states in which an update is under way. */

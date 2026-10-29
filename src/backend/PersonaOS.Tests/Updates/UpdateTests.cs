@@ -62,6 +62,22 @@ public class UpdateTests
     }
 
     [Fact]
+    public async Task An_app_release_is_never_the_servers_update_but_is_shown_apart()
+    {
+        // The app is released apart from the server ("mobile-v…"), sometimes with a higher number.
+        var (service, _, updater) = Setup("0.1.0-alpha.13", Alive,
+            FakeReleaseFeed.Release("0.1.0-alpha.13", prerelease: true), FakeReleaseFeed.AppRelease("0.1.0-alpha.14", prerelease: true));
+
+        var view = await service.GetAsync();
+
+        Assert.Equal("0.1.0-alpha.13", view.Latest!.Version);
+        Assert.False(view.UpdateAvailable);
+        Assert.Equal("0.1.0-alpha.14", view.LatestApp!.Version);
+        await Assert.ThrowsAsync<UpdateRefusedException>(() => service.InstallAsync("0.1.0-alpha.14"));
+        Assert.Empty(updater.Requested);
+    }
+
+    [Fact]
     public async Task A_server_on_a_release_takes_only_releases()
     {
         var (service, _, _) = Setup("1.0.0", Alive,
@@ -156,6 +172,21 @@ public class UpdateTests
         Assert.Equal("0.1.0-alpha.10", release.Version);
         Assert.True(release.Prerelease);
         Assert.Equal("https://x/app.apk", release.AppDownloadUrl);
+        Assert.False(release.IsApp);
+    }
+
+    [Fact]
+    public void An_app_release_is_read_by_its_mobile_tag()
+    {
+        using var doc = JsonDocument.Parse("""
+            [{"tag_name":"mobile-v0.1.0-alpha.14","prerelease":true,
+              "assets":[{"name":"personaos-app-v0.1.0-alpha.14.apk","browser_download_url":"https://x/app.apk"}]}]
+            """);
+
+        var release = Assert.Single(GitHubReleaseFeed.Parse(doc.RootElement));
+
+        Assert.True(release.IsApp);
+        Assert.Equal("0.1.0-alpha.14", release.Version);
     }
 
     [Fact]
