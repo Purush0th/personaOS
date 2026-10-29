@@ -310,6 +310,28 @@ void main() {
       expect(update?.forApp, isFalse);
     });
 
+    test("dismissing the server's notice of a release does not hide the app's update to it", () async {
+      // Owner, 2026-10-29: the phone never offered alpha.11 after its server notice was dismissed.
+      final release = [tagged('v0.1.0-alpha.11', prerelease: true, apk: true)];
+      final serverBehind = await checkForUpdate(
+        currentVersion: '0.1.0-alpha.10',
+        repository: 'o/r',
+        app: '0.1.0-alpha.10',
+        client: MockClient((_) async => http.Response(jsonEncode(release), 200)),
+      );
+      await dismissUpdate(serverBehind!);
+
+      final appBehind = await checkForUpdate(
+        currentVersion: '0.1.0-alpha.11',
+        repository: 'o/r',
+        app: '0.1.0-alpha.10',
+        client: MockClient((_) async => http.Response(jsonEncode(release), 200)),
+      );
+
+      expect(appBehind?.forApp, isTrue);
+      expect(appBehind?.version, '0.1.0-alpha.11');
+    });
+
     test('with the server up to date, a newer app is offered for download', () async {
       final client = MockClient(
         (_) async => http.Response(jsonEncode([tagged('v0.1.0-alpha.10', prerelease: true, apk: true)]), 200),
