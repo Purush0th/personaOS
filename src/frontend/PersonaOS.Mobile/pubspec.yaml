@@ -74,6 +74,13 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Plus Jakarta Sans, the same face as the web app (variable weight, SIL Open Font License: see
+  # assets/fonts/OFL.txt). Bundled so the app needs no font download at run time.
+  fonts:
+    - family: Plus Jakarta Sans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans.ttf
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

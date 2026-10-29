@@ -11,12 +11,7 @@ part of 'chat_screen.dart';
 /// from the defaults, which assume a full-width document rather than a chat
 /// bubble and leave far too much space around headings and lists.
 class _MarkdownReply extends StatelessWidget {
-  const _MarkdownReply({
-    required this.text,
-    required this.foreground,
-    this.unknownItems = const [],
-    this.onOpenItem,
-  });
+  const _MarkdownReply({required this.text, required this.foreground, this.unknownItems = const [], this.onOpenItem});
 
   final String text;
   final Color foreground;
@@ -92,13 +87,13 @@ class _BubbleView extends StatelessWidget {
     final background = bubble.isError
         ? theme.colorScheme.errorContainer
         : bubble.isUser
-            ? theme.colorScheme.primary
-            : theme.colorScheme.surfaceContainerHighest;
+        ? theme.colorScheme.primary
+        : theme.colorScheme.surface;
     final foreground = bubble.isError
         ? theme.colorScheme.onErrorContainer
         : bubble.isUser
-            ? theme.colorScheme.onPrimary
-            : theme.colorScheme.onSurface;
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurface;
 
     return Align(
       alignment: bubble.isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -107,9 +102,17 @@ class _BubbleView extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         // Most of a phone's width, and no wider than reads comfortably on a tablet.
         constraints: BoxConstraints(maxWidth: math.min(MediaQuery.sizeOf(context).width * 0.82, 600)),
+        // A reply is a white card with a hairline edge on the sky; your own message is solid blue
+        // with its corner nearest you squared off, as on the web.
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(14),
+          border: bubble.isUser || bubble.isError ? null : Border.all(color: theme.colorScheme.outlineVariant),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: const Radius.circular(16),
+            bottomRight: Radius.circular(bubble.isUser ? 6 : 16),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,10 +133,8 @@ class _BubbleView extends StatelessWidget {
               ),
             if (bubble.unverifiedClaim && !bubble.isUser) const UnverifiedClaimNote(),
             if (!bubble.isUser && bubble.unknownItems.isNotEmpty) UnknownItemsNote(keys: bubble.unknownItems),
-            if (bubble.pending?.isNotEmpty ?? false)
-              _ProposalList(actions: bubble.pending!, onResolve: onResolve),
-            if (bubble.actions?.isNotEmpty ?? false)
-              _ReceiptList(actions: bubble.actions!, foreground: foreground),
+            if (bubble.pending?.isNotEmpty ?? false) _ProposalList(actions: bubble.pending!, onResolve: onResolve),
+            if (bubble.actions?.isNotEmpty ?? false) _ReceiptList(actions: bubble.actions!, foreground: foreground),
           ],
         ),
       ),
@@ -146,12 +147,10 @@ class _BubbleView extends StatelessWidget {
 class UnverifiedClaimNote extends StatelessWidget {
   const UnverifiedClaimNote({super.key});
 
-  static const message =
-      'This reply says a change was made, but nothing was saved. Ask again if you want it done.';
+  static const message = 'This reply says a change was made, but nothing was saved. Ask again if you want it done.';
 
   @override
-  Widget build(BuildContext context) =>
-      const _ReplyNote(icon: Icons.warning_amber_rounded, message: message);
+  Widget build(BuildContext context) => const _ReplyNote(icon: Icons.warning_amber_rounded, message: message);
 }
 
 /// Shown under a reply that names items which do not exist. Small models invent keys, and an
@@ -164,16 +163,13 @@ class UnknownItemsNote extends StatelessWidget {
   /// The note's wording, or null when every item the reply named exists. Matches the web app.
   static String? messageFor(List<String> keys) {
     if (keys.isEmpty) return null;
-    final list = keys.length == 1
-        ? keys.single
-        : '${keys.sublist(0, keys.length - 1).join(', ')} and ${keys.last}';
+    final list = keys.length == 1 ? keys.single : '${keys.sublist(0, keys.length - 1).join(', ')} and ${keys.last}';
     return 'This reply mentions $list, which ${keys.length == 1 ? 'does' : 'do'} not exist. '
         'Check before relying on it.';
   }
 
   @override
-  Widget build(BuildContext context) =>
-      _ReplyNote(icon: Icons.help_outline, message: messageFor(keys) ?? '');
+  Widget build(BuildContext context) => _ReplyNote(icon: Icons.help_outline, message: messageFor(keys) ?? '');
 }
 
 /// A caution under a reply: tinted from the theme, so it reads in light and dark mode alike.
@@ -205,10 +201,7 @@ class _ReplyNote extends StatelessWidget {
             child: Icon(icon, size: 16, color: colors.onTertiaryContainer),
           ),
           Flexible(
-            child: Text(
-              message,
-              style: theme.textTheme.bodySmall?.copyWith(color: colors.onTertiaryContainer),
-            ),
+            child: Text(message, style: theme.textTheme.bodySmall?.copyWith(color: colors.onTertiaryContainer)),
           ),
         ],
       ),
@@ -241,13 +234,12 @@ class _ProposalList extends StatelessWidget {
               margin: const EdgeInsets.only(top: 4),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: action.isPending ? const Color(0xFFFFF8E6) : Colors.transparent,
+                // From the scheme, as on the web: a fixed amber card stayed pale in the dark theme.
+                color: action.isPending ? theme.colorScheme.surfaceContainerLow : Colors.transparent,
                 border: Border.all(
-                  color: action.isPending
-                      ? const Color(0xFFD9C48A)
-                      : theme.dividerColor,
+                  color: action.isPending ? theme.colorScheme.outline : theme.colorScheme.outlineVariant,
                 ),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,7 +248,7 @@ class _ProposalList extends StatelessWidget {
                   Text(
                     _label(action),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: action.isPending ? const Color(0xFF5A4A1F) : null,
+                      color: action.isPending ? theme.colorScheme.onSurface : null,
                     ),
                   ),
                   if (action.isPending)
@@ -266,14 +258,8 @@ class _ProposalList extends StatelessWidget {
                       alignment: WrapAlignment.end,
                       spacing: 4,
                       children: [
-                        TextButton(
-                          onPressed: () => onResolve(action, false),
-                          child: const Text('Discard'),
-                        ),
-                        FilledButton(
-                          onPressed: () => onResolve(action, true),
-                          child: const Text('Confirm'),
-                        ),
+                        TextButton(onPressed: () => onResolve(action, false), child: const Text('Discard')),
+                        FilledButton(onPressed: () => onResolve(action, true), child: const Text('Confirm')),
                       ],
                     ),
                 ],
@@ -285,11 +271,10 @@ class _ProposalList extends StatelessWidget {
   }
 
   static String _label(PendingAction action) => switch (action.status) {
-        'confirmed' =>
-          '${action.resultOk == false ? '✕' : '✓'} ${action.resultSummary ?? action.summary}',
-        'discarded' => '— Discarded: ${action.summary}',
-        _ => action.summary,
-      };
+    'confirmed' => '${action.resultOk == false ? '✕' : '✓'} ${action.resultSummary ?? action.summary}',
+    'discarded' => '— Discarded: ${action.summary}',
+    _ => action.summary,
+  };
 }
 
 /// The app's own record of what ran, beneath the reply. Deliberately quieter than
@@ -322,20 +307,14 @@ class _ReceiptList extends StatelessWidget {
                     action.ok ? '✓ ' : '✕ ',
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: action.ok
-                          ? const Color(0xFF3D6B45)
-                          : theme.colorScheme.error,
+                      color: action.ok ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.error,
                     ),
                   ),
                   Flexible(
                     child: Text(
-                      action.summary == null
-                          ? action.label
-                          : '${action.label}  ${action.summary}',
+                      action.summary == null ? action.label : '${action.label}  ${action.summary}',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: action.ok
-                            ? const Color(0xFF3D6B45)
-                            : theme.colorScheme.error,
+                        color: action.ok ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.error,
                       ),
                     ),
                   ),
@@ -361,8 +340,10 @@ class TypingDots extends StatefulWidget {
 }
 
 class _TypingDotsState extends State<TypingDots> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
 
   @override
   void didChangeDependencies() {
@@ -388,12 +369,7 @@ class _TypingDotsState extends State<TypingDots> with SingleTickerProviderStateM
         height: 20,
         child: AnimatedBuilder(
           animation: _controller,
-          builder: (context, _) => Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < 3; i++) _dot(i),
-            ],
-          ),
+          builder: (context, _) => Row(mainAxisSize: MainAxisSize.min, children: [for (var i = 0; i < 3; i++) _dot(i)]),
         ),
       ),
     );

@@ -44,7 +44,7 @@ void main() {
     expect(find.text('Explore options. Nothing is changed.'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'ideas for next quarter?');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pumpAndSettle();
 
     expect(api.sentModes, ['brainstorm']);
@@ -55,7 +55,7 @@ void main() {
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'Reflect'));
     await tester.enterText(find.byType(TextField), 'how did the week go?');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('New chat'));
     await tester.pumpAndSettle();

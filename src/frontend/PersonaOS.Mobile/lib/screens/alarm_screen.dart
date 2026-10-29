@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../layout.dart';
 import '../reminder_alarms.dart';
 
 /// A reminder ringing, shown the way an alarm clock is.
@@ -24,10 +25,7 @@ class AlarmScreen extends StatefulWidget {
 
 class _AlarmScreenState extends State<AlarmScreen> {
   late DateTime _now = DateTime.now();
-  late final Timer _clock = Timer.periodic(
-    const Duration(seconds: 1),
-    (_) => setState(() => _now = DateTime.now()),
-  );
+  late final Timer _clock = Timer.periodic(const Duration(seconds: 1), (_) => setState(() => _now = DateTime.now()));
 
   bool _closing = false;
 
@@ -64,20 +62,19 @@ class _AlarmScreenState extends State<AlarmScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final time =
-        '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
+    final time = '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
 
     return PopScope(
       // Back must not silently leave an alarm ringing — it has to be snoozed or dismissed.
       canPop: false,
       child: Scaffold(
-        backgroundColor: const Color(0xFF14142B),
+        backgroundColor: const Color(0xFF0E1626),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(28, 48, 28, 32),
             child: Column(
               children: [
-                const Icon(Icons.alarm, color: Color(0xFFB9B9FF), size: 40),
+                const Icon(Icons.alarm, color: Color(0xFFA9C2FF), size: 40),
                 const SizedBox(height: 18),
                 Text(
                   time,
@@ -91,22 +88,13 @@ class _AlarmScreenState extends State<AlarmScreen> {
                 const SizedBox(height: 8),
                 Text(
                   widget.alarm.title,
-                  style: const TextStyle(
-                    color: Color(0xFFB9B9FF),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(color: Color(0xFFA9C2FF), fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
                 Text(
                   widget.alarm.message,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w600,
-                    height: 1.25,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w600, height: 1.25),
                 ),
                 const Spacer(),
                 SizedBox(
@@ -115,9 +103,9 @@ class _AlarmScreenState extends State<AlarmScreen> {
                   child: FilledButton(
                     onPressed: _closing ? null : () => _close(widget.onDismiss ?? ReminderAlarms.instance.dismiss),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF5B5BD6),
+                      backgroundColor: const Color(0xFF2563EB),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-                      textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                      textStyle: const TextStyle(fontFamily: personaOsFont, fontSize: 20, fontWeight: FontWeight.w600),
                     ),
                     child: const Text('Dismiss'),
                   ),
@@ -130,9 +118,9 @@ class _AlarmScreenState extends State<AlarmScreen> {
                     onPressed: _closing ? null : () => _close(widget.onSnooze ?? ReminderAlarms.instance.snooze),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFF5B5BD6), width: 1.5),
+                      side: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                      textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                      textStyle: const TextStyle(fontFamily: personaOsFont, fontSize: 17, fontWeight: FontWeight.w600),
                     ),
                     child: Text('Snooze ${ReminderAlarms.snoozeFor.inMinutes} min'),
                   ),
