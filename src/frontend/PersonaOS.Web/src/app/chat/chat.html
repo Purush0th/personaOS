@@ -1,5 +1,6 @@
 <section class="thread">
-  <div class="messages" #scroller>
+  <!-- A log: a screen reader reads each new message, and the reply once it is complete. -->
+  <div class="messages" #scroller role="log" aria-label="Conversation" [attr.aria-busy]="streaming()">
     @for (bubble of bubbles(); track $index) {
       <div class="bubble" [class.user]="bubble.role === 'user'" [class.failed]="bubble.isError">
         @if (bubble.tool) {

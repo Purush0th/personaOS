@@ -389,6 +389,18 @@ the chat it always showing new one but the last active one can be preserved if n
       every 10 min). New About screen (info icon on home, no sign-in): app and server versions,
       server address, "Check for updates" (ignores dismissals, shows errors), the Update button
       (`UpdateInstallButton`, shared with the home notice), licences. `test/about_screen_test.dart`.
+- [x] **W1. Web Interface Guidelines pass** (2026-10-29, Vercel guidelines, whole web app). Keyboard
+      way into the planner grid (all-day cells are buttons; a "New event" button per day column
+      shows on focus, global `.slot-add` because time-grid.scss is at its 4 kB budget); focus ring
+      on the notes search and note box; notes box focuses only with a fine pointer (no keyboard
+      popping over notes on phones); chat messages are `role="log"` with `aria-busy` while
+      streaming; `theme-color` meta, kept in step with the light/dark pick by ThemeService;
+      tabular figures in reports and the burndown; board drag honours reduced motion; planner and
+      reminders write times one way (`formatTime`, no hardcoded `en-GB`); URL fields are
+      `type="url"`, no spellcheck/autocomplete; Settings asks before leaving unsaved edits
+      (`unsavedChangesGuard` + `beforeunload`); dark tertiary container overridden in styles.scss
+      (the blue palette gave pure #0000ef: update banner, board WIP note, chat notes). Kept: sentence case (Material 3), no list
+      virtualization (single-user volumes), dialog autofocus.
 - [x] **U2. Live on the prod server** (2026-10-24). Fresh install (no data moved, owner's choice) on
       Windows 11 + Docker Desktop (WSL 2) at `C:\personaos`, Ollama native on Windows
       (`host.docker.internal:11434`), profiles speech + updater with

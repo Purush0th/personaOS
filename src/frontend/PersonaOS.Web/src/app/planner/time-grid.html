@@ -15,7 +15,13 @@
     <div class="all-day-row" [style.--lanes]="barLanes()">
       <div class="gutter"></div>
       @for (col of columns(); track col.date; let i = $index) {
-        <div class="all-day" [style.grid-column]="i + 2" (click)="create.emit({ date: col.date, start: null })"></div>
+        <button
+          type="button"
+          class="all-day"
+          [style.grid-column]="i + 2"
+          [attr.aria-label]="'New all-day event on ' + col.date"
+          (click)="create.emit({ date: col.date, start: null })"
+        ></button>
       }
       @for (bar of bars(); track bar.item.id + bar.item.occurrenceDate) {
         <button
@@ -66,7 +72,16 @@
       </div>
 
       @for (col of columns(); track col.date) {
+        <!-- A click on the hours creates an event at that time; the button is the keyboard's way in. -->
         <div class="day" [class.today]="col.isToday" (click)="slotClick($event, col.date)">
+          <button
+            type="button"
+            class="slot-add"
+            [attr.aria-label]="'New event on ' + col.date"
+            (click)="$event.stopPropagation(); create.emit({ date: col.date, start: null })"
+          >
+            New event
+          </button>
           @for (h of hours; track h) {
             <div class="hour-line" [style.top.px]="h * hourPx"></div>
           }

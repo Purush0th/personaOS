@@ -64,7 +64,7 @@
           @if (selected.needsBaseUrl) {
             <mat-form-field>
               <mat-label>Base URL</mat-label>
-              <input matInput name="aiBaseUrl" [(ngModel)]="aiBaseUrl" [placeholder]="selected.baseUrlPlaceholder ?? ''" />
+              <input matInput name="aiBaseUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" [(ngModel)]="aiBaseUrl" [placeholder]="selected.baseUrlPlaceholder ?? ''" />
             </mat-form-field>
           }
 
@@ -103,7 +103,7 @@
           <h2>Preferences</h2>
           <mat-form-field>
             <mat-label>Time zone</mat-label>
-            <input matInput name="timeZone" [(ngModel)]="timeZone" />
+            <input matInput name="timeZone" [(ngModel)]="timeZone" placeholder="Asia/Kolkata" spellcheck="false" />
             <mat-hint>Used for your planner and reminder times.</mat-hint>
           </mat-form-field>
 
@@ -126,7 +126,7 @@
           </p>
           <mat-form-field>
             <mat-label>Address</mat-label>
-            <input matInput name="speechBaseUrl" [(ngModel)]="speechBaseUrl" placeholder="http://localhost:8000/v1" />
+            <input matInput name="speechBaseUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" [(ngModel)]="speechBaseUrl" placeholder="http://localhost:8000/v1" />
           </mat-form-field>
           @if (speechBaseUrl.trim()) {
             <div class="pair">

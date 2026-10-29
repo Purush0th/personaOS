@@ -10,7 +10,7 @@
         <mat-list-item>
           @if (isImage(file)) {
             <a matListItemAvatar [href]="url(file)" target="_blank" rel="noopener" class="thumb">
-              <img [src]="url(file)" [alt]="file.fileName" />
+              <img [src]="url(file)" [alt]="file.fileName" width="40" height="40" loading="lazy" decoding="async" />
             </a>
           } @else {
             <mat-icon matListItemIcon>attach_file</mat-icon>
