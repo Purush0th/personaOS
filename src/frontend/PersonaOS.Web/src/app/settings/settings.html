@@ -5,7 +5,7 @@
 @if (loading()) {
   <mat-progress-bar mode="indeterminate" />
 } @else {
-  <form (ngSubmit)="save()">
+  <form #form="ngForm" (ngSubmit)="save()">
     <mat-card appearance="outlined" class="group">
       <mat-card-header>
         <mat-card-title>Assistant</mat-card-title>
@@ -77,7 +77,7 @@
         @if (selected.needsBaseUrl) {
           <mat-form-field>
             <mat-label>Base URL</mat-label>
-            <input matInput name="baseUrl" [(ngModel)]="baseUrl" [placeholder]="selected.baseUrlPlaceholder ?? ''" />
+            <input matInput name="baseUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" [(ngModel)]="baseUrl" [placeholder]="selected.baseUrlPlaceholder ?? ''" />
           </mat-form-field>
         }
 

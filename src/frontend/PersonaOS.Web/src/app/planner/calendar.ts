@@ -535,8 +535,8 @@ export function notifyAt(day: string, start: string | null, minutes: number): Da
   return at;
 }
 
-/** "Fri 2 Oct, 10:00 am". */
+/** "Fri 2 Oct, 10am": the time written as everywhere else in the planner. */
 export function formatMoment(at: Date): string {
-  const time = at.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const time = formatTime(`${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`);
   return `${WEEKDAYS[at.getDay()].slice(0, 3)} ${at.getDate()} ${MONTHS[at.getMonth()].slice(0, 3)}, ${time}`;
 }

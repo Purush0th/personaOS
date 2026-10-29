@@ -42,7 +42,7 @@ import { SpeechService, SpeechSettings, SpeechStatus } from '../core/speech.serv
         <form (ngSubmit)="save()">
           <mat-form-field>
             <mat-label>Address</mat-label>
-            <input matInput name="baseUrl" [(ngModel)]="baseUrl" placeholder="http://localhost:8000/v1" />
+            <input matInput name="baseUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" [(ngModel)]="baseUrl" placeholder="http://localhost:8000/v1" />
             <mat-hint>Blank turns the speech service off.</mat-hint>
           </mat-form-field>
           <div class="pair">

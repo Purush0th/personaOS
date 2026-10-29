@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnInit, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnInit, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -24,7 +24,7 @@ import { NOTE_MAX_LENGTH, Note, NotesService } from '../core/notes.service';
   styleUrl: './notes.scss',
   changeDetection: ChangeDetectionStrategy.Eager,
 })
-export class Notes implements OnInit {
+export class Notes implements OnInit, AfterViewInit {
   private readonly notes = inject(NotesService);
   private readonly confirm = inject(Confirm);
   private readonly snackBar = inject(MatSnackBar);
@@ -64,6 +64,14 @@ export class Notes implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.reload();
+  }
+
+  /**
+   * The box on top takes the typing at once, as in Keep, where there is a keyboard. Not on a touch
+   * screen: there the on-screen keyboard would open over the notes.
+   */
+  ngAfterViewInit(): void {
+    if (window.matchMedia('(pointer: fine)').matches) this.draftBox().nativeElement.focus();
   }
 
   protected async reload(): Promise<void> {

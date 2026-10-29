@@ -17,6 +17,7 @@
 
   b {
     font: var(--mat-sys-body-medium);
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -73,6 +74,8 @@
 
   b {
     font: var(--mat-sys-title-medium);
+    // Figures of one width, so a number does not shift as it changes. After `font`, which resets it.
+    font-variant-numeric: tabular-nums;
   }
 
   span {

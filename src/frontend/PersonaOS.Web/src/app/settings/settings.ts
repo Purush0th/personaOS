@@ -1,5 +1,5 @@
-import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, HostListener, OnInit, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
+import { FormsModule, NgForm } from '@angular/forms';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -14,6 +14,7 @@ import { AI_PROVIDERS, aiProvider } from '../core/ai-providers';
 import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
 import { ABOUT_ME_MAX_LENGTH, SettingsService, SettingsUpdate } from '../core/settings.service';
+import { HasUnsavedChanges } from '../core/unsaved-changes.guard';
 import { Memories } from './memories';
 import { PushConfig } from './push-config';
 import { SpeechConfig } from './speech-config';
@@ -43,10 +44,12 @@ const MODULES = ['goals', 'board', 'planner', 'reminders', 'notes', 'memory', 'v
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './settings.scss',
 })
-export class Settings implements OnInit {
+export class Settings implements OnInit, HasUnsavedChanges {
   private readonly settings = inject(SettingsService);
   protected readonly branding = inject(BrandingService);
   private readonly confirm = inject(Confirm);
+
+  private readonly form = viewChild(NgForm);
 
   protected readonly modules = MODULES;
   protected readonly loading = signal(true);
@@ -129,6 +132,17 @@ export class Settings implements OnInit {
     }
   }
 
+  /** Edited and not saved: leaving asks first (see unsavedChangesGuard). */
+  hasUnsavedChanges(): boolean {
+    return !!this.form()?.dirty && !this.saving();
+  }
+
+  /** Closing or reloading the tab, which the router does not see. */
+  @HostListener('window:beforeunload', ['$event'])
+  protected warnBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges()) event.preventDefault();
+  }
+
   protected async save(): Promise<void> {
     this.saving.set(true);
 
@@ -154,6 +168,7 @@ export class Settings implements OnInit {
       }
       this.apiKey = '';
       this.hasKey.set(true);
+      this.form()?.form.markAsPristine();
       this.confirm.done(result.message);
       // Nickname and feature gating drive the header and nav, so refresh them.
       await this.branding.load();

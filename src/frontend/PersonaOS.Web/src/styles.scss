@@ -35,6 +35,10 @@
     --status-progress-fg: #85b8ff;
     --status-done-bg: #1c3329;
     --status-done-fg: #7ee2b8;
+    // The blue palette's dark tertiary container is a pure #0000ef, which glared on the update
+    // banner, the board's WIP note and chat's notes. The same muted blue as "in progress" instead.
+    --mat-sys-tertiary-container: #1c2b41;
+    --mat-sys-on-tertiary-container: #c9dcff;
   } @else {
     --work-lane: var(--mat-sys-surface-container);
     --work-item: var(--mat-sys-surface-container-lowest);
@@ -403,4 +407,29 @@ mat-icon[class*='p-'],
 app-chat {
   flex: 1 1 0;
   min-height: 0;
+}
+
+/* The planner grid's "New event" button for the keyboard: out of sight until it has keyboard
+   focus. Sticky, so focusing it does not scroll the grid back to midnight. Here, not in
+   time-grid.scss, which is at its size budget. */
+.slot-add {
+  position: sticky;
+  top: 0.25rem;
+  margin-left: 0.25rem;
+  z-index: 3;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+  font: var(--mat-sys-label-medium);
+  cursor: pointer;
+
+  &:not(:focus-visible) {
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+  }
 }

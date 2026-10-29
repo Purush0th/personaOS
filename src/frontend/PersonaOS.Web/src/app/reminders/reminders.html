@@ -33,7 +33,7 @@
           <mat-icon matListItemIcon>{{ item.status === 'pending' ? 'alarm' : 'alarm_off' }}</mat-icon>
           <span matListItemTitle>{{ item.message }}</span>
           <span matListItemLine class="muted small">
-            {{ item.dueAtLocal | date: 'EEE d MMM, HH:mm' }}
+            {{ item.dueAtLocal | date: 'EEE d MMM, h:mm a' }}
             @if (item.status !== 'pending') { · {{ item.status }} }
             @if (item.goalTitle) { · toward {{ item.goalTitle }} }
             @if (item.plannerItemTitle) { · for {{ item.plannerItemTitle }} }

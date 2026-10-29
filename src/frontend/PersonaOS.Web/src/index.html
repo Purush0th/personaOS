@@ -6,6 +6,10 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- The browser's bar in the page's colour. ThemeService sets it to the page's own surface once
+       the app runs; these cover the first paint. -->
+  <meta name="theme-color" content="#fef7ff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141218" media="(prefers-color-scheme: dark)">
   <!-- Applies a saved light/dark choice before the first paint, so a dark-mode user never sees a
        white flash while the app loads. ThemeService owns the choice after that. -->
   <script>

@@ -116,8 +116,10 @@ $gutter-narrow: 2.75rem;
 .all-day {
   grid-row: 1 / -1;
   margin-bottom: -4px;
+  border: 0;
   border-left: 1px solid var(--mat-sys-outline-variant);
-  cursor: pointer;
+  background: none;
+  cursor: pointer; // A button, so the browser's own focus ring shows it to the keyboard.
 }
 
 .scroller {
@@ -148,6 +150,7 @@ $gutter-narrow: 2.75rem;
   border-left: 1px solid var(--mat-sys-outline-variant);
   cursor: pointer;
 }
+
 
 .hour-line {
   position: absolute;

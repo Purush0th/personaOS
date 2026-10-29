@@ -66,6 +66,7 @@ interface Plot {
       grid-template-rows: 10rem auto;
       column-gap: 0.5rem;
       font: var(--mat-sys-label-small);
+      font-variant-numeric: tabular-nums;
       color: var(--mat-sys-on-surface-variant);
     }
 
