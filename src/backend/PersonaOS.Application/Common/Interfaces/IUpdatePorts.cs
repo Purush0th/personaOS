@@ -1,10 +1,12 @@
 namespace PersonaOS.Application.Common.Interfaces;
 
-/// <summary>A published release of PersonaOS.</summary>
-/// <param name="Version">The tag without its "v", e.g. "0.1.0-alpha.9".</param>
+/// <summary>A published release of PersonaOS: the server and web, or (<paramref name="IsApp"/>) the phone app.</summary>
+/// <param name="Version">The tag without its "v" or "mobile-v", e.g. "0.1.0-alpha.9".</param>
 /// <param name="AppDownloadUrl">The phone app attached to the release, when there is one.</param>
+/// <param name="IsApp">A phone app release (tag "mobile-v…"), which the server never installs.</param>
 public sealed record ReleaseInfo(
-    string Version, string Name, string NotesUrl, bool Prerelease, DateTimeOffset PublishedAt, string? AppDownloadUrl);
+    string Version, string Name, string NotesUrl, bool Prerelease, DateTimeOffset PublishedAt, string? AppDownloadUrl,
+    bool IsApp = false);
 
 /// <summary>Where releases are published (GitHub Releases).</summary>
 public interface IReleaseFeed
