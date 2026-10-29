@@ -24,6 +24,12 @@
   background: var(--mat-sys-surface-container-high);
   color: var(--mat-sys-on-surface-variant);
 
+  // The input itself has no outline; the pill shows the focus.
+  &:focus-within {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -2px;
+  }
+
   input {
     width: 12rem;
     max-width: 50vw;
@@ -62,6 +68,11 @@
     background: none;
     color: var(--mat-sys-on-surface);
     font: var(--mat-sys-body-large);
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -2px;
   }
 }
 

@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth.guard';
+import { unsavedChangesGuard } from './core/unsaved-changes.guard';
 import { FORM_FIELD_DEFAULTS } from './core/form-field-defaults';
 
 /** The pages, under one parent that gives them all the same form-field defaults. */
@@ -91,6 +92,7 @@ export const PAGE_ROUTES: Routes = [
       {
         path: 'settings',
         canActivate: [authGuard],
+        canDeactivate: [unsavedChangesGuard],
         loadComponent: () => import('./settings/settings').then(m => m.Settings),
       },
       { path: '**', redirectTo: 'chat' },

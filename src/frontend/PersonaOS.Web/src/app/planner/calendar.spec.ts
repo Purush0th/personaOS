@@ -1,7 +1,7 @@
 import { PlannerItemDto } from '../core/planner.service';
 import { describeWhen } from './event-peek';
 import {
-  customRule, daysBetween, defaultCustomRepeat, eventsByDay, formatRange, formatTime, hourLabel, layoutBars, layoutDay, leadText,
+  customRule, daysBetween, defaultCustomRepeat, eventsByDay, formatMoment, formatRange, formatTime, hourLabel, layoutBars, layoutDay, leadText,
   monthGrid, movedTo, notifyAt, parseCustom, repeatOptions, snap, startOfWeek, stepAnchor, viewRange, viewTitle,
 } from './calendar';
 
@@ -143,6 +143,11 @@ describe('calendar', () => {
       expect(notifyAt(sat, '10:00:00', 30)).toEqual(new Date(2026, 9, 3, 9, 30));
       expect(notifyAt(sat, null, 60)).toEqual(new Date(2026, 9, 2, 23, 0));
       expect(notifyAt(sat, '10:00', 1440)).toEqual(new Date(2026, 9, 2, 10, 0));
+    });
+
+    it('writes the moment as the planner writes times, whatever the browser locale', () => {
+      expect(formatMoment(new Date(2026, 9, 2, 9, 30))).toBe('Fri 2 Oct, 9:30am');
+      expect(formatMoment(new Date(2026, 9, 2, 0, 0))).toBe('Fri 2 Oct, 12am');
     });
   });
   describe('several days', () => {

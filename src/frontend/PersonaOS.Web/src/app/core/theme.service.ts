@@ -26,6 +26,17 @@ export class ThemeService {
       if (choice) root.dataset['theme'] = choice;
       else delete root.dataset['theme'];
     });
+
+    // The browser's bar follows the scheme in use, the user's pick included, which the media
+    // queries on the meta tags in index.html cannot know.
+    effect(() => {
+      this.dark();
+      const surface = getComputedStyle(document.body).backgroundColor;
+      if (!surface) return;
+      for (const meta of Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]'))) {
+        meta.content = surface;
+      }
+    });
   }
 
   toggle(): void {

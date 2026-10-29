@@ -102,7 +102,7 @@ export class EventDialog implements OnInit {
   /** Too far ahead for the server: more than four weeks. */
   protected readonly notifyTooFar = computed(() => (this.notifyMinutes() ?? 0) > MAX_NOTIFY_MINUTES);
 
-  /** "You will be notified Fri 2 Oct, 9:30 am, and when it starts", or why that cannot be. */
+  /** "You will be notified Fri 2 Oct, 9:30am, and when it starts", or why that cannot be. */
   protected readonly notifyHint = computed(() => {
     const minutes = this.notifyMinutes();
     if (!this.date()) return null;
@@ -110,7 +110,7 @@ export class EventDialog implements OnInit {
     if (minutes === null || minutes === 0) return 'You will be notified when it starts.';
     const at = formatMoment(notifyAt(this.date(), this.allDay() ? null : this.start(), minutes));
     if (this.notifyTooFar()) {
-      return `Too far ahead: ${leadText(minutes)} before would be ${at}. The most is 4 weeks (${MAX_NOTIFY_MINUTES.toLocaleString('en-GB')} minutes) before.`;
+      return `Too far ahead: ${leadText(minutes)} before would be ${at}. The most is 4 weeks (${MAX_NOTIFY_MINUTES.toLocaleString()} minutes) before.`;
     }
     const prefix = this.allDay() ? 'All-day events start at 12:00 am. ' : '';
     return `${prefix}You will be notified ${at}, and when it starts.`;
