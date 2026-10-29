@@ -75,24 +75,80 @@ String connectionFailureReason(Object error) => switch (error) {
   _ => '$error',
 };
 
-/// The one brand colour. PersonaOS's identity is fixed, so this is a constant,
-/// not a per-install setting — only the assistant's nickname and persona vary.
-const Color personaOsSeed = Color(0xFF5B5BD6);
+/// The one brand colour, the same blue as the web app. PersonaOS's identity is fixed, so this
+/// is a constant, not a per-install setting — only the assistant's nickname and persona vary.
+const Color personaOsSeed = Color(0xFF2563EB);
 
-/// Fixed PersonaOS look, in light and dark.
+/// The scheme, written out to match the web app's tokens (styles.scss) rather than left to the
+/// seed: cool neutral greys, white surfaces in light, near-black in dark, one blue accent.
+ColorScheme _personaOsScheme(Brightness brightness) {
+  final seeded = ColorScheme.fromSeed(seedColor: personaOsSeed, brightness: brightness);
+  if (brightness == Brightness.dark) {
+    return seeded.copyWith(
+      primary: const Color(0xFF7AA2FF),
+      onPrimary: const Color(0xFF0B1F5C),
+      primaryContainer: const Color(0xFF1D2B4F),
+      onPrimaryContainer: const Color(0xFFDBE5FF),
+      secondaryContainer: const Color(0xFF272A31),
+      onSecondaryContainer: const Color(0xFFEEF0F3),
+      tertiary: const Color(0xFF7AA2FF),
+      tertiaryContainer: const Color(0xFF1D2B4F),
+      onTertiaryContainer: const Color(0xFFDBE5FF),
+      surface: const Color(0xFF16181C),
+      onSurface: const Color(0xFFEEF0F3),
+      onSurfaceVariant: const Color(0xFFA2A8B3),
+      surfaceContainerLowest: const Color(0xFF0B0C0E),
+      surfaceContainerLow: const Color(0xFF1B1D22),
+      surfaceContainer: const Color(0xFF202329),
+      surfaceContainerHigh: const Color(0xFF272A31),
+      surfaceContainerHighest: const Color(0xFF2F333A),
+      outline: const Color(0xFF6C727D),
+      outlineVariant: const Color(0xFF2C3037),
+    );
+  }
+  return seeded.copyWith(
+    primary: const Color(0xFF2563EB),
+    onPrimary: Colors.white,
+    primaryContainer: const Color(0xFFE8EFFE),
+    onPrimaryContainer: const Color(0xFF1E3A8A),
+    secondaryContainer: const Color(0xFFEEF0F3),
+    onSecondaryContainer: const Color(0xFF111827),
+    tertiary: const Color(0xFF2563EB),
+    tertiaryContainer: const Color(0xFFE8EFFE),
+    onTertiaryContainer: const Color(0xFF1E3A8A),
+    surface: Colors.white,
+    onSurface: const Color(0xFF111827),
+    onSurfaceVariant: const Color(0xFF5B6270),
+    surfaceContainerLowest: Colors.white,
+    surfaceContainerLow: const Color(0xFFF6F7F9),
+    surfaceContainer: const Color(0xFFF0F1F4),
+    surfaceContainerHigh: const Color(0xFFE8EAEE),
+    surfaceContainerHighest: const Color(0xFFE1E4E9),
+    outline: const Color(0xFF8B919C),
+    outlineVariant: const Color(0xFFE4E7EC),
+  );
+}
+
+/// Fixed PersonaOS look, in light and dark, after the web app's "Sky" style.
 ///
-/// Both are built from the same seed so the two themes stay in step: colours
-/// come from the scheme rather than being written per widget, which is what
-/// keeps the dark theme from drifting into an unreadable mix as screens are
-/// added. Surfaces are tinted and borderless, and the shared shapes live here
-/// rather than being repeated at every call site.
+/// Colours come from the scheme rather than being written per widget, which is what keeps the
+/// dark theme from drifting into an unreadable mix as screens are added. Headings are semibold,
+/// corners are 12–16 dp, and the shared shapes live here rather than at every call site.
 ThemeData _personaOsTheme(Brightness brightness) {
-  final scheme = ColorScheme.fromSeed(seedColor: personaOsSeed, brightness: brightness);
+  final scheme = _personaOsScheme(brightness);
+  final base = ThemeData(colorScheme: scheme, useMaterial3: true, fontFamily: personaOsFont);
+  TextStyle? semibold(TextStyle? style) => style?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.2);
+  final text = base.textTheme;
 
-  return ThemeData(
-    colorScheme: scheme,
-    useMaterial3: true,
+  return base.copyWith(
     scaffoldBackgroundColor: scheme.surface,
+    textTheme: text.copyWith(
+      headlineLarge: semibold(text.headlineLarge),
+      headlineMedium: semibold(text.headlineMedium),
+      headlineSmall: semibold(text.headlineSmall),
+      titleLarge: semibold(text.titleLarge),
+      titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+    ),
     appBarTheme: AppBarTheme(
       backgroundColor: scheme.surface,
       foregroundColor: scheme.onSurface,
@@ -101,10 +157,11 @@ ThemeData _personaOsTheme(Brightness brightness) {
       scrolledUnderElevation: 0.5,
       centerTitle: false,
       titleTextStyle: TextStyle(
+        fontFamily: personaOsFont,
         color: scheme.onSurface,
         fontSize: 20,
         fontWeight: FontWeight.w600,
-        letterSpacing: -0.2,
+        letterSpacing: -0.3,
       ),
     ),
     cardTheme: CardThemeData(
@@ -112,19 +169,25 @@ ThemeData _personaOsTheme(Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
     listTileTheme: const ListTileThemeData(contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 6)),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: scheme.surfaceContainerHigh,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+      fillColor: scheme.surfaceContainerLow,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: scheme.outlineVariant),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: scheme.outlineVariant),
+      ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: scheme.primary, width: 1.5),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -133,14 +196,22 @@ ThemeData _personaOsTheme(Brightness brightness) {
         // confirm card) an infinite-width child cannot be laid out, and release builds simply
         // draw nothing: the Confirm button vanished, as did every dialog's primary action.
         // Screens that want a full-width button get it from their layout, not from the theme.
-        minimumSize: const Size(64, 52),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        minimumSize: const Size(64, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontFamily: personaOsFont, fontSize: 15, fontWeight: FontWeight.w600),
       ),
     ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
+    ),
+    chipTheme: ChipThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+    dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
     dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
   );
@@ -542,13 +613,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 10),
                   child: Text(
-                    'MODULES',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: scheme.primary,
-                    ),
+                    'Modules',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
                   ),
                 ),
                 // Two abreast when there is room: a tablet, or a phone on its side.
@@ -730,34 +796,21 @@ class _Hero extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [scheme.primaryContainer, scheme.secondaryContainer],
-        ),
+        borderRadius: BorderRadius.circular(20),
+        gradient: skyWash(context),
+        border: Border.all(color: scheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'PersonaOS',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-              color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
-            ),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 6),
           Text(
             '$nickname is ready',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-              color: scheme.onPrimaryContainer,
-            ),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, letterSpacing: -0.6, color: scheme.onSurface),
           ),
         ],
       ),
@@ -814,9 +867,9 @@ class _ModuleCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
         color: prominent ? scheme.primary : scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
@@ -827,7 +880,7 @@ class _ModuleCard extends StatelessWidget {
                   height: 44,
                   decoration: BoxDecoration(
                     color: prominent ? scheme.onPrimary.withValues(alpha: 0.18) : scheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, size: 22, color: prominent ? scheme.onPrimary : scheme.onPrimaryContainer),
                 ),

@@ -419,7 +419,15 @@ the chat it always showing new one but the last active one can be preserved if n
       rail with a blue New chat button (the history list lost its own), each page on a white
       rounded panel (`--shell-bg`). Chat: sky gradient, dotted mark and two-tone line when empty,
       composer is one card with the mode chips and a round send (styles in `chat/composer.scss`,
-      apart for the 4 kB budget). The phone app is not restyled yet.
+      apart for the 4 kB budget). Released as v0.1.0-alpha.14.
+- [x] **M2. "Sky" restyle of the phone app** (2026-10-29). Scheme written out to the web tokens in
+      `_personaOsScheme` (main.dart), Plus Jakarta Sans bundled in `assets/fonts` (variable weight,
+      OFL; `personaOsFont` in layout.dart — a button's own `textStyle` or a TextPainter must name it,
+      or it falls back to Roboto), semibold headings, 12–16 dp corners. Chat: `skyWash` gradient,
+      white bordered replies, blue own messages, composer card with a round arrow send, the web's
+      empty-state line. Home hero on the sky; alarm screen moved from violet to navy and blue.
+      Pending-action cards and receipts now take scheme colours (the fixed amber stayed pale in dark;
+      the receipt green failed contrast on dark).
 - [x] **U2. Live on the prod server** (2026-10-24). Fresh install (no data moved, owner's choice) on
       Windows 11 + Docker Desktop (WSL 2) at `C:\personaos`, Ollama native on Windows
       (`host.docker.internal:11434`), profiles speech + updater with

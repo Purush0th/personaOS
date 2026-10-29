@@ -366,6 +366,9 @@ class BurndownPainter extends CustomPainter {
   final Color idealColor;
   final Color gridColor;
 
+  /// Axis labels. A TextPainter does not inherit the theme's font, so it is named here.
+  TextStyle get _labelStyle => TextStyle(fontFamily: personaOsFont, color: idealColor, fontSize: 10);
+
   @override
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty) return;
@@ -386,7 +389,7 @@ class BurndownPainter extends CustomPainter {
 
     final text = TextPainter(textDirection: TextDirection.ltr);
     void label(String s, Offset at) {
-      text.text = TextSpan(text: s, style: TextStyle(color: idealColor, fontSize: 10));
+      text.text = TextSpan(text: s, style: _labelStyle);
       text.layout();
       text.paint(canvas, at);
     }
@@ -395,7 +398,7 @@ class BurndownPainter extends CustomPainter {
     label('0', Offset(0, top + height - 8));
     label('${points.first.date.day}/${points.first.date.month}', Offset(left, top + height + 4));
     final last = points.last.date;
-    text.text = TextSpan(text: '${last.day}/${last.month}', style: TextStyle(color: idealColor, fontSize: 10));
+    text.text = TextSpan(text: '${last.day}/${last.month}', style: _labelStyle);
     text.layout();
     text.paint(canvas, Offset(size.width - text.width, top + height + 4));
 

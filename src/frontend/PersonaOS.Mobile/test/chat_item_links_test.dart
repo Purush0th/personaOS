@@ -37,7 +37,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: ChatScreen(api: api, assistantNickname: 'Juno', voiceEnabled: false)));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'what about taxes?');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pumpAndSettle();
 
     // The reply starts with the key, so its first characters are the link.

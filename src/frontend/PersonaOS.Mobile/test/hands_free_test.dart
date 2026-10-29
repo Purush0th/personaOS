@@ -102,7 +102,7 @@ void main() {
     expect(voice.listenCalls, 1);
 
     await tester.enterText(find.byType(TextField), 'add a goal to learn rust');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pumpAndSettle();
 
     // The card is waiting, so the loop stopped rather than talking over it.
@@ -127,7 +127,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'add a goal');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Discard'));
@@ -147,7 +147,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'add a goal');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pumpAndSettle();
 
     // Let the "paused" snackbar clear the button it sits over.

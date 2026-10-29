@@ -23,6 +23,25 @@ abstract final class Breakpoints {
   static const double sideBySide = 840;
 }
 
+/// The typeface, bundled in assets/fonts and shared with the web app. The theme sets it for text
+/// widgets; a style that is not merged with the theme (a button's own textStyle, a TextPainter)
+/// has to name it, or it falls back to Roboto.
+const String personaOsFont = 'Plus Jakarta Sans';
+
+/// The pale sky behind the chat and the home greeting, the same wash as the web app's chat page:
+/// light blue at the top fading to the page colour, or a deep navy fade in the dark theme.
+LinearGradient skyWash(BuildContext context) {
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  return LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    stops: const [0, 0.45, 1],
+    colors: dark
+        ? const [Color(0xFF152238), Color(0xFF171C27), Color(0xFF16181C)]
+        : const [Color(0xFFD9E7FB), Color(0xFFE9F1FD), Color(0xFFF8FBFF)],
+  );
+}
+
 /// Shows a quick view: a short look at one item, with its common actions and a way to its full
 /// page. A sheet from the bottom on a phone; a dialog no wider than [maxWidth] on a wider screen.
 /// Either way it scrolls when its content is taller than most of the screen.
@@ -63,13 +82,13 @@ class ReadableWidth extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) => Align(
-          alignment: Alignment.topCenter,
-          child: SizedBox(
-            width: math.min(constraints.maxWidth, maxWidth),
-            height: constraints.hasBoundedHeight ? constraints.maxHeight : null,
-            child: child,
-          ),
-        ),
-      );
+    builder: (context, constraints) => Align(
+      alignment: Alignment.topCenter,
+      child: SizedBox(
+        width: math.min(constraints.maxWidth, maxWidth),
+        height: constraints.hasBoundedHeight ? constraints.maxHeight : null,
+        child: child,
+      ),
+    ),
+  );
 }
