@@ -59,7 +59,6 @@ Release and infrastructure:
       namespace) is fixed in U1, not yet proven by a release.
 - [ ] Upgrade test from one release to the next (keyring survival) and the `minSupportedClient`
       gate: need two published releases.
-- [ ] Move live from the dev PC to the prod server (RTX 3050 6 GB, 8 GB RAM, 192.168.2.10): U2.
 - [ ] Rename: "PersonaOS" is taken; candidate names checked 2026-10-03, nothing decided.
 - [ ] Live Anthropic smoke test (chat with tool calls): blocked on a real API key.
 
@@ -384,6 +383,12 @@ the chat it always showing new one but the last active one can be preserved if n
 - [x] **P3. Whisper wrote Chinese** (2026-10-24): the phone sent no language, so whisper guessed
       per recording and picked Chinese on short clips. The phone now sends its own language
       (`PlatformDispatcher.instance.locale.languageCode`) with each recording.
+- [x] **P4. Phone update fixes + About screen** (2026-10-29). The phone never offered alpha.11:
+      dismissing the server's notice of a release also hid the app's update to it (dismissals are
+      now kept apart), and the notice was worked out only at launch (now again on resume, at most
+      every 10 min). New About screen (info icon on home, no sign-in): app and server versions,
+      server address, "Check for updates" (ignores dismissals, shows errors), the Update button
+      (`UpdateInstallButton`, shared with the home notice), licences. `test/about_screen_test.dart`.
 - [x] **U2. Live on the prod server** (2026-10-24). Fresh install (no data moved, owner's choice) on
       Windows 11 + Docker Desktop (WSL 2) at `C:\personaos`, Ollama native on Windows
       (`host.docker.internal:11434`), profiles speech + updater with
@@ -392,11 +397,6 @@ the chat it always showing new one but the last active one can be preserved if n
       updater replaced itself) — the updater works through Docker Desktop. Push verified with a
       planner event. The phone needed one uninstall for the new signing key. alpha.10's release
       attached ".env.example" as "Default.env.example" (GitHub renames dot-files): now `env.example`.
-- [ ] (was U2) Move live to the prod server (`192.168.2.10`). Needs: a release published with U1;
-      the owner's prerequisites (Ubuntu, NVIDIA driver, Docker, NVIDIA Container Toolkit); the
-      live data packed on the dev PC (Docker there is stopped by the owner; last copy is
-      `data/backups/pre-f1f2-2026-10-15`); after import, Settings → AI provider address
-      `http://ollama:11434/v1` and speech `http://whisper:8000/v1`; phones to the new address.
 - [x] **F1d. Chat opens the latest conversation** (web and phone). The phone opens the most recently
       used conversation (on any device) when the chat opens; "New chat" and History work as before.
       Web: plain `/chat` goes to the latest; "New chat" links to `/chat?new=1` (also used after
