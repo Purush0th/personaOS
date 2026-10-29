@@ -500,72 +500,88 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
         ],
       ),
-      body: ReadableWidth(
-        maxWidth: 960,
-        child: Column(
-          children: [
-            if (_handsFree) _HandsFreeBanner(listening: _listening, speaking: _speaking),
-            Expanded(
-              child: _loadingHistory
-                  ? const Center(child: CircularProgressIndicator())
-                  : _bubbles.isEmpty
-                  ? _EmptyChat(nickname: widget.assistantNickname)
-                  : ListView.builder(
-                      controller: _scroll,
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _bubbles.length,
-                      itemBuilder: (context, i) =>
-                          _BubbleView(bubble: _bubbles[i], onResolve: _resolveAction, onOpenItem: _openItem),
-                    ),
-            ),
-            _ModeSwitch(mode: _mode, onChanged: _streaming ? null : (mode) => setState(() => _mode = mode)),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _input,
-                        minLines: 1,
-                        maxLines: 4,
-                        textInputAction: TextInputAction.send,
-                        decoration: InputDecoration(
-                          hintText: 'Message ${widget.assistantNickname}…',
-                          border: const OutlineInputBorder(),
-                          isDense: true,
+      // The conversation sits on the same pale sky as the web app's chat page.
+      body: DecoratedBox(
+        decoration: BoxDecoration(gradient: skyWash(context)),
+        child: ReadableWidth(
+          maxWidth: 960,
+          child: Column(
+            children: [
+              if (_handsFree) _HandsFreeBanner(listening: _listening, speaking: _speaking),
+              Expanded(
+                child: _loadingHistory
+                    ? const Center(child: CircularProgressIndicator())
+                    : _bubbles.isEmpty
+                    ? _EmptyChat(nickname: widget.assistantNickname)
+                    : ListView.builder(
+                        controller: _scroll,
+                        padding: const EdgeInsets.all(12),
+                        itemCount: _bubbles.length,
+                        itemBuilder: (context, i) =>
+                            _BubbleView(bubble: _bubbles[i], onResolve: _resolveAction, onOpenItem: _openItem),
+                      ),
+              ),
+              _ModeSwitch(mode: _mode, onChanged: _streaming ? null : (mode) => setState(() => _mode = mode)),
+              // One card holds the message, the voice buttons and send, as one thing to type into.
+              SafeArea(
+                top: false,
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                  padding: const EdgeInsets.fromLTRB(4, 4, 6, 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _input,
+                          minLines: 1,
+                          maxLines: 4,
+                          textInputAction: TextInputAction.send,
+                          decoration: InputDecoration(
+                            hintText: 'Message ${widget.assistantNickname}…',
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            isDense: true,
+                          ),
+                          onSubmitted: (_) => _send(),
                         ),
-                        onSubmitted: (_) => _send(),
                       ),
-                    ),
-                    if (widget.voiceEnabled) ...[
+                      if (widget.voiceEnabled) ...[
+                        const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: _listening ? 'Stop' : 'Speak once',
+                          onPressed: _streaming || _handsFree ? null : _toggleMic,
+                          color: _listening ? Theme.of(context).colorScheme.error : null,
+                          icon: Icon(_listening ? Icons.mic : Icons.mic_none),
+                        ),
+                        IconButton(
+                          tooltip: _handsFree ? 'End hands-free' : 'Hands-free',
+                          onPressed: _toggleHandsFree,
+                          color: _handsFree ? Theme.of(context).colorScheme.primary : null,
+                          icon: Icon(_handsFree ? Icons.record_voice_over : Icons.graphic_eq),
+                        ),
+                      ],
                       const SizedBox(width: 4),
-                      IconButton(
-                        tooltip: _listening ? 'Stop' : 'Speak once',
-                        onPressed: _streaming || _handsFree ? null : _toggleMic,
-                        color: _listening ? Theme.of(context).colorScheme.error : null,
-                        icon: Icon(_listening ? Icons.mic : Icons.mic_none),
-                      ),
-                      IconButton(
-                        tooltip: _handsFree ? 'End hands-free' : 'Hands-free',
-                        onPressed: _toggleHandsFree,
-                        color: _handsFree ? Theme.of(context).colorScheme.primary : null,
-                        icon: Icon(_handsFree ? Icons.record_voice_over : Icons.graphic_eq),
+                      IconButton.filled(
+                        tooltip: 'Send',
+                        onPressed: _streaming ? null : _send,
+                        icon: _streaming
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.arrow_upward),
                       ),
                     ],
-                    const SizedBox(width: 8),
-                    IconButton.filled(
-                      onPressed: _streaming ? null : _send,
-                      icon: _streaming
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.send),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -663,9 +679,10 @@ class _EmptyChat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Scrolls rather than overflowing when a phone on its side leaves little height above the composer.
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -676,12 +693,17 @@ class _EmptyChat extends StatelessWidget {
               child: const Icon(Icons.auto_awesome, size: 30),
             ),
             const SizedBox(height: 16),
-            Text('Say hello to $nickname', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            Text(
-              'Ask a question, or start hands-free and just talk.',
+            // The same opening line as the web app's empty chat.
+            const Text(
+              "What's on your mind?",
               textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -0.4),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$nickname will handle the rest.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: scheme.onSurfaceVariant),
             ),
           ],
         ),

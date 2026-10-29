@@ -69,6 +69,6 @@ void main() {
     await _open(tester, api);
 
     expect(api.opened, isEmpty);
-    expect(find.text('Say hello to Juno'), findsOneWidget);
+    expect(find.text("What's on your mind?"), findsOneWidget);
   });
 }
