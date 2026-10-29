@@ -154,6 +154,9 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          # A tag with a SemVer prerelease part (v0.1.0-alpha.12) is a prerelease on GitHub, so it is
+          # not shown as "Latest". The updates in the server and phone read the version, not this flag.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             dist/docker-compose.yml
             dist/env.example
