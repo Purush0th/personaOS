@@ -24,6 +24,18 @@
           }
         </div>
 
+        <!-- Starting a conversation is the main thing the app is for, so it heads the rail. -->
+        <a
+          mat-flat-button
+          class="new-chat"
+          routerLink="/chat"
+          [queryParams]="{ new: 1 }"
+          (click)="closeOnHandset(drawer)"
+        >
+          <mat-icon>add</mat-icon>
+          New chat
+        </a>
+
         <mat-nav-list class="pages">
           @for (item of navItems(); track item.path) {
             <a
@@ -67,20 +79,6 @@
 
           @if (historyOpen()) {
             <div class="history" role="group" aria-label="Chat history">
-              <a
-                mat-list-item
-                class="thread"
-                routerLink="/chat"
-                [queryParams]="{ new: 1 }"
-                routerLinkActive
-                [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', fragment: 'ignored', matrixParams: 'ignored' }"
-                #fresh="routerLinkActive"
-                [activated]="fresh.isActive"
-                (click)="closeOnHandset(drawer)"
-              >
-                <mat-icon matListItemIcon>add</mat-icon>
-                <span matListItemTitle>New chat</span>
-              </a>
               @for (conversation of conversations.conversations(); track conversation.id) {
                 <a
                   mat-list-item

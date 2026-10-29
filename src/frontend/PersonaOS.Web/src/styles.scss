@@ -17,33 +17,85 @@
 
   @include mat.theme((
     color: (
-      primary: mat.$violet-palette,
+      primary: mat.$blue-palette,
       tertiary: mat.$blue-palette,
       theme-type: $type,
     ),
   ));
 
+  /* "Sky" (2026-10-29 restyle, after the Techo AI shot the owner picked): cool neutral greys, a
+     grey shell around one white working panel, and one clear blue for links, focus, the main
+     action and the assistant. Material's generated roles are tinted by the palette's hue; these
+     set the ones the app shows to plain neutrals. */
+  @if $type == dark {
+    --shell-bg: #0e0f11;
+    --chat-sky: linear-gradient(180deg, #152238 0%, #171c27 45%, #16181c 100%);
+    --mat-sys-surface: #16181c;
+    --mat-sys-background: #16181c;
+    --mat-sys-surface-container-lowest: #0b0c0e;
+    --mat-sys-surface-container-low: #1b1d22;
+    --mat-sys-surface-container: #202329;
+    --mat-sys-surface-container-high: #272a31;
+    --mat-sys-surface-container-highest: #2f333a;
+    --mat-sys-surface-variant: #2f333a;
+    --mat-sys-on-surface: #eef0f3;
+    --mat-sys-on-background: #eef0f3;
+    --mat-sys-on-surface-variant: #a2a8b3;
+    --mat-sys-outline: #6c727d;
+    --mat-sys-outline-variant: #2c3037;
+    --mat-sys-primary: #7aa2ff;
+    --mat-sys-on-primary: #0b1f5c;
+    --mat-sys-primary-container: #1d2b4f;
+    --mat-sys-on-primary-container: #dbe5ff;
+    --mat-sys-secondary-container: #272a31;
+    --mat-sys-on-secondary-container: #eef0f3;
+    --mat-sys-tertiary: #7aa2ff;
+    --mat-sys-tertiary-container: #1d2b4f;
+    --mat-sys-on-tertiary-container: #dbe5ff;
+  } @else {
+    --shell-bg: #f3f4f6;
+    --chat-sky: linear-gradient(180deg, #d9e7fb 0%, #e9f1fd 45%, #f8fbff 100%);
+    --mat-sys-surface: #ffffff;
+    --mat-sys-background: #ffffff;
+    --mat-sys-surface-container-lowest: #ffffff;
+    --mat-sys-surface-container-low: #f6f7f9;
+    --mat-sys-surface-container: #f0f1f4;
+    --mat-sys-surface-container-high: #e8eaee;
+    --mat-sys-surface-container-highest: #e1e4e9;
+    --mat-sys-surface-variant: #e8eaee;
+    --mat-sys-on-surface: #111827;
+    --mat-sys-on-background: #111827;
+    --mat-sys-on-surface-variant: #5b6270;
+    --mat-sys-outline: #8b919c;
+    --mat-sys-outline-variant: #e4e7ec;
+    --mat-sys-primary: #2563eb;
+    --mat-sys-on-primary: #ffffff;
+    --mat-sys-primary-container: #e8effe;
+    --mat-sys-on-primary-container: #1e3a8a;
+    --mat-sys-secondary-container: #eef0f3;
+    --mat-sys-on-secondary-container: #111827;
+    --mat-sys-tertiary: #2563eb;
+    --mat-sys-tertiary-container: #e8effe;
+    --mat-sys-on-tertiary-container: #1e3a8a;
+  }
+
   /* Work surfaces for the board and backlog, after Jira: a lane set off from the page, and items
-     raised on it by a soft shadow instead of an outline. The lane is darker than the page in the
-     dark scheme and greyer in the light one, which no single Material role gives in both. */
+     on it with a hairline edge. The lane is darker than the page in the dark scheme and greyer in
+     the light one, which no single Material role gives in both. */
   @if $type == dark {
     --work-lane: var(--mat-sys-surface-container-lowest);
     --work-item: var(--mat-sys-surface-container-high);
     --work-item-hover: var(--mat-sys-surface-container-highest);
-    --work-item-shadow: 0 0 0 1px rgb(255 255 255 / 5%), 0 1px 2px rgb(0 0 0 / 50%);
+    --work-item-shadow: 0 0 0 1px rgb(255 255 255 / 6%);
     --status-progress-bg: #1c2b41;
     --status-progress-fg: #85b8ff;
     --status-done-bg: #1c3329;
     --status-done-fg: #7ee2b8;
-    // The blue palette's dark tertiary container is a pure #0000ef, which glared on the update
-    // banner, the board's WIP note and chat's notes. The same muted blue as "in progress" instead.
-    --mat-sys-tertiary-container: #1c2b41;
-    --mat-sys-on-tertiary-container: #c9dcff;
   } @else {
     --work-lane: var(--mat-sys-surface-container);
     --work-item: var(--mat-sys-surface-container-lowest);
     --work-item-hover: var(--mat-sys-surface-container-low);
-    --work-item-shadow: 0 0 0 1px rgb(0 0 0 / 6%), 0 1px 2px rgb(0 0 0 / 16%);
+    --work-item-shadow: 0 0 0 1px rgb(15 20 30 / 9%);
     --status-progress-bg: #e9f2ff;
     --status-progress-fg: #0055cc;
     --status-done-bg: #dcfff1;
@@ -53,10 +105,36 @@
 
 html {
   @include mat.theme((
-    typography: Roboto,
+    typography: 'Plus Jakarta Sans',
     density: 0,
   ));
   @include colors(light);
+
+  /* Page and section headings in semibold, as in the Techo shot; Material sets them in regular.
+     The shorthands are written out because Material bakes the weight into them. */
+  --mat-sys-headline-large: 600 2rem / 2.5rem 'Plus Jakarta Sans';
+  --mat-sys-headline-medium: 600 1.75rem / 2.25rem 'Plus Jakarta Sans';
+  --mat-sys-headline-small: 600 1.5rem / 2rem 'Plus Jakarta Sans';
+  --mat-sys-title-large: 600 1.375rem / 1.75rem 'Plus Jakarta Sans';
+
+  /* Soft corners: tight on controls, rounder on panels; only avatars and the send button are
+     round. */
+  --mat-sys-corner-extra-small: 6px;
+  --mat-sys-corner-small: 8px;
+  --mat-sys-corner-medium: 12px;
+  --mat-sys-corner-large: 16px;
+  --mat-sys-corner-extra-large: 20px;
+  --mat-button-filled-container-shape: 10px;
+  --mat-button-outlined-container-shape: 10px;
+  --mat-button-text-container-shape: 10px;
+  --mat-button-tonal-container-shape: 10px;
+  --mat-button-protected-container-shape: 10px;
+  --mat-fab-container-shape: 12px;
+  --mat-fab-small-container-shape: 12px;
+
+  /* Nothing at rest casts a shadow: surfaces are told apart by a step in tone. Menus and dialogs,
+     which float, keep theirs (level 2 and up). */
+  --mat-sys-level1: none;
 
   /* One field size everywhere: 40px, the height of a Material button, with 14px text. Material's
      default 56px field is sized for a form on its own; in this app fields sit in rows beside
@@ -70,7 +148,10 @@ html {
     outlined-label-text-size: var(--mat-sys-body-medium-size),
   ));
   /* A card's subtitle explains the card; Material's default sets it as a second, bold title. */
+  /* An outlined card is a grey panel on the white page, not a box drawn in a line. */
   @include mat.card-overrides((
+    outlined-container-color: var(--mat-sys-surface-container-low),
+    outlined-outline-width: 0,
     title-text-font: var(--mat-sys-title-medium-font),
     title-text-size: var(--mat-sys-title-medium-size),
     title-text-weight: var(--mat-sys-title-medium-weight),
@@ -109,9 +190,14 @@ body {
   font: var(--mat-sys-body-medium);
 }
 
+::selection {
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
 /* Material Symbols, used by every mat-icon in the app. */
 .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
 }
 
 /* A goal's colour chip, used on board cards, backlog rows, planner items and task pages. The

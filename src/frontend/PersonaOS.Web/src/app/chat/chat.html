@@ -82,45 +82,61 @@
         }
       </div>
     } @empty {
-      <p class="muted empty">
-        Say hello to {{ branding.branding()?.assistantNickname ?? 'your assistant' }}.
-      </p>
+      <!-- A fresh conversation opens on the assistant's mark and one line of what it is for. -->
+      <div class="hero">
+        <svg class="orb" viewBox="0 0 80 80" aria-hidden="true">
+          @for (dot of orbDots; track $index) {
+            <circle [attr.cx]="dot.x" [attr.cy]="dot.y" [attr.r]="dot.r" [attr.opacity]="dot.o" />
+          }
+        </svg>
+        <h1>
+          What's on your mind?
+          <span>{{ branding.branding()?.assistantNickname ?? 'Your assistant' }} will handle the rest.</span>
+        </h1>
+      </div>
     }
   </div>
 
-  <div class="modes">
-    <mat-chip-listbox
-      aria-label="Mode"
-      [value]="mode()"
-      (change)="pickMode($event.value)"
-      [disabled]="streaming()"
-    >
-      @for (m of modes; track m.id) {
-        <mat-chip-option [value]="m.id" [selectable]="mode() !== m.id">{{ m.label }}</mat-chip-option>
-      }
-    </mat-chip-listbox>
-    <span class="muted small hint">{{ modeHint() }}</span>
-  </div>
-
+  <!-- One card holds the message, the mode and the send button, as one thing to type into. -->
   <form class="composer" (ngSubmit)="send()">
-    <mat-form-field class="grow">
-      <mat-label>Message {{ branding.branding()?.assistantNickname ?? 'your assistant' }}</mat-label>
-      <textarea
-        matInput
-        name="draft"
-        [(ngModel)]="draft"
-        (keydown)="onKeydown($event)"
-        rows="2"
-      ></textarea>
-      <mat-hint class="small">Enter sends · Shift+Enter for a new line</mat-hint>
-    </mat-form-field>
-    <!-- While a reply streams the button spins; a still hourglass looked like nothing was happening. -->
-    <button mat-fab [attr.aria-label]="streaming() ? 'Waiting for the reply' : 'Send'" type="submit" [disabled]="streaming() || !draft.trim()">
-      @if (streaming()) {
-        <mat-progress-spinner mode="indeterminate" diameter="22" strokeWidth="3" />
-      } @else {
-        <mat-icon>send</mat-icon>
-      }
-    </button>
+    <textarea
+      name="draft"
+      [(ngModel)]="draft"
+      (keydown)="onKeydown($event)"
+      rows="2"
+      [attr.aria-label]="'Message ' + (branding.branding()?.assistantNickname ?? 'your assistant')"
+      [placeholder]="'Ask ' + (branding.branding()?.assistantNickname ?? 'your assistant') + ' to get something done…'"
+      aria-describedby="composer-keys"
+    ></textarea>
+    <div class="tools">
+      <mat-chip-listbox
+        aria-label="Mode"
+        [value]="mode()"
+        (change)="pickMode($event.value)"
+        [disabled]="streaming()"
+      >
+        @for (m of modes; track m.id) {
+          <mat-chip-option [value]="m.id" [selectable]="mode() !== m.id">{{ m.label }}</mat-chip-option>
+        }
+      </mat-chip-listbox>
+      <!-- While a reply streams the button spins; a still hourglass looked like nothing was happening. -->
+      <button
+        mat-icon-button
+        class="send"
+        type="submit"
+        [attr.aria-label]="streaming() ? 'Waiting for the reply' : 'Send'"
+        [disabled]="streaming() || !draft.trim()"
+      >
+        @if (streaming()) {
+          <mat-progress-spinner mode="indeterminate" diameter="20" strokeWidth="3" />
+        } @else {
+          <mat-icon>arrow_upward</mat-icon>
+        }
+      </button>
+    </div>
   </form>
+  <p class="under muted small">
+    <span>{{ modeHint() }}</span>
+    <span id="composer-keys">Enter sends · Shift+Enter for a new line</span>
+  </p>
 </section>

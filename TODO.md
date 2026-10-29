@@ -412,6 +412,14 @@ the chat it always showing new one but the last active one can be preserved if n
       (`unsavedChangesGuard` + `beforeunload`); dark tertiary container overridden in styles.scss
       (the blue palette gave pure #0000ef: update banner, board WIP note, chat notes). Kept: sentence case (Material 3), no list
       virtualization (single-user volumes), dialog autofocus.
+- [x] **W2. "Sky" restyle of the web app** (2026-10-29, owner picked the Techo AI Dribbble shot after
+      trying editorial, Swiss, violet and black-and-gold). Tokens in styles.scss: cool greys, one
+      blue `#2563eb`, Plus Jakarta Sans (matched to the shot by eye), semibold headings (Material
+      bakes weight into its type shorthands, so they are rewritten), softer corners. Shell: grey
+      rail with a blue New chat button (the history list lost its own), each page on a white
+      rounded panel (`--shell-bg`). Chat: sky gradient, dotted mark and two-tone line when empty,
+      composer is one card with the mode chips and a round send (styles in `chat/composer.scss`,
+      apart for the 4 kB budget). The phone app is not restyled yet.
 - [x] **U2. Live on the prod server** (2026-10-24). Fresh install (no data moved, owner's choice) on
       Windows 11 + Docker Desktop (WSL 2) at `C:\personaos`, Ollama native on Windows
       (`host.docker.internal:11434`), profiles speech + updater with
