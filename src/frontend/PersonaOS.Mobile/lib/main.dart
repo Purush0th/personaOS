@@ -11,6 +11,7 @@ import 'layout.dart';
 import 'planner_calendar.dart';
 import 'push_service.dart';
 import 'reminder_alarms.dart';
+import 'screens/about_screen.dart';
 import 'screens/alarm_screen.dart';
 import 'screens/board_screen.dart';
 import 'screens/chat_screen.dart';
@@ -376,7 +377,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// web while the phone was idle is set even if its push has not arrived yet.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(PushService.instance.resyncAlarms(_api));
+    if (state == AppLifecycleState.resumed) {
+      unawaited(PushService.instance.resyncAlarms(_api));
+      unawaited(_recheckUpdate());
+    }
+  }
+
+  /// When the update notice was last worked out; GitHub allows 60 unsigned requests an hour.
+  DateTime? _updateCheckedAt;
+
+  /// Works the update notice out again on coming back to the app. The server updates itself, so a
+  /// notice about it goes stale; once it is current, the notice becomes the app's own, with its
+  /// Update button (owner, 2026-10-29: the phone kept the server's notice and never offered one).
+  Future<void> _recheckUpdate() async {
+    final last = _updateCheckedAt;
+    if (last != null && DateTime.now().difference(last) < const Duration(minutes: 10)) return;
+    try {
+      final response = await http
+          .get(Uri.parse('${widget.serverUrl}/api/branding'))
+          .timeout(const Duration(seconds: 8));
+      await _checkUpdate(Branding.fromJson(jsonDecode(response.body) as Map<String, dynamic>));
+    } catch (_) {
+      // Offline or the server is restarting: the notice stays as it was.
+    }
+  }
+
+  Future<void> _checkUpdate(Branding branding) async {
+    _updateCheckedAt = DateTime.now();
+    final update = await checkForUpdate(currentVersion: branding.apiVersion, repository: branding.repository);
+    if (mounted) setState(() => _update = update);
   }
 
   /// Opens [builder]'s screen, first routing through login when needed.
@@ -405,11 +434,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final response = await http.get(Uri.parse('${widget.serverUrl}/api/branding')).timeout(const Duration(seconds: 8));
     final branding = Branding.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
     _nickname = branding.assistantNickname;
-    unawaited(
-      checkForUpdate(currentVersion: branding.apiVersion, repository: branding.repository).then((update) {
-        if (mounted && update != null) setState(() => _update = update);
-      }),
-    );
+    unawaited(_checkUpdate(branding));
     return branding;
   }
 
@@ -433,7 +458,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Scaffold(
       appBar: AppBar(
         title: const Text('PersonaOS'),
-        actions: [IconButton(icon: const Icon(Icons.link_off), tooltip: 'Change server', onPressed: _forgetServer)],
+        actions: [
+          IconButton(
+            key: const Key('open-about'),
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'About and updates',
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => AboutScreen(serverUrl: widget.serverUrl))),
+          ),
+          IconButton(icon: const Icon(Icons.link_off), tooltip: 'Change server', onPressed: _forgetServer),
+        ],
       ),
       body: FutureBuilder<Branding>(
         future: _branding,

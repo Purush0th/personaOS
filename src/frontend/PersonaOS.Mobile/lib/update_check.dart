@@ -26,7 +26,9 @@ class AvailableUpdate {
   final String? appDownloadUrl;
 }
 
-const _dismissedKey = 'updates.dismissed';
+/// Dismissed versions, apart for the server and the app: dismissing the server's notice of a
+/// release hid the app's own update to that release too (owner, 2026-10-29).
+String _dismissedKey(bool forApp) => forApp ? 'updates.dismissed.app' : 'updates.dismissed';
 
 /// The update to tell the user about, if any. The server comes first: with "Install updates
 /// automatically" it catches up by itself, and otherwise it is updated from Settings → Updates on
@@ -42,34 +44,49 @@ Future<AvailableUpdate?> checkForUpdate({
 }) async {
   if (currentVersion == null || repository == null) return null;
   try {
-    final get = client?.get ?? http.get;
-    final response = await get(
-      Uri.parse('https://api.github.com/repos/$repository/releases?per_page=20'),
-      headers: const {'Accept': 'application/vnd.github+json'},
-    ).timeout(const Duration(seconds: 8));
-    if (response.statusCode != 200) return null;
-    final releases = (jsonDecode(response.body) as List<dynamic>).cast<Map<String, dynamic>>();
-
-    AvailableUpdate? found;
-    final forServer = _newest(releases, followPrereleases: isPrerelease(currentVersion));
-    if (forServer != null && isNewer(_version(forServer), currentVersion)) {
-      found = _update(forServer, repository);
-    } else if (app != '0.0.0-dev') {
-      final forApp = _newest(releases, followPrereleases: isPrerelease(app), withApp: true);
-      if (forApp != null && isNewer(_version(forApp), app)) found = _update(forApp, repository, forApp: true);
-    }
-    if (found == null) return null;
+    final found = await findUpdates(currentVersion: currentVersion, repository: repository, app: app, client: client);
+    final first = found.server ?? found.app;
+    if (first == null) return null;
 
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_dismissedKey) == found.version ? null : found;
+    return prefs.getString(_dismissedKey(first.forApp)) == first.version ? null : first;
   } catch (_) {
     return null;
   }
 }
 
+/// The newest release for the server and for this app, each null when it is current. For About's
+/// "Check for updates": dismissed versions are offered again, and failures are thrown, not hidden.
+Future<({AvailableUpdate? server, AvailableUpdate? app})> findUpdates({
+  required String? currentVersion,
+  required String repository,
+  String app = appVersion,
+  http.Client? client,
+}) async {
+  final get = client?.get ?? http.get;
+  final response = await get(
+    Uri.parse('https://api.github.com/repos/$repository/releases?per_page=20'),
+    headers: const {'Accept': 'application/vnd.github+json'},
+  ).timeout(const Duration(seconds: 8));
+  if (response.statusCode != 200) throw http.ClientException('GitHub answered ${response.statusCode}.');
+  final releases = (jsonDecode(response.body) as List<dynamic>).cast<Map<String, dynamic>>();
+
+  AvailableUpdate? server;
+  if (currentVersion != null) {
+    final newest = _newest(releases, followPrereleases: isPrerelease(currentVersion));
+    if (newest != null && isNewer(_version(newest), currentVersion)) server = _update(newest, repository);
+  }
+  AvailableUpdate? forApp;
+  if (app != '0.0.0-dev') {
+    final newest = _newest(releases, followPrereleases: isPrerelease(app), withApp: true);
+    if (newest != null && isNewer(_version(newest), app)) forApp = _update(newest, repository, forApp: true);
+  }
+  return (server: server, app: forApp);
+}
+
 Future<void> dismissUpdate(AvailableUpdate update) async {
   final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_dismissedKey, update.version);
+  await prefs.setString(_dismissedKey(update.forApp), update.version);
 }
 
 String _version(Map<String, dynamic> release) => (release['tag_name'] as String? ?? '').replaceFirst(RegExp('^v'), '');
