@@ -24,17 +24,14 @@
   flex-direction: column;
   gap: 0.6rem;
   padding: 0.25rem 0.5rem 1rem 0;
-
-  .empty {
-    margin: auto;
-  }
 }
 
 .bubble {
   max-width: 44rem;
   padding: 0.7rem 0.9rem;
   border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-surface-container);
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
   color: var(--mat-sys-on-surface);
   overflow-wrap: anywhere;
 
@@ -116,6 +113,8 @@
 
   &.user {
     align-self: flex-end;
+    border-color: transparent;
+    border-bottom-right-radius: var(--mat-sys-corner-extra-small);
     background: var(--mat-sys-primary);
     color: var(--mat-sys-on-primary);
   }
@@ -261,34 +260,5 @@
 
   .what {
     font-weight: 500;
-  }
-}
-
-.composer {
-  display: flex;
-  gap: 0.6rem;
-  align-items: flex-start;
-  padding-top: 0.5rem;
-
-  .grow {
-    flex: 1;
-  }
-}
-
-// The mode switch sits just above the composer: small chips that wrap on a phone, with a line
-// under them saying what the chosen mode does.
-.modes {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 0.75rem;
-  padding-top: 0.5rem;
-
-  mat-chip-listbox {
-    --mat-chip-container-height: 28px;
-  }
-
-  .hint {
-    flex: 1 1 12rem;
   }
 }

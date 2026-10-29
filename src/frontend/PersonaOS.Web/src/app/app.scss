@@ -3,14 +3,44 @@
   height: 100%;
 }
 
+// The rail sits on a grey shell and the page on one white panel inset from it, so the work reads
+// as a sheet laid on the desk rather than a column ruled off by a line.
 .shell {
-  height: 100vh;
+  height: 100dvh;
+  background: var(--shell-bg);
+}
+
+mat-sidenav-content {
+  background: var(--mat-sys-surface);
+
+  // The chat page sits on a soft sky, the one page with a picture of its own.
+  &:has(app-chat) {
+    background: var(--chat-sky);
+  }
+
+  @media (min-width: 721px) {
+    // Material sets margin-left inline beside an open rail; this is the gap with none (sign-in).
+    margin: 0.5rem;
+    height: calc(100% - 1rem);
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: var(--mat-sys-corner-large);
+  }
 }
 
 .nav {
   width: 17rem;
-  border-right: 1px solid var(--mat-sys-outline-variant);
-  background: var(--mat-sys-surface-container-low);
+  border-right: none;
+  background: var(--shell-bg);
+
+  // Compact rows with a white pill for the page you are on, as on the panel itself.
+  --mat-list-active-indicator-color: var(--mat-sys-surface);
+  --mat-list-active-indicator-shape: var(--mat-sys-corner-small);
+  --mat-list-list-item-one-line-container-height: 40px;
+
+  .mat-mdc-list-item {
+    width: auto;
+    margin-inline: 0.5rem;
+  }
 
   // mat-sidenav wraps its content in a scrolling container; this column fills it so the footer
   // can sit at the bottom instead of straight under the last page.
@@ -28,8 +58,14 @@
 
     .product {
       font: var(--mat-sys-title-medium);
-      letter-spacing: 0.02em;
+      font-weight: 600;
+      letter-spacing: -0.01em;
     }
+  }
+
+  .new-chat {
+    margin: 0.25rem 0.75rem 0.5rem;
+    flex: none;
   }
 
   .pages {
@@ -88,8 +124,11 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.5rem;
-    border-top: 1px solid var(--mat-sys-outline-variant);
+    margin: 0.5rem;
+    padding: 0.25rem;
+    border-radius: var(--mat-sys-corner-medium);
+    background: var(--mat-sys-surface);
+    border: 1px solid var(--mat-sys-outline-variant);
   }
 
   .account {
