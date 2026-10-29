@@ -312,7 +312,10 @@ void main() {
 
     test("dismissing the server's notice of a release does not hide the app's update to it", () async {
       // Owner, 2026-10-29: the phone never offered alpha.11 after its server notice was dismissed.
-      final release = [tagged('v0.1.0-alpha.11', prerelease: true, apk: true)];
+      final release = [
+        tagged('v0.1.0-alpha.11', prerelease: true),
+        tagged('mobile-v0.1.0-alpha.11', prerelease: true, apk: true),
+      ];
       final serverBehind = await checkForUpdate(
         currentVersion: '0.1.0-alpha.10',
         repository: 'o/r',
@@ -334,7 +337,13 @@ void main() {
 
     test('with the server up to date, a newer app is offered for download', () async {
       final client = MockClient(
-        (_) async => http.Response(jsonEncode([tagged('v0.1.0-alpha.10', prerelease: true, apk: true)]), 200),
+        (_) async => http.Response(
+          jsonEncode([
+            tagged('v0.1.0-alpha.10', prerelease: true),
+            tagged('mobile-v0.1.0-alpha.10', prerelease: true, apk: true),
+          ]),
+          200,
+        ),
       );
 
       final update = await checkForUpdate(
@@ -345,7 +354,38 @@ void main() {
       );
 
       expect(update?.forApp, isTrue);
-      expect(update?.appDownloadUrl, 'https://x/v0.1.0-alpha.10.apk');
+      expect(update?.version, '0.1.0-alpha.10');
+      expect(update?.appDownloadUrl, 'https://x/mobile-v0.1.0-alpha.10.apk');
+    });
+
+    test('the app updates only from app releases, and the server never from them', () async {
+      // Owner, 2026-10-29: the server and the app are released apart, the app as "mobile-v…".
+      final client = MockClient(
+        (_) async => http.Response(
+          jsonEncode([
+            tagged('v0.1.0-alpha.15', prerelease: true, apk: true), // An old-style release with an APK.
+            tagged('mobile-v0.1.0-alpha.20', prerelease: true, apk: true),
+          ]),
+          200,
+        ),
+      );
+
+      final found = await findUpdates(
+        currentVersion: '0.1.0-alpha.15',
+        repository: 'o/r',
+        app: '0.1.0-alpha.14',
+        client: client,
+      );
+
+      expect(found.server, isNull);
+      expect(found.app?.version, '0.1.0-alpha.20');
+    });
+
+    test('an app older than the server supports is told so; a development build never is', () {
+      expect(isTooOld('0.1.0-alpha.13', app: '0.1.0-alpha.12'), isTrue);
+      expect(isTooOld('0.1.0-alpha.13', app: '0.1.0-alpha.13'), isFalse);
+      expect(isTooOld('0.1.0-alpha.13', app: '0.0.0-dev'), isFalse);
+      expect(isTooOld(null, app: '0.1.0-alpha.1'), isFalse);
     });
 
     test('offers a newer release, and not once it is dismissed', () async {

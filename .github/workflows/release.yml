@@ -1,6 +1,7 @@
 name: Release
 
-# Tag a release to publish it:  git tag v1.2.0 && git push origin v1.2.0
+# The server and web app. Tag a release to publish it:  git tag v1.2.0 && git push origin v1.2.0
+# The phone app is released apart, with its own tags ("mobile-v…"): see release-mobile.yml.
 on:
   push:
     tags: ['v*']
@@ -16,7 +17,7 @@ jobs:
   images:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Derive version from the tag
         id: version
@@ -30,16 +31,16 @@ jobs:
 
       # QEMU + buildx so images are multi-arch — SQLite makes ARM (Raspberry Pi,
       # Apple Silicon) a first-class target, so publish for it too.
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push API
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: src/backend/Dockerfile
@@ -54,7 +55,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push web
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: src/frontend/PersonaOS.Web
           platforms: linux/amd64,linux/arm64
@@ -67,7 +68,7 @@ jobs:
 
       # The speech service (compose profile "speech"): NVIDIA GPUs, so x86-64 only.
       - name: Build and push whisper
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: deploy/speech/whisper
           platforms: linux/amd64
@@ -80,7 +81,7 @@ jobs:
 
       # Applies a release from Settings → Updates (compose profile "updater").
       - name: Build and push updater
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: deploy/updater
           platforms: linux/amd64,linux/arm64
@@ -89,69 +90,22 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/personaos-updater:${{ steps.version.outputs.value }}
             ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/personaos-updater:latest
 
-  apk:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-      # Every release must be signed with the same key, or the app cannot update itself: Android
-      # refuses an update signed differently, and a runner's own debug key is new on every run.
-      # The key lives in the repository's secrets (see README, "Signing the phone app").
-      - name: Release signing key
-        working-directory: src/frontend/PersonaOS.Mobile/android
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          # All four: an empty password showed up only as "keystore password was incorrect".
-          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "::error::Set all of ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (one is missing or empty): without them the APK cannot update the installed app."
-            exit 1
-          fi
-          echo "$KEYSTORE_BASE64" | base64 -d > app/release.jks
-          {
-            echo "storeFile=release.jks"
-            echo "storePassword=$KEYSTORE_PASSWORD"
-            echo "keyAlias=$KEY_ALIAS"
-            echo "keyPassword=$KEY_PASSWORD"
-          } > key.properties
-
-      # The app's version is the release's, so the phone can tell it is behind.
-      - name: Build release APK
-        working-directory: src/frontend/PersonaOS.Mobile
-        run: |
-          flutter pub get
-          flutter build apk --release --build-name="${GITHUB_REF_NAME#v}" --build-number="${GITHUB_RUN_NUMBER}" \
-            --dart-define=APP_VERSION="${GITHUB_REF_NAME#v}"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: personaos-apk
-          path: src/frontend/PersonaOS.Mobile/build/app/outputs/flutter-apk/app-release.apk
-
   release:
-    needs: [images, apk]
+    needs: [images]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: personaos-apk
-          path: dist
+      - uses: actions/checkout@v7
 
       # Self-hosters upgrade by pulling the compose file, so ship it as an asset.
       - name: Stage release assets
         run: |
           # GitHub renames an attachment that starts with a dot (".env.example" became
           # "Default.env.example"), so it is published without the dot.
+          mkdir -p dist
           cp deploy/docker-compose.yml deploy/import-data.sh dist/
           cp deploy/.env.example dist/env.example
-          mv dist/app-release.apk dist/personaos-${GITHUB_REF_NAME}.apk
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           # A tag with a SemVer prerelease part (v0.1.0-alpha.12) is a prerelease on GitHub, so it is
@@ -161,7 +115,6 @@ jobs:
             dist/docker-compose.yml
             dist/env.example
             dist/import-data.sh
-            dist/personaos-*.apk
           body: |
             ## Install
 

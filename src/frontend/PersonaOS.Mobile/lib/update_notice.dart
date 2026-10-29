@@ -35,7 +35,7 @@ class UpdateNotice extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.system_update_alt),
             title: Text(
-              update.forApp ? 'A new app is available: ${update.name}' : 'PersonaOS ${update.name} is available',
+              update.forApp ? 'A new app is available: ${update.version}' : 'PersonaOS ${update.name} is available',
             ),
             subtitle: Text(
               update.forApp

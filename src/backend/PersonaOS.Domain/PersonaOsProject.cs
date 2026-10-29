@@ -14,4 +14,10 @@ public static class PersonaOsProject
     public const string Url = "https://github.com/" + Repository;
 
     public const string ReleasesUrl = Url + "/releases";
+
+    /// <summary>
+    /// The tag prefix of a phone app release ("mobile-v0.1.0-alpha.14"). The server and web are
+    /// tagged "v…" and the app "mobile-v…", each released when it changes (owner, 2026-10-29).
+    /// </summary>
+    public const string AppTagPrefix = "mobile-v";
 }

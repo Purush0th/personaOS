@@ -22,5 +22,10 @@ public static class ApiVersionInfo
             ? version
             : "0.0.0-dev";
 
-    public const string MinSupportedClient = "0.1.0";
+    /// <summary>
+    /// The oldest phone app this server works with; the app warns when it is older. A plain "0.1.0"
+    /// would have counted every alpha as too old. alpha.13 is the last app released together with
+    /// the server; older ones were never checked against later servers.
+    /// </summary>
+    public const string MinSupportedClient = "0.1.0-alpha.13";
 }

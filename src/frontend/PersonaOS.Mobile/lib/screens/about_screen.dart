@@ -29,6 +29,9 @@ class AboutScreen extends StatefulWidget {
 class _AboutScreenState extends State<AboutScreen> {
   String? _serverVersion;
   String? _repository;
+
+  /// The oldest app the server works with.
+  String? _minApp;
   bool _serverUnreachable = false;
 
   bool _checking = false;
@@ -58,6 +61,7 @@ class _AboutScreenState extends State<AboutScreen> {
       final branding = jsonDecode(response.body) as Map<String, dynamic>;
       _serverVersion = branding['apiVersion'] as String?;
       _repository = branding['repository'] as String?;
+      _minApp = branding['minSupportedClient'] as String?;
       _serverUnreachable = false;
     } catch (_) {
       _serverUnreachable = true;
@@ -125,7 +129,13 @@ class _AboutScreenState extends State<AboutScreen> {
                     key: const Key('about-app-version'),
                     leading: const Icon(Icons.phone_android),
                     title: const Text('This app'),
-                    subtitle: Text(_devBuild ? 'Development build' : widget.app),
+                    subtitle: Text(
+                      _devBuild
+                          ? 'Development build'
+                          : isTooOld(_minApp, app: widget.app)
+                          ? '${widget.app}, too old for this server: it needs $_minApp or newer'
+                          : widget.app,
+                    ),
                   ),
                   ListTile(
                     key: const Key('about-server-version'),
@@ -224,7 +234,7 @@ class _AboutScreenState extends State<AboutScreen> {
         leading: Icon(app == null ? Icons.check_circle_outline : Icons.system_update_alt),
         title: Text(
           app != null
-              ? 'App ${app.name} is available'
+              ? 'App ${app.version} is available'
               : (_devBuild ? 'Development builds update from Android Studio' : 'This app is up to date'),
         ),
         subtitle: app != null ? const Text('Update installs it over this one; your settings stay.') : null,

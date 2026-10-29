@@ -389,6 +389,17 @@ the chat it always showing new one but the last active one can be preserved if n
       every 10 min). New About screen (info icon on home, no sign-in): app and server versions,
       server address, "Check for updates" (ignores dismissals, shows errors), the Update button
       (`UpdateInstallButton`, shared with the home notice), licences. `test/about_screen_test.dart`.
+- [x] **R1. Server and phone app released apart** (2026-10-29). Owner: separate web and mobile
+      builds, keep the min version check, Android only for now. `v*` tags build the server + web
+      (`release.yml`, no APK any more); `mobile-v*` tags build the signed APK
+      (`release-mobile.yml`, `make_latest: false`). The server ignores app releases (`IsApp`;
+      Install refuses them) and reports the newest one as `LatestApp` (web Settings → Updates
+      links it). The phone updates only from `mobile-v*` releases and, below the server's
+      `MinSupportedClient` (now `0.1.0-alpha.13`), shows a non-dismissible "Update this app"
+      card; About says it too. Apps up to alpha.13 cannot see `mobile-v*` releases: install the
+      first one by hand.
+- [ ] **iOS: through the web app first** (owner, 2026-10-29: "for iOS, we need to make the web
+      interface better"). No native iOS build for now; make the web app work well on an iPhone.
 - [x] **W1. Web Interface Guidelines pass** (2026-10-29, Vercel guidelines, whole web app). Keyboard
       way into the planner grid (all-day cells are buttons; a "New event" button per day column
       shows on focus, global `.slot-add` because time-grid.scss is at its 4 kB budget); focus ring

@@ -243,7 +243,21 @@ to the previous version and run the same command.
 **The phone app** tells you when a newer one is out, once the server is up to date, and **Update**
 downloads it from the release and opens Android's installer: one tap on Android's own "Update"
 screen (the first time, Android also asks to allow installing apps from PersonaOS). Your settings
-stay. This works only between APKs signed with the same key — see below.
+stay. This works only between APKs signed with the same key — see below. About (the ⓘ on the home
+screen) shows the app's and the server's versions and checks for updates. When the server needs a
+newer app than the one installed, the home screen says so.
+
+### Releasing
+
+The server and web app, and the phone app, are released apart, each when it changes:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0                  # server + web: images and compose file
+git tag mobile-v0.2.0 && git push origin mobile-v0.2.0    # Android app: the signed APK
+```
+
+A tag with a prerelease part (`-alpha.14`) publishes a GitHub prerelease. When an API change
+breaks older apps, raise `MinSupportedClient` in `src/backend/PersonaOS.Api/ApiVersionInfo.cs`.
 
 ### Signing the phone app
 

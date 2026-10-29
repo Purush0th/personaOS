@@ -312,6 +312,7 @@ class Branding {
     required this.enabledFeatures,
     this.apiVersion,
     this.repository,
+    this.minSupportedClient,
   });
 
   factory Branding.fromJson(Map<String, dynamic> json) => Branding(
@@ -320,6 +321,7 @@ class Branding {
     enabledFeatures: (json['enabledFeatures'] as List<dynamic>).map((e) => e as String).toList(),
     apiVersion: json['apiVersion'] as String?,
     repository: json['repository'] as String?,
+    minSupportedClient: json['minSupportedClient'] as String?,
   );
 
   final String assistantNickname;
@@ -329,6 +331,9 @@ class Branding {
   /// The server's version and its GitHub repository ("owner/name"), for the update notice.
   final String? apiVersion;
   final String? repository;
+
+  /// The oldest app the server works with; an older one says so on the home screen.
+  final String? minSupportedClient;
 }
 
 /// Placeholder home: greets via the instance's assistant nickname and lists
@@ -507,6 +512,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
                 _Hero(nickname: nickname),
+                if (isTooOld(branding.minSupportedClient))
+                  _TooOld(
+                    minimum: branding.minSupportedClient!,
+                    onOpenAbout: () => Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute<void>(builder: (_) => AboutScreen(serverUrl: widget.serverUrl))),
+                  ),
                 if (_update != null)
                   UpdateNotice(
                     update: _update!,
@@ -596,6 +608,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// The server needs a newer app than this one. Not dismissible: until the app is updated, some
+/// things may not work. About has the Update button.
+class _TooOld extends StatelessWidget {
+  const _TooOld({required this.minimum, required this.onOpenAbout});
+
+  final String minimum;
+  final VoidCallback onOpenAbout;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      key: const Key('app-too-old'),
+      margin: const EdgeInsets.only(top: 16),
+      color: scheme.errorContainer,
+      child: ListTile(
+        leading: Icon(Icons.warning_amber, color: scheme.onErrorContainer),
+        title: Text('Update this app', style: TextStyle(color: scheme.onErrorContainer)),
+        subtitle: Text(
+          'Your server needs app $minimum or newer; this is $appVersion. Some things may not work until '
+          'you update.',
+          style: TextStyle(color: scheme.onErrorContainer),
+        ),
+        trailing: TextButton(onPressed: onOpenAbout, child: const Text('Update')),
       ),
     );
   }

@@ -7,6 +7,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// (`--dart-define=APP_VERSION=...`). A build without it is "0.0.0-dev" and offers no app update.
 const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.0.0-dev');
 
+/// The tag prefix of this app's own releases ("mobile-v0.1.0-alpha.14"). The server and web are
+/// tagged "v…"; each is released when it changes (owner, 2026-10-29).
+const appTagPrefix = 'mobile-v';
+
+/// True when this app is older than the oldest one [minSupported] (the server's
+/// `minSupportedClient`) works with. A development build is never too old.
+bool isTooOld(String? minSupported, {String app = appVersion}) =>
+    minSupported != null && minSupported.isNotEmpty && app != '0.0.0-dev' && isNewer(minSupported, app);
+
 /// A newer PersonaOS release than the server, or this app, runs.
 class AvailableUpdate {
   AvailableUpdate({
@@ -32,7 +41,8 @@ String _dismissedKey(bool forApp) => forApp ? 'updates.dismissed.app' : 'updates
 
 /// The update to tell the user about, if any. The server comes first: with "Install updates
 /// automatically" it catches up by itself, and otherwise it is updated from Settings → Updates on
-/// the web. Once it is current, a newer app than this one is offered for download. Releases are
+/// the web. Once it is current, a newer app than this one (an app release, "mobile-v…") is offered
+/// for download. Releases are
 /// read as a list, not GitHub's "latest", which leaves out prereleases; a server or app on a
 /// prerelease follows prereleases. Fail-silent: no repository, rate limiting or being offline
 /// simply means no notice, and a version the user dismissed is not offered again.
@@ -55,7 +65,7 @@ Future<AvailableUpdate?> checkForUpdate({
   }
 }
 
-/// The newest release for the server and for this app, each null when it is current. For About's
+/// The newest server release and app release, each null when it is current. For About's
 /// "Check for updates": dismissed versions are offered again, and failures are thrown, not hidden.
 Future<({AvailableUpdate? server, AvailableUpdate? app})> findUpdates({
   required String? currentVersion,
@@ -73,12 +83,12 @@ Future<({AvailableUpdate? server, AvailableUpdate? app})> findUpdates({
 
   AvailableUpdate? server;
   if (currentVersion != null) {
-    final newest = _newest(releases, followPrereleases: isPrerelease(currentVersion));
+    final newest = _newest(releases, followPrereleases: isPrerelease(currentVersion), forApp: false);
     if (newest != null && isNewer(_version(newest), currentVersion)) server = _update(newest, repository);
   }
   AvailableUpdate? forApp;
   if (app != '0.0.0-dev') {
-    final newest = _newest(releases, followPrereleases: isPrerelease(app), withApp: true);
+    final newest = _newest(releases, followPrereleases: isPrerelease(app), forApp: true);
     if (newest != null && isNewer(_version(newest), app)) forApp = _update(newest, repository, forApp: true);
   }
   return (server: server, app: forApp);
@@ -89,7 +99,14 @@ Future<void> dismissUpdate(AvailableUpdate update) async {
   await prefs.setString(_dismissedKey(update.forApp), update.version);
 }
 
-String _version(Map<String, dynamic> release) => (release['tag_name'] as String? ?? '').replaceFirst(RegExp('^v'), '');
+String _tag(Map<String, dynamic> release) => release['tag_name'] as String? ?? '';
+
+bool _isAppRelease(Map<String, dynamic> release) => _tag(release).startsWith(appTagPrefix);
+
+/// The tag without its "v" or "mobile-v".
+String _version(Map<String, dynamic> release) => _isAppRelease(release)
+    ? _tag(release).substring(appTagPrefix.length)
+    : _tag(release).replaceFirst(RegExp('^v'), '');
 
 String? _apk(Map<String, dynamic> release) => (release['assets'] as List<dynamic>? ?? [])
     .cast<Map<String, dynamic>>()
@@ -100,13 +117,14 @@ String? _apk(Map<String, dynamic> release) => (release['assets'] as List<dynamic
 Map<String, dynamic>? _newest(
   List<Map<String, dynamic>> releases, {
   required bool followPrereleases,
-  bool withApp = false,
+  required bool forApp,
 }) {
   Map<String, dynamic>? best;
   for (final release in releases) {
     if (release['draft'] == true || _version(release).isEmpty) continue;
+    if (_isAppRelease(release) != forApp) continue;
     if (!followPrereleases && release['prerelease'] == true) continue;
-    if (withApp && _apk(release) == null) continue;
+    if (forApp && _apk(release) == null) continue;
     if (best == null || isNewer(_version(release), _version(best))) best = release;
   }
   return best;

@@ -91,6 +91,9 @@ data/           docs-storage/ (runtime files, gitignored)
   an `await`, which OnPush would not redraw, so moving to OnPush is its own change. Unit tests
   still run on Karma (`npx ng test --watch=false --browsers=ChromeHeadless`); the optional Vitest
   migration has not been done.
+- Releases: tag `v*` for the server + web (`release.yml`), `mobile-v*` for the Android app
+  (`release-mobile.yml`), each only when it changed. The server's `MinSupportedClient` is the
+  oldest app it works with.
 - Flutter: `flutter analyze && flutter test` in `src/frontend/PersonaOS.Mobile` (strict casts,
   inference and raw types; `dart format` at 120 columns).
 - Voice: the opt-in `speech` compose profile (`COMPOSE_PROFILES=speech` in `deploy/.env`) runs

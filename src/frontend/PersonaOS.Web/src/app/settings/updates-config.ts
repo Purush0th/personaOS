@@ -90,9 +90,9 @@ const STATES: Record<string, string> = {
             </p>
           }
 
-          @if (v.latest?.appDownloadUrl; as app) {
-            <p class="muted small">
-              Phone app: <a [href]="app" target="_blank" rel="noopener">download {{ v.latest.version }}</a>
+          @if (v.latestApp?.appDownloadUrl; as app) {
+            <p class="muted small" data-testid="phone-app">
+              Phone app: <a [href]="app" target="_blank" rel="noopener">download {{ v.latestApp.version }}</a>
             </p>
           }
 
