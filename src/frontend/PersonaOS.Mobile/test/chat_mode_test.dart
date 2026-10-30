@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaos_mobile/api/personaos_api.dart';
+import 'package:personaos_mobile/phosphor_icons.dart';
 import 'package:personaos_mobile/screens/chat_screen.dart';
 
 /// Records the mode each message was sent in.
@@ -44,7 +45,7 @@ void main() {
     expect(find.text('Explore options. Nothing is changed.'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'ideas for next quarter?');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(PhosphorIconsRegular.arrowUp));
     await tester.pumpAndSettle();
 
     expect(api.sentModes, ['brainstorm']);
@@ -55,7 +56,7 @@ void main() {
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'Reflect'));
     await tester.enterText(find.byType(TextField), 'how did the week go?');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(PhosphorIconsRegular.arrowUp));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('New chat'));
     await tester.pumpAndSettle();

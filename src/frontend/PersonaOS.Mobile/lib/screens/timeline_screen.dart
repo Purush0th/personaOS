@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../goal_calendar.dart';
 import '../goal_tree.dart';
+import '../phosphor_icons.dart';
 import 'goal_view.dart';
 
 /// The Timeline tab of Goals: the goals as a roadmap for one year, like the web's: a bar per goal on a month axis,
@@ -154,7 +155,7 @@ class _TimelineViewState extends State<TimelineView> {
               if (rows.any((r) => r.hasChildren))
                 IconButton(
                   tooltip: anyCollapsed ? 'Expand all' : 'Collapse all',
-                  icon: Icon(anyCollapsed ? Icons.unfold_more : Icons.unfold_less),
+                  icon: Icon(anyCollapsed ? PhosphorIconsRegular.arrowsOutLineVertical : PhosphorIconsRegular.arrowsInLineVertical),
                   onPressed: () => setState(() {
                     if (anyCollapsed) {
                       _collapsed.clear();
@@ -318,7 +319,7 @@ class _TimelineViewState extends State<TimelineView> {
             InkWell(
               key: Key('fold-${row.goal.key}'),
               onTap: () => setState(() => collapsed ? _collapsed.remove(row.goal.id) : _collapsed.add(row.goal.id)),
-              child: Icon(collapsed ? Icons.chevron_right : Icons.expand_more, size: 20,
+              child: Icon(collapsed ? PhosphorIconsRegular.caretRight : PhosphorIconsRegular.caretDown, size: 20,
                   semanticLabel: '${collapsed ? 'Expand' : 'Collapse'} ${row.goal.key}'),
             )
           else

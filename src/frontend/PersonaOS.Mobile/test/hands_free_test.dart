@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaos_mobile/api/personaos_api.dart';
+import 'package:personaos_mobile/phosphor_icons.dart';
 import 'package:personaos_mobile/screens/chat_screen.dart';
 import 'package:personaos_mobile/voice_service.dart';
 
@@ -102,7 +103,7 @@ void main() {
     expect(voice.listenCalls, 1);
 
     await tester.enterText(find.byType(TextField), 'add a goal to learn rust');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(PhosphorIconsRegular.arrowUp));
     await tester.pumpAndSettle();
 
     // The card is waiting, so the loop stopped rather than talking over it.
@@ -127,7 +128,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'add a goal');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(PhosphorIconsRegular.arrowUp));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Discard'));
@@ -147,7 +148,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'add a goal');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(PhosphorIconsRegular.arrowUp));
     await tester.pumpAndSettle();
 
     // Let the "paused" snackbar clear the button it sits over.

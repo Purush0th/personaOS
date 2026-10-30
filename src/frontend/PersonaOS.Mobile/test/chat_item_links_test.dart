@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaos_mobile/api/personaos_api.dart';
+import 'package:personaos_mobile/phosphor_icons.dart';
 import 'package:personaos_mobile/screens/chat_screen.dart';
 
 /// A reply naming a task: the key is a link, and the link opens the task's quick view.
@@ -37,7 +38,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: ChatScreen(api: api, assistantNickname: 'Juno', voiceEnabled: false)));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'what about taxes?');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(PhosphorIconsRegular.arrowUp));
     await tester.pumpAndSettle();
 
     // The reply starts with the key, so its first characters are the link.

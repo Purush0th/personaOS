@@ -51,7 +51,6 @@ dependencies:
   audioplayers: ^6.8.1
   path_provider: ^2.1.6
   open_filex: ^4.7.0
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -74,12 +73,23 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Plus Jakarta Sans, the same face as the web app (variable weight, SIL Open Font License: see
-  # assets/fonts/OFL.txt). Bundled so the app needs no font download at run time.
+  # Geist and Geist Mono, the same faces as the web app (variable weight, SIL Open Font License:
+  # see assets/fonts/OFL.txt). Bundled so the app needs no font download at run time.
   fonts:
-    - family: Plus Jakarta Sans
+    - family: Geist
       fonts:
-        - asset: assets/fonts/PlusJakartaSans.ttf
+        - asset: assets/fonts/Geist.ttf
+    - family: Geist Mono
+      fonts:
+        - asset: assets/fonts/GeistMono.ttf
+    # The icons (lib/phosphor_icons.dart), the same font files as the web app's. MIT, see
+    # assets/fonts/Phosphor-LICENSE.txt.
+    - family: Phosphor
+      fonts:
+        - asset: assets/fonts/Phosphor.ttf
+    - family: Phosphor-Fill
+      fonts:
+        - asset: assets/fonts/Phosphor-Fill.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -84,60 +84,72 @@ class _BubbleView extends StatelessWidget {
     final theme = Theme.of(context);
     // Taken from the scheme, not hardcoded: the old fixed navy was a light-theme
     // colour and all but vanished against a dark background.
+    final dark = theme.brightness == Brightness.dark;
+    // A reply has no bubble at all: the assistant writes on the page beside its Orb, as on the web.
+    // Your own message is ink (a raised dusk grey in the dark theme) with its corner nearest you
+    // squared off.
+    final reply = !bubble.isUser && !bubble.isError;
     final background = bubble.isError
         ? theme.colorScheme.errorContainer
         : bubble.isUser
-        ? theme.colorScheme.primary
-        : theme.colorScheme.surface;
+        ? (dark ? theme.colorScheme.surfaceContainerHigh : theme.colorScheme.onSurface)
+        : null;
     final foreground = bubble.isError
         ? theme.colorScheme.onErrorContainer
         : bubble.isUser
-        ? theme.colorScheme.onPrimary
+        ? (dark ? theme.colorScheme.onSurface : theme.colorScheme.surface)
         : theme.colorScheme.onSurface;
 
-    return Align(
-      alignment: bubble.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        // Most of a phone's width, and no wider than reads comfortably on a tablet.
-        constraints: BoxConstraints(maxWidth: math.min(MediaQuery.sizeOf(context).width * 0.82, 600)),
-        // A reply is a white card with a hairline edge on the sky; your own message is solid blue
-        // with its corner nearest you squared off, as on the web.
-        decoration: BoxDecoration(
-          color: background,
-          border: bubble.isUser || bubble.isError ? null : Border.all(color: theme.colorScheme.outlineVariant),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: const Radius.circular(16),
-            bottomRight: Radius.circular(bubble.isUser ? 6 : 16),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (bubble.text.isEmpty && !bubble.isUser)
-              TypingDots(color: foreground)
-            else if (bubble.isUser || bubble.isError)
-              // Your own words and server errors are literal — rendering them
-              // as Markdown would silently eat characters you actually typed.
-              SelectableText(bubble.text, style: TextStyle(color: foreground))
-            else
-              _MarkdownReply(
-                text: bubble.text,
-                foreground: foreground,
-                unknownItems: bubble.unknownItems,
-                onOpenItem: onOpenItem,
+    final content = Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: reply ? const EdgeInsets.only(top: 2) : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      // Most of a phone's width, and no wider than reads comfortably on a tablet.
+      constraints: BoxConstraints(maxWidth: math.min(MediaQuery.sizeOf(context).width * 0.82, 600)),
+      decoration: reply
+          ? null
+          : BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(18),
+                topRight: const Radius.circular(18),
+                bottomLeft: const Radius.circular(18),
+                bottomRight: Radius.circular(bubble.isUser ? 6 : 18),
               ),
-            if (bubble.unverifiedClaim && !bubble.isUser) const UnverifiedClaimNote(),
-            if (!bubble.isUser && bubble.unknownItems.isNotEmpty) UnknownItemsNote(keys: bubble.unknownItems),
-            if (bubble.pending?.isNotEmpty ?? false) _ProposalList(actions: bubble.pending!, onResolve: onResolve),
-            if (bubble.actions?.isNotEmpty ?? false) _ReceiptList(actions: bubble.actions!, foreground: foreground),
-          ],
-        ),
+            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (bubble.text.isEmpty && !bubble.isUser)
+            TypingDots(color: foreground)
+          else if (bubble.isUser || bubble.isError)
+            // Your own words and server errors are literal — rendering them
+            // as Markdown would silently eat characters you actually typed.
+            SelectableText(bubble.text, style: TextStyle(color: foreground))
+          else
+            _MarkdownReply(
+              text: bubble.text,
+              foreground: foreground,
+              unknownItems: bubble.unknownItems,
+              onOpenItem: onOpenItem,
+            ),
+          if (bubble.unverifiedClaim && !bubble.isUser) const UnverifiedClaimNote(),
+          if (!bubble.isUser && bubble.unknownItems.isNotEmpty) UnknownItemsNote(keys: bubble.unknownItems),
+          if (bubble.pending?.isNotEmpty ?? false) _ProposalList(actions: bubble.pending!, onResolve: onResolve),
+          if (bubble.actions?.isNotEmpty ?? false) _ReceiptList(actions: bubble.actions!, foreground: foreground),
+        ],
       ),
+    );
+
+    if (!reply) {
+      return Align(alignment: bubble.isUser ? Alignment.centerRight : Alignment.centerLeft, child: content);
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(padding: EdgeInsets.only(top: 6, right: 10), child: Orb(size: 22)),
+        Flexible(child: content),
+      ],
     );
   }
 }
@@ -150,7 +162,7 @@ class UnverifiedClaimNote extends StatelessWidget {
   static const message = 'This reply says a change was made, but nothing was saved. Ask again if you want it done.';
 
   @override
-  Widget build(BuildContext context) => const _ReplyNote(icon: Icons.warning_amber_rounded, message: message);
+  Widget build(BuildContext context) => const _ReplyNote(icon: PhosphorIconsRegular.warning, message: message);
 }
 
 /// Shown under a reply that names items which do not exist. Small models invent keys, and an
@@ -169,7 +181,7 @@ class UnknownItemsNote extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => _ReplyNote(icon: Icons.help_outline, message: messageFor(keys) ?? '');
+  Widget build(BuildContext context) => _ReplyNote(icon: PhosphorIconsRegular.question, message: messageFor(keys) ?? '');
 }
 
 /// A caution under a reply: tinted from the theme, so it reads in light and dark mode alike.

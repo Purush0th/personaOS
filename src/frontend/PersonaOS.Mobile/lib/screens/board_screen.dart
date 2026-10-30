@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import 'backlog_view.dart';
 import 'board_widgets.dart';
 import 'reports_view.dart';
@@ -183,7 +184,7 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
           ? null
           : FloatingActionButton.extended(
               onPressed: _openTask,
-              icon: const Icon(Icons.add),
+              icon: const Icon(PhosphorIconsRegular.plus),
               label: const Text('Task'),
             ),
       // Tabs change by tapping: the Sprint tab swipes between its columns.
@@ -346,7 +347,7 @@ class _SprintHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final stat = theme.textTheme.bodySmall;
-    const warn = Color(0xFFB26A00);
+    final warn = StatusTone.review.ink(context);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
@@ -356,7 +357,7 @@ class _SprintHeader extends StatelessWidget {
           Row(
             children: [
               Expanded(child: Text(sprintLabel(sprint), style: theme.textTheme.titleMedium)),
-              Text('running', style: stat?.copyWith(color: const Color(0xFF3D8B4F))),
+              Text('running', style: stat?.copyWith(color: StatusTone.done.ink(context))),
             ],
           ),
           Text('${sprintWhen(sprint.startsAtUtc)} – ${sprintWhen(sprint.endsAtUtc)}', style: stat),
@@ -499,8 +500,7 @@ class _ColumnPage extends StatelessWidget {
                 children: [
                   // Side by side on a tablet a column can be narrow: the name gives way first.
                   Expanded(
-                    child: Text(BoardColumns.label(column),
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleSmall),
+                    child: Align(alignment: Alignment.centerLeft, child: StatusChip(column: column)),
                   ),
                   const SizedBox(width: 8),
                   Text('${tasks.length} · $points pts', style: Theme.of(context).textTheme.bodySmall),
@@ -511,7 +511,7 @@ class _ColumnPage extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
                 child: Text('Over $wipLimit in progress. Finish some first.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFB26A00))),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: StatusTone.review.ink(context))),
               ),
             Expanded(
               child: tasks.isEmpty

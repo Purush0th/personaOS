@@ -68,13 +68,13 @@ class _AlarmScreenState extends State<AlarmScreen> {
       // Back must not silently leave an alarm ringing — it has to be snoozed or dismissed.
       canPop: false,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0E1626),
+        backgroundColor: duskSurface,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(28, 48, 28, 32),
             child: Column(
               children: [
-                const Icon(Icons.alarm, color: Color(0xFFA9C2FF), size: 40),
+                const Orb(size: 56),
                 const SizedBox(height: 18),
                 Text(
                   time,
@@ -88,7 +88,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
                 const SizedBox(height: 8),
                 Text(
                   widget.alarm.title,
-                  style: const TextStyle(color: Color(0xFFA9C2FF), fontSize: 18, fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Color(0xFFB7ADFF), fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
                 Text(
@@ -103,7 +103,8 @@ class _AlarmScreenState extends State<AlarmScreen> {
                   child: FilledButton(
                     onPressed: _closing ? null : () => _close(widget.onDismiss ?? ReminderAlarms.instance.dismiss),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
+                      backgroundColor: const Color(0xFF8B7CFF),
+                      foregroundColor: duskSurface,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
                       textStyle: const TextStyle(fontFamily: personaOsFont, fontSize: 20, fontWeight: FontWeight.w600),
                     ),
@@ -118,7 +119,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
                     onPressed: _closing ? null : () => _close(widget.onSnooze ?? ReminderAlarms.instance.snooze),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                      side: const BorderSide(color: Color(0xFF8B7CFF), width: 1.5),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                       textStyle: const TextStyle(fontFamily: personaOsFont, fontSize: 17, fontWeight: FontWeight.w600),
                     ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import '../push_service.dart';
 
 /// Reminders list: pending by default, with create / cancel / delete.
@@ -67,7 +68,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
         actions: [
           IconButton(
             tooltip: _includeCompleted ? 'Pending only' : 'Show all',
-            icon: Icon(_includeCompleted ? Icons.filter_list_off : Icons.filter_list),
+            icon: Icon(_includeCompleted ? PhosphorIconsRegular.funnelSimpleX : PhosphorIconsRegular.funnelSimple),
             onPressed: () {
               setState(() => _includeCompleted = !_includeCompleted);
               _reload();
@@ -77,7 +78,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,
-        icon: const Icon(Icons.add_alarm),
+        icon: const Icon(PhosphorIconsRegular.alarm),
         label: const Text('New reminder'),
       ),
       body: ReadableWidth(child: RefreshIndicator(
@@ -153,7 +154,7 @@ class _ReminderTile extends StatelessWidget {
     return Opacity(
       opacity: pending ? 1 : 0.6,
       child: ListTile(
-        leading: Icon(pending ? Icons.alarm : Icons.alarm_off),
+        leading: Icon(pending ? PhosphorIconsRegular.alarm : PhosphorIconsRegular.bellSimpleSlash),
         title: Text(
           reminder.message,
           style: TextStyle(
@@ -280,7 +281,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _pickWhen,
-            icon: const Icon(Icons.event),
+            icon: const Icon(PhosphorIconsRegular.calendarBlank),
             label: Text(
               due == null
                   ? 'Pick date & time'

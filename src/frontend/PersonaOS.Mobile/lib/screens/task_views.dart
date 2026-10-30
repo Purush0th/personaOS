@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import 'attachments_section.dart';
 import 'board_widgets.dart';
 import 'comments_section.dart';
@@ -121,12 +122,12 @@ class _TaskQuickViewState extends State<TaskQuickView> {
               IconButton(
                 key: const Key('open-full-page'),
                 tooltip: 'Open full page',
-                icon: const Icon(Icons.open_in_full),
+                icon: const Icon(PhosphorIconsRegular.arrowsOutSimple),
                 onPressed: _busy ? null : _openPage,
               ),
               IconButton(
                 tooltip: 'Close',
-                icon: const Icon(Icons.close),
+                icon: const Icon(PhosphorIconsRegular.x),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
@@ -141,9 +142,9 @@ class _TaskQuickViewState extends State<TaskQuickView> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _Fact(icon: Icons.flag_outlined, text: priorities[task.priority] ?? task.priority),
+              _Fact(icon: PhosphorIconsRegular.flag, text: priorities[task.priority] ?? task.priority),
               PointsPill(points: task.points),
-              _Fact(icon: Icons.directions_run, text: task.sprintKey ?? 'Backlog'),
+              _Fact(icon: PhosphorIconsRegular.personSimpleRun, text: task.sprintKey ?? 'Backlog'),
               if (task.goalKey != null && task.goalTitle != null)
                 InkWell(
                   borderRadius: BorderRadius.circular(999),
@@ -194,7 +195,7 @@ class _TaskQuickViewState extends State<TaskQuickView> {
               padding: const EdgeInsets.only(right: 8),
               child: FilledButton.tonalIcon(
                 onPressed: _busy ? null : _openPage,
-                icon: const Icon(Icons.edit_outlined, size: 18),
+                icon: const Icon(PhosphorIconsRegular.pencilSimple, size: 18),
                 label: const Text('Edit, files and comments'),
               ),
             ),
@@ -617,7 +618,10 @@ class _TaskSheetState extends State<TaskSheet> {
       if ((_points ?? 0) >= 13)
         Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: Text('Consider splitting it.', style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFFB26A00))),
+          child: Text(
+            'Consider splitting it.',
+            style: theme.textTheme.bodySmall?.copyWith(color: StatusTone.review.ink(context)),
+          ),
         ),
       const SizedBox(height: 12),
       DropdownButtonFormField<String>(
