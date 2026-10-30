@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../phosphor_icons.dart';
 
 /// The server's optional speech service (speech-to-text and text-to-speech over the
 /// OpenAI-style audio API), set up from the phone as on the web's Settings. It has its own key
@@ -178,7 +179,7 @@ class _SpeechConfigSectionState extends State<SpeechConfigSection> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Icon(_result!.ok ? Icons.check_circle : Icons.error,
+                  Icon(_result!.ok ? PhosphorIconsRegular.checkCircle : PhosphorIconsRegular.warningCircle,
                       size: 20, color: _result!.ok ? scheme.primary : scheme.error),
                   const SizedBox(width: 8),
                   Expanded(child: Text(_result!.message)),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../phosphor_icons.dart';
 import 'board_widgets.dart';
 
 /// The sprint actions the Backlog tab, the Sprint tab and a sprint's page share: create or edit,
@@ -153,7 +154,7 @@ class _SprintDialogState extends State<_SprintDialog> {
           if (_canMove) ...[
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              icon: const Icon(Icons.event, size: 18),
+              icon: const Icon(PhosphorIconsRegular.calendarBlank, size: 18),
               label: Text(startsOn == null ? 'Starts: next free week' : 'Starts ${_day(startsOn)}'),
               onPressed: () async {
                 final now = DateTime.now();

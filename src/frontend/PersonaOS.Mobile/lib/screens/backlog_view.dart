@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import 'board_widgets.dart';
 import 'sprint_actions.dart';
 import 'sprint_page.dart';
@@ -182,7 +183,7 @@ class _BacklogViewState extends State<BacklogView> {
                       () => _collapsed.contains(_backlog) ? _collapsed.remove(_backlog) : _collapsed.add(_backlog)),
                   header: FilledButton.tonalIcon(
                     onPressed: _editSprint,
-                    icon: const Icon(Icons.add, size: 18),
+                    icon: const Icon(PhosphorIconsRegular.plus, size: 18),
                     label: const Text('Create sprint'),
                   ),
                   actions: const [],
@@ -263,7 +264,7 @@ class _Section extends StatelessWidget {
               children: [
                 IconButton(
                   tooltip: collapsed ? 'Expand' : 'Collapse',
-                  icon: Icon(collapsed ? Icons.chevron_right : Icons.expand_more),
+                  icon: Icon(collapsed ? PhosphorIconsRegular.caretRight : PhosphorIconsRegular.caretDown),
                   onPressed: onToggle,
                 ),
                 Expanded(
@@ -278,7 +279,7 @@ class _Section extends StatelessWidget {
                           if (status != null)
                             Text(status!,
                                 style: theme.textTheme.labelSmall?.copyWith(
-                                    color: status == 'running' ? const Color(0xFF3D8B4F) : scheme.outline)),
+                                    color: status == 'running' ? StatusTone.done.ink(context) : scheme.outline)),
                           Text('${tasks.length} ${tasks.length == 1 ? 'task' : 'tasks'} · $points pts',
                               style: theme.textTheme.bodySmall),
                         ],
@@ -324,7 +325,7 @@ class _Section extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
                   onPressed: onCreate,
-                  icon: const Icon(Icons.add, size: 18),
+                  icon: const Icon(PhosphorIconsRegular.plus, size: 18),
                   label: const Text('Task'),
                 ),
               ),
@@ -368,7 +369,7 @@ class _TaskRow extends StatelessWidget {
             PointsPill(points: task.points),
             PopupMenuButton<String>(
               tooltip: 'Move to',
-              icon: const Icon(Icons.drive_file_move_outline, size: 20),
+              icon: const Icon(PhosphorIconsRegular.folderSimple, size: 20),
               onSelected: onMove,
               itemBuilder: (context) => [
                 for (final (key, label) in targets) PopupMenuItem(value: key, child: Text('Move to $label')),

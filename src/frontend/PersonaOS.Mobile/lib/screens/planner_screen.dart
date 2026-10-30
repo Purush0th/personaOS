@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
+import '../phosphor_icons.dart';
 import '../planner_calendar.dart';
 import 'planner_event.dart';
 import 'planner_views.dart';
@@ -208,7 +209,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
-              const Icon(Icons.arrow_drop_down),
+              const Icon(PhosphorIconsRegular.caretDown),
             ],
           ),
         ),
@@ -220,7 +221,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             icon: Stack(
               alignment: Alignment.center,
               children: [
-                const Icon(Icons.calendar_today_outlined),
+                const Icon(PhosphorIconsRegular.calendarDot),
                 Padding(
                   padding: const EdgeInsets.only(top: 5),
                   child: Text('$today', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
@@ -231,7 +232,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           PopupMenuButton<String>(
             key: const Key('planner-view-menu'),
             tooltip: 'View',
-            icon: const Icon(Icons.view_agenda_outlined),
+            icon: const Icon(PhosphorIconsRegular.rows),
             onSelected: (choice) {
               switch (choice) {
                 case 'weekends':
@@ -281,7 +282,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         key: const Key('planner-create'),
         tooltip: 'Create event',
         onPressed: _create,
-        child: const Icon(Icons.add),
+        child: const Icon(PhosphorIconsRegular.plus),
       ),
       body: Column(
         children: [

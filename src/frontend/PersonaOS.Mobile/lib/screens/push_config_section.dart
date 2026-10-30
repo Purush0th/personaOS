@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../phosphor_icons.dart';
 
 /// Push notifications for this install: the two Firebase files, uploaded from the phone as the
 /// web's Settings does. The server checks they belong to the same project, encrypts the key and
@@ -129,7 +130,7 @@ class _PushConfigSectionState extends State<PushConfigSection> {
             ),
             const SizedBox(height: 12),
             _FileRow(
-              icon: Icons.key,
+              icon: PhosphorIconsRegular.key,
               label: 'Service account key',
               picked: _serviceAccount?.$1,
               onPick: _busy ? null : () async {
@@ -138,7 +139,7 @@ class _PushConfigSectionState extends State<PushConfigSection> {
               },
             ),
             _FileRow(
-              icon: Icons.android,
+              icon: PhosphorIconsRegular.androidLogo,
               label: 'google-services.json',
               picked: _googleServices?.$1,
               onPick: _busy ? null : () async {

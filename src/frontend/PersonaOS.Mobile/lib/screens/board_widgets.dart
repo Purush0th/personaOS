@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../layout.dart';
 
 // Pieces of the board shared by every screen that shows tasks or sprints: the scope-change
 // confirmation, sprint labels, and the task card with its points pill and goal chip.
@@ -57,8 +58,11 @@ class TaskCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       key: Key('card-${task.key}'),
-      // Lighter than the column in light mode and darker in dark, so a card stands out either way.
-      color: theme.colorScheme.surfaceContainerLowest,
+      // White paper on the grey column in light mode; raised above the column in dark, as cards are
+      // throughout the dusk theme (docs/DESIGN.md "surface-raised").
+      color: theme.brightness == Brightness.dark
+          ? theme.colorScheme.surfaceContainerHigh
+          : theme.colorScheme.surfaceContainerLowest,
       margin: const EdgeInsets.only(bottom: 6),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -92,7 +96,7 @@ class TaskCard extends StatelessWidget {
                     if (task.carryOverCount > 0)
                       Text('↻ ${task.carryOverCount}', style: theme.textTheme.labelSmall),
                     if (task.addedMidSprint)
-                      Text('added', style: theme.textTheme.labelSmall?.copyWith(color: const Color(0xFFB26A00))),
+                      Text('added', style: theme.textTheme.labelSmall?.copyWith(color: StatusTone.review.ink(context))),
                     if (task.commentCount > 0)
                       Text('💬 ${task.commentCount}', style: theme.textTheme.labelSmall),
                     if (task.attachmentCount > 0)
@@ -122,7 +126,8 @@ class PointsPill extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 24),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: none ? null : scheme.secondaryContainer,
+        // A step above the card it sits on, in either theme.
+        color: none ? null : scheme.surfaceContainerHighest,
         border: none ? Border.all(color: scheme.outlineVariant) : null,
         borderRadius: BorderRadius.circular(999),
       ),
@@ -177,7 +182,7 @@ class GoalChip extends StatelessWidget {
 List<String> boardMoveTargets(BoardTask task) =>
     task.sprintKey == null ? const [] : BoardColumns.board.where((c) => c != task.column).toList();
 
-/// A task's column as a small coloured label: To do, In progress, Done or Backlog.
+/// A task's column as a status pill: To do, In progress, Done or Backlog, each with its mark.
 class StatusChip extends StatelessWidget {
   const StatusChip({super.key, required this.column});
 
@@ -185,19 +190,12 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (background, foreground) = switch (column) {
-      BoardColumns.done => (scheme.primaryContainer, scheme.onPrimaryContainer),
-      BoardColumns.inProgress => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
-      _ => (scheme.surfaceContainerHighest, scheme.onSurfaceVariant),
+    final (tone, mark) = switch (column) {
+      BoardColumns.done => (StatusTone.done, StatusMark.finished),
+      BoardColumns.inProgress => (StatusTone.progress, StatusMark.underWay),
+      BoardColumns.todo => (StatusTone.todo, StatusMark.notStarted),
+      _ => (StatusTone.todo, null),
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(6)),
-      child: Text(
-        BoardColumns.label(column),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: foreground, fontWeight: FontWeight.w600),
-      ),
-    );
+    return StatusPill(label: BoardColumns.label(column), tone: tone, mark: mark);
   }
 }

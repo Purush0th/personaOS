@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'app_update.dart';
+import 'phosphor_icons.dart';
 import 'update_check.dart';
 
 /// The home screen's notice of a newer release. For the server it says where the server updates;
@@ -33,7 +34,7 @@ class UpdateNotice extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.system_update_alt),
+            leading: const Icon(PhosphorIconsRegular.downloadSimple),
             title: Text(
               update.forApp ? 'A new app is available: ${update.version}' : 'PersonaOS ${update.name} is available',
             ),
@@ -42,7 +43,7 @@ class UpdateNotice extends StatelessWidget {
                   ? 'Update installs it over this one; your settings stay.'
                   : 'Update the server from Settings → Updates on the web.',
             ),
-            trailing: IconButton(tooltip: 'Dismiss', icon: const Icon(Icons.close), onPressed: onDismiss),
+            trailing: IconButton(tooltip: 'Dismiss', icon: const Icon(PhosphorIconsRegular.x), onPressed: onDismiss),
           ),
           if (update.forApp && url != null)
             Padding(
@@ -115,7 +116,7 @@ class _UpdateInstallButtonState extends State<UpdateInstallButton> {
       child: FilledButton.icon(
         key: const Key('update-install'),
         onPressed: () => unawaited(_install()),
-        icon: const Icon(Icons.download),
+        icon: const Icon(PhosphorIconsRegular.downloadSimple),
         label: const Text('Update'),
       ),
     );

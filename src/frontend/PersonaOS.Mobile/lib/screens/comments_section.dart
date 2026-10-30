@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
+import '../phosphor_icons.dart';
 
 /// The comments on a task or goal: read, add, edit and delete them. The same discussion the web
 /// shows on the item's page, so a note written on the phone is there on the desktop too.
@@ -146,7 +147,7 @@ class _CommentsSectionState extends State<CommentsSection> {
                       ),
                       PopupMenuButton<String>(
                         tooltip: 'Comment actions',
-                        icon: const Icon(Icons.more_vert, size: 18),
+                        icon: const Icon(PhosphorIconsRegular.dotsThreeVertical, size: 18),
                         onSelected: (choice) => choice == 'edit' ? _edit(comment) : _delete(comment),
                         itemBuilder: (context) => const [
                           PopupMenuItem(value: 'edit', child: Text('Edit')),

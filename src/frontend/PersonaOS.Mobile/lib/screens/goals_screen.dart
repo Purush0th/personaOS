@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../goal_calendar.dart';
 import '../goal_tree.dart';
+import '../phosphor_icons.dart';
 import 'board_widgets.dart';
 import 'goal_forms.dart';
 import 'goal_view.dart';
@@ -144,7 +145,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
           future: _goals,
           builder: (context, snapshot) => FloatingActionButton.extended(
             onPressed: () => _newGoal(snapshot.data ?? const []),
-            icon: const Icon(Icons.add),
+            icon: const Icon(PhosphorIconsRegular.plus),
             label: const Text('New goal'),
           ),
         ),
@@ -191,7 +192,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
                     key: const Key('goals-fold-all'),
-                    icon: Icon(anyCollapsed ? Icons.unfold_more : Icons.unfold_less, size: 18),
+                    icon: Icon(anyCollapsed ? PhosphorIconsRegular.arrowsOutLineVertical : PhosphorIconsRegular.arrowsInLineVertical, size: 18),
                     label: Text(anyCollapsed ? 'Expand all' : 'Collapse all'),
                     onPressed: () => setState(() {
                       if (anyCollapsed) {
@@ -329,7 +330,7 @@ class _GoalTile extends StatelessWidget {
                     onTap: onFold,
                     child: Padding(
                       padding: const EdgeInsets.only(right: 6),
-                      child: Icon(collapsed ? Icons.chevron_right : Icons.expand_more,
+                      child: Icon(collapsed ? PhosphorIconsRegular.caretRight : PhosphorIconsRegular.caretDown,
                           size: 20, semanticLabel: '${collapsed ? 'Expand' : 'Collapse'} ${goal.key}'),
                     ),
                   ),
@@ -382,10 +383,10 @@ class _GoalTile extends StatelessWidget {
             for (final task in goal.tasks) _taskRow(theme, task),
             // Tasks sit only under monthly goals; a year or quarter is broken into goals below it.
             if (_isMonth && !completed && boardEnabled)
-              TextButton.icon(onPressed: onAddTask, icon: const Icon(Icons.add, size: 18), label: const Text('Create task'))
+              TextButton.icon(onPressed: onAddTask, icon: const Icon(PhosphorIconsRegular.plus, size: 18), label: const Text('Create task'))
             else if (addChild != null)
               TextButton.icon(
-                  onPressed: onAddChild, icon: const Icon(Icons.add, size: 18), label: Text('Add ${goalsOfType(addChild)}')),
+                  onPressed: onAddChild, icon: const Icon(PhosphorIconsRegular.plus, size: 18), label: Text('Add ${goalsOfType(addChild)}')),
           ],
         ),
       ),
@@ -443,7 +444,7 @@ class _GoalTile extends StatelessWidget {
           // task has to be possible from here too.
           PopupMenuButton<String>(
             key: Key('task-menu-${task.key}'),
-            icon: const Icon(Icons.more_vert, size: 18),
+            icon: const Icon(PhosphorIconsRegular.dotsThreeVertical, size: 18),
             padding: EdgeInsets.zero,
             onSelected: (choice) => onTaskAction(task, choice),
             itemBuilder: (context) => [
@@ -462,7 +463,7 @@ class _GoalTile extends StatelessWidget {
     final addChild = childTypeToAdd(goal);
     return PopupMenuButton<String>(
       key: Key('goal-menu-${goal.key}'),
-      icon: const Icon(Icons.more_horiz),
+      icon: const Icon(PhosphorIconsRegular.dotsThree),
       onSelected: (choice) {
         switch (choice) {
           case 'task':

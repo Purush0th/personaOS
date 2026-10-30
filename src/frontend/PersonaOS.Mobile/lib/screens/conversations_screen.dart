@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 
 /// Past conversations, most recently active first.
 ///
@@ -84,7 +85,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         title: const Text('History'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(PhosphorIconsRegular.arrowClockwise),
             tooltip: 'Refresh',
             onPressed: _refresh,
           ),
@@ -92,7 +93,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).pop(const _OpenNewChat()),
-        icon: const Icon(Icons.add),
+        icon: const Icon(PhosphorIconsRegular.plus),
         label: const Text('New chat'),
       ),
       body: ReadableWidth(child: FutureBuilder<List<ConversationSummary>>(
@@ -103,7 +104,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           }
           if (snapshot.hasError) {
             return _Message(
-              icon: Icons.cloud_off,
+              icon: PhosphorIconsRegular.cloudSlash,
               title: 'Could not load history',
               detail: '${snapshot.error}',
             );
@@ -112,7 +113,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           final conversations = snapshot.data ?? const [];
           if (conversations.isEmpty) {
             return _Message(
-              icon: Icons.forum_outlined,
+              icon: PhosphorIconsRegular.chatsCircle,
               title: 'No conversations yet',
               detail: 'Start one with ${widget.assistantNickname}.',
             );
@@ -133,7 +134,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     leading: CircleAvatar(
                       backgroundColor: scheme.primaryContainer,
                       foregroundColor: scheme.onPrimaryContainer,
-                      child: const Icon(Icons.chat_bubble_outline, size: 20),
+                      child: const Icon(PhosphorIconsRegular.chatCircle, size: 20),
                     ),
                     title: Text(
                       conversation.title,
@@ -143,7 +144,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     ),
                     subtitle: Text(relativeTime(conversation.updatedAtUtc)),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
+                      icon: const Icon(PhosphorIconsRegular.trash),
                       tooltip: 'Delete',
                       onPressed: () => _delete(conversation),
                     ),

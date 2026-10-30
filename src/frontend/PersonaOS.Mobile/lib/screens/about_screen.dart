@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../app_update.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import '../update_check.dart';
 import '../update_notice.dart';
 
@@ -107,7 +108,7 @@ class _AboutScreenState extends State<AboutScreen> {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: scheme.primaryContainer,
-                    child: Icon(Icons.auto_awesome, color: scheme.onPrimaryContainer, size: 28),
+                    child: Icon(PhosphorIconsRegular.sparkle, color: scheme.onPrimaryContainer, size: 28),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -127,7 +128,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 children: [
                   ListTile(
                     key: const Key('about-app-version'),
-                    leading: const Icon(Icons.phone_android),
+                    leading: const Icon(PhosphorIconsRegular.deviceMobile),
                     title: const Text('This app'),
                     subtitle: Text(
                       _devBuild
@@ -139,14 +140,14 @@ class _AboutScreenState extends State<AboutScreen> {
                   ),
                   ListTile(
                     key: const Key('about-server-version'),
-                    leading: const Icon(Icons.dns_outlined),
+                    leading: const Icon(PhosphorIconsRegular.hardDrives),
                     title: const Text('Server'),
                     subtitle: Text(
                       _serverVersion ?? (_serverUnreachable ? 'Not reachable' : (_checking ? 'Checking…' : 'Unknown')),
                     ),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.link),
+                    leading: const Icon(PhosphorIconsRegular.link),
                     title: const Text('Server address'),
                     subtitle: SelectableText(widget.serverUrl),
                   ),
@@ -171,7 +172,7 @@ class _AboutScreenState extends State<AboutScreen> {
                         onPressed: _checking ? null : () => unawaited(_check()),
                         icon: _checking
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.refresh),
+                            : const Icon(PhosphorIconsRegular.arrowClockwise),
                         label: Text(_checking ? 'Checking…' : 'Check for updates'),
                       ),
                     ),
@@ -185,15 +186,15 @@ class _AboutScreenState extends State<AboutScreen> {
                 children: [
                   if (_repository != null)
                     ListTile(
-                      leading: const Icon(Icons.code),
+                      leading: const Icon(PhosphorIconsRegular.code),
                       title: const Text('Source and releases'),
                       subtitle: SelectableText('github.com/$_repository'),
                     ),
                   ListTile(
-                    leading: const Icon(Icons.description_outlined),
+                    leading: const Icon(PhosphorIconsRegular.fileText),
                     title: const Text('Open-source licences'),
                     subtitle: const Text('PersonaOS is Apache-2.0'),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(PhosphorIconsRegular.caretRight),
                     onTap: () => showLicensePage(
                       context: context,
                       applicationName: 'PersonaOS',
@@ -231,7 +232,7 @@ class _AboutScreenState extends State<AboutScreen> {
       ListTile(
         key: const Key('about-app-status'),
         contentPadding: EdgeInsets.zero,
-        leading: Icon(app == null ? Icons.check_circle_outline : Icons.system_update_alt),
+        leading: Icon(app == null ? PhosphorIconsRegular.checkCircle : PhosphorIconsRegular.downloadSimple),
         title: Text(
           app != null
               ? 'App ${app.version} is available'
@@ -243,7 +244,7 @@ class _AboutScreenState extends State<AboutScreen> {
       ListTile(
         key: const Key('about-server-status'),
         contentPadding: EdgeInsets.zero,
-        leading: Icon(server == null ? Icons.check_circle_outline : Icons.system_update_alt),
+        leading: Icon(server == null ? PhosphorIconsRegular.checkCircle : PhosphorIconsRegular.downloadSimple),
         title: Text(
           server != null
               ? 'Server ${server.name} is available'

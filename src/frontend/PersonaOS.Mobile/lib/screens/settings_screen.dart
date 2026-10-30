@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../auth_vault.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import '../server_speech.dart';
 import '../theme_choice.dart';
 import 'push_config_section.dart';
@@ -343,7 +344,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.wifi_tethering),
+                          : const Icon(PhosphorIconsRegular.broadcast),
                       label: Text(_testing ? 'Testing…' : 'Test connection'),
                     ),
                     if (_testResult != null) ...[
@@ -359,7 +360,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Row(
                           children: [
                             Icon(
-                              _testResult!.ok ? Icons.check_circle : Icons.error,
+                              _testResult!.ok ? PhosphorIconsRegular.checkCircle : PhosphorIconsRegular.warningCircle,
                               size: 20,
                               color: _testResult!.ok
                                   ? scheme.onPrimaryContainer
@@ -408,9 +409,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       builder: (context, mode, _) => SegmentedButton<ThemeMode>(
                         key: const Key('appearance'),
                         segments: const [
-                          ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto)),
-                          ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode)),
-                          ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode)),
+                          ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(PhosphorIconsRegular.circleHalf)),
+                          ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(PhosphorIconsRegular.sun)),
+                          ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(PhosphorIconsRegular.moon)),
                         ],
                         selected: {mode},
                         onSelectionChanged: (picked) => saveThemeChoice(picked.single),
@@ -462,7 +463,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       // would be one-way.
                       OutlinedButton.icon(
                         onPressed: _forgetSignIn,
-                        icon: const Icon(Icons.logout),
+                        icon: const Icon(PhosphorIconsRegular.signOut),
                         label: const Text('Forget saved sign-in'),
                       ),
                       Padding(

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
+import '../phosphor_icons.dart';
 
 /// Notes, after Google Keep: a "Take a note…" box on top and the notes as cards below, the
 /// latest edited first, two to a row. A note is a place to park a thought, not to keep it: a
@@ -151,13 +152,13 @@ class _NotesScreenState extends State<NotesScreen> {
             if (widget.boardEnabled)
               ListTile(
                 key: const Key('note-sheet-backlog'),
-                leading: const Icon(Icons.move_to_inbox_outlined),
+                leading: const Icon(PhosphorIconsRegular.trayArrowDown),
                 title: const Text('Move to backlog'),
                 onTap: () => Navigator.pop(context, _EditAction.backlog),
               ),
             ListTile(
               key: const Key('note-sheet-delete'),
-              leading: const Icon(Icons.delete_outline),
+              leading: const Icon(PhosphorIconsRegular.trash),
               title: const Text('Delete'),
               onTap: () => Navigator.pop(context, _EditAction.delete),
             ),
@@ -191,7 +192,7 @@ class _NotesScreenState extends State<NotesScreen> {
         actions: [
           IconButton(
             tooltip: _searching ? 'Close search' : 'Search',
-            icon: Icon(_searching ? Icons.close : Icons.search),
+            icon: Icon(_searching ? PhosphorIconsRegular.x : PhosphorIconsRegular.magnifyingGlass),
             onPressed: () => setState(() {
               _searching = !_searching;
               if (!_searching) _search.clear();
@@ -239,7 +240,7 @@ class _NotesScreenState extends State<NotesScreen> {
                     IconButton(
                       key: const Key('note-send'),
                       tooltip: 'Save note',
-                      icon: const Icon(Icons.send),
+                      icon: const Icon(PhosphorIconsRegular.paperPlaneRight),
                       onPressed: _draft.text.trim().isEmpty ? null : () => unawaited(_add()),
                     ),
                   ],
@@ -371,13 +372,13 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
             IconButton(
               key: const Key('note-to-backlog'),
               tooltip: 'Move to backlog',
-              icon: const Icon(Icons.move_to_inbox_outlined),
+              icon: const Icon(PhosphorIconsRegular.trayArrowDown),
               onPressed: () => _close(_EditAction.backlog),
             ),
           IconButton(
             key: const Key('note-delete'),
             tooltip: 'Delete',
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(PhosphorIconsRegular.trash),
             onPressed: () => _close(_EditAction.delete),
           ),
         ],

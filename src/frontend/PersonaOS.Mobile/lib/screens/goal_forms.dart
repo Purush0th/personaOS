@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
 import '../goal_calendar.dart';
+import '../phosphor_icons.dart';
 
 // The forms and dialogs a goal is created and changed with, shared by the goals list and a goal's
 // own page: the new-goal sheet, Move, Delete, Update progress, and the menu helpers.
@@ -195,7 +196,7 @@ class _GoalSheetState extends State<GoalSheet> {
             const SizedBox(height: 12),
             if (_type == 'year')
               OutlinedButton.icon(
-                icon: const Icon(Icons.event, size: 18),
+                icon: const Icon(PhosphorIconsRegular.calendarBlank, size: 18),
                 label: Text('Starts ${localYmd(_start)}'),
                 onPressed: () async {
                   final picked = await showDatePicker(

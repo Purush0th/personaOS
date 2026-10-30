@@ -7,6 +7,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../api/personaos_api.dart';
 import '../item_links.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import '../push_service.dart';
 import '../server_speech.dart';
 import '../voice_service.dart';
@@ -479,31 +480,37 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.assistantNickname),
-        actions: [
-          IconButton(tooltip: 'History', icon: const Icon(Icons.history), onPressed: _streaming ? null : _openHistory),
-          IconButton(
-            tooltip: 'New chat',
-            icon: const Icon(Icons.add_comment_outlined),
-            onPressed: _streaming || _bubbles.isEmpty ? null : _startNewConversation,
-          ),
-          if (widget.voiceEnabled)
+    // The conversation is the assistant's own screen: the whole of it, app bar included, sits on
+    // the same dusk glow as the web app's chat page.
+    return Presence(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          title: Text(widget.assistantNickname),
+          actions: [
             IconButton(
-              tooltip: _readBack ? 'Read-back on' : 'Read-back off',
-              icon: Icon(_readBack ? Icons.volume_up : Icons.volume_off),
-              onPressed: () {
-                setState(() => _readBack = !_readBack);
-                if (!_readBack) unawaited(_voice.stopSpeaking());
-              },
+              tooltip: 'History',
+              icon: const Icon(PhosphorIconsRegular.clockCounterClockwise),
+              onPressed: _streaming ? null : _openHistory,
             ),
-        ],
-      ),
-      // The conversation sits on the same pale sky as the web app's chat page.
-      body: DecoratedBox(
-        decoration: BoxDecoration(gradient: skyWash(context)),
-        child: ReadableWidth(
+            IconButton(
+              tooltip: 'New chat',
+              icon: const Icon(PhosphorIconsRegular.notePencil),
+              onPressed: _streaming || _bubbles.isEmpty ? null : _startNewConversation,
+            ),
+            if (widget.voiceEnabled)
+              IconButton(
+                tooltip: _readBack ? 'Read-back on' : 'Read-back off',
+                icon: Icon(_readBack ? PhosphorIconsRegular.speakerHigh : PhosphorIconsRegular.speakerSlash),
+                onPressed: () {
+                  setState(() => _readBack = !_readBack);
+                  if (!_readBack) unawaited(_voice.stopSpeaking());
+                },
+              ),
+          ],
+        ),
+        body: ReadableWidth(
           maxWidth: 960,
           child: Column(
             children: [
@@ -529,9 +536,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                   padding: const EdgeInsets.fromLTRB(4, 4, 6, 4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                    borderRadius: BorderRadius.circular(20),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0x0DFFFFFF)
+                        : Theme.of(context).colorScheme.surface,
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0x24FFFFFF)
+                          : const Color(0xFFD4D4DA),
+                    ),
+                    borderRadius: BorderRadius.circular(24),
                   ),
                   child: Row(
                     children: [
@@ -559,22 +572,24 @@ class _ChatScreenState extends State<ChatScreen> {
                           tooltip: _listening ? 'Stop' : 'Speak once',
                           onPressed: _streaming || _handsFree ? null : _toggleMic,
                           color: _listening ? Theme.of(context).colorScheme.error : null,
-                          icon: Icon(_listening ? Icons.mic : Icons.mic_none),
+                          icon: Icon(_listening ? PhosphorIconsFill.microphone : PhosphorIconsRegular.microphone),
                         ),
                         IconButton(
                           tooltip: _handsFree ? 'End hands-free' : 'Hands-free',
                           onPressed: _toggleHandsFree,
                           color: _handsFree ? Theme.of(context).colorScheme.primary : null,
-                          icon: Icon(_handsFree ? Icons.record_voice_over : Icons.graphic_eq),
+                          icon: Icon(_handsFree ? PhosphorIconsRegular.userSound : PhosphorIconsRegular.waveform),
                         ),
                       ],
                       const SizedBox(width: 4),
-                      IconButton.filled(
+                      // Send is the Orb: the message goes to the assistant.
+                      IconButton(
                         tooltip: 'Send',
+                        padding: const EdgeInsets.all(4),
                         onPressed: _streaming ? null : _send,
                         icon: _streaming
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.arrow_upward),
+                            : const Orb(size: 40, child: Icon(PhosphorIconsRegular.arrowUp, color: Colors.white, size: 20)),
                       ),
                     ],
                   ),
@@ -647,9 +662,9 @@ class _HandsFreeBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final (label, icon) = switch ((listening, speaking)) {
-      (true, _) => ('Listening…', Icons.mic),
-      (_, true) => ('Speaking…', Icons.volume_up),
-      _ => ('Thinking…', Icons.more_horiz),
+      (true, _) => ('Listening…', PhosphorIconsFill.microphone),
+      (_, true) => ('Speaking…', PhosphorIconsRegular.speakerHigh),
+      _ => ('Thinking…', PhosphorIconsRegular.dotsThree),
     };
 
     return Container(
@@ -686,20 +701,15 @@ class _EmptyChat extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircleAvatar(
-              radius: 34,
-              backgroundColor: scheme.primaryContainer,
-              foregroundColor: scheme.onPrimaryContainer,
-              child: const Icon(Icons.auto_awesome, size: 30),
-            ),
-            const SizedBox(height: 16),
-            // The same opening line as the web app's empty chat.
+            const Orb(size: 104),
+            const SizedBox(height: 24),
+            // The same opening line as the web app's empty chat, in the thin display type.
             const Text(
               "What's on your mind?",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -0.4),
+              style: TextStyle(fontSize: 32, height: 1.15, fontWeight: FontWeight.w300, letterSpacing: -1),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               '$nickname will handle the rest.',
               textAlign: TextAlign.center,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../goal_calendar.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import 'attachments_section.dart';
 import 'board_widgets.dart';
 import 'comments_section.dart';
@@ -96,10 +97,10 @@ class GoalQuickView extends StatelessWidget {
               IconButton(
                 key: const Key('open-full-page'),
                 tooltip: 'Open full page',
-                icon: const Icon(Icons.open_in_full),
+                icon: const Icon(PhosphorIconsRegular.arrowsOutSimple),
                 onPressed: () => _openPage(context),
               ),
-              IconButton(tooltip: 'Close', icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              IconButton(tooltip: 'Close', icon: const Icon(PhosphorIconsRegular.x), onPressed: () => Navigator.pop(context)),
             ],
           ),
           Padding(
@@ -129,7 +130,7 @@ class GoalQuickView extends StatelessWidget {
                 _StatusButton(api: api, goal: goal, onChanged: onChanged),
                 FilledButton.tonalIcon(
                   onPressed: () => _openPage(context),
-                  icon: const Icon(Icons.open_in_full, size: 18),
+                  icon: const Icon(PhosphorIconsRegular.arrowsOutSimple, size: 18),
                   label: const Text('Open goal'),
                 ),
               ],
@@ -390,7 +391,7 @@ class GoalView extends StatelessWidget {
           IconButton(
             key: const Key('edit-goal'),
             tooltip: 'Edit goal',
-            icon: const Icon(Icons.edit_outlined),
+            icon: const Icon(PhosphorIconsRegular.pencilSimple),
             onPressed: () => _edit(context),
           ),
         ],
@@ -424,7 +425,7 @@ class GoalView extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             title: Text('${child.key} ${child.title}'),
             subtitle: Text('${child.slot} · ${child.effectiveProgress}%${child.status == 'completed' ? ' · completed' : ''}'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(PhosphorIconsRegular.caretRight),
             onTap: () async {
               await showGoalQuickView(context, api, child.key, boardEnabled: boardEnabled);
               onChanged?.call();
