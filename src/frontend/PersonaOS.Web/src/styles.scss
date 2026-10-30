@@ -17,66 +17,98 @@
 
   @include mat.theme((
     color: (
-      primary: mat.$blue-palette,
-      tertiary: mat.$blue-palette,
+      primary: mat.$violet-palette,
+      tertiary: mat.$violet-palette,
       theme-type: $type,
     ),
   ));
 
-  /* "Sky" (2026-10-29 restyle, after the Techo AI shot the owner picked): cool neutral greys, a
-     grey shell around one white working panel, and one clear blue for links, focus, the main
-     action and the assistant. Material's generated roles are tinted by the palette's hue; these
-     set the ones the app shows to plain neutrals. */
+  /* "Dusk" (docs/DESIGN.md, 2026-10-30): neutral ink-and-grey work surfaces, and one violet that
+     only ever means the assistant (focus, selection, progress, the Orb). Material's generated
+     roles are tinted by the palette's hue; these set the ones the app shows to the design's
+     tokens. --presence is the backdrop of the assistant's pages: a dusk glow in the dark scheme,
+     a faint dawn in the light one. */
   @if $type == dark {
-    --shell-bg: #0e0f11;
-    --chat-sky: linear-gradient(180deg, #152238 0%, #171c27 45%, #16181c 100%);
-    --mat-sys-surface: #16181c;
-    --mat-sys-background: #16181c;
-    --mat-sys-surface-container-lowest: #0b0c0e;
-    --mat-sys-surface-container-low: #1b1d22;
-    --mat-sys-surface-container: #202329;
-    --mat-sys-surface-container-high: #272a31;
-    --mat-sys-surface-container-highest: #2f333a;
-    --mat-sys-surface-variant: #2f333a;
-    --mat-sys-on-surface: #eef0f3;
-    --mat-sys-on-background: #eef0f3;
-    --mat-sys-on-surface-variant: #a2a8b3;
-    --mat-sys-outline: #6c727d;
-    --mat-sys-outline-variant: #2c3037;
-    --mat-sys-primary: #7aa2ff;
-    --mat-sys-on-primary: #0b1f5c;
-    --mat-sys-primary-container: #1d2b4f;
-    --mat-sys-on-primary-container: #dbe5ff;
-    --mat-sys-secondary-container: #272a31;
-    --mat-sys-on-secondary-container: #eef0f3;
-    --mat-sys-tertiary: #7aa2ff;
-    --mat-sys-tertiary-container: #1d2b4f;
-    --mat-sys-on-tertiary-container: #dbe5ff;
+    --shell-bg: #09080d;
+    --ink: #f2f0f7;
+    --accent: #8b7cff;
+    --line: rgb(255 255 255 / 8%);
+    --line-strong: rgb(255 255 255 / 14%);
+    --bubble-user-bg: #221e2e;
+    --bubble-user-fg: #f2f0f7;
+    --composer-bg: rgb(255 255 255 / 5%);
+    --nav-active: #1c1828;
+    --presence:
+      radial-gradient(90% 60% at 10% 0%, rgb(59 42 122 / 55%), transparent 60%),
+      radial-gradient(70% 50% at 100% 20%, rgb(42 31 92 / 40%), transparent 65%),
+      #0d0b14;
+    --mat-sys-surface: #0d0b14;
+    --mat-sys-background: #0d0b14;
+    --mat-sys-surface-container-lowest: #09080d;
+    --mat-sys-surface-container-low: #15121f;
+    --mat-sys-surface-container: #1a1625;
+    --mat-sys-surface-container-high: #221e2e;
+    --mat-sys-surface-container-highest: #2a2538;
+    --mat-sys-surface-variant: #2a2538;
+    --mat-sys-on-surface: #f2f0f7;
+    --mat-sys-on-background: #f2f0f7;
+    --mat-sys-on-surface-variant: #9a95ab;
+    --mat-sys-outline: #6e6880;
+    --mat-sys-outline-variant: #26222f;
+    --mat-sys-primary: #8b7cff;
+    --mat-sys-on-primary: #0d0b14;
+    --mat-sys-primary-container: #231c45;
+    --mat-sys-on-primary-container: #dcd6ff;
+    --mat-sys-secondary-container: #221e2e;
+    --mat-sys-on-secondary-container: #f2f0f7;
+    --mat-sys-tertiary: #8b7cff;
+    --mat-sys-tertiary-container: #231c45;
+    --mat-sys-on-tertiary-container: #dcd6ff;
+
+    /* On dusk the main action is the accent with dark text. */
+    --mat-button-filled-container-color: #8b7cff;
+    --mat-button-filled-label-text-color: #0d0b14;
+    --mat-button-filled-icon-color: #0d0b14;
+    --mat-button-filled-state-layer-color: #0d0b14;
   } @else {
-    --shell-bg: #f3f4f6;
-    --chat-sky: linear-gradient(180deg, #d9e7fb 0%, #e9f1fd 45%, #f8fbff 100%);
+    --shell-bg: #f4f4f6;
+    --ink: #18181b;
+    --accent: #5b4fe9;
+    --line: #e7e7eb;
+    --line-strong: #d4d4da;
+    --bubble-user-bg: #18181b;
+    --bubble-user-fg: #ffffff;
+    --composer-bg: #ffffff;
+    --nav-active: #ffffff;
+    --presence: radial-gradient(110% 60% at 50% 0%, #e9e4ff 0%, rgb(233 228 255 / 0%) 70%), #ffffff;
     --mat-sys-surface: #ffffff;
     --mat-sys-background: #ffffff;
     --mat-sys-surface-container-lowest: #ffffff;
-    --mat-sys-surface-container-low: #f6f7f9;
-    --mat-sys-surface-container: #f0f1f4;
-    --mat-sys-surface-container-high: #e8eaee;
-    --mat-sys-surface-container-highest: #e1e4e9;
-    --mat-sys-surface-variant: #e8eaee;
-    --mat-sys-on-surface: #111827;
-    --mat-sys-on-background: #111827;
-    --mat-sys-on-surface-variant: #5b6270;
-    --mat-sys-outline: #8b919c;
-    --mat-sys-outline-variant: #e4e7ec;
-    --mat-sys-primary: #2563eb;
+    --mat-sys-surface-container-low: #f7f7f8;
+    --mat-sys-surface-container: #f2f2f4;
+    --mat-sys-surface-container-high: #efeff2;
+    --mat-sys-surface-container-highest: #e7e7eb;
+    --mat-sys-surface-variant: #efeff2;
+    --mat-sys-on-surface: #18181b;
+    --mat-sys-on-background: #18181b;
+    --mat-sys-on-surface-variant: #6b6b76;
+    --mat-sys-outline: #8a8a95;
+    --mat-sys-outline-variant: #e7e7eb;
+    --mat-sys-primary: #5b4fe9;
     --mat-sys-on-primary: #ffffff;
-    --mat-sys-primary-container: #e8effe;
-    --mat-sys-on-primary-container: #1e3a8a;
-    --mat-sys-secondary-container: #eef0f3;
-    --mat-sys-on-secondary-container: #111827;
-    --mat-sys-tertiary: #2563eb;
-    --mat-sys-tertiary-container: #e8effe;
-    --mat-sys-on-tertiary-container: #1e3a8a;
+    --mat-sys-primary-container: #eeecfd;
+    --mat-sys-on-primary-container: #4338ca;
+    --mat-sys-secondary-container: #efeff2;
+    --mat-sys-on-secondary-container: #18181b;
+    --mat-sys-tertiary: #5b4fe9;
+    --mat-sys-tertiary-container: #eeecfd;
+    --mat-sys-on-tertiary-container: #4338ca;
+
+    /* The main action on a page is ink, not violet: violet is the assistant's. */
+    --mat-button-filled-container-color: #18181b;
+    --mat-button-filled-label-text-color: #ffffff;
+    --mat-button-filled-icon-color: #ffffff;
+    --mat-button-filled-state-layer-color: #ffffff;
   }
 
   /* Work surfaces for the board and backlog, after Jira: a lane set off from the page, and items
@@ -86,51 +118,88 @@
     --work-lane: var(--mat-sys-surface-container-lowest);
     --work-item: var(--mat-sys-surface-container-high);
     --work-item-hover: var(--mat-sys-surface-container-highest);
-    --work-item-shadow: 0 0 0 1px rgb(255 255 255 / 6%);
-    --status-progress-bg: #1c2b41;
-    --status-progress-fg: #85b8ff;
-    --status-done-bg: #1c3329;
-    --status-done-fg: #7ee2b8;
+    --work-item-shadow: 0 0 0 1px var(--line);
+    --status-todo-bg: #221e2e;
+    --status-todo-fg: #b4b0c2;
+    --status-progress-bg: #1a2340;
+    --status-progress-fg: #93b4ff;
+    --status-review-bg: #2e2414;
+    --status-review-fg: #f5c46b;
+    --status-done-bg: #132a1e;
+    --status-done-fg: #6fd69a;
+    --status-urgent-bg: #341716;
+    --status-urgent-fg: #ff8a80;
+    --status-waiting-bg: #2a1a40;
+    --status-waiting-fg: #c9a6ff;
   } @else {
-    --work-lane: var(--mat-sys-surface-container);
+    --work-lane: var(--mat-sys-surface-container-low);
     --work-item: var(--mat-sys-surface-container-lowest);
     --work-item-hover: var(--mat-sys-surface-container-low);
-    --work-item-shadow: 0 0 0 1px rgb(15 20 30 / 9%);
-    --status-progress-bg: #e9f2ff;
-    --status-progress-fg: #0055cc;
-    --status-done-bg: #dcfff1;
-    --status-done-fg: #216e4e;
+    --work-item-shadow: 0 0 0 1px var(--line);
+    --status-todo-bg: #f1f1f3;
+    --status-todo-fg: #52525b;
+    --status-progress-bg: #e8f0fe;
+    --status-progress-fg: #1d4ed8;
+    --status-review-bg: #fdf3e1;
+    --status-review-fg: #a15c07;
+    --status-done-bg: #e6f6ec;
+    --status-done-fg: #166534;
+    --status-urgent-bg: #fdecea;
+    --status-urgent-fg: #c2261d;
+    --status-waiting-bg: #f4ecfd;
+    --status-waiting-fg: #7e22ce;
   }
 }
 
 html {
   @include mat.theme((
-    typography: 'Plus Jakarta Sans',
+    typography: 'Geist',
     density: 0,
   ));
   @include colors(light);
 
-  /* Page and section headings in semibold, as in the Techo shot; Material sets them in regular.
-     The shorthands are written out because Material bakes the weight into them. */
-  --mat-sys-headline-large: 600 2rem / 2.5rem 'Plus Jakarta Sans';
-  --mat-sys-headline-medium: 600 1.75rem / 2.25rem 'Plus Jakarta Sans';
-  --mat-sys-headline-small: 600 1.5rem / 2rem 'Plus Jakarta Sans';
-  --mat-sys-title-large: 600 1.375rem / 1.75rem 'Plus Jakarta Sans';
+  /* Geist throughout (docs/DESIGN.md §3): medium headlines drawn in slightly, firm labels. The
+     shorthands are written out because Material bakes the weight into them. Display is the thin
+     greeting on the assistant's pages; numbers that line up use Geist Mono or tabular figures. */
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --display: 300 2.75rem / 3rem 'Geist';
+  --mat-sys-headline-large: 500 2rem / 2.5rem 'Geist';
+  --mat-sys-headline-medium: 500 1.75rem / 2.25rem 'Geist';
+  --mat-sys-headline-small: 500 1.5rem / 1.875rem 'Geist';
+  --mat-sys-title-large: 500 1.375rem / 1.75rem 'Geist';
+  --mat-sys-title-medium: 600 1rem / 1.375rem 'Geist';
+  --mat-sys-headline-large-tracking: -0.015em;
+  --mat-sys-headline-medium-tracking: -0.015em;
+  --mat-sys-headline-small-tracking: -0.015em;
+  --mat-sys-title-large-tracking: -0.01em;
 
-  /* Soft corners: tight on controls, rounder on panels; only avatars and the send button are
-     round. */
-  --mat-sys-corner-extra-small: 6px;
-  --mat-sys-corner-small: 8px;
-  --mat-sys-corner-medium: 12px;
-  --mat-sys-corner-large: 16px;
+  /* Corners from tight inside to soft outside: pill 8, control 10, card 14, panel 20. */
+  --mat-sys-corner-extra-small: 8px;
+  --mat-sys-corner-small: 10px;
+  --mat-sys-corner-medium: 14px;
+  --mat-sys-corner-large: 20px;
   --mat-sys-corner-extra-large: 20px;
   --mat-button-filled-container-shape: 10px;
   --mat-button-outlined-container-shape: 10px;
   --mat-button-text-container-shape: 10px;
   --mat-button-tonal-container-shape: 10px;
   --mat-button-protected-container-shape: 10px;
-  --mat-fab-container-shape: 12px;
+  --mat-fab-container-shape: 14px;
   --mat-fab-small-container-shape: 12px;
+  --mat-dialog-container-shape: 20px;
+
+  /* Secondary and quiet buttons are ink on paper; only the main action and the assistant's own
+     controls carry colour. */
+  --mat-button-outlined-label-text-color: var(--mat-sys-on-surface);
+  --mat-button-outlined-icon-color: var(--mat-sys-on-surface);
+  --mat-button-outlined-outline-color: var(--line-strong);
+  --mat-button-text-label-text-color: var(--mat-sys-on-surface);
+  --mat-button-text-icon-color: var(--mat-sys-on-surface);
+
+  /* Motion tokens (docs/DESIGN.md §8). */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
 
   /* Nothing at rest casts a shadow: surfaces are told apart by a step in tone. Menus and dialogs,
      which float, keep theirs (level 2 and up). */
@@ -195,9 +264,94 @@ body {
   color: var(--mat-sys-on-primary-container);
 }
 
-/* Material Symbols, used by every mat-icon in the app. */
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+/* Phosphor Regular, the one icon family (docs/DESIGN.md §7), used by every mat-icon in the app.
+   The font is bundled from the package, so the build hashes its name. A mat-icon names its glyph
+   as text (a ligature: <mat-icon>caret-down</mat-icon>); the one glyph without a ligature, the
+   single letter x, is named by class instead (fontIcon="ph-x"). */
+@font-face {
+  font-family: 'Phosphor';
+  src: url('../node_modules/@phosphor-icons/web/src/regular/Phosphor.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+/* The same box the Material Symbols class gave every icon, so sizes set per component still win. */
+.ph {
+  font-family: 'Phosphor' !important;
+  font-style: normal;
+  font-weight: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  font-variant-ligatures: discretionary-ligatures;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ph.ph-x::before {
+  content: '\e4f6';
+}
+
+/* One visible focus ring everywhere: 2px of the accent, 2px off the control. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Numbers that change or line up keep their width. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The Orb: the assistant itself (docs/DESIGN.md §2). Three radial gradients on a circle, no image.
+   Size it with width/height; `.thinking` makes it breathe while the assistant works. */
+.orb {
+  display: inline-block;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgb(255 255 255 / 85%), transparent 18%),
+    radial-gradient(circle at 72% 24%, #56c8f5, transparent 45%),
+    radial-gradient(circle at 25% 80%, #e36bd8, transparent 55%),
+    radial-gradient(circle at 50% 50%, #8b7cff, #3b2a9a 75%);
+  box-shadow: 0 0 1.25em rgb(139 124 255 / 40%);
+
+  &.thinking {
+    animation: orb-breathe 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes orb-breathe {
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: scale(0.94);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb.thinking {
+    animation: none;
+  }
 }
 
 /* A goal's colour chip, used on board cards, backlog rows, planner items and task pages. The
@@ -248,20 +402,47 @@ button.points-pill {
   }
 }
 
-/* A task's status (board column), coloured as Jira colours its statuses: grey to do, blue in
-   progress, green done. Also used, with a number, for the points in each status. */
+/* A task's status (board column) as a tinted pill: grey to do, blue in progress, green done, each
+   with a mark so the colour is never the only cue. Also used, with a number, for the points in
+   each status. */
 .lozenge {
   display: inline-flex;
   align-items: center;
-  gap: 0.1rem;
-  font: var(--mat-sys-label-small);
-  font-weight: 700;
-  line-height: 1.25rem;
+  gap: 0.35rem;
+  height: 1.5rem;
+  font: var(--mat-sys-label-medium);
+  font-weight: 500;
   white-space: nowrap;
   border-radius: var(--mat-sys-corner-extra-small);
-  padding: 0 0.35rem;
-  background: var(--mat-sys-surface-container-highest);
-  color: var(--mat-sys-on-surface-variant);
+  padding: 0 0.5rem;
+  background: var(--status-todo-bg);
+  color: var(--status-todo-fg);
+
+  // The mark: a dashed ring to do, a half-filled one in progress, a filled one done. Lozenges
+  // that are not a status (a count, a quarter) carry none.
+  &:is(.s-todo, .s-in_progress, .s-done)::before {
+    content: '';
+    flex: none;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    border: 1.5px dashed currentColor;
+  }
+
+  &.s-in_progress::before {
+    border-style: solid;
+    background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+  }
+
+  &.s-done::before {
+    border-style: solid;
+    background: currentColor;
+  }
+
+  &.overdue {
+    background: var(--status-urgent-bg);
+    color: var(--status-urgent-fg);
+  }
 
   &.s-in_progress {
     background: var(--status-progress-bg);
@@ -303,9 +484,12 @@ app-backlog {
   --mat-button-text-container-shape: var(--mat-sys-corner-extra-small);
 }
 
-/* An item's key (TASK-7, GOAL-2, SPRINT-1) is its link; the title next to it is plain text. */
+/* An item's key (TASK-7, GOAL-2, SPRINT-1) is its link; the title next to it is plain text. Ink,
+   not violet: violet is the assistant's. */
 a.key-link {
-  color: var(--mat-sys-primary);
+  color: var(--mat-sys-on-surface-variant);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
   text-decoration: none;
 
   &:hover,
@@ -349,7 +533,7 @@ a.key-link {
     font-size: 1rem;
     width: 1rem;
     height: 1rem;
-    color: var(--mat-sys-tertiary);
+    color: var(--mat-sys-on-surface-variant);
   }
 
   .key {
@@ -414,9 +598,9 @@ a.key-link {
   color: var(--mat-sys-on-surface-variant);
 }
 
-/* The task dialog (board/task-dialog.ts): Jira's modest corners, not Material's 28px sheet. */
+/* The task dialog (board/task-dialog.ts) takes the panel corner, like every dialog. */
 .task-dialog {
-  --mat-dialog-container-shape: var(--mat-sys-corner-medium);
+  --mat-dialog-container-shape: var(--mat-sys-corner-large);
 }
 
 /* "+ Create" at the foot of a board column or a backlog section: quiet, full width, left aligned,

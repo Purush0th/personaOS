@@ -26,14 +26,22 @@
   padding: 0.25rem 0.5rem 1rem 0;
 }
 
+// The assistant writes on the page like a document, beside its Orb; only what the user typed
+// and a failed reply sit in a bubble.
 .bubble {
+  position: relative;
   max-width: 44rem;
-  padding: 0.7rem 0.9rem;
-  border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-surface);
-  border: 1px solid var(--mat-sys-outline-variant);
+  padding: 0.1rem 0 0.1rem 2.25rem;
   color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-large);
   overflow-wrap: anywhere;
+  animation: rise 320ms var(--ease-enter) both;
+
+  > .avatar {
+    position: absolute;
+    left: 0;
+    top: 0.2rem;
+  }
 
   // What the user typed keeps its own line breaks.
   .plain {
@@ -67,7 +75,7 @@
     }
 
     code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-family: var(--font-mono);
       font-size: 0.9em;
       padding: 0.05rem 0.3rem;
       border-radius: var(--mat-sys-corner-extra-small);
@@ -111,12 +119,17 @@
     }
   }
 
+  &.user,
+  &.failed {
+    padding: 0.6rem 0.9rem;
+    border-radius: 1.125rem;
+  }
+
   &.user {
     align-self: flex-end;
-    border-color: transparent;
-    border-bottom-right-radius: var(--mat-sys-corner-extra-small);
-    background: var(--mat-sys-primary);
-    color: var(--mat-sys-on-primary);
+    border-bottom-right-radius: 6px;
+    background: var(--bubble-user-bg);
+    color: var(--bubble-user-fg);
   }
 
   &.failed {
@@ -156,6 +169,14 @@
   }
 }
 
+// A new message rises a little as it arrives.
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 @keyframes dot {
   0%,
   60%,
@@ -174,6 +195,16 @@
 @media (prefers-reduced-motion: reduce) {
   .dots i {
     animation-name: dot-fade;
+  }
+
+  .bubble {
+    animation-name: fade;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
   }
 }
 
@@ -233,9 +264,9 @@
   gap: 0.4rem;
   margin: 0.6rem 0 0;
   padding: 0.45rem 0.6rem;
-  border-radius: var(--mat-sys-corner-medium);
-  background: var(--mat-sys-tertiary-container);
-  color: var(--mat-sys-on-tertiary-container);
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--status-review-bg);
+  color: var(--status-review-fg);
   font: var(--mat-sys-body-small);
 }
 

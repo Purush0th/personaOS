@@ -112,7 +112,7 @@ const STATES: Record<string, string> = {
               [disabled]="saving() || updates.working()"
               data-testid="update-now"
             >
-              <mat-icon>system_update_alt</mat-icon>
+              <mat-icon>download-simple</mat-icon>
               Update to {{ v.latest.version }}
             </button>
           </mat-card-actions>

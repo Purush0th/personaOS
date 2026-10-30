@@ -36,10 +36,10 @@ const HISTORY_KEY = 'personaos.nav.history';
  */
 const NAV: NavItem[] = [
   { path: '/goals', label: 'Goals', icon: 'flag', feature: 'goals' },
-  { path: '/board', label: 'Board', icon: 'view_kanban', feature: 'board' },
-  { path: '/planner', label: 'Planner', icon: 'today', feature: 'planner' },
+  { path: '/board', label: 'Board', icon: 'kanban', feature: 'board' },
+  { path: '/planner', label: 'Planner', icon: 'calendar-dot', feature: 'planner' },
   { path: '/reminders', label: 'Reminders', icon: 'alarm', feature: 'reminders' },
-  { path: '/notes', label: 'Notes', icon: 'sticky_note_2', feature: 'notes' },
+  { path: '/notes', label: 'Notes', icon: 'note', feature: 'notes' },
 ];
 
 @Component({

@@ -13,19 +13,6 @@ import { ConversationsStore } from '../core/conversations.store';
 import { conversationRefFromSlug, conversationSlug } from '../core/conversation-slug';
 import { MarkdownPipe } from '../shared/markdown.pipe';
 
-/** The empty chat's mark: a disc of dots, largest and boldest at the centre, fading outward. */
-const ORB_DOTS = (() => {
-  const dots: { x: number; y: number; r: number; o: number }[] = [];
-  for (let row = -3; row <= 3; row++) {
-    for (let col = -3; col <= 3; col++) {
-      const d = Math.hypot(row, col);
-      if (d > 3.3) continue;
-      dots.push({ x: 40 + col * 10, y: 40 + row * 10, r: 3.6 - d * 0.75, o: 1 - d * 0.22 });
-    }
-  }
-  return dots;
-})();
-
 interface Bubble {
   role: 'user' | 'assistant';
   text: string;
@@ -74,7 +61,6 @@ export class Chat implements OnInit {
   /** How the assistant works here; sent with each message and kept with the conversation. */
   protected readonly mode = signal<ChatMode>('chat');
   protected readonly modes = CHAT_MODES;
-  protected readonly orbDots = ORB_DOTS;
   protected readonly modeHint = () => CHAT_MODES.find(m => m.id === this.mode())?.hint ?? '';
   /** Action ids with a confirm/discard in flight, so the buttons can't be double-tapped. */
   private readonly resolving = signal(new Set<string>());

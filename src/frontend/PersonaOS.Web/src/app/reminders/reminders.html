@@ -2,7 +2,7 @@
   <h1>Reminders</h1>
   <span class="spacer"></span>
   <button mat-button (click)="toggleCompleted()">
-    <mat-icon>{{ includeCompleted() ? 'filter_alt' : 'history' }}</mat-icon>
+    <mat-icon>{{ includeCompleted() ? 'funnel' : 'clock-counter-clockwise' }}</mat-icon>
     {{ includeCompleted() ? 'Pending only' : 'Show all' }}
   </button>
 </header>
@@ -30,7 +30,7 @@
     <mat-list>
       @for (item of items(); track item.id) {
         <mat-list-item class="reminder" [class.inactive]="item.status !== 'pending'">
-          <mat-icon matListItemIcon>{{ item.status === 'pending' ? 'alarm' : 'alarm_off' }}</mat-icon>
+          <mat-icon matListItemIcon>{{ item.status === 'pending' ? 'alarm' : 'bell-simple-slash' }}</mat-icon>
           <span matListItemTitle>{{ item.message }}</span>
           <span matListItemLine class="muted small">
             {{ item.dueAtLocal | date: 'EEE d MMM, h:mm a' }}
@@ -43,7 +43,7 @@
               <button mat-button (click)="cancel(item)">Cancel</button>
             }
             <button mat-icon-button aria-label="Delete" (click)="remove(item)">
-              <mat-icon class="danger">delete</mat-icon>
+              <mat-icon class="danger">trash</mat-icon>
             </button>
           </span>
         </mat-list-item>

@@ -26,7 +26,7 @@
       <h1 class="editable" (click)="startTitle()" title="Click to edit">{{ task.title }}</h1>
       <span class="spacer"></span>
       <button mat-icon-button aria-label="Delete task" (click)="remove()">
-        <mat-icon class="danger">delete</mat-icon>
+        <mat-icon class="danger">trash</mat-icon>
       </button>
     }
   </header>
@@ -51,7 +51,7 @@
             <p class="description" (click)="startDescription()" title="Click to edit">{{ task.description }}</p>
           } @else {
             <button mat-button (click)="startDescription()">
-              <mat-icon>notes</mat-icon>
+              <mat-icon>note</mat-icon>
               Add a description
             </button>
           }

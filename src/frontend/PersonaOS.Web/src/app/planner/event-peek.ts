@@ -24,13 +24,13 @@ import { ScopeDialog } from './scope-dialog';
   template: `
     <div class="actions">
       <button mat-icon-button matTooltip="Edit event" aria-label="Edit event" data-testid="peek-edit" (click)="edit()">
-        <mat-icon>edit</mat-icon>
+        <mat-icon>pencil-simple</mat-icon>
       </button>
       <button mat-icon-button matTooltip="Delete event" aria-label="Delete event" data-testid="peek-delete" (click)="remove()">
-        <mat-icon>delete</mat-icon>
+        <mat-icon>trash</mat-icon>
       </button>
       <button mat-icon-button matTooltip="Close" aria-label="Close" [mat-dialog-close]="changed()">
-        <mat-icon>close</mat-icon>
+        <mat-icon fontIcon="ph-x"></mat-icon>
       </button>
     </div>
 
@@ -46,10 +46,10 @@ import { ScopeDialog } from './scope-dialog';
         </div>
       </div>
 
-      <p class="line"><mat-icon>notifications</mat-icon>{{ notify }}</p>
+      <p class="line"><mat-icon>bell</mat-icon>{{ notify }}</p>
 
       @if (item.notes) {
-        <p class="line notes"><mat-icon>notes</mat-icon><span>{{ item.notes }}</span></p>
+        <p class="line notes"><mat-icon>note</mat-icon><span>{{ item.notes }}</span></p>
       }
       @if (item.goalTitle || item.taskKey) {
         <p class="line">
@@ -63,7 +63,7 @@ import { ScopeDialog } from './scope-dialog';
         </p>
       }
       @if (item.status !== 'planned') {
-        <p class="line muted"><mat-icon>{{ item.status === 'done' ? 'check_circle' : 'remove_circle_outline' }}</mat-icon>{{ item.status === 'done' ? 'Done' : 'Skipped' }}</p>
+        <p class="line muted"><mat-icon>{{ item.status === 'done' ? 'check-circle' : 'minus-circle' }}</mat-icon>{{ item.status === 'done' ? 'Done' : 'Skipped' }}</p>
       }
       @if (error(); as message) {
         <p class="error" role="alert">{{ message }}</p>

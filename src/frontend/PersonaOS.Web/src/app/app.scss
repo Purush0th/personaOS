@@ -13,16 +13,16 @@
 mat-sidenav-content {
   background: var(--mat-sys-surface);
 
-  // The chat page sits on a soft sky, the one page with a picture of its own.
+  // The chat page is the assistant's own: it sits on the dusk glow (docs/DESIGN.md, Presence).
   &:has(app-chat) {
-    background: var(--chat-sky);
+    background: var(--presence);
   }
 
   @media (min-width: 721px) {
     // Material sets margin-left inline beside an open rail; this is the gap with none (sign-in).
     margin: 0.5rem;
     height: calc(100% - 1rem);
-    border: 1px solid var(--mat-sys-outline-variant);
+    border: 1px solid var(--line);
     border-radius: var(--mat-sys-corner-large);
   }
 }
@@ -33,7 +33,7 @@ mat-sidenav-content {
   background: var(--shell-bg);
 
   // Compact rows with a white pill for the page you are on, as on the panel itself.
-  --mat-list-active-indicator-color: var(--mat-sys-surface);
+  --mat-list-active-indicator-color: var(--nav-active);
   --mat-list-active-indicator-shape: var(--mat-sys-corner-small);
   --mat-list-list-item-one-line-container-height: 40px;
 
@@ -52,14 +52,27 @@ mat-sidenav-content {
 
   .brand {
     display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    padding: 1.1rem 1.25rem 0.6rem;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 1.1rem 1.25rem 0.75rem;
+
+    .orb {
+      width: 2rem;
+      height: 2rem;
+    }
+
+    .names {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
 
     .product {
       font: var(--mat-sys-title-medium);
-      font-weight: 600;
       letter-spacing: -0.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 
@@ -200,8 +213,8 @@ mat-sidenav-content {
   margin: 1rem 1.5rem 0;
   padding: 0.6rem 0.9rem;
   border-radius: var(--mat-sys-corner-medium);
-  background: var(--mat-sys-tertiary-container);
-  color: var(--mat-sys-on-tertiary-container);
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
 
   span {
     flex: 1;

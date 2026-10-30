@@ -75,7 +75,7 @@ import { SpeechService, SpeechSettings, SpeechStatus } from '../core/speech.serv
 
           @if (result(); as r) {
             <p class="test" [class.ok]="r.ok">
-              <mat-icon>{{ r.ok ? 'check_circle' : 'error' }}</mat-icon>
+              <mat-icon>{{ r.ok ? 'check-circle' : 'warning-circle' }}</mat-icon>
               {{ r.message }}
             </p>
           }

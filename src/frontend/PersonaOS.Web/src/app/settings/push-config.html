@@ -46,7 +46,7 @@
 
       <div class="file">
         <button mat-stroked-button type="button" (click)="googleServicesInput.click()">
-          <mat-icon>android</mat-icon>
+          <mat-icon>android-logo</mat-icon>
           google-services.json
         </button>
         <input
@@ -95,7 +95,7 @@
       @if (status()?.configured) {
         <button mat-button type="button" (click)="remove()" [disabled]="busy()">Turn off</button>
         <button mat-stroked-button type="button" (click)="test()" [disabled]="busy()" data-testid="push-test">
-          <mat-icon>notifications_active</mat-icon>
+          <mat-icon>bell-ringing</mat-icon>
           Send test notification
         </button>
       }
