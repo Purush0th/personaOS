@@ -1,15 +1,15 @@
 <header class="toolbar">
   <button mat-flat-button class="create" data-testid="create-event" (click)="createEvent()">
-    <mat-icon>add</mat-icon>
+    <mat-icon>plus</mat-icon>
     Create
   </button>
   <button mat-stroked-button class="today" data-testid="today" (click)="goToday()" matTooltip="Today (T)">Today</button>
   <div class="steps">
     <button mat-icon-button [attr.aria-label]="'Previous ' + stepLabel()" [matTooltip]="'Previous ' + stepLabel()" data-testid="prev" (click)="step(-1)">
-      <mat-icon>chevron_left</mat-icon>
+      <mat-icon>caret-left</mat-icon>
     </button>
     <button mat-icon-button [attr.aria-label]="'Next ' + stepLabel()" [matTooltip]="'Next ' + stepLabel()" data-testid="next" (click)="step(1)">
-      <mat-icon>chevron_right</mat-icon>
+      <mat-icon>caret-right</mat-icon>
     </button>
   </div>
   <h1 class="title" data-testid="calendar-title">{{ title() }}</h1>
@@ -17,7 +17,7 @@
 
   <button mat-stroked-button class="view-button" [matMenuTriggerFor]="viewMenu" data-testid="view-menu">
     {{ viewLabel() }}
-    <mat-icon iconPositionEnd>arrow_drop_down</mat-icon>
+    <mat-icon iconPositionEnd>caret-down</mat-icon>
   </button>
   <mat-menu #viewMenu="matMenu" xPosition="before" class="view-menu">
     @for (option of views; track option.view) {

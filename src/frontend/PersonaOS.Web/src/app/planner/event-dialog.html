@@ -160,7 +160,7 @@
     <!-- Notification -->
     <mat-form-field class="full">
       <mat-label>Notification</mat-label>
-      <mat-icon matPrefix>notifications</mat-icon>
+      <mat-icon matPrefix>bell</mat-icon>
       <mat-select name="notify" data-testid="event-notify" [ngModel]="notifyChoice()" (ngModelChange)="notifyChoice.set($event)">
         @for (preset of notifyPresets; track preset.label) {
           <mat-option [value]="preset.minutes ?? 'none'">{{ preset.label }}</mat-option>
@@ -173,7 +173,7 @@
       <div class="row custom-notify" data-testid="custom-notify">
         <div class="stepper">
           <button type="button" mat-icon-button aria-label="One less" data-testid="notify-minus" (click)="step(-1)" [disabled]="customAmount() <= 0">
-            <mat-icon>remove</mat-icon>
+            <mat-icon>minus</mat-icon>
           </button>
           <mat-form-field class="count" subscriptSizing="dynamic">
             <input
@@ -189,7 +189,7 @@
             />
           </mat-form-field>
           <button type="button" mat-icon-button aria-label="One more" data-testid="notify-plus" (click)="step(1)">
-            <mat-icon>add</mat-icon>
+            <mat-icon>plus</mat-icon>
           </button>
         </div>
         <mat-form-field class="unit" subscriptSizing="dynamic">

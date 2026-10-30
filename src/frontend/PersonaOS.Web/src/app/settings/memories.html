@@ -21,7 +21,7 @@
     <div class="filters">
       <mat-form-field class="search" subscriptSizing="dynamic">
         <mat-label>Search</mat-label>
-        <mat-icon matPrefix>search</mat-icon>
+        <mat-icon matPrefix>magnifying-glass</mat-icon>
         <input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" name="memorySearch" />
       </mat-form-field>
 
@@ -36,7 +36,7 @@
       </mat-chip-listbox>
 
       <button mat-stroked-button type="button" (click)="startAdd()" [disabled]="editing() !== null">
-        <mat-icon>add</mat-icon>
+        <mat-icon>plus</mat-icon>
         Add
       </button>
     </div>
@@ -75,10 +75,10 @@
             </div>
             <div class="row-actions">
               <button mat-icon-button type="button" (click)="startEdit(memory)" aria-label="Edit" [disabled]="editing() !== null">
-                <mat-icon>edit</mat-icon>
+                <mat-icon>pencil-simple</mat-icon>
               </button>
               <button mat-icon-button type="button" (click)="remove(memory)" aria-label="Delete">
-                <mat-icon>delete</mat-icon>
+                <mat-icon>trash</mat-icon>
               </button>
             </div>
           }

@@ -123,7 +123,7 @@ describe('Goals', () => {
 
   it('says why a goal cannot be completed or deleted yet instead of failing', async () => {
     const monthItems = await openMenu('GOAL-3');
-    const complete = monthItems.find(i => text(i).startsWith('task_alt Complete'))!;
+    const complete = monthItems.find(i => text(i).startsWith('check-circle Complete'))!;
     expect(complete.hasAttribute('disabled') || complete.getAttribute('aria-disabled') === 'true').toBeTrue();
     expect(text(complete)).toContain('open tasks: TASK-9');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));

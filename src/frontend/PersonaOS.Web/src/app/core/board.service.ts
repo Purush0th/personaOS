@@ -150,13 +150,13 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   lowest: 'Lowest',
 };
 
-/** Material Symbols for each priority: arrows up for urgent, down for whenever. */
+/** Phosphor icons for each priority: carets up for urgent, down for whenever. */
 export const PRIORITY_ICONS: Record<Priority, string> = {
-  highest: 'keyboard_double_arrow_up',
-  high: 'keyboard_arrow_up',
-  medium: 'drag_handle',
-  low: 'keyboard_arrow_down',
-  lowest: 'keyboard_double_arrow_down',
+  highest: 'caret-double-up',
+  high: 'caret-up',
+  medium: 'dots-six',
+  low: 'caret-down',
+  lowest: 'caret-double-down',
 };
 
 export const COLUMN_LABELS: Record<BoardColumn, string> = {

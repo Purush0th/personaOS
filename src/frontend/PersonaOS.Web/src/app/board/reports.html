@@ -9,7 +9,7 @@
     <!-- Which sprint: search by key, name or date, finished sprints included. -->
     <div class="picker">
       <mat-form-field class="sprint-search" subscriptSizing="dynamic">
-        <mat-icon matPrefix>search</mat-icon>
+        <mat-icon matPrefix>magnifying-glass</mat-icon>
         <mat-label>Find a sprint</mat-label>
         <input
           matInput
@@ -44,7 +44,7 @@
       <!-- The sprint in four numbers, as Jira's reports open with four tiles. -->
       <div class="tiles">
         <div class="tile">
-          <mat-icon class="done">task_alt</mat-icon>
+          <mat-icon class="done">check-circle</mat-icon>
           <b>{{ doneCount() }} of {{ d.tasks.length }}</b>
           <span>tasks done</span>
         </div>
@@ -54,13 +54,13 @@
           <span>points completed</span>
         </div>
         <div class="tile">
-          <mat-icon class="scope">swap_vert</mat-icon>
+          <mat-icon class="scope">arrows-down-up</mat-icon>
           <b>+{{ d.sprint.addedPoints }} / −{{ d.sprint.removedPoints }}</b>
           <span>points added / removed</span>
         </div>
         @let time = timing(d.sprint);
         <div class="tile">
-          <mat-icon class="time">schedule</mat-icon>
+          <mat-icon class="time">clock</mat-icon>
           <b>{{ time.value }}</b>
           <span>{{ time.caption }}</span>
         </div>

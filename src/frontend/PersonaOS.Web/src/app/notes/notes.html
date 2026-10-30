@@ -2,7 +2,7 @@
   <h1>Notes</h1>
   <span class="spacer"></span>
   <label class="search">
-    <mat-icon aria-hidden="true">search</mat-icon>
+    <mat-icon aria-hidden="true">magnifying-glass</mat-icon>
     <input
       type="search"
       name="search"
@@ -69,11 +69,11 @@
             data-testid="note-to-backlog"
             (click)="toBacklog(note)"
           >
-            <mat-icon>move_to_inbox</mat-icon>
+            <mat-icon>tray-arrow-down</mat-icon>
           </button>
         }
         <button mat-icon-button matTooltip="Delete" aria-label="Delete note" data-testid="note-delete" (click)="remove(note)">
-          <mat-icon>delete</mat-icon>
+          <mat-icon>trash</mat-icon>
         </button>
       </div>
     </article>

@@ -36,9 +36,11 @@
   }
 }
 
+// A table on paper, as in the reference task tools: a grey header row, hairline rows, a tint on
+// the row under the pointer.
 .table {
   overflow-x: auto;
-  border-radius: var(--mat-sys-corner-small);
+  border-radius: var(--mat-sys-corner-medium);
   background: var(--work-item);
   box-shadow: var(--work-item-shadow);
 }
@@ -51,17 +53,28 @@ table {
 
 th,
 td {
-  padding: 0.5rem 0.75rem;
+  height: 2.5rem;
+  padding: 0 0.75rem;
   text-align: left;
   white-space: nowrap;
 }
 
+thead th {
+  background: var(--mat-sys-surface-container-low);
+}
+
 tbody tr {
-  border-top: 1px solid var(--mat-sys-outline-variant);
+  border-top: 1px solid var(--line);
+  transition: background-color 120ms var(--ease-standard);
+
+  &:hover {
+    background: var(--mat-sys-surface-container-low);
+  }
 }
 
 .num {
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 // Headings are buttons that sort; the arrow shows on the sorted column, and on hover.
@@ -97,7 +110,7 @@ th button {
     height: 1rem;
     margin-right: 0.35rem;
     vertical-align: -0.2rem;
-    color: var(--mat-sys-tertiary);
+    color: var(--mat-sys-on-surface-variant);
   }
 }
 

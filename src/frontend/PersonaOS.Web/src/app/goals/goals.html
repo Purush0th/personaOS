@@ -1,12 +1,12 @@
 <app-page-tabs section="goals">
   @if (canFold()) {
     <button pageActions mat-button (click)="toggleAll()">
-      <mat-icon>{{ anyCollapsed() ? 'unfold_more' : 'unfold_less' }}</mat-icon>
+      <mat-icon>{{ anyCollapsed() ? 'arrows-out-line-vertical' : 'arrows-in-line-vertical' }}</mat-icon>
       {{ anyCollapsed() ? 'Expand all' : 'Collapse all' }}
     </button>
   }
   <button pageActions mat-flat-button (click)="newGoal()">
-    <mat-icon>add</mat-icon>
+    <mat-icon>plus</mat-icon>
     New goal
   </button>
 
@@ -25,7 +25,7 @@
           <button mat-icon-button class="fold" (click)="toggle(row)"
                   [attr.aria-expanded]="!collapsed().has(goal.id)"
                   [attr.aria-label]="(collapsed().has(goal.id) ? 'Expand ' : 'Collapse ') + goal.key">
-            <mat-icon>{{ collapsed().has(goal.id) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+            <mat-icon>{{ collapsed().has(goal.id) ? 'caret-right' : 'caret-down' }}</mat-icon>
           </button>
         }
         <a class="key key-link" [routerLink]="[]" [queryParams]="{ goal: goal.key }" queryParamsHandling="merge">{{ goal.key }}</a>
@@ -40,7 +40,7 @@
         <span class="muted range">{{ range(goal) }}</span>
         <span class="spacer"></span>
         <button mat-icon-button class="menu" [matMenuTriggerFor]="goalMenu" [attr.aria-label]="'Actions for ' + goal.key">
-          <mat-icon>more_horiz</mat-icon>
+          <mat-icon>dots-three</mat-icon>
         </button>
         <mat-menu #goalMenu="matMenu">
           @if (setsProgressByHand(goal)) {
@@ -51,20 +51,20 @@
           }
           @if (childType(goal); as type) {
             <button mat-menu-item (click)="newGoal(goal)">
-              <mat-icon>add</mat-icon>
+              <mat-icon>plus</mat-icon>
               Add {{ type }}
             </button>
           }
           @if (goal.periodType !== 'year') {
             <button mat-menu-item (click)="move(goal)">
-              <mat-icon>drive_file_move</mat-icon>
+              <mat-icon>folder-simple</mat-icon>
               Move
             </button>
           }
           @if (goal.status === 'active') {
             <!-- Completion is the user's call, but not while work under the goal is open. -->
             <button mat-menu-item [disabled]="!!goal.completeProblem" (click)="setStatus(goal, 'completed')">
-              <mat-icon>task_alt</mat-icon>
+              <mat-icon>check-circle</mat-icon>
               <span class="item">
                 Complete
                 @if (goal.completeProblem) {
@@ -74,12 +74,12 @@
             </button>
           } @else {
             <button mat-menu-item (click)="setStatus(goal, 'active')">
-              <mat-icon>replay</mat-icon>
+              <mat-icon>arrow-counter-clockwise</mat-icon>
               Reopen
             </button>
           }
           <button mat-menu-item [disabled]="goal.childCount > 0" (click)="remove(goal)">
-            <mat-icon class="danger">delete</mat-icon>
+            <mat-icon class="danger">trash</mat-icon>
             <span class="item">
               Delete
               @if (goal.childCount > 0) {
@@ -96,7 +96,7 @@
         <div class="tasks">
           @for (task of goal.tasks; track task.id) {
             <div class="work-row" [class.done]="task.column === 'done'">
-              <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
+              <mat-icon class="type" aria-hidden="true">check-square</mat-icon>
               <a class="key key-link" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
               <span class="title">{{ task.title }}</span>
               <span class="spacer"></span>
@@ -107,7 +107,7 @@
               <span class="points-pill" [class.none]="task.points === null">{{ task.points ?? '–' }}</span>
               <button mat-icon-button class="more" [matMenuTriggerFor]="taskMenu" [matMenuTriggerData]="{ task }"
                       [attr.aria-label]="'Actions for ' + task.key">
-                <mat-icon>more_horiz</mat-icon>
+                <mat-icon>dots-three</mat-icon>
               </button>
             </div>
           }
@@ -120,13 +120,13 @@
           <app-inline-create layout="row" [allowedPoints]="allowedPoints" [save]="createTask" (cancelled)="addingTaskTo.set(null)" />
         } @else {
           <button mat-button class="create-trigger" (click)="addingTaskTo.set(goal.id)">
-            <mat-icon>add</mat-icon>
+            <mat-icon>plus</mat-icon>
             Create task
           </button>
         }
       } @else if (childType(goal); as type) {
         <button mat-button class="create-trigger" (click)="newGoal(goal)">
-          <mat-icon>add</mat-icon>
+          <mat-icon>plus</mat-icon>
           Add {{ type }}
         </button>
       }
@@ -141,17 +141,17 @@
   <mat-menu #taskMenu="matMenu">
     <ng-template matMenuContent let-task="task">
       <a mat-menu-item [routerLink]="['/board/tasks', task.key]" target="_blank" rel="noopener">
-        <mat-icon>open_in_full</mat-icon>
+        <mat-icon>arrows-out-simple</mat-icon>
         Open
       </a>
       @if (task.column === 'done') {
         <button mat-menu-item (click)="reopenTask(task)">
-          <mat-icon>undo</mat-icon>
+          <mat-icon>arrow-u-up-left</mat-icon>
           Back to backlog
         </button>
       }
       <button mat-menu-item (click)="removeTask(task)">
-        <mat-icon class="danger">delete</mat-icon>
+        <mat-icon class="danger">trash</mat-icon>
         Delete
       </button>
     </ng-template>

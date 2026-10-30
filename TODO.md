@@ -430,6 +430,15 @@ the chat it always showing new one but the last active one can be preserved if n
       empty-state line. Home hero on the sky; alarm screen moved from violet to navy and blue.
       Pending-action cards and receipts now take scheme colours (the fixed amber stayed pale in dark;
       the receipt green failed contrast on dark).
+- [~] **D1. "Dusk" redesign, web and phone** (claimed: web + mobile session, 2026-10-30). Follow
+      `docs/DESIGN.md` rollout §12: tokens + Geist, shell, chat + Orb, phone home stat cards +
+      bottom bar, workspace pills/cards/dialogs, Phosphor icons.
+      Done so far (uncommitted): steps 1–3 on both; phone home with stat cards (`home_stats_test`);
+      workspace pills, board cards, tables and dialog radius on both (phone `StatusTone`/`StatusPill`
+      in `layout.dart`). Phosphor icons on both (web: `@phosphor-icons/web` font as the mat-icon
+      font set; phone: bundled font + generated `lib/phosphor_icons.dart`). Released as
+      v0.1.0-alpha.16 / mobile-v0.1.0-alpha.16. Open: the phone bottom bar with a raised Orb
+      (changes the phone's navigation, needs the owner's call).
 - [x] **U2. Live on the prod server** (2026-10-24). Fresh install (no data moved, owner's choice) on
       Windows 11 + Docker Desktop (WSL 2) at `C:\personaos`, Ollama native on Windows
       (`host.docker.internal:11434`), profiles speech + updater with

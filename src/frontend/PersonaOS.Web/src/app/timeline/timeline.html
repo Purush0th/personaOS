@@ -1,7 +1,7 @@
 <app-page-tabs section="goals">
   @if (rows().length > 0) {
     <button pageActions mat-button (click)="toggleAll()">
-      <mat-icon>{{ anyCollapsed() ? 'unfold_more' : 'unfold_less' }}</mat-icon>
+      <mat-icon>{{ anyCollapsed() ? 'arrows-out-line-vertical' : 'arrows-in-line-vertical' }}</mat-icon>
       {{ anyCollapsed() ? 'Expand all' : 'Collapse all' }}
     </button>
   }
@@ -57,7 +57,7 @@
           <button mat-icon-button class="fold" (click)="toggle(row)"
                   [attr.aria-expanded]="!collapsed().has(goal.id)"
                   [attr.aria-label]="(collapsed().has(goal.id) ? 'Expand ' : 'Collapse ') + goal.key">
-            <mat-icon>{{ collapsed().has(goal.id) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+            <mat-icon>{{ collapsed().has(goal.id) ? 'caret-right' : 'caret-down' }}</mat-icon>
           </button>
         } @else {
           <span class="fold" aria-hidden="true"></span>
