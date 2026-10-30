@@ -3,9 +3,13 @@
   <div class="messages" #scroller role="log" aria-label="Conversation" [attr.aria-busy]="streaming()">
     @for (bubble of bubbles(); track $index) {
       <div class="bubble" [class.user]="bubble.role === 'user'" [class.failed]="bubble.isError">
+        <!-- The assistant writes on the page beside its Orb, which breathes while it works. -->
+        @if (bubble.role !== 'user' && !bubble.isError) {
+          <span class="orb avatar" [class.thinking]="!bubble.text" aria-hidden="true"></span>
+        }
         @if (bubble.tool) {
           <span class="tool" role="status">
-            <mat-icon inline>build</mat-icon>
+            <mat-icon inline>wrench</mat-icon>
             {{ bubble.tool }}
             <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
           </span>
@@ -37,11 +41,11 @@
                 </span>
               } @else if (action.status === 'confirmed') {
                 <mat-icon class="mark" [class.bad]="!action.resultOk">
-                  {{ action.resultOk ? 'check_circle' : 'error' }}
+                  {{ action.resultOk ? 'check-circle' : 'warning-circle' }}
                 </mat-icon>
                 <span class="what">{{ action.resultSummary || action.summary }}</span>
               } @else {
-                <mat-icon class="mark muted">remove_circle_outline</mat-icon>
+                <mat-icon class="mark muted">minus-circle</mat-icon>
                 <span class="what">Discarded: {{ action.summary }}</span>
               }
             </div>
@@ -60,7 +64,7 @@
         <!-- The reply names items that are not there: checked against the data, not guessed. -->
         @if (unknownItemsNote(bubble.unknownItems); as note) {
           <p class="unverified" role="note">
-            <mat-icon inline>help</mat-icon>
+            <mat-icon inline>question</mat-icon>
             {{ note }}
           </p>
         }
@@ -71,7 +75,11 @@
           <ul class="receipts" aria-label="What was actually done">
             @for (action of bubble.actions; track $index) {
               <li [class.failed]="!action.ok">
-                <mat-icon inline>{{ action.ok ? 'check' : 'close' }}</mat-icon>
+                @if (action.ok) {
+                  <mat-icon inline>check</mat-icon>
+                } @else {
+                  <mat-icon inline fontIcon="ph-x"></mat-icon>
+                }
                 <span class="what">{{ action.label }}</span>
                 @if (action.summary) {
                   <span class="detail">{{ action.summary }}</span>
@@ -82,13 +90,9 @@
         }
       </div>
     } @empty {
-      <!-- A fresh conversation opens on the assistant's mark and one line of what it is for. -->
+      <!-- A fresh conversation opens on the Orb and a greeting in the thin display type. -->
       <div class="hero">
-        <svg class="orb" viewBox="0 0 80 80" aria-hidden="true">
-          @for (dot of orbDots; track $index) {
-            <circle [attr.cx]="dot.x" [attr.cy]="dot.y" [attr.r]="dot.r" [attr.opacity]="dot.o" />
-          }
-        </svg>
+        <span class="orb" aria-hidden="true"></span>
         <h1>
           What's on your mind?
           <span>{{ branding.branding()?.assistantNickname ?? 'Your assistant' }} will handle the rest.</span>
@@ -97,7 +101,8 @@
     }
   </div>
 
-  <!-- One card holds the message, the mode and the send button, as one thing to type into. -->
+  <!-- One card holds the message, the mode and the send button, as one thing to type into. The
+       send button is the Orb: the message goes to the assistant. -->
   <form class="composer" (ngSubmit)="send()">
     <textarea
       name="draft"
@@ -130,7 +135,7 @@
         @if (streaming()) {
           <mat-progress-spinner mode="indeterminate" diameter="20" strokeWidth="3" />
         } @else {
-          <mat-icon>arrow_upward</mat-icon>
+          <mat-icon>arrow-up</mat-icon>
         }
       </button>
     </div>

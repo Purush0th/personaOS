@@ -1,5 +1,5 @@
 <label class="search">
-  <mat-icon>search</mat-icon>
+  <mat-icon>magnifying-glass</mat-icon>
   <input
     type="search"
     placeholder="Search tasks"
@@ -18,7 +18,7 @@
             <button type="button" (click)="sortBy(column.id)">
               {{ column.label }}
               <mat-icon class="arrow" [class.shown]="sort().column === column.id">
-                {{ sort().column === column.id && sort().descending ? 'arrow_downward' : 'arrow_upward' }}
+                {{ sort().column === column.id && sort().descending ? 'arrow-down' : 'arrow-up' }}
               </mat-icon>
             </button>
           </th>
@@ -29,7 +29,7 @@
       @for (task of rows(); track task.key) {
         <tr>
           <td class="key">
-            <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
+            <mat-icon class="type" aria-hidden="true">check-square</mat-icon>
             <a class="key-link" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
           </td>
           <td class="summary">{{ task.title }}</td>

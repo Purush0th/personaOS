@@ -15,9 +15,9 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })),
     provideHttpClient(withXhr(), withInterceptors([authInterceptor])),
     provideAnimationsAsync(),
-    // The app loads Material Symbols, not the older Material Icons font; without this every
-    // icon renders as its own name in text.
-    { provide: MAT_ICON_DEFAULT_OPTIONS, useValue: { fontSet: 'material-symbols-outlined' } },
+    // Every mat-icon is a Phosphor glyph (styles.scss); without this it would look for the
+    // Material Icons font and render each icon as its own name in text.
+    { provide: MAT_ICON_DEFAULT_OPTIONS, useValue: { fontSet: 'ph' } },
     // Form-field defaults are provided by the lazy page routes (see FORM_FIELD_DEFAULTS), so the
     // form-field module stays out of the first download.
   ],

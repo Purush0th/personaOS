@@ -26,14 +26,14 @@
       <span class="spacer"></span>
       @if (goal.periodType !== 'year') {
         <button mat-icon-button aria-label="Move goal" title="Move" (click)="move()">
-          <mat-icon>drive_file_move</mat-icon>
+          <mat-icon>folder-simple</mat-icon>
         </button>
       }
       <button mat-icon-button aria-label="Delete goal"
               [disabled]="goal.childCount > 0"
               [title]="goal.childCount > 0 ? 'Delete its ' + childWord(goal) + ' first.' : 'Delete'"
               (click)="remove()">
-        <mat-icon class="danger">delete</mat-icon>
+        <mat-icon class="danger">trash</mat-icon>
       </button>
     }
   </header>
@@ -66,7 +66,7 @@
             <p class="description" (click)="startDescription()" title="Click to edit">{{ goal.description }}</p>
           } @else {
             <button mat-button (click)="startDescription()">
-              <mat-icon>notes</mat-icon>
+              <mat-icon>note</mat-icon>
               Add a description
             </button>
           }
@@ -97,7 +97,7 @@
             }
             @if (canAddChild(goal)) {
               <button mat-button class="create-trigger" (click)="addChild()">
-                <mat-icon>add</mat-icon>
+                <mat-icon>plus</mat-icon>
                 Add {{ childWord(goal, 1) }}
               </button>
             }
@@ -112,7 +112,7 @@
               <div class="tasks">
                 @for (task of goal.tasks; track task.id) {
                   <div class="work-row" [class.done]="task.column === 'done'">
-                    <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
+                    <mat-icon class="type" aria-hidden="true">check-square</mat-icon>
                     <a class="key key-link" [routerLink]="['/board/tasks', task.key]">{{ task.key }}</a>
                     <span class="title">{{ task.title }}</span>
                     <span class="spacer"></span>
@@ -131,7 +131,7 @@
                 <app-inline-create layout="row" [allowedPoints]="allowedPoints" [save]="createTask" (cancelled)="addingTask.set(false)" />
               } @else {
                 <button mat-button class="create-trigger" (click)="addingTask.set(true)">
-                  <mat-icon>add</mat-icon>
+                  <mat-icon>plus</mat-icon>
                   Create task
                 </button>
               }
@@ -152,13 +152,13 @@
             @if (goal.status === 'active') {
               <span class="lozenge">Active</span>
               <button mat-stroked-button [disabled]="!!goal.completeProblem" (click)="setStatus('completed')">
-                <mat-icon>task_alt</mat-icon>
+                <mat-icon>check-circle</mat-icon>
                 Complete
               </button>
             } @else {
               <span class="lozenge s-done">Completed</span>
               <button mat-stroked-button (click)="setStatus('active')">
-                <mat-icon>replay</mat-icon>
+                <mat-icon>arrow-counter-clockwise</mat-icon>
                 Reopen
               </button>
             }

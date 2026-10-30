@@ -42,10 +42,10 @@ interface ItemDialogData {
         aria-label="Open full page in a new tab"
         title="Open full page in a new tab"
       >
-        <mat-icon>open_in_full</mat-icon>
+        <mat-icon>arrows-out-simple</mat-icon>
       </a>
       <button mat-icon-button mat-dialog-close aria-label="Close" title="Close">
-        <mat-icon>close</mat-icon>
+        <mat-icon fontIcon="ph-x"></mat-icon>
       </button>
     </div>
     <mat-dialog-content>

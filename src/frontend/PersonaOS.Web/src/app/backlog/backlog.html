@@ -22,7 +22,7 @@
               [attr.aria-label]="isCollapsed(group) ? 'Expand' : 'Collapse'"
               (click)="toggle(group)"
             >
-              <mat-icon>{{ isCollapsed(group) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+              <mat-icon>{{ isCollapsed(group) ? 'caret-right' : 'caret-down' }}</mat-icon>
             </button>
 
             @if (group.sprint; as sprint) {
@@ -66,15 +66,15 @@
                   <button mat-stroked-button (click)="completeSprint(sprint)">Complete sprint</button>
                 }
                 <button mat-icon-button [matMenuTriggerFor]="sprintMenu" [attr.aria-label]="'Actions for ' + sprint.key">
-                  <mat-icon>more_horiz</mat-icon>
+                  <mat-icon>dots-three</mat-icon>
                 </button>
                 <mat-menu #sprintMenu="matMenu">
                   <button mat-menu-item (click)="editSprint(sprint)">
-                    <mat-icon>edit</mat-icon>
+                    <mat-icon>pencil-simple</mat-icon>
                     Edit
                   </button>
                   <button mat-menu-item (click)="deleteSprint(sprint)">
-                    <mat-icon class="danger">delete</mat-icon>
+                    <mat-icon class="danger">trash</mat-icon>
                     Delete
                   </button>
                 </mat-menu>
@@ -93,7 +93,7 @@
             >
               @for (task of group.tasks; track task.key) {
                 <div class="work-row row" cdkDrag [cdkDragData]="task">
-                  <mat-icon class="type" aria-hidden="true">check_box</mat-icon>
+                  <mat-icon class="type" aria-hidden="true">check-square</mat-icon>
                   <a class="key key-link" [routerLink]="[]" [queryParams]="{ task: task.key }" queryParamsHandling="merge">{{ task.key }}</a>
                   <span class="title">{{ task.title }}</span>
 
@@ -104,14 +104,14 @@
                   }
                   @if (task.carryOverCount > 0) {
                     <span class="flag" title="Carried over from an earlier sprint">
-                      <mat-icon inline>replay</mat-icon>{{ task.carryOverCount }}
+                      <mat-icon inline>arrow-counter-clockwise</mat-icon>{{ task.carryOverCount }}
                     </span>
                   }
                   @if (task.commentCount > 0) {
-                    <span class="flag"><mat-icon inline>comment</mat-icon>{{ task.commentCount }}</span>
+                    <span class="flag"><mat-icon inline>chat-circle</mat-icon>{{ task.commentCount }}</span>
                   }
                   @if (task.attachmentCount > 0) {
-                    <span class="flag"><mat-icon inline>attach_file</mat-icon>{{ task.attachmentCount }}</span>
+                    <span class="flag"><mat-icon inline>paperclip</mat-icon>{{ task.attachmentCount }}</span>
                   }
 
                   <span class="spacer"></span>
@@ -127,7 +127,7 @@
                       [attr.aria-label]="'Status of ' + task.key + ': ' + columnLabels[task.column]"
                     >
                       {{ columnLabels[task.column] }}
-                      <mat-icon>expand_more</mat-icon>
+                      <mat-icon>caret-down</mat-icon>
                     </button>
                   } @else {
                     <span class="lozenge status">{{ columnLabels[task.column] }}</span>
@@ -160,7 +160,7 @@
                     [matMenuTriggerData]="{ task }"
                     [attr.aria-label]="'Move ' + task.key"
                   >
-                    <mat-icon>more_horiz</mat-icon>
+                    <mat-icon>dots-three</mat-icon>
                   </button>
                 </div>
               } @empty {
@@ -179,7 +179,7 @@
               />
             } @else {
               <button mat-button class="create-trigger" (click)="addingTo.set(groupId(group))">
-                <mat-icon>add</mat-icon>
+                <mat-icon>plus</mat-icon>
                 Create
               </button>
             }
@@ -219,12 +219,12 @@
     <mat-menu #moveMenu="matMenu">
       <ng-template matMenuContent let-task="task">
         <a mat-menu-item [routerLink]="['/board/tasks', task.key]" target="_blank" rel="noopener">
-          <mat-icon>open_in_full</mat-icon>
+          <mat-icon>arrows-out-simple</mat-icon>
           Open
         </a>
         @for (target of moveTargets(task); track target.id) {
           <button mat-menu-item (click)="moveToGroup(task, target.id)">
-            <mat-icon>arrow_forward</mat-icon>
+            <mat-icon>arrow-right</mat-icon>
             Move to {{ target.title }}
           </button>
         }

@@ -13,7 +13,7 @@
               <img [src]="url(file)" [alt]="file.fileName" width="40" height="40" loading="lazy" decoding="async" />
             </a>
           } @else {
-            <mat-icon matListItemIcon>attach_file</mat-icon>
+            <mat-icon matListItemIcon>paperclip</mat-icon>
           }
           <a matListItemTitle class="name" [href]="url(file)" target="_blank" rel="noopener">
             {{ file.fileName }}
@@ -27,7 +27,7 @@
               [attr.aria-label]="'Delete ' + file.fileName"
               (click)="deleteAttachment(file)"
             >
-              <mat-icon class="danger">delete</mat-icon>
+              <mat-icon class="danger">trash</mat-icon>
             </button>
           </span>
         </mat-list-item>
@@ -40,7 +40,7 @@
       <mat-progress-bar mode="indeterminate" />
     }
     <button mat-stroked-button [disabled]="uploading()" (click)="fileInput.click()">
-      <mat-icon>upload</mat-icon>
+      <mat-icon>upload-simple</mat-icon>
       {{ uploading() ? 'Uploading…' : 'Attach a file' }}
     </button>
     <input type="file" #fileInput (change)="upload(fileInput)" [disabled]="uploading()" hidden />
@@ -64,10 +64,10 @@
           }
           <span class="spacer"></span>
           <button mat-icon-button aria-label="Edit comment" (click)="startEdit(comment)">
-            <mat-icon>edit</mat-icon>
+            <mat-icon>pencil-simple</mat-icon>
           </button>
           <button mat-icon-button aria-label="Delete comment" (click)="deleteComment(comment)">
-            <mat-icon class="danger">delete</mat-icon>
+            <mat-icon class="danger">trash</mat-icon>
           </button>
         </div>
         @if (editingId() === comment.id) {

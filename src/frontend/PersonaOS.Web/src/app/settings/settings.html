@@ -131,7 +131,7 @@
 
         @if (testResult(); as result) {
           <p class="test" [class.ok]="result.ok" [class.error]="!result.ok">
-            <mat-icon>{{ result.ok ? 'check_circle' : 'error' }}</mat-icon>
+            <mat-icon>{{ result.ok ? 'check-circle' : 'warning-circle' }}</mat-icon>
             {{ result.message }}
           </p>
         }
