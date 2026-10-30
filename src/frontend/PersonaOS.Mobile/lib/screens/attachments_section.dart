@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
+import '../phosphor_icons.dart';
 
 /// The files attached to a task or goal: open, add and delete them, as on the web. A file opens
 /// in whatever app the phone has for it, after it is downloaded to the app's own folder.
@@ -109,7 +110,7 @@ class _AttachmentsSectionState extends State<AttachmentsSection> {
                 ),
                 TextButton.icon(
                   onPressed: _busy ? null : _add,
-                  icon: const Icon(Icons.attach_file, size: 18),
+                  icon: const Icon(PhosphorIconsRegular.paperclip, size: 18),
                   label: const Text('Attach'),
                 ),
               ],
@@ -124,13 +125,13 @@ class _AttachmentsSectionState extends State<AttachmentsSection> {
                 key: Key('attachment-${file.id}'),
                 dense: true,
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.insert_drive_file_outlined),
+                leading: const Icon(PhosphorIconsRegular.file),
                 title: Text(file.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text('${_size(file.sizeBytes)} · ${relativeTime(file.createdAtUtc)}'),
                 onTap: _busy ? null : () => _open(file),
                 trailing: IconButton(
                   tooltip: 'Delete attachment',
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(PhosphorIconsRegular.trash),
                   onPressed: _busy ? null : () => _delete(file),
                 ),
               ),

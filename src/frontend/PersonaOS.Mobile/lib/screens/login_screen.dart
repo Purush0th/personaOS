@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../auth_vault.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 
 /// Admin login before opening the chat.
 ///
@@ -203,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: _busy ? null : _unlock,
-                icon: const Icon(Icons.fingerprint),
+                icon: const Icon(PhosphorIconsRegular.fingerprint),
                 label: const Text('Use fingerprint'),
               ),
             ],

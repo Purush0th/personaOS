@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 
 /// What the assistant remembers across conversations: read, search, add, edit
 /// and delete each memory, and choose whether the assistant saves them without
@@ -134,7 +135,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
       appBar: AppBar(title: const Text('Memories')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _edit,
-        icon: const Icon(Icons.add),
+        icon: const Icon(PhosphorIconsRegular.plus),
         label: const Text('Add'),
       ),
       body: ReadableWidth(child: Column(
@@ -155,11 +156,11 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 hintText: 'Search memories',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(PhosphorIconsRegular.magnifyingGlass),
                 suffixIcon: _search.text.isEmpty
                     ? null
                     : IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(PhosphorIconsRegular.x),
                         tooltip: 'Clear',
                         onPressed: () => setState(_search.clear),
                       ),
@@ -205,7 +206,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.psychology_outlined, size: 44, color: scheme.outline),
+                          Icon(PhosphorIconsRegular.brain, size: 44, color: scheme.outline),
                           const SizedBox(height: 14),
                           Text(all.isEmpty ? 'No memories yet' : 'No memory matches',
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),

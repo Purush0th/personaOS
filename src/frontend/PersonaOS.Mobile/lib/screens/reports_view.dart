@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import 'board_widgets.dart';
 import 'sprint_page.dart';
 import 'task_views.dart';
@@ -128,7 +129,7 @@ class _ReportsViewState extends State<ReportsView> {
                               ));
                               if (changed == true) await _reload();
                             },
-                            icon: const Icon(Icons.open_in_full, size: 18),
+                            icon: const Icon(PhosphorIconsRegular.arrowsOutSimple, size: 18),
                             label: Text('Open $sprintKey'),
                           ),
                         ),
@@ -281,7 +282,7 @@ class _SprintSummaryState extends State<SprintSummary> {
               key: const Key('report-search'),
               decoration: const InputDecoration(
                 hintText: 'Search tasks',
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(PhosphorIconsRegular.magnifyingGlass),
                 isDense: true,
                 border: OutlineInputBorder(),
               ),

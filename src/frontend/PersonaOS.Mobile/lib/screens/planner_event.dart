@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import '../planner_calendar.dart';
 import 'board_widgets.dart';
 import 'goal_view.dart';
@@ -162,13 +163,13 @@ class _EventQuickViewState extends State<_EventQuickView> {
               IconButton(
                 key: const Key('event-edit'),
                 tooltip: 'Edit event',
-                icon: const Icon(Icons.edit_outlined),
+                icon: const Icon(PhosphorIconsRegular.pencilSimple),
                 onPressed: _edit,
               ),
               IconButton(
                 key: const Key('event-delete'),
                 tooltip: 'Delete event',
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(PhosphorIconsRegular.trash),
                 onPressed: _delete,
               ),
             ],
@@ -204,11 +205,11 @@ class _EventQuickViewState extends State<_EventQuickView> {
               ),
             ],
           ),
-          line(Icons.notifications_outlined, Text(notifyLabel(item.notifyBeforeMinutes))),
-          if (item.notes != null && item.notes!.isNotEmpty) line(Icons.notes, Text(item.notes!)),
+          line(PhosphorIconsRegular.bell, Text(notifyLabel(item.notifyBeforeMinutes))),
+          if (item.notes != null && item.notes!.isNotEmpty) line(PhosphorIconsRegular.textAlignLeft, Text(item.notes!)),
           if (item.taskKey != null || item.goalTitle != null)
             line(
-              Icons.flag_outlined,
+              PhosphorIconsRegular.flag,
               Wrap(
                 spacing: 8,
                 runSpacing: 4,
@@ -233,7 +234,7 @@ class _EventQuickViewState extends State<_EventQuickView> {
             ),
           if (!planned)
             line(
-              item.status == 'done' ? Icons.check_circle_outline : Icons.remove_circle_outline,
+              item.status == 'done' ? PhosphorIconsRegular.checkCircle : PhosphorIconsRegular.minusCircle,
               Text(item.status == 'done' ? 'Done' : 'Skipped', style: TextStyle(color: muted)),
             ),
           if (_error != null)
@@ -471,7 +472,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
             for (final option in options)
               ListTile(
                 title: Text(option.label),
-                trailing: (option.custom ? _custom : !_custom && option.rule == _rule) ? const Icon(Icons.check) : null,
+                trailing: (option.custom ? _custom : !_custom && option.rule == _rule) ? const Icon(PhosphorIconsRegular.check) : null,
                 onTap: () => Navigator.pop(context, option),
               ),
           ],
@@ -511,13 +512,13 @@ class _EventEditorPageState extends State<EventEditorPage> {
             for (final preset in notifyPresets)
               ListTile(
                 title: Text(preset.label),
-                trailing: preset.minutes == _notify ? const Icon(Icons.check) : null,
+                trailing: preset.minutes == _notify ? const Icon(PhosphorIconsRegular.check) : null,
                 onTap: () => Navigator.pop(context, preset.minutes ?? -1),
               ),
             ListTile(
               key: const Key('notify-custom'),
               title: const Text('Custom…'),
-              trailing: notifyPresets.any((p) => p.minutes == _notify) ? null : const Icon(Icons.check),
+              trailing: notifyPresets.any((p) => p.minutes == _notify) ? null : const Icon(PhosphorIconsRegular.check),
               onTap: () => Navigator.pop(context, customChoice),
             ),
           ],
@@ -640,7 +641,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(PhosphorIconsRegular.x),
           tooltip: 'Cancel',
           onPressed: () => Navigator.pop(context, false),
         ),
@@ -675,7 +676,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
             const Divider(height: 1),
             SwitchListTile(
               key: const Key('event-all-day'),
-              secondary: const Icon(Icons.schedule),
+              secondary: const Icon(PhosphorIconsRegular.clock),
               title: const Text('All day'),
               value: _allDay,
               onChanged: (value) => setState(() {
@@ -715,13 +716,13 @@ class _EventEditorPageState extends State<EventEditorPage> {
             const Divider(height: 1),
             ListTile(
               key: const Key('event-repeat'),
-              leading: const Icon(Icons.repeat),
+              leading: const Icon(PhosphorIconsRegular.repeat),
               title: Text(_custom ? describeCustom(_customRepeat, _date) : _repeatLabel()),
               onTap: _pickRepeat,
             ),
             ListTile(
               key: const Key('event-notify'),
-              leading: const Icon(Icons.notifications_outlined),
+              leading: const Icon(PhosphorIconsRegular.bell),
               title: Text(notifyLabel(_notify)),
               subtitle: Text(notifyHint, style: TextStyle(color: _notifyTooFar ? theme.colorScheme.error : muted)),
               onTap: _pickNotify,
@@ -734,7 +735,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
                 minLines: 1,
                 maxLines: 5,
                 decoration: const InputDecoration(
-                  icon: Icon(Icons.notes),
+                  icon: Icon(PhosphorIconsRegular.textAlignLeft),
                   hintText: 'Add notes',
                   border: InputBorder.none,
                 ),
@@ -749,7 +750,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'From the board',
-                    icon: Icon(Icons.view_kanban_outlined),
+                    icon: Icon(PhosphorIconsRegular.kanban),
                   ),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('No task')),
@@ -776,7 +777,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
                   key: ValueKey('event-goal-$_goalId'),
                   initialValue: _goalId,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Goal', icon: Icon(Icons.flag_outlined)),
+                  decoration: const InputDecoration(labelText: 'Goal', icon: Icon(PhosphorIconsRegular.flag)),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('No goal')),
                     for (final goal in _goals)
@@ -1121,7 +1122,7 @@ class _StepperState extends State<_Stepper> {
         IconButton(
           key: prefix == null ? null : Key('$prefix-minus'),
           tooltip: 'One less',
-          icon: const Icon(Icons.remove),
+          icon: const Icon(PhosphorIconsRegular.minus),
           onPressed: widget.enabled && widget.value > widget.min ? () => _set(widget.value - 1) : null,
         ),
         SizedBox(
@@ -1142,7 +1143,7 @@ class _StepperState extends State<_Stepper> {
         IconButton(
           key: prefix == null ? null : Key('$prefix-plus'),
           tooltip: 'One more',
-          icon: const Icon(Icons.add),
+          icon: const Icon(PhosphorIconsRegular.plus),
           onPressed: widget.enabled && widget.value < widget.max ? () => _set(widget.value + 1) : null,
         ),
       ],

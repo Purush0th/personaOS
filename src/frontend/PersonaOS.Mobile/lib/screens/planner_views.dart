@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 
 import '../api/personaos_api.dart';
 import '../date_utils.dart';
+import '../layout.dart';
+import '../phosphor_icons.dart';
 import '../planner_calendar.dart';
 import 'planner_event.dart';
 
@@ -431,9 +433,9 @@ class _TimeGridViewState extends State<TimeGridView> {
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: const BoxDecoration(color: Color(0xFFEA4335), shape: BoxShape.circle),
+                            decoration: BoxDecoration(color: StatusTone.urgent.ink(context), shape: BoxShape.circle),
                           ),
-                          Expanded(child: Container(height: 2, color: const Color(0xFFEA4335))),
+                          Expanded(child: Container(height: 2, color: StatusTone.urgent.ink(context))),
                         ],
                       ),
                     ),
@@ -1029,7 +1031,7 @@ class ScheduleListView extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  if (item.repeats) Icon(Icons.repeat, size: 16, color: eventTextColor(context, item)),
+                                  if (item.repeats) Icon(PhosphorIconsRegular.repeat, size: 16, color: eventTextColor(context, item)),
                                 ],
                               ),
                             ),

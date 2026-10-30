@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/personaos_api.dart';
 import '../layout.dart';
+import '../phosphor_icons.dart';
 import 'board_widgets.dart';
 import 'reports_view.dart';
 import 'sprint_actions.dart';
@@ -92,7 +93,7 @@ class _SprintPageState extends State<SprintPage> {
                       if (!sprint.isClosed)
                         OutlinedButton.icon(
                           onPressed: () => _act(() => editSprintFlow(context, widget.api, sprint)),
-                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          icon: const Icon(PhosphorIconsRegular.pencilSimple, size: 18),
                           label: const Text('Edit'),
                         ),
                       if (sprint.isPlanned && !anyRunning)

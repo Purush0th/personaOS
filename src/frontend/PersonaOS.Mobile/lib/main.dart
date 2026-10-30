@@ -7,7 +7,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api/personaos_api.dart';
+import 'date_utils.dart';
 import 'layout.dart';
+import 'phosphor_icons.dart';
 import 'planner_calendar.dart';
 import 'push_service.dart';
 import 'reminder_alarms.dart';
@@ -75,78 +77,85 @@ String connectionFailureReason(Object error) => switch (error) {
   _ => '$error',
 };
 
-/// The one brand colour, the same blue as the web app. PersonaOS's identity is fixed, so this
+/// The one brand colour, the same violet as the web app. PersonaOS's identity is fixed, so this
 /// is a constant, not a per-install setting — only the assistant's nickname and persona vary.
-const Color personaOsSeed = Color(0xFF2563EB);
+/// Violet only ever means the assistant (docs/DESIGN.md).
+const Color personaOsSeed = Color(0xFF5B4FE9);
 
-/// The scheme, written out to match the web app's tokens (styles.scss) rather than left to the
-/// seed: cool neutral greys, white surfaces in light, near-black in dark, one blue accent.
+/// The ink of the light theme: text, and the main action's fill.
+const Color personaOsInk = Color(0xFF18181B);
+
+/// The scheme, written out to match the web app's tokens (styles.scss, "Dusk") rather than left
+/// to the seed: neutral greys and white paper in light, a violet-tinted off-black in dark, and one
+/// violet accent.
 ColorScheme _personaOsScheme(Brightness brightness) {
   final seeded = ColorScheme.fromSeed(seedColor: personaOsSeed, brightness: brightness);
   if (brightness == Brightness.dark) {
     return seeded.copyWith(
-      primary: const Color(0xFF7AA2FF),
-      onPrimary: const Color(0xFF0B1F5C),
-      primaryContainer: const Color(0xFF1D2B4F),
-      onPrimaryContainer: const Color(0xFFDBE5FF),
-      secondaryContainer: const Color(0xFF272A31),
-      onSecondaryContainer: const Color(0xFFEEF0F3),
-      tertiary: const Color(0xFF7AA2FF),
-      tertiaryContainer: const Color(0xFF1D2B4F),
-      onTertiaryContainer: const Color(0xFFDBE5FF),
-      surface: const Color(0xFF16181C),
-      onSurface: const Color(0xFFEEF0F3),
-      onSurfaceVariant: const Color(0xFFA2A8B3),
-      surfaceContainerLowest: const Color(0xFF0B0C0E),
-      surfaceContainerLow: const Color(0xFF1B1D22),
-      surfaceContainer: const Color(0xFF202329),
-      surfaceContainerHigh: const Color(0xFF272A31),
-      surfaceContainerHighest: const Color(0xFF2F333A),
-      outline: const Color(0xFF6C727D),
-      outlineVariant: const Color(0xFF2C3037),
+      primary: const Color(0xFF8B7CFF),
+      onPrimary: duskSurface,
+      primaryContainer: const Color(0xFF231C45),
+      onPrimaryContainer: const Color(0xFFDCD6FF),
+      secondaryContainer: const Color(0xFF221E2E),
+      onSecondaryContainer: const Color(0xFFF2F0F7),
+      tertiary: const Color(0xFF8B7CFF),
+      tertiaryContainer: const Color(0xFF231C45),
+      onTertiaryContainer: const Color(0xFFDCD6FF),
+      surface: duskSurface,
+      onSurface: const Color(0xFFF2F0F7),
+      onSurfaceVariant: const Color(0xFF9A95AB),
+      surfaceContainerLowest: const Color(0xFF09080D),
+      surfaceContainerLow: const Color(0xFF15121F),
+      surfaceContainer: const Color(0xFF1A1625),
+      surfaceContainerHigh: const Color(0xFF221E2E),
+      surfaceContainerHighest: const Color(0xFF2A2538),
+      outline: const Color(0xFF6E6880),
+      outlineVariant: const Color(0xFF26222F),
     );
   }
   return seeded.copyWith(
-    primary: const Color(0xFF2563EB),
+    primary: personaOsSeed,
     onPrimary: Colors.white,
-    primaryContainer: const Color(0xFFE8EFFE),
-    onPrimaryContainer: const Color(0xFF1E3A8A),
-    secondaryContainer: const Color(0xFFEEF0F3),
-    onSecondaryContainer: const Color(0xFF111827),
-    tertiary: const Color(0xFF2563EB),
-    tertiaryContainer: const Color(0xFFE8EFFE),
-    onTertiaryContainer: const Color(0xFF1E3A8A),
+    primaryContainer: const Color(0xFFEEECFD),
+    onPrimaryContainer: const Color(0xFF4338CA),
+    secondaryContainer: const Color(0xFFEFEFF2),
+    onSecondaryContainer: personaOsInk,
+    tertiary: personaOsSeed,
+    tertiaryContainer: const Color(0xFFEEECFD),
+    onTertiaryContainer: const Color(0xFF4338CA),
     surface: Colors.white,
-    onSurface: const Color(0xFF111827),
-    onSurfaceVariant: const Color(0xFF5B6270),
+    onSurface: personaOsInk,
+    onSurfaceVariant: const Color(0xFF6B6B76),
     surfaceContainerLowest: Colors.white,
-    surfaceContainerLow: const Color(0xFFF6F7F9),
-    surfaceContainer: const Color(0xFFF0F1F4),
-    surfaceContainerHigh: const Color(0xFFE8EAEE),
-    surfaceContainerHighest: const Color(0xFFE1E4E9),
-    outline: const Color(0xFF8B919C),
-    outlineVariant: const Color(0xFFE4E7EC),
+    surfaceContainerLow: const Color(0xFFF7F7F8),
+    surfaceContainer: const Color(0xFFF2F2F4),
+    surfaceContainerHigh: const Color(0xFFEFEFF2),
+    surfaceContainerHighest: const Color(0xFFE7E7EB),
+    outline: const Color(0xFF8A8A95),
+    outlineVariant: const Color(0xFFE7E7EB),
   );
 }
 
-/// Fixed PersonaOS look, in light and dark, after the web app's "Sky" style.
+/// Fixed PersonaOS look, in light and dark, after the web app's "Dusk" style (docs/DESIGN.md).
 ///
 /// Colours come from the scheme rather than being written per widget, which is what keeps the
-/// dark theme from drifting into an unreadable mix as screens are added. Headings are semibold,
-/// corners are 12–16 dp, and the shared shapes live here rather than at every call site.
+/// dark theme from drifting into an unreadable mix as screens are added. Headings are medium and
+/// drawn in slightly, corners run 10 (controls) to 14 (cards) to 20 (dialogs), and the main action
+/// is ink in light and violet in dark. The shared shapes live here rather than at every call site.
 ThemeData _personaOsTheme(Brightness brightness) {
   final scheme = _personaOsScheme(brightness);
+  final dark = brightness == Brightness.dark;
   final base = ThemeData(colorScheme: scheme, useMaterial3: true, fontFamily: personaOsFont);
-  TextStyle? semibold(TextStyle? style) => style?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.2);
+  TextStyle? heading(TextStyle? style) => style?.copyWith(fontWeight: FontWeight.w500, letterSpacing: -0.3);
   final text = base.textTheme;
 
   return base.copyWith(
     scaffoldBackgroundColor: scheme.surface,
     textTheme: text.copyWith(
-      headlineLarge: semibold(text.headlineLarge),
-      headlineMedium: semibold(text.headlineMedium),
-      headlineSmall: semibold(text.headlineSmall),
-      titleLarge: semibold(text.titleLarge),
+      headlineLarge: heading(text.headlineLarge),
+      headlineMedium: heading(text.headlineMedium),
+      headlineSmall: heading(text.headlineSmall),
+      titleLarge: heading(text.titleLarge),
       titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
     ),
     appBarTheme: AppBarTheme(
@@ -160,7 +169,7 @@ ThemeData _personaOsTheme(Brightness brightness) {
         fontFamily: personaOsFont,
         color: scheme.onSurface,
         fontSize: 20,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w500,
         letterSpacing: -0.3,
       ),
     ),
@@ -169,23 +178,23 @@ ThemeData _personaOsTheme(Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
     listTileTheme: const ListTileThemeData(contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 6)),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: scheme.surfaceContainerLow,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: scheme.outlineVariant),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: scheme.outlineVariant),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: scheme.primary, width: 1.5),
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: scheme.primary, width: 2),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     ),
@@ -197,17 +206,23 @@ ThemeData _personaOsTheme(Brightness brightness) {
         // draw nothing: the Confirm button vanished, as did every dialog's primary action.
         // Screens that want a full-width button get it from their layout, not from the theme.
         minimumSize: const Size(64, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        // Ink on paper in light; on dusk the accent, with dark text. Violet in light is kept for
+        // the assistant's own controls.
+        backgroundColor: dark ? scheme.primary : personaOsInk,
+        foregroundColor: dark ? scheme.onPrimary : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         textStyle: const TextStyle(fontFamily: personaOsFont, fontSize: 15, fontWeight: FontWeight.w600),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        side: BorderSide(color: scheme.outlineVariant),
+        foregroundColor: scheme.onSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        side: BorderSide(color: dark ? const Color(0x24FFFFFF) : const Color(0xFFD4D4DA)),
       ),
     ),
-    chipTheme: ChipThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+    textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: scheme.onSurface)),
+    chipTheme: ChipThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
     dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
@@ -410,10 +425,14 @@ class Branding {
 /// Placeholder home: greets via the instance's assistant nickname and lists
 /// enabled modules. Replaced by the chat screen in Phase 1.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.serverUrl, required this.onForgetServer});
+  const HomeScreen({super.key, required this.serverUrl, required this.onForgetServer, this.api});
 
   final String serverUrl;
   final VoidCallback onForgetServer;
+
+  /// A client to use instead of a new one: a test passes one that is already signed in.
+  @visibleForTesting
+  final PersonaOsApi? api;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -429,10 +448,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _nickname = 'PersonaOS';
   late final PersonaOsApi _api;
 
+  /// The modules this server has switched on, from the last branding fetch.
+  List<String> _features = const [];
+
+  /// The numbers on the home screen's cards; null until a signed-in session has loaded them.
+  _HomeStats? _stats;
+
   @override
   void initState() {
     super.initState();
-    _api = PersonaOsApi(serverUrl: widget.serverUrl);
+    _api = widget.api ?? PersonaOsApi(serverUrl: widget.serverUrl);
     _branding = _fetchBranding();
     WidgetsBinding.instance.addObserver(this);
     // A planner event's notification opens the planner on that day.
@@ -456,7 +481,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       unawaited(PushService.instance.resyncAlarms(_api));
       unawaited(_recheckUpdate());
+      unawaited(_loadStats());
     }
+  }
+
+  /// Loads the home screen's cards: what is planned today, how far the sprint is, and the next
+  /// reminder. Only with a signed-in session (home itself opens before sign-in), and each number
+  /// on its own, so a module that is off or a request that fails only drops its own card.
+  Future<void> _loadStats() async {
+    if (!_api.isLoggedIn) return;
+    Future<T?> quietly<T>(bool on, Future<T> Function() load) async {
+      if (!on) return null;
+      try {
+        return await load();
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final now = DateTime.now();
+    final planner = quietly(_features.contains('planner'), () => _api.getPlannerDay(localYmd(now)));
+    final board = quietly(_features.contains('board'), _api.getBoard);
+    final reminders = quietly(_features.contains('reminders'), _api.getReminders);
+    final stats = _HomeStats.from(planner: await planner, board: await board, reminders: await reminders, now: now);
+    if (mounted) setState(() => _stats = stats);
   }
 
   /// When the update notice was last worked out; GitHub allows 60 unsigned requests an hour.
@@ -487,7 +535,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Opens [builder]'s screen, first routing through login when needed.
   void _openAfterLogin(WidgetBuilder builder) {
     if (_api.isLoggedIn) {
-      Navigator.of(context).push(MaterialPageRoute<void>(builder: builder));
+      // Back on home, the cards catch up with whatever was done on the way.
+      unawaited(Navigator.of(context).push(MaterialPageRoute<void>(builder: builder)).then((_) => _loadStats()));
       return;
     }
     Navigator.of(context).push(
@@ -499,6 +548,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             // Not awaited: push setup can prompt for permission and talk to Firebase, and the
             // user asked to open a screen, not to wait for that.
             unawaited(PushService.instance.start(_api, assistantNickname: _nickname));
+            unawaited(_loadStats());
             Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: builder));
           },
         ),
@@ -510,7 +560,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final response = await http.get(Uri.parse('${widget.serverUrl}/api/branding')).timeout(const Duration(seconds: 8));
     final branding = Branding.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
     _nickname = branding.assistantNickname;
+    _features = branding.enabledFeatures;
     unawaited(_checkUpdate(branding));
+    unawaited(_loadStats());
     return branding;
   }
 
@@ -531,149 +583,151 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('PersonaOS'),
-        actions: [
-          IconButton(
-            key: const Key('open-about'),
-            icon: const Icon(Icons.info_outline),
-            tooltip: 'About and updates',
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute<void>(builder: (_) => AboutScreen(serverUrl: widget.serverUrl))),
-          ),
-          IconButton(icon: const Icon(Icons.link_off), tooltip: 'Change server', onPressed: _forgetServer),
-        ],
-      ),
-      body: FutureBuilder<Branding>(
-        future: _branding,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _Unreachable(
-              serverUrl: widget.serverUrl,
-              reason: connectionFailureReason(snapshot.error!),
-              onRetry: _retry,
-              onChangeServer: _forgetServer,
+    // Home is the assistant's own screen, so it sits on the dusk glow (docs/DESIGN.md, Presence).
+    return Presence(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          title: const Text('PersonaOS'),
+          actions: [
+            IconButton(
+              key: const Key('open-about'),
+              icon: const Icon(PhosphorIconsRegular.info),
+              tooltip: 'About and updates',
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute<void>(builder: (_) => AboutScreen(serverUrl: widget.serverUrl))),
+            ),
+            IconButton(icon: const Icon(PhosphorIconsRegular.linkBreak), tooltip: 'Change server', onPressed: _forgetServer),
+          ],
+        ),
+        body: FutureBuilder<Branding>(
+          future: _branding,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return _Unreachable(
+                serverUrl: widget.serverUrl,
+                reason: connectionFailureReason(snapshot.error!),
+                onRetry: _retry,
+                onChangeServer: _forgetServer,
+              );
+            }
+            final branding = snapshot.data!;
+            final nickname = branding.assistantNickname;
+            if (!branding.isConfigured) {
+              return const Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Server needs setup', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 12),
+                    Text('Open the web app on your server to run the Setup Wizard.'),
+                  ],
+                ),
+              );
+            }
+            bool enabled(String feature) => branding.enabledFeatures.contains(feature);
+            void openChat() => _openAfterLogin(
+              (_) => ChatScreen(api: _api, assistantNickname: nickname, voiceEnabled: enabled('voice')),
             );
-          }
-          final branding = snapshot.data!;
-          final nickname = branding.assistantNickname;
-          if (!branding.isConfigured) {
-            return const Padding(
-              padding: EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            final stats = _stats;
+            return ReadableWidth(
+              maxWidth: 960,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                 children: [
-                  Text('Server needs setup', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 12),
-                  Text('Open the web app on your server to run the Setup Wizard.'),
+                  _Hero(nickname: nickname, onAsk: openChat),
+                  if (isTooOld(branding.minSupportedClient))
+                    _TooOld(
+                      minimum: branding.minSupportedClient!,
+                      onOpenAbout: () => Navigator.of(
+                        context,
+                      ).push(MaterialPageRoute<void>(builder: (_) => AboutScreen(serverUrl: widget.serverUrl))),
+                    ),
+                  if (_update != null)
+                    UpdateNotice(
+                      update: _update!,
+                      repository: branding.repository ?? '',
+                      onDismiss: () {
+                        unawaited(dismissUpdate(_update!));
+                        setState(() => _update = null);
+                      },
+                    ),
+                  if (stats != null && stats.hasAny) ...[
+                    const SizedBox(height: 28),
+                    const _SectionLabel('Today'),
+                    _StatCards(
+                      stats: stats,
+                      onPlanner: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
+                      onBoard: () => _openAfterLogin((_) => BoardScreen(api: _api)),
+                      onReminders: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
+                    ),
+                  ],
+                  const SizedBox(height: 28),
+                  const _SectionLabel('Your spaces'),
+                  // Two abreast when there is room: a tablet, or a phone on its side.
+                  _ModuleGrid(
+                    children: [
+                      if (enabled('goals'))
+                        _ModuleCard(
+                          icon: PhosphorIconsRegular.flag,
+                          title: 'Goals',
+                          subtitle: 'What you are working towards',
+                          onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api, boardEnabled: enabled('board'))),
+                        ),
+                      if (enabled('board'))
+                        _ModuleCard(
+                          icon: PhosphorIconsRegular.kanban,
+                          title: 'Board',
+                          subtitle: 'The running sprint, card by card',
+                          onTap: () => _openAfterLogin((_) => BoardScreen(api: _api)),
+                        ),
+                      if (enabled('planner'))
+                        _ModuleCard(
+                          icon: PhosphorIconsRegular.calendarDots,
+                          title: 'Planner',
+                          subtitle: 'Your day, item by item',
+                          onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
+                        ),
+                      if (enabled('reminders'))
+                        _ModuleCard(
+                          icon: PhosphorIconsRegular.alarm,
+                          title: 'Reminders',
+                          subtitle: 'Nudges at the right time',
+                          onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
+                        ),
+                      if (enabled('notes'))
+                        _ModuleCard(
+                          icon: PhosphorIconsRegular.note,
+                          title: 'Notes',
+                          subtitle: 'Jot things down for later',
+                          onTap: () => _openAfterLogin((_) => NotesScreen(api: _api, boardEnabled: enabled('board'))),
+                        ),
+                      if (enabled('memory'))
+                        _ModuleCard(
+                          icon: PhosphorIconsRegular.brain,
+                          title: 'Memories',
+                          subtitle: 'What $nickname remembers about you',
+                          onTap: () => _openAfterLogin((_) => MemoriesScreen(api: _api)),
+                        ),
+                      _ModuleCard(
+                        icon: PhosphorIconsRegular.slidersHorizontal,
+                        title: 'Settings',
+                        subtitle: 'Persona, provider, modules',
+                        onTap: () => _openAfterLogin((_) => SettingsScreen(api: _api)),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             );
-          }
-          bool enabled(String feature) => branding.enabledFeatures.contains(feature);
-          final scheme = Theme.of(context).colorScheme;
-          return ReadableWidth(
-            maxWidth: 960,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-              children: [
-                _Hero(nickname: nickname),
-                if (isTooOld(branding.minSupportedClient))
-                  _TooOld(
-                    minimum: branding.minSupportedClient!,
-                    onOpenAbout: () => Navigator.of(
-                      context,
-                    ).push(MaterialPageRoute<void>(builder: (_) => AboutScreen(serverUrl: widget.serverUrl))),
-                  ),
-                if (_update != null)
-                  UpdateNotice(
-                    update: _update!,
-                    repository: branding.repository ?? '',
-                    onDismiss: () {
-                      unawaited(dismissUpdate(_update!));
-                      setState(() => _update = null);
-                    },
-                  ),
-                const SizedBox(height: 20),
-                _ModuleCard(
-                  icon: Icons.auto_awesome,
-                  title: 'Chat with $nickname',
-                  subtitle: 'Ask, plan, or talk hands-free',
-                  prominent: true,
-                  onTap: () => _openAfterLogin(
-                    (_) => ChatScreen(api: _api, assistantNickname: nickname, voiceEnabled: enabled('voice')),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 10),
-                  child: Text(
-                    'Modules',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
-                  ),
-                ),
-                // Two abreast when there is room: a tablet, or a phone on its side.
-                _ModuleGrid(
-                  children: [
-                    if (enabled('goals'))
-                      _ModuleCard(
-                        icon: Icons.flag_outlined,
-                        title: 'Goals',
-                        subtitle: 'What you are working towards',
-                        onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api, boardEnabled: enabled('board'))),
-                      ),
-                    if (enabled('board'))
-                      _ModuleCard(
-                        icon: Icons.view_kanban_outlined,
-                        title: 'Board',
-                        subtitle: 'The running sprint, card by card',
-                        onTap: () => _openAfterLogin((_) => BoardScreen(api: _api)),
-                      ),
-                    if (enabled('planner'))
-                      _ModuleCard(
-                        icon: Icons.event_note_outlined,
-                        title: 'Planner',
-                        subtitle: 'Your day, item by item',
-                        onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
-                      ),
-                    if (enabled('reminders'))
-                      _ModuleCard(
-                        icon: Icons.alarm,
-                        title: 'Reminders',
-                        subtitle: 'Nudges at the right time',
-                        onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
-                      ),
-                    if (enabled('notes'))
-                      _ModuleCard(
-                        icon: Icons.sticky_note_2_outlined,
-                        title: 'Notes',
-                        subtitle: 'Jot things down for later',
-                        onTap: () => _openAfterLogin((_) => NotesScreen(api: _api, boardEnabled: enabled('board'))),
-                      ),
-                    if (enabled('memory'))
-                      _ModuleCard(
-                        icon: Icons.psychology_outlined,
-                        title: 'Memories',
-                        subtitle: 'What $nickname remembers about you',
-                        onTap: () => _openAfterLogin((_) => MemoriesScreen(api: _api)),
-                      ),
-                    _ModuleCard(
-                      icon: Icons.tune,
-                      title: 'Settings',
-                      subtitle: 'Persona, provider, modules',
-                      onTap: () => _openAfterLogin((_) => SettingsScreen(api: _api)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }
@@ -695,7 +749,7 @@ class _TooOld extends StatelessWidget {
       margin: const EdgeInsets.only(top: 16),
       color: scheme.errorContainer,
       child: ListTile(
-        leading: Icon(Icons.warning_amber, color: scheme.onErrorContainer),
+        leading: Icon(PhosphorIconsRegular.warning, color: scheme.onErrorContainer),
         title: Text('Update this app', style: TextStyle(color: scheme.onErrorContainer)),
         subtitle: Text(
           'Your server needs app $minimum or newer; this is $appVersion. Some things may not work until '
@@ -736,7 +790,7 @@ class _Unreachable extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off, size: 48, color: scheme.outline),
+            Icon(PhosphorIconsRegular.cloudSlash, size: 48, color: scheme.outline),
             const SizedBox(height: 16),
             const Text('Can’t reach your server', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
@@ -770,7 +824,7 @@ class _Unreachable extends StatelessWidget {
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(PhosphorIconsRegular.arrowClockwise),
                 label: const Text('Try again'),
               ),
             ),
@@ -783,36 +837,281 @@ class _Unreachable extends StatelessWidget {
   }
 }
 
-/// The greeting at the top of the home screen.
+/// The greeting at the top of the home screen: the Orb, the time of day, one line in the thin
+/// display type, and the way in to the chat, shaped like the chat's own composer.
 class _Hero extends StatelessWidget {
-  const _Hero({required this.nickname});
+  const _Hero({required this.nickname, required this.onAsk});
 
   final String nickname;
+  final VoidCallback onAsk;
+
+  static String _partOfDay(DateTime now) => now.hour < 12
+      ? 'Good morning'
+      : now.hour < 17
+      ? 'Good afternoon'
+      : 'Good evening';
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: skyWash(context),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'PersonaOS',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
-          ),
+          const Orb(size: 88),
+          const SizedBox(height: 18),
+          Text(_partOfDay(DateTime.now()), style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant)),
           const SizedBox(height: 6),
           Text(
-            '$nickname is ready',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, letterSpacing: -0.6, color: scheme.onSurface),
+            "What's on your mind?",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 34,
+              height: 1.12,
+              fontWeight: FontWeight.w300,
+              letterSpacing: -1,
+              color: scheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 22),
+          Semantics(
+            button: true,
+            label: 'Chat with $nickname',
+            excludeSemantics: true,
+            child: Material(
+              key: const Key('home-ask'),
+              color: dark ? const Color(0x0DFFFFFF) : scheme.surface,
+              shape: StadiumBorder(side: BorderSide(color: dark ? const Color(0x24FFFFFF) : const Color(0xFFD4D4DA))),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: onAsk,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 6, 6, 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Ask $nickname anything…',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+                      const Orb(size: 40, child: Icon(PhosphorIconsRegular.arrowUp, color: Colors.white, size: 20)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A quiet heading over a group on the home screen, in sentence case.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: 4, bottom: 10),
+    child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+  );
+}
+
+/// The numbers the home screen's cards show, worked out from what the server returned.
+class _HomeStats {
+  const _HomeStats({this.openToday, this.plannedToday, this.sprintDone, this.sprintTotal, this.nextReminder});
+
+  factory _HomeStats.from({
+    List<PlannerItem>? planner,
+    BoardView? board,
+    List<Reminder>? reminders,
+    required DateTime now,
+  }) {
+    final sprint = board?.sprint;
+    final tasks = board == null ? 0 : board.columns.values.fold<int>(0, (sum, list) => sum + list.length);
+    final upcoming =
+        (reminders ?? const <Reminder>[])
+            .where((r) => r.status == 'pending' && r.dueAtUtc.isAfter(now.toUtc()))
+            .toList()
+          ..sort((a, b) => a.dueAtUtc.compareTo(b.dueAtUtc));
+    final active = sprint != null && sprint.status == 'active' && tasks > 0;
+    return _HomeStats(
+      plannedToday: planner?.length,
+      openToday: planner?.where((i) => i.status == 'planned').length,
+      sprintDone: active ? board!.columns[BoardColumns.done]?.length ?? 0 : null,
+      sprintTotal: active ? tasks : null,
+      nextReminder: upcoming.isEmpty ? null : upcoming.first,
+    );
+  }
+
+  final int? openToday;
+  final int? plannedToday;
+  final int? sprintDone;
+  final int? sprintTotal;
+  final Reminder? nextReminder;
+
+  bool get hasAny => plannedToday != null || sprintTotal != null || nextReminder != null;
+}
+
+/// The row of number cards under the greeting, after the Aura shots: a title, a line under it,
+/// and one big thin number. The first card is solid violet, the number that matters most.
+class _StatCards extends StatelessWidget {
+  const _StatCards({required this.stats, required this.onPlanner, required this.onBoard, required this.onReminders});
+
+  final _HomeStats stats;
+  final VoidCallback onPlanner;
+  final VoidCallback onBoard;
+  final VoidCallback onReminders;
+
+  /// How long until [due], as a number and its unit: "18 min", "3 h", "2 days".
+  static (String, String) _until(DateTime due) {
+    final left = due.difference(DateTime.now().toUtc());
+    if (left.inMinutes < 60) return ('${left.inMinutes < 1 ? 1 : left.inMinutes}', 'min');
+    if (left.inHours < 24) return ('${left.inHours}', 'h');
+    return ('${left.inDays}', left.inDays == 1 ? 'day' : 'days');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = <Widget>[
+      if (stats.plannedToday != null)
+        _StatCard(
+          key: const Key('stat-today'),
+          title: 'Planned today',
+          subtitle: stats.plannedToday == 0 ? 'A free day' : '${stats.plannedToday} in all',
+          value: '${stats.openToday ?? 0}',
+          unit: 'left',
+          onTap: onPlanner,
+        ),
+      if (stats.sprintTotal != null)
+        _StatCard(
+          key: const Key('stat-sprint'),
+          title: 'Sprint',
+          subtitle: '${stats.sprintDone} of ${stats.sprintTotal} done',
+          value: '${(100 * stats.sprintDone! / stats.sprintTotal!).round()}',
+          unit: '%',
+          onTap: onBoard,
+        ),
+      if (stats.nextReminder case final next?)
+        _StatCard(
+          key: const Key('stat-reminder'),
+          title: 'Next reminder',
+          subtitle: next.message,
+          value: _until(next.dueAtUtc).$1,
+          unit: _until(next.dueAtUtc).$2,
+          onTap: onReminders,
+        ),
+    ];
+    return SizedBox(
+      height: 152,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        itemCount: cards.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, i) => i == 0 ? _Solid(child: cards[i]) : cards[i],
+      ),
+    );
+  }
+}
+
+/// Marks the first stat card as the solid one.
+class _Solid extends InheritedWidget {
+  const _Solid({required super.child});
+
+  static bool of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<_Solid>() != null;
+
+  @override
+  bool updateShouldNotify(_Solid oldWidget) => false;
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.unit,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final String value;
+  final String unit;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final solid = _Solid.of(context);
+    final ink = solid ? scheme.onPrimary : scheme.onSurface;
+    final muted = solid ? scheme.onPrimary.withValues(alpha: 0.75) : scheme.onSurfaceVariant;
+    return Semantics(
+      button: true,
+      label: '$title: $value $unit. $subtitle',
+      excludeSemantics: true,
+      child: Material(
+        color: solid ? scheme.primary : (dark ? const Color(0x0AFFFFFF) : scheme.surface),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: solid ? BorderSide.none : BorderSide(color: dark ? const Color(0x14FFFFFF) : scheme.outlineVariant),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: SizedBox(
+            width: 148,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ink),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: muted),
+                  ),
+                  const Spacer(),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: value,
+                          style: TextStyle(
+                            fontSize: 44,
+                            height: 1,
+                            fontWeight: FontWeight.w300,
+                            letterSpacing: -1.6,
+                            color: ink,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' $unit',
+                          style: TextStyle(fontSize: 13, color: muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -840,73 +1139,62 @@ class _ModuleGrid extends StatelessWidget {
   }
 }
 
-/// A tappable card linking to one module from the home screen.
+/// A tappable card linking to one module from the home screen: paper, a hairline, and an ink
+/// icon. Colour is kept for the assistant; the modules are where the work lives.
 class _ModuleCard extends StatelessWidget {
-  const _ModuleCard({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-    this.subtitle,
-    this.prominent = false,
-  });
+  const _ModuleCard({required this.icon, required this.title, required this.onTap, this.subtitle});
 
   final IconData icon;
   final String title;
   final String? subtitle;
   final VoidCallback onTap;
 
-  /// Chat is the reason the app exists, so it gets the filled treatment.
-  final bool prominent;
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final foreground = prominent ? scheme.onPrimary : scheme.onSurface;
+    final dark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: prominent ? scheme.primary : scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
+        color: dark ? scheme.surfaceContainerLow : scheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: prominent ? scheme.onPrimary.withValues(alpha: 0.18) : scheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, size: 22, color: prominent ? scheme.onPrimary : scheme.onPrimaryContainer),
+                  child: Icon(icon, size: 20, color: scheme.onSurface),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         title,
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: foreground),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: scheme.onSurface),
                       ),
                       if (subtitle != null) ...[
                         const SizedBox(height: 2),
-                        Text(
-                          subtitle!,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: prominent ? scheme.onPrimary.withValues(alpha: 0.8) : scheme.onSurfaceVariant,
-                          ),
-                        ),
+                        Text(subtitle!, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
                       ],
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right, color: prominent ? scheme.onPrimary.withValues(alpha: 0.8) : scheme.outline),
+                Icon(PhosphorIconsRegular.caretRight, color: scheme.outline),
               ],
             ),
           ),
