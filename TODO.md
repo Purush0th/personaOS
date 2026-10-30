@@ -419,7 +419,9 @@ the chat it always showing new one but the last active one can be preserved if n
       rail with a blue New chat button (the history list lost its own), each page on a white
       rounded panel (`--shell-bg`). Chat: sky gradient, dotted mark and two-tone line when empty,
       composer is one card with the mode chips and a round send (styles in `chat/composer.scss`,
-      apart for the 4 kB budget). Released as v0.1.0-alpha.14.
+      apart for the 4 kB budget). Released as v0.1.0-alpha.15: the alpha.13 and .14 runs hit the
+      6 h job limit with the arm64 `npm ci` hung under QEMU, so the web build stage now runs on
+      `$BUILDPLATFORM` and the images job times out at 60 min.
 - [x] **M2. "Sky" restyle of the phone app** (2026-10-29). Scheme written out to the web tokens in
       `_personaOsScheme` (main.dart), Plus Jakarta Sans bundled in `assets/fonts` (variable weight,
       OFL; `personaOsFont` in layout.dart — a button's own `textStyle` or a TextPainter must name it,

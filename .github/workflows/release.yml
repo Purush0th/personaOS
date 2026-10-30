@@ -16,6 +16,8 @@ env:
 jobs:
   images:
     runs-on: ubuntu-latest
+    # A normal run takes about 25 minutes. A hung build should fail here, not after GitHub's six hours.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
 
