@@ -69,9 +69,12 @@ class _MarkdownReply extends StatelessWidget {
 }
 
 class _BubbleView extends StatelessWidget {
-  const _BubbleView({required this.bubble, required this.onResolve, this.onOpenItem});
+  const _BubbleView({required this.bubble, required this.onResolve, this.onOpenItem, this.startsTurn = false});
 
   final _Bubble bubble;
+
+  /// The other speaker spoke last: more room above, so each exchange reads as one.
+  final bool startsTurn;
 
   /// Opens a task or goal whose key the reply names.
   final ValueChanged<String>? onOpenItem;
@@ -85,9 +88,10 @@ class _BubbleView extends StatelessWidget {
     // Taken from the scheme, not hardcoded: the old fixed navy was a light-theme
     // colour and all but vanished against a dark background.
     final dark = theme.brightness == Brightness.dark;
-    // A reply has no bubble at all: the assistant writes on the page beside its Orb, as on the web.
-    // Your own message is ink (a raised dusk grey in the dark theme) with its corner nearest you
-    // squared off.
+    // A reply has no bubble at all: the assistant writes on the page, as on the web. The Orb shows
+    // only while it is working on a reply; beside every finished one it was noise (owner,
+    // 2026-11-02). Your own message is ink (a raised dusk grey in the dark theme) with its corner
+    // nearest you squared off.
     final reply = !bubble.isUser && !bubble.isError;
     final background = bubble.isError
         ? theme.colorScheme.errorContainer
@@ -101,10 +105,11 @@ class _BubbleView extends StatelessWidget {
         : theme.colorScheme.onSurface;
 
     final content = Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      margin: EdgeInsets.only(top: startsTurn ? 20 : 4, bottom: 4),
       padding: reply ? const EdgeInsets.only(top: 2) : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      // Most of a phone's width, and no wider than reads comfortably on a tablet.
-      constraints: BoxConstraints(maxWidth: math.min(MediaQuery.sizeOf(context).width * 0.82, 600)),
+      // Your message takes most of a phone's width, a reply all of it; neither is wider than reads
+      // comfortably on a tablet.
+      constraints: BoxConstraints(maxWidth: math.min(MediaQuery.sizeOf(context).width * (reply ? 1 : 0.82), 600)),
       decoration: reply
           ? null
           : BoxDecoration(
@@ -121,7 +126,14 @@ class _BubbleView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (bubble.text.isEmpty && !bubble.isUser)
-            TypingDots(color: foreground)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Orb(size: 18),
+                const SizedBox(width: 10),
+                TypingDots(color: theme.colorScheme.onSurfaceVariant),
+              ],
+            )
           else if (bubble.isUser || bubble.isError)
             // Your own words and server errors are literal — rendering them
             // as Markdown would silently eat characters you actually typed.
@@ -136,21 +148,12 @@ class _BubbleView extends StatelessWidget {
           if (bubble.unverifiedClaim && !bubble.isUser) const UnverifiedClaimNote(),
           if (!bubble.isUser && bubble.unknownItems.isNotEmpty) UnknownItemsNote(keys: bubble.unknownItems),
           if (bubble.pending?.isNotEmpty ?? false) _ProposalList(actions: bubble.pending!, onResolve: onResolve),
-          if (bubble.actions?.isNotEmpty ?? false) _ReceiptList(actions: bubble.actions!, foreground: foreground),
+          if (bubble.actions?.isNotEmpty ?? false) _ReceiptList(actions: bubble.actions!),
         ],
       ),
     );
 
-    if (!reply) {
-      return Align(alignment: bubble.isUser ? Alignment.centerRight : Alignment.centerLeft, child: content);
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(padding: EdgeInsets.only(top: 6, right: 10), child: Orb(size: 22)),
-        Flexible(child: content),
-      ],
-    );
+    return Align(alignment: bubble.isUser ? Alignment.centerRight : Alignment.centerLeft, child: content);
   }
 }
 
@@ -181,7 +184,8 @@ class UnknownItemsNote extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => _ReplyNote(icon: PhosphorIconsRegular.question, message: messageFor(keys) ?? '');
+  Widget build(BuildContext context) =>
+      _ReplyNote(icon: PhosphorIconsRegular.question, message: messageFor(keys) ?? '');
 }
 
 /// A caution under a reply: tinted from the theme, so it reads in light and dark mode alike.
@@ -244,24 +248,26 @@ class _ProposalList extends StatelessWidget {
           for (final action in actions)
             Container(
               margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                // From the scheme, as on the web: a fixed amber card stayed pale in the dark theme.
-                color: action.isPending ? theme.colorScheme.surfaceContainerLow : Colors.transparent,
-                border: Border.all(
-                  color: action.isPending ? theme.colorScheme.outline : theme.colorScheme.outlineVariant,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
+              // Waiting for an answer, it is a step up in tone from the page, not an outlined box, as
+              // on the web. Once answered it is a record, said quietly in a line.
+              padding: action.isPending
+                  ? const EdgeInsets.fromLTRB(14, 10, 8, 4)
+                  : const EdgeInsets.symmetric(vertical: 2),
+              decoration: action.isPending
+                  ? BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(16),
+                    )
+                  : null,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     _label(action),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: action.isPending ? theme.colorScheme.onSurface : null,
-                    ),
+                    style: action.isPending
+                        ? theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface)
+                        : theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
                   if (action.isPending)
                     // Wrap, not Row: on a narrow phone the two buttons overflow the
@@ -292,10 +298,9 @@ class _ProposalList extends StatelessWidget {
 /// The app's own record of what ran, beneath the reply. Deliberately quieter than
 /// the reply text — it is evidence to check against, not the main content.
 class _ReceiptList extends StatelessWidget {
-  const _ReceiptList({required this.actions, required this.foreground});
+  const _ReceiptList({required this.actions});
 
   final List<ToolReceipt> actions;
-  final Color foreground;
 
   @override
   Widget build(BuildContext context) {
@@ -307,7 +312,6 @@ class _ReceiptList extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Divider(height: 9, color: foreground.withValues(alpha: 0.18)),
           for (final action in actions)
             Padding(
               padding: const EdgeInsets.only(top: 2),
