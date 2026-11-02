@@ -8,6 +8,10 @@
 .shell {
   height: 100dvh;
   background: var(--shell-bg);
+  // Installed on an iPhone the app runs edge to edge (viewport-fit=cover): keep clear of the
+  // notch, the rounded corners and the home bar.
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  box-sizing: border-box;
 }
 
 mat-sidenav-content {
@@ -224,6 +228,23 @@ mat-sidenav-content {
   code {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.85em;
+  }
+
+  // On a phone the banner is one line: the server command is for whoever runs the server, and it
+  // pushed every page down by a third of the screen.
+  @media (max-width: 720px) {
+    margin: 0.5rem 1rem 0;
+    padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+    flex-wrap: nowrap;
+    font: var(--mat-sys-body-medium);
+
+    span {
+      min-width: 0;
+    }
+
+    .how {
+      display: none;
+    }
   }
 }
 

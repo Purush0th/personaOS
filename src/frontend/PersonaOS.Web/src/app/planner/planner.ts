@@ -33,6 +33,14 @@ interface CalendarOptions {
 const OPTIONS_KEY = 'planner.options';
 const DEFAULT_OPTIONS: CalendarOptions = { showWeekends: true, showSkipped: true, showCompleted: true };
 
+/**
+ * The view a bare address opens: a phone-width window gets Day, as Google Calendar's phone app
+ * does. Seven columns in 390 pixels left every event a few clipped letters.
+ */
+function defaultView(): CalendarView {
+  return typeof matchMedia === 'function' && matchMedia('(max-width: 600px)').matches ? 'day' : 'week';
+}
+
 const STEP_LABELS: Record<CalendarView, string> = {
   day: 'day',
   '4day': '4 days',
@@ -110,7 +118,7 @@ export class Planner implements OnInit {
   ngOnInit(): void {
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const view = params.get('view') as CalendarView | null;
-      this.view.set(view && VIEWS.some(v => v.view === view) ? view : 'week');
+      this.view.set(view && VIEWS.some(v => v.view === view) ? view : defaultView());
       const date = params.get('date');
       this.anchor.set(date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayLocal());
       void this.reload();

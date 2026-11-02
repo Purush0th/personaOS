@@ -29,6 +29,22 @@ interface Bubble {
   unknownItems?: string[] | null;
 }
 
+/** A way to start a conversation from the empty chat. */
+export interface ChatStarter {
+  label: string;
+  text: string;
+  /** Whether the text is a whole message to send, rather than the start of one to finish. */
+  complete?: boolean;
+}
+
+/** Plain requests the assistant handles well on a small local model (accuracy suite, 2026-11-02). */
+export const CHAT_STARTERS: readonly ChatStarter[] = [
+  { label: "Today's plan", text: "What's on my planner today?", complete: true },
+  { label: 'Remind me', text: 'Remind me to ' },
+  { label: 'New task', text: 'Add a task to ' },
+  { label: 'Jot a note', text: 'Jot down a note: ' },
+];
+
 @Component({
   selector: 'app-chat',
   imports: [
@@ -52,6 +68,8 @@ export class Chat implements OnInit {
   private readonly store = inject(ConversationsStore);
 
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
+  private readonly draftBox = viewChild<ElementRef<HTMLTextAreaElement>>('draftBox');
+  protected readonly starters = CHAT_STARTERS;
 
   protected readonly bubbles = signal<Bubble[]>([]);
   protected readonly conversationId = signal<number | null>(null);
@@ -157,6 +175,21 @@ export class Chat implements OnInit {
       // broken page — fall back to a fresh thread (not the latest one: that may be this one).
       this.showEmptyThread();
       void this.router.navigate(['/chat'], { queryParams: { new: 1 }, replaceUrl: true });
+    }
+  }
+
+  /** A starter that is a whole question goes straight out; one to finish lands in the composer. */
+  protected useStarter(starter: ChatStarter): void {
+    this.draft = starter.text;
+    if (starter.complete) {
+      void this.send();
+      return;
+    }
+    const box = this.draftBox()?.nativeElement;
+    if (box) {
+      box.value = starter.text;
+      box.focus();
+      box.setSelectionRange(starter.text.length, starter.text.length);
     }
   }
 
