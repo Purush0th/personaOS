@@ -13,7 +13,7 @@ inputs:
     example:
       - "09:30-10:30 File taxes [planned]"
 ---
-Today's planner (use the planner tools to change it):
+Today's planner, for today only (for any other day, read it with get_planner; use the planner tools to change it):
 {{#items}}
 - {{.}}
 {{/items}}

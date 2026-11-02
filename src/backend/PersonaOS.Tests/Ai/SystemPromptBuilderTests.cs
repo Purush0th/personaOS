@@ -226,7 +226,7 @@ public class SystemPromptBuilderTests
     {
         var prompt = await BuildAsync(c => c.TimeZone = "UTC", SeedEverything);
 
-        Assert.Contains("Today's planner (use the planner tools to change it):\n- 07:30-08:30 Gym [planned]\n- Read [planned]", prompt);
+        Assert.Contains("Today's planner, for today only (for any other day, read it with get_planner; use the planner tools to change it):\n- 07:30-08:30 Gym [planned]\n- Read [planned]", prompt);
     }
 
     [Fact]

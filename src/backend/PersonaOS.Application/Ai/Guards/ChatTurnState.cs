@@ -13,7 +13,9 @@ public sealed class ChatTurnState(
     string mode = PersonaOS.Domain.Entities.ChatModes.Chat,
     string? userMessage = null,
     DateOnly? userToday = null,
-    IReadOnlySet<string>? writeTools = null)
+    IReadOnlySet<string>? writeTools = null,
+    DateTime? userNow = null,
+    IReadOnlyList<string>? earlierUserMessages = null)
 {
     /// <summary>After this many repeated calls the model is stuck, and more rounds only cost time.</summary>
     private const int StuckAfterRepeats = 2;
@@ -30,6 +32,12 @@ public sealed class ChatTurnState(
 
     /// <summary>The user's local date this turn; null when not known.</summary>
     public DateOnly? UserToday { get; } = userToday;
+
+    /// <summary>The user's local date and time this turn; null when not known.</summary>
+    public DateTime? UserNow { get; } = userNow;
+
+    /// <summary>The user's last few messages before this one, newest last: "tomorrow at 9" answers a question asked about them.</summary>
+    public IReadOnlyList<string> EarlierUserMessages { get; } = earlierUserMessages ?? [];
 
     /// <summary>Tools that change the user's data, so a call becomes a card instead of running.</summary>
     public IReadOnlySet<string> MutatingTools { get; } = mutatingTools;
@@ -63,10 +71,14 @@ public sealed class ChatTurnState(
 
     public void CountRepeat() => Repeats++;
 
+    /// <summary>What the tools that ran this turn returned, whole, for checks against the data read.</summary>
+    public List<string> Results { get; } = [];
+
     /// <summary>A call that ran: remembered for the repeat check, and receipted for the user.</summary>
     public void RecordExecution(AiToolCall call, AiToolResult result)
     {
         Remember(call, result.Content);
+        Results.Add(result.Content);
         Receipts.Add(ToolReceiptBuilder.Build(call.Name, result.Content, result.IsError));
     }
 

@@ -11,14 +11,21 @@ namespace PersonaOS.Application.Ai.Guards;
 /// everything after it sees the real fields.</item>
 /// <item><see cref="OfferedToolGuard"/> refuses a tool that was not offered this turn, such as a
 /// write tool in Brainstorm, which would otherwise still become a card.</item>
+/// <item><see cref="CalendarRequestGuard"/> turns a reminder for something the user asked to put on
+/// their calendar into a planner item.</item>
+/// <item><see cref="UserTimeGuard"/> holds a reminder or event to the day and time the user gave,
+/// and refuses a reminder whose time nobody gave.</item>
 /// <item><see cref="RepeatedCallGuard"/> answers a call already made this turn from memory.</item>
 /// <item><see cref="RelativeDateGuard"/> sends back a change for a different day than the
 /// "today", "tomorrow" or "yesterday" the user said, with the right date.</item>
+/// <item><see cref="TaskTitleGuard"/> refuses a task titled with words the user never said.</item>
+/// <item><see cref="NoteWordsGuard"/> and <see cref="MemoryWordsGuard"/> keep what is saved without a
+/// card to the user's own words.</item>
 /// <item><see cref="ConfirmationGate"/> turns a call that would change the user's data into a card,
 /// after checking the call names things that exist.</item>
 /// </list>
-/// The order is the design: a repeat is only recognisable once unwrapped, and a repeated proposal
-/// must not become a second card.
+/// The order is the design: a repeat is only recognisable once unwrapped and set to the user's time,
+/// and a repeated proposal must not become a second card.
 /// </summary>
 public sealed class ToolCallPipeline(IPersonaToolRegistry registry, ILogger<ToolCallPipeline> logger)
 {
@@ -26,9 +33,13 @@ public sealed class ToolCallPipeline(IPersonaToolRegistry registry, ILogger<Tool
     [
         new ArgumentEnvelopeGuard(),
         new OfferedToolGuard(),
+        new CalendarRequestGuard(),
+        new UserTimeGuard(),
         new RepeatedCallGuard(),
         new RelativeDateGuard(),
+        new TaskTitleGuard(),
         new NoteWordsGuard(),
+        new MemoryWordsGuard(),
         new ConfirmationGate(registry),
     ];
 

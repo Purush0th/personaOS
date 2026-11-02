@@ -58,8 +58,8 @@ public static class ChatIntents
     public static readonly IReadOnlyDictionary<string, string> Meaning = new Dictionary<string, string>
     {
         [CreateTask] = "wants something to do added to their task board or backlog",
-        [CreateReminder] = "wants to be reminded of something at a time",
-        [AddPlannerItem] = "wants an event, appointment or plan put on their calendar for a day",
+        [CreateReminder] = "wants to be reminded, pinged or alerted about something at a time (\"remind me\", \"alarm\")",
+        [AddPlannerItem] = "wants an event, appointment, meeting, call or plan put on their calendar for a day (\"schedule\", \"book\")",
         [CreateGoal] = "wants a new goal",
         [CreateNote] = "wants a quick note jotted down to deal with later",
         [CreateMemory] = "tells you a lasting fact or preference about themselves to keep for future chats",

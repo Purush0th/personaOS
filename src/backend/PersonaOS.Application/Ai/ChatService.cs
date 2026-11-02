@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -39,6 +40,9 @@ public partial class ChatService(
 
     /// <summary>Turns of the conversation a focused try sees: the last few exchanges, ending with the user's message.</summary>
     private const int FocusedHistoryTurns = 6;
+
+    /// <summary>The user's messages before this one that guards read, for "tomorrow at 9" answering a question.</summary>
+    private const int EarlierUserMessages = 2;
 
     public async IAsyncEnumerable<ChatStreamEvent> StreamChatAsync(
         int? conversationId,
@@ -102,7 +106,10 @@ public partial class ChatService(
                 activeMode,
                 userMessage,
                 Common.UserClock.Today(config.TimeZone, time),
-                tools.Select(t => t.Name).Where(n => !readOnly.Contains(n)).ToHashSet()),
+                tools.Select(t => t.Name).Where(n => !readOnly.Contains(n)).ToHashSet(),
+                Common.UserClock.ToLocal(time.GetUtcNow().UtcDateTime, config.TimeZone),
+                [.. turns.SkipLast(1).Where(t => t.Role == ChatRoles.User && t.ToolResults is null && t.Content.Length > 0)
+                    .TakeLast(EarlierUserMessages).Select(t => t.Content)]),
             conversation.Id);
         // The conversation as the model first saw it, before any round adds to it.
         var firstTurns = request.Turns.ToList();
@@ -262,6 +269,45 @@ public partial class ChatService(
                 final = answered;
         }
 
+        // A question about data the prompt does not hold (the calendar beyond today, notes,
+        // reminders) answered without reading it: one focused try that offers only the tool that
+        // reads it. Asked "What is on my calendar tomorrow?", qwen2.5:3b read the sprint board and
+        // called its tasks tomorrow's calendar; asked about a haircut appointment, it said "today"
+        // (accuracy suite, 2026-11-02). The answer from the read replaces the one without it.
+        if (first.Error is null && intent?.Intent == ChatIntents.Question && request.Turn.Proposals.Count == 0
+            && QuestionReadTool(userMessage, request.Model.Tools.Select(t => t.Name)) is { } readTool
+            && !request.Turn.Receipts.Any(r => r.Tool == readTool))
+        {
+            logger.LogWarning("Model {Model} answered a question without reading {Tool}; asking for it alone.", config.AiModel, readTool);
+            var focused = request with
+            {
+                Model = request.Model with { Tools = [.. request.Model.Tools.Where(t => t.Name == readTool)] },
+                Turns = [.. firstTurns.TakeLast(FocusedHistoryTurns),
+                    new AiChatTurn(ChatRoles.User, FocusedReadInstruction(readTool, request.Turn.UserToday))],
+            };
+            var read = new ModelRound();
+            await foreach (var evt in RunToolLoopAsync(focused, read, streamText: false, ct)) yield return evt;
+
+            var answered = read.Error is null && read.ToolRuns > 0
+                ? await replyGuards.ReviewAsync(new ReplyDraft(read.Text.ToString(), request.Turn, isCorrection: true), ct)
+                : null;
+            if (answered is { Text.Length: > 0, UnbackedClaim: null }) final = answered;
+        }
+
+        // The question named something (a haircut, the electrician) that nothing read this turn
+        // mentions, and the reply does not say so: it was found nowhere, and the reply says that
+        // first. With the planner read in front of it, qwen2.5:3b still answered "Your haircut
+        // appointment is planned for today" (accuracy suite, 2026-11-02).
+        if (first.Error is null && intent?.Intent == ChatIntents.Question
+            && QuestionReadTool(userMessage, request.Model.Tools.Select(t => t.Name)) is { } searched
+            && request.Turn.Receipts.Any(r => r.Ok && r.Tool == searched)
+            && NotFound(userMessage, request.Turn.Results, final.Text) is { } missing)
+        {
+            logger.LogWarning("Model {Model} answered about \"{Missing}\", which nothing read mentions.", config.AiModel, missing);
+            var where = searched switch { "get_notes" => "your notes", "get_reminders" => "your reminders", _ => "your planner" };
+            final.Rewrite($"I couldn't find anything about “{missing}” in {where}.");
+        }
+
         // The reply got a task's points or status wrong (ItemFactGuard): one chance to put it right
         // with the facts in hand. If the model still gets them wrong, the facts are said anyway:
         // a wrong number must not be the last word, and qwen2.5:3b defended one for three turns.
@@ -311,6 +357,82 @@ public partial class ChatService(
                 final.Rewrite($"Noted: “{asked}”.");
                 unverifiedClaim = false;
             }
+        }
+
+        // A plain "mark TASK-11 as done" that ended with no card: the backend proposes the move
+        // itself, through the same guards, so the card is checked like any other.
+        // Any other card gives way to the move: an update_task that changes nothing (it once came
+        // with only the task's own title), or complete_sprint for "I've finished TASK-11".
+        if (first.Error is null
+            && request.Turn.ToolNames.Contains("move_task")
+            && Board.TaskCommand.Parse(userMessage) is var (taskKey, column)
+            && !request.Turn.Proposals.Any(p => p.ToolName == "move_task"))
+        {
+            logger.LogWarning("Model {Model} made no move card for a plain task move; proposing it.", config.AiModel);
+            var before = request.Turn.Proposals.Count;
+            var call = new AiToolCall($"server-move-{Guid.NewGuid():N}", "move_task", JsonSerializer.Serialize(new { taskKey, column }));
+            await toolCallGuards.DecideAsync(call, request.Turn, ct);
+            if (request.Turn.Proposals.Count > before)
+            {
+                request.Turn.Proposals.RemoveAll(p => p.ToolName != "move_task");
+                final.Rewrite(EmptyReplyGuard.ProposalOnly);
+                unverifiedClaim = false;
+            }
+        }
+
+        // "Book lunch with Marco tomorrow at 1pm" that ended with no planner card: proposed from its
+        // words, and a task or goal card made for it instead gives way.
+        if (first.Error is null
+            && request.Turn.ToolNames.Contains("add_planner_item")
+            && !request.Turn.Proposals.Any(p => p.ToolName == "add_planner_item")
+            && request.Turn.UserNow is DateTime userNow
+            && Planner.PlannerCommand.Parse(userMessage, userNow) is { } booking)
+        {
+            logger.LogWarning("Model {Model} made no planner card for a plain booking; proposing it.", config.AiModel);
+            var before = request.Turn.Proposals.Count;
+            var input = booking.Time is TimeOnly at
+                ? JsonSerializer.Serialize(new { title = booking.Title, date = booking.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), scheduledTime = at.ToString("HH:mm", CultureInfo.InvariantCulture) })
+                : JsonSerializer.Serialize(new { title = booking.Title, date = booking.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) });
+            await toolCallGuards.DecideAsync(new AiToolCall($"server-book-{Guid.NewGuid():N}", "add_planner_item", input), request.Turn, ct);
+            if (request.Turn.Proposals.Count > before)
+            {
+                request.Turn.Proposals.RemoveAll(p => p.ToolName != "add_planner_item");
+                final.Rewrite(EmptyReplyGuard.ProposalOnly);
+                unverifiedClaim = false;
+            }
+        }
+
+        // The model was told to ask when to remind them, and asked without a question: one plain
+        // question instead ("Please tell me the time, in one short sentence" twice, holdout2).
+        if (first.Error is null && request.Turn.Proposals.Count == 0
+            && request.Turn.Refusals.Contains(UserTimeGuard.NoTimeGiven) && !final.Text.Contains('?'))
+        {
+            final.Rewrite("When should I remind you? Tell me a day and time, like “tomorrow at 9am”.");
+            unverifiedClaim = false;
+        }
+
+        // "Cancel my reminder to call the bank" that ended with no card: proposed from its words.
+        if (first.Error is null
+            && request.Turn.Proposals.Count == 0
+            && request.Turn.ToolNames.Contains("cancel_reminder")
+            && Reminders.ReminderCommand.CancelWords(userMessage) is { } reminderWords)
+        {
+            logger.LogWarning("Model {Model} made no card for a plain reminder cancel; proposing it.", config.AiModel);
+            var call = new AiToolCall($"server-cancel-{Guid.NewGuid():N}", "cancel_reminder", JsonSerializer.Serialize(new { message = reminderWords }));
+            await toolCallGuards.DecideAsync(call, request.Turn, ct);
+            if (request.Turn.Proposals.Count > 0)
+            {
+                final.Rewrite(EmptyReplyGuard.ProposalOnly);
+                unverifiedClaim = false;
+            }
+        }
+
+        // Asked where to get PersonaOS, the reply named "the GitHub releases page" without the link,
+        // three tries in three (accuracy suite, 2026-11-02): the real link is added.
+        if (first.Error is null && AsksWhereToGetPersonaOs(userMessage)
+            && !final.Text.Contains(Domain.PersonaOsProject.Url, StringComparison.OrdinalIgnoreCase))
+        {
+            final.Rewrite($"{final.Text.TrimEnd()}\n\nDownloads: {Domain.PersonaOsProject.ReleasesUrl}");
         }
 
         // The reply still says a change is on its way, but the change was refused and nothing is

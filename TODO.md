@@ -44,9 +44,6 @@ Not yet tried on the owner's phone:
 AI accuracy (qwen2.5:3b):
 - [ ] AI accuracy: planner "no title" scenario fails about 1 in 3 full suite runs since notes
       (10/10 alone).
-- [ ] AI accuracy: download link scenario flakes now and then.
-- [ ] AI accuracy: the intent check never answers "ambiguous"; "I need to remember this" is read as
-      a reminder, and once in three runs a reminder card with a made-up time followed.
 - [ ] AI accuracy: the model sometimes asks for a task key after being told which tool to call.
 - [ ] AI accuracy: sprint-level column claims ("the tasks are in the backlog, not in the sprint")
       are not checked.
@@ -54,11 +51,8 @@ AI accuracy (qwen2.5:3b):
 Release and infrastructure:
 - [ ] Public release: deliberately blocked by the owner until features are mature and
       hallucination is under control. Do not suggest cutting it.
-- [ ] GitHub workflows (`ci.yml`, `release.yml`) never confirmed passing; the GHCR images the
-      README's compose file pulls do not exist yet. The release failure (uppercase image
-      namespace) is fixed in U1, not yet proven by a release.
 - [ ] Upgrade test from one release to the next (keyring survival) and the `minSupportedClient`
-      gate: need two published releases.
+      gate: releases exist now (alpha.9 to alpha.16 went through the updater); not yet done as a test.
 - [ ] Rename: "PersonaOS" is taken; candidate names checked 2026-10-03, nothing decided.
 - [ ] Live Anthropic smoke test (chat with tool calls): blocked on a real API key.
 
@@ -66,6 +60,51 @@ Deferred by the owner:
 - [ ] Deferred by the owner: notes widget on the phone ("later").
 
 ---
+
+## Accuracy and UX sprint (owner, 2026-11-02: "you are the product owner now")
+
+- [x] **A1. Harder accuracy suite** (2026-11-02). `scripts/model-check.ps1 -Suite core|extended|holdout|all`.
+      Core (24 incidents) was at 97%, so it no longer showed anything. Extended (20 scenarios):
+      edits by key, follow-ups across two turns, relative times ("in 2 hours", "on Thursday"),
+      grounding (no invented notes or appointments), honesty (no tool to delete a note), general
+      knowledge. Holdout (13): the same skills in other words, written before tuning and never tuned
+      against. Scenarios can now be multi-turn (`Turns = @(...)`). Extended baseline on qwen2.5:3b:
+      66.7%.
+- [x] **A2. Times read in code** (2026-11-02). `WhenPhrase` reads "in 45 minutes", weekdays, "the day
+      after tomorrow", clock times; `UserTimeGuard` rewrites reminder/event calls and planner reads to
+      it, and refuses a reminder whose time nobody gave (the model asks instead). Ambiguous phrases
+      ("next Friday", "at 9", a weekday that is today) are left to the model.
+- [x] **A3. Titles, targets and routing** (2026-11-02). `TaskTitleGuard` (title from the user's
+      words, filled from the message when missing: `TaskRequest`); `cancel_reminder` takes the
+      reminder's words (`ReminderMatch`); `update_task` with nothing to change is refused; a plain
+      "mark TASK-11 as done" is proposed by the backend when the model makes no card
+      (`TaskCommand`, FR-02); "Would you like me to…?" no longer stops the focused try.
+- [x] **A4. Grounded answers** (2026-11-02). A question about the calendar, notes or reminders that
+      read nothing gets one focused read; an answer about something no tool returned ("your haircut
+      appointment is today") is replaced by "I couldn't find anything about “haircut” in your
+      planner"; the download question always carries the real releases link.
+- [x] **U3. Installable web app and a real app icon** (2026-11-02). The Android app still had
+      Flutter's default icon: now the Orb (adaptive icon + legacy mipmaps). Web: manifest, Apple
+      touch icon, `viewport-fit=cover` + safe-area padding, so "Add to Home Screen" on an iPhone
+      opens it full screen (the iOS-through-the-web plan). Phone-width web: planner opens in Day
+      view, the update banner is one line, keyboard hints hide on touch screens.
+- [x] **A5. Routing round two** (2026-11-02). `CalendarRequestGuard`: "schedule/book a call…" or "put
+      it on my calendar" with no word of a reminder turns a `create_reminder` into a planner item.
+      A planner read for one named day is narrowed to it (the model read a range and gave today's
+      item as tomorrow's). `MemoryWordsGuard`: a memory must share a word with what the user said
+      ("Thanks" saved "The user appreciated the update"). "Cancel/forget my reminder about X" is
+      proposed by the backend when the model makes no card (`ReminderCommand`). The suite deletes
+      the conversations it opens. **Holdout2** (13 scenarios) written once the first holdout had
+      been tuned against; never tune against it.
+- [x] **A6. Holdout2 fixes** (2026-11-02). Holdout2 scored 79.5% on its first run: "I've finished
+      TASK-11" proposed complete_sprint (now a move, other cards dropped), "Book lunch with Marco
+      tomorrow at 1pm" became a task (`PlannerCommand` routes plain bookings), `WhenPhrase` read
+      "Marco"/"Mark" as March, a reminder with no time sometimes asked without a question (now one
+      plain question). After: core+extended 97.7%, holdout 97.4%, holdout2 94.9%. Results table in
+      docs/model-accuracy.md §7. Next: write holdout3 first, then arithmetic and "put it on my
+      calendar" after a statement.
+- [x] **U4. Conversation starters** (2026-11-02). The empty chat offers Today's plan (sends) and
+      Remind me / New task / Jot a note (fill the composer, keyboard up), on web and phone.
 
 ## Planner as a calendar (owner, 2026-10-03)
 

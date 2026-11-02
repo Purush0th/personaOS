@@ -295,9 +295,17 @@ public class UpdateTaskTool(IBoardService board, IGoalService goals) : BoardTool
         }
         """;
 
+    /// <summary>The fields update_task can change.</summary>
+    private static readonly string[] Changes = ["title", "description", "points", "clearPoints", "priority", "goalKey", "clearGoal"];
+
     public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
     {
         await RequireTaskAsync(GetKey(input, "taskKey"), ct);
+        // Asked to "mark TASK-11 as done", qwen2.5:3b proposed update_task with nothing to change: a
+        // card that did nothing when confirmed (accuracy suite, 2026-11-02).
+        if (!Changes.Any(f => input.TryGetProperty(f, out var v) && v.ValueKind is not (JsonValueKind.Null or JsonValueKind.False)))
+            throw new BoardValidationException(
+                "Nothing to change. To mark a task done or move it to another column or sprint, call move_task instead.");
         if (GetString(input, "title") is { } title) BoardService.RequireTitle(title);
         BoardService.ValidatePoints(GetInt(input, "points"));
         BoardService.ValidatePriority(GetString(input, "priority"));

@@ -104,7 +104,8 @@ public class GetPlannerTool(IPlannerService planner, IInstanceConfigService conf
     public override string Name => "get_planner";
     public override bool Mutates => false;
     public override string Description =>
-        "THE TOOL FOR \"what are my tasks today\", \"what am I doing today\", \"today's plan\". " +
+        "THE TOOL FOR \"what are my tasks today\", \"what am I doing today\", \"today's plan\", " +
+        "\"what is on my calendar tomorrow\", \"my schedule this week\", \"when is my appointment\". " +
         "Reads the user's daily planner: what they intend to do on a given day. Call it with no " +
         "arguments for today. Pass 'date' for another single day, or 'from'+'to' for a range " +
         "(e.g. a week). Dates are the user's local dates. Each item has a status " +

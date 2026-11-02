@@ -142,3 +142,29 @@ The full routing and execution workflow must operate using the configured local 
 ## 6. Definition of done
 
 The requirement is complete when semantically equivalent user requests consistently reach the correct workflow, invalid or ambiguous requests are handled safely, existing functionality remains intact, and the assistant never claims a write succeeded without evidence from the backend.
+## 7. Measured results
+
+`scripts/model-check.ps1 -Suite <suite> -Runs 3` against qwen2.5:3b-instruct on Ollama (RTX 3060),
+the production model. Each scenario is a fresh conversation run three times; the score is the share
+of passing runs. A holdout set is written before any tuning against it, and its first number is the
+honest one: once a failure in it has been fixed, it measures the fix, not generalisation.
+
+| Date | Change | Core + extended | Holdout | Holdout2 |
+|---|---|---|---|---|
+| 2026-11-02 | Baseline (core 97.2%, extended 66.7%) | — | — | — |
+| 2026-11-02 | Times read in code, titles from the user's words, grounding | 97.0% | 84.6% (first run) | — |
+| 2026-11-02 | Calendar words, memory guard, reminder cancel router | 96.2% | 89.7% | — |
+| 2026-11-02 | Calendar request guard, one-day planner reads | 95.5% | 100% | 79.5% (first run) |
+| 2026-11-02 | Plain bookings and "I've finished TASK-n" routed in code; month names fixed | 97.7% | 97.4% | 94.9% |
+
+What the numbers taught, for the next round:
+
+- **Deterministic beats instructed.** Every large gain came from moving a decision out of the model
+  (FR-02): dates and times (`WhenPhrase`, `UserTimeGuard`), the target of a move or cancel
+  (`TaskCommand`, `ReminderCommand`, `PlannerCommand`), the kind of item (`CalendarRequestGuard`).
+  Prompt wording moved the 3B model a few points at most.
+- **A fresh holdout finds what tuning hides.** Holdout2 found "I've finished TASK-11" proposing
+  complete_sprint, and "Marco" read as the month of March; neither showed in 171 tuned runs.
+- **Still weak on the 3B model:** arithmetic ("15% of 80" gave 20 and 5), "I have X tomorrow, put it
+  on my calendar" (sometimes a task or a goal), and saying no to a memory after "thanks". The next
+  holdout should be written before working on these.
