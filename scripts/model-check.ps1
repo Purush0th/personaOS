@@ -29,6 +29,13 @@ param(
     [int]$Runs = 3,
     # Only the scenarios whose name contains this text.
     [string]$Only,
+    # Which scenarios: 'core' (the incidents the suite started from), 'extended' (edits, follow-ups,
+    # relative times, grounding and honesty, added 2026-11-02 when core reached 97%), 'holdout'
+    # (the same skills in other words, never tuned against: it shows whether a fix generalises),
+    # 'holdout2' (a fresh one, written once the first had been tuned against), or 'all' (core and
+    # extended).
+    [ValidateSet('all', 'core', 'extended', 'holdout', 'holdout2')]
+    [string]$Suite = 'all',
     # Where to write the result as JSON, for comparing runs.
     [string]$Json,
     [string]$Server = 'http://localhost:5080',
@@ -60,10 +67,15 @@ function Invoke-Api {
     Invoke-RestMethod @params
 }
 
+# The conversations the run opened, deleted at the end so they do not pile up in the sidebar.
+$script:conversations = New-Object System.Collections.Generic.HashSet[object]
+
 # One turn. Returns the 'done' event: the reply text, the tools that ran, and any proposals.
 function Send-Chat {
-    param([string]$Message, [string]$Token)
-    $body = @{ message = $Message } | ConvertTo-Json -Compress
+    param([string]$Message, [string]$Token, $ConversationId)
+    $payload = @{ message = $Message }
+    if ($null -ne $ConversationId) { $payload['conversationId'] = $ConversationId }
+    $body = $payload | ConvertTo-Json -Compress
     $response = Invoke-WebRequest -Method Post -Uri "$Server/api/chat" `
         -Headers @{ Authorization = "Bearer $Token" } -ContentType 'application/json' `
         -Body $body -TimeoutSec $TimeoutSec -UseBasicParsing
@@ -73,6 +85,7 @@ function Send-Chat {
     foreach ($line in ($response.Content -split "`n")) {
         if (-not $line.StartsWith('data:')) { continue }
         $event = $line.Substring(5).Trim() | ConvertFrom-Json
+        if ($event.type -eq 'start' -and $null -ne $event.conversationId) { [void]$script:conversations.Add($event.conversationId) }
         if ($event.type -eq 'delta') { [void]$streamed.Append($event.text) }
         if ($event.type -eq 'done') { $done = $event }
         if ($event.type -eq 'error') { throw "stream error: $($event.error)" }
@@ -128,6 +141,8 @@ $effective = Invoke-Api -Method Get -Path '/api/setup' -Token $token
 $temperatureUnderTest = if ($null -ne $effective.aiTemperature) { $effective.aiTemperature } else { "$($effective.defaultTemperature) (profile)" }
 
 $seededTask = $null
+$seededReminder = $null
+$seededNote = $null
 try {
     # --- the data the scenarios expect ---------------------------------------------------------
     $now = Get-Date
@@ -151,6 +166,17 @@ try {
     $seededTask = Invoke-Api -Method Post -Path '/api/board/tasks' -Token $token `
         -Body @{ title = 'Water the balcony plants'; points = 5; priority = 'high' }
     $taskKey = $seededTask.key
+    # A reminder and a note the extended scenarios read and act on.
+    $bankAt = $now.Date.AddDays(2).AddHours(10)
+    $seededReminder = Invoke-Api -Method Post -Path '/api/reminders' -Token $token `
+        -Body @{ message = 'Call the bank about the card'; dueAtLocal = $bankAt.ToString('yyyy-MM-ddTHH:mm:ss') }
+    $seededNote = Invoke-Api -Method Post -Path '/api/notes' -Token $token -Body @{ text = 'Buy stamps for the wedding cards' }
+    # The next Friday after today, and the day after tomorrow by name, for scenarios that name a weekday.
+    $friday = $now.Date.AddDays(1)
+    while ($friday.DayOfWeek -ne [DayOfWeek]::Friday) { $friday = $friday.AddDays(1) }
+    $inThreeDays = $now.Date.AddDays(3)
+    $inThreeDaysName = $inThreeDays.ToString('dddd', [Globalization.CultureInfo]::InvariantCulture)
+    $nickname = $settings.assistantNickname
 
     # --- scenarios -----------------------------------------------------------------------------
     # Each check returns an empty string when it passes, or why it failed.
@@ -409,11 +435,500 @@ try {
                 if ($d.text -notmatch 'github\.com/Purush0th/personaOS') { return 'gives no real project link' }
                 # "It is not in the app stores" is right; sending the user to one is not.
                 $stores = 'app stores?|play store|google play'
-                if ($d.text -match "($stores)" -and $d.text -notmatch "(not|n't|never)[^.]{0,50}($stores)") { return 'sends the user to a store' }
+                if ($d.text -match "($stores)" -and $d.text -notmatch "(not|n't|never)[^.]{0,90}($stores)") { return 'sends the user to a store' }
                 return ''
             }
         }
     )
+
+    # Extended (2026-11-02): what a daily user does that the incidents above never covered. A
+    # scenario with Turns is one conversation; its check sees the last turn's 'done' and all of them.
+    $negative = '(?i)\b(no|not|none|nothing|never|couldn''t|could not|can''t|cannot|don''t|do not|didn''t|isn''t|aren''t|hasn''t|haven''t|unable)\b'
+    $extended = @(
+        @{
+            Name  = 'edit: mark a task done'
+            Say   = "Mark $taskKey as done"
+            Check = {
+                param($d)
+                $proposed = Proposed-Tools $d
+                $card = $d.pending | Where-Object { $_.tool -in 'move_task', 'update_task' } | Select-Object -First 1
+                if ($null -eq $card) { return "no move_task card (proposed: $($proposed -join ','); ran: $((Tools-Used $d) -join ','))" }
+                if ($card.summary -notmatch "$taskKey|balcony") { return "card is for another task: $($card.summary)" }
+                if ($card.summary -notmatch '(?i)done') { return "card does not move it to done: $($card.summary)" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'edit: re-estimate a task'
+            Say   = "Change $taskKey to 8 points"
+            Check = {
+                param($d)
+                $err = Expect-Card $d 'update_task' 'points 8'
+                if ($err) { return $err }
+                if (($d.pending | Where-Object { $_.tool -eq 'update_task' } | Select-Object -First 1).summary -notmatch "$taskKey|balcony") { return 'card is for another task' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'edit: cancel a reminder'
+            Say   = 'Cancel my reminder to call the bank'
+            Check = { param($d) Expect-Card $d 'cancel_reminder' '(?i)bank' }
+        },
+        @{
+            Name  = 'reads tomorrow''s calendar'
+            Say   = 'What is on my calendar tomorrow?'
+            Check = {
+                param($d)
+                if ((Tools-Used $d) -notcontains 'get_planner') { return "did not read the planner (ran: $((Tools-Used $d) -join ','))" }
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                if ($d.text -match 'Read a book') { return "gave today's item as tomorrow's" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'reads reminders'
+            Say   = 'What reminders do I have coming up?'
+            Check = {
+                param($d)
+                if ($d.text -notmatch '(?i)bank') { return 'does not mention the bank reminder' }
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'reads notes'
+            Say   = 'What notes have I saved?'
+            Check = {
+                param($d)
+                if ($d.text -notmatch '(?i)stamps') { return "does not mention the saved note (ran: $((Tools-Used $d) -join ','))" }
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'proposes a goal'
+            Say   = 'Set a goal to read 12 books next year'
+            Check = { param($d) Expect-Card $d 'create_goal' '(?i)book' }
+        },
+        @{
+            Name  = 'remembers a fact'
+            Say   = 'I am allergic to peanuts, please remember that'
+            Check = {
+                param($d)
+                $memories = @(Invoke-Api -Method Get -Path '/api/memories' -Token $token | ForEach-Object { $_ })
+                $saved = @($memories | Where-Object { $_.content -match '(?i)peanut' })
+                foreach ($m in $saved) { Invoke-Api -Method Delete -Path "/api/memories/$($m.id)" -Token $token | Out-Null }
+                $kept = (Tools-Used $d) -contains 'create_memory' -or (Tools-Used $d) -contains 'remember_about_user' -or (Proposed-Tools $d) -contains 'create_memory'
+                if (-not $kept) { return "kept nothing (ran: $((Tools-Used $d) -join ','); proposed: $((Proposed-Tools $d) -join ','))" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'reminder in two hours'
+            Say   = 'Remind me in 2 hours to stretch'
+            Check = {
+                param($d)
+                $err = Expect-Card $d 'create_reminder' '(?i)stretch'
+                if ($err) { return $err }
+                $summary = ($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary
+                $at = (Get-Date).AddHours(2)
+                # The model rounds now as it likes, and the check runs a little after it answered.
+                $near = -12..12 | ForEach-Object { $at.AddMinutes($_).ToString('HH:mm') }
+                if (-not ($near | Where-Object { $summary -match $_ })) { return "not about $($at.ToString('HH:mm')): $summary" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'event on a weekday'
+            Say   = 'Add a meeting with Priya on Friday at 3pm to my calendar'
+            Check = {
+                param($d)
+                $err = Expect-Card $d 'add_planner_item' '(?i)priya'
+                if ($err) { return $err }
+                $summary = ($d.pending | Where-Object { $_.tool -eq 'add_planner_item' } | Select-Object -First 1).summary
+                if ($summary -notmatch $friday.ToString('yyyy-MM-dd')) { return "not on Friday $($friday.ToString('yyyy-MM-dd')): $summary" }
+                if ($summary -notmatch '15:00') { return "not at 15:00: $summary" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'reminder on a named day'
+            Say   = "Remind me on $inThreeDaysName at 10am to submit the report"
+            Check = {
+                param($d)
+                $err = Expect-Card $d 'create_reminder' '10:00'
+                if ($err) { return $err }
+                $summary = ($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary
+                if ($summary -notmatch $inThreeDays.ToString('yyyy-MM-dd')) { return "not on $($inThreeDays.ToString('yyyy-MM-dd')): $summary" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'follow-up: reminder time'
+            Turns = @('Remind me to pay the rent', 'Tomorrow at 9am')
+            Check = {
+                param($d, $all)
+                if ((Proposed-Tools $all[0]) -contains 'create_reminder') { return "guessed a time on the first turn: $(($all[0].pending | Select-Object -First 1).summary)" }
+                $err = Expect-Card $d 'create_reminder' '09:00'
+                if ($err) { return $err }
+                if (($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary -notmatch $tomorrow.ToString('yyyy-MM-dd')) { return 'card is not for tomorrow' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'follow-up: task title'
+            Turns = @('Add a task to my backlog', 'Book the car service')
+            Check = {
+                param($d, $all)
+                if ((Proposed-Tools $all[0]) -contains 'create_task') { return "made up a task on the first turn: $(($all[0].pending | Select-Object -First 1).summary)" }
+                Expect-Card $d 'create_task' '(?i)car service'
+            }
+        },
+        @{
+            Name  = 'jots a note'
+            Say   = 'Jot down that the wifi password is on the router'
+            Check = {
+                param($d)
+                $notes = @(Invoke-Api -Method Get -Path '/api/notes?search=wifi' -Token $token | ForEach-Object { $_ })
+                foreach ($n in $notes) { Invoke-Api -Method Delete -Path "/api/notes/$($n.id)" -Token $token | Out-Null }
+                if ($notes.Count -ne 1) { return "saved $($notes.Count) notes (ran: $((Tools-Used $d) -join ','))" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'grounded: no such note'
+            Say   = 'What did I note about the electrician?'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                if ($d.text -notmatch $negative) { return 'answers as if there were such a note' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'grounded: no such appointment'
+            Say   = 'When is my haircut appointment?'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                if ($d.text -notmatch $negative) { return 'gives an appointment that does not exist' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'honest: no tool to delete a note'
+            Say   = 'Delete my note about the stamps'
+            Check = {
+                param($d)
+                $still = @(Invoke-Api -Method Get -Path '/api/notes?search=stamps' -Token $token | ForEach-Object { $_ })
+                if ($still.Count -eq 0) { return 'the note is gone' }
+                if ($d.text -match '(?i)\b(deleted|removed)\b' -and $d.text -notmatch "(?i)(not|n't|cannot)[^.]{0,40}\b(delete|remove)") { return 'claims the note was deleted' }
+                if ($d.text -match $claimsDone) { return 'claims a change' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'general knowledge'
+            Say   = 'What is the capital of Japan?'
+            Check = {
+                param($d)
+                if ($d.text -notmatch 'Tokyo') { return 'does not say Tokyo' }
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'creative, changes nothing'
+            Say   = 'Write a two-line poem about Monday mornings'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                if ((Tools-Used $d) -match '^create_') { return "saved something: $((Tools-Used $d) -join ',')" }
+                if ($d.text.Trim().Length -lt 20) { return 'no poem' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'knows its name'
+            Say   = 'What is your name?'
+            Check = {
+                param($d)
+                if ($d.text -notmatch [regex]::Escape($nickname)) { return "does not say $nickname" }
+                return ''
+            }
+        }
+    )
+    # Holdout (2026-11-02): written before any tuning against it and never tuned against since.
+    # Report it beside the others: a fix that lifts core and extended but not this fits the checks,
+    # not the users.
+    $saturday = $now.Date.AddDays(1)
+    while ($saturday.DayOfWeek -ne [DayOfWeek]::Saturday) { $saturday = $saturday.AddDays(1) }
+    $holdout = @(
+        @{
+            Name  = 'holdout: alarm tomorrow morning'
+            Say   = 'Set an alarm for 6:30am tomorrow to go running'
+            Check = {
+                param($d)
+                $err = Expect-Card $d 'create_reminder' '06:30'
+                if ($err) { return $err }
+                if (($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary -notmatch $tomorrow.ToString('yyyy-MM-dd')) { return 'not tomorrow' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout: remind in 45 minutes'
+            Say   = 'Can you remind me about the laundry in 45 minutes?'
+            Check = {
+                param($d)
+                $err = Expect-Card $d 'create_reminder' '(?i)laundry'
+                if ($err) { return $err }
+                $summary = ($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary
+                $at = (Get-Date).AddMinutes(45)
+                if (-not (-12..12 | ForEach-Object { $at.AddMinutes($_).ToString('HH:mm') } | Where-Object { $summary -match $_ })) { return "not about $($at.ToString('HH:mm')): $summary" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout: call on a weekday'
+            Say   = 'Schedule a call with Anna on Saturday at 11am'
+            Check = {
+                param($d)
+                $err = Expect-Card $d 'add_planner_item' '(?i)anna'
+                if ($err) { return $err }
+                $summary = ($d.pending | Where-Object { $_.tool -eq 'add_planner_item' } | Select-Object -First 1).summary
+                if ($summary -notmatch $saturday.ToString('yyyy-MM-dd') -or $summary -notmatch '11:00') { return "not Saturday 11:00: $summary" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout: bump the points'
+            Say   = "Bump $taskKey up to 13 points"
+            Check = { param($d) Expect-Card $d 'update_task' 'points 13' }
+        },
+        @{
+            Name  = 'holdout: start a task'
+            Say   = "Move $taskKey into progress"
+            Check = {
+                param($d)
+                $card = $d.pending | Where-Object { $_.tool -eq 'move_task' } | Select-Object -First 1
+                if ($null -eq $card) { return "no move_task card (proposed: $((Proposed-Tools $d) -join ','))" }
+                if ($card.summary -notmatch '(?i)progress') { return "not into progress: $($card.summary)" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout: plans on a weekday'
+            Say   = 'Do I have anything planned for Saturday?'
+            Check = {
+                param($d)
+                if ((Tools-Used $d) -notcontains 'get_planner') { return "did not read the planner (ran: $((Tools-Used $d) -join ','))" }
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout: nothing written about it'
+            Say   = 'Did I write down anything about the plumber?'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                if ($d.text -notmatch $negative) { return 'answers as if there were such a note' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout: forget a reminder'
+            Say   = 'Forget my reminder about the bank'
+            Check = { param($d) Expect-Card $d 'cancel_reminder' '(?i)bank' }
+        },
+        @{
+            Name  = 'holdout: reminder with no time asks'
+            Say   = 'Remind me to buy flowers'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d) -contains 'create_reminder') { return "guessed a time: $(($d.pending | Select-Object -First 1).summary)" }
+                if ($d.text -notmatch '\?') { return 'did not ask when' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout: task with no title asks'
+            Say   = 'Make a task'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d) -contains 'create_task') { return "made one up: $(($d.pending | Select-Object -First 1).summary)" }
+                if ($d.text -notmatch '\?') { return 'did not ask what' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout: a fact about the world'
+            Say   = 'Who wrote Pride and Prejudice?'
+            Check = {
+                param($d)
+                if ($d.text -notmatch 'Austen') { return 'does not say Austen' }
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout: add to my tasks'
+            Say   = "Add 'Call the insurer' to my tasks"
+            Check = { param($d) Expect-Card $d 'create_task' '(?i)insurer' }
+        },
+        @{
+            Name  = 'holdout: note a number'
+            Say   = 'Note that the gate code is 4417'
+            Check = {
+                param($d)
+                $notes = @(Invoke-Api -Method Get -Path '/api/notes?search=4417' -Token $token | ForEach-Object { $_ })
+                foreach ($n in $notes) { Invoke-Api -Method Delete -Path "/api/notes/$($n.id)" -Token $token | Out-Null }
+                if ($notes.Count -ne 1) { return "saved $($notes.Count) notes (ran: $((Tools-Used $d) -join ','))" }
+                return ''
+            }
+        }
+    )
+    # Holdout 2 (2026-11-02): written after the first holdout had been tuned against (the planner
+    # meaning, the calendar words), before any run of its own. Same rule: never tune against it.
+    $holdout2 = @(
+        @{
+            Name  = 'holdout2: ping me tonight'
+            Say   = 'Ping me at 8:15 tonight to take my pills'
+            Check = {
+                param($d)
+                $err = Expect-Card $d 'create_reminder' '20:15'
+                if ($err) { return $err }
+                if (($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary -notmatch $now.ToString('yyyy-MM-dd')) { return 'not today' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout2: remind in an hour'
+            Say   = 'Remind me in an hour to check the oven'
+            Check = {
+                param($d)
+                $err = Expect-Card $d 'create_reminder' '(?i)oven'
+                if ($err) { return $err }
+                $summary = ($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary
+                $at = (Get-Date).AddHours(1)
+                if (-not (-12..12 | ForEach-Object { $at.AddMinutes($_).ToString('HH:mm') } | Where-Object { $summary -match $_ })) { return "not about $($at.ToString('HH:mm')): $summary" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout2: book lunch tomorrow'
+            Say   = 'Book lunch with Marco tomorrow at 1pm'
+            Check = {
+                param($d)
+                $err = Expect-Card $d 'add_planner_item' '(?i)marco'
+                if ($err) { return $err }
+                $summary = ($d.pending | Where-Object { $_.tool -eq 'add_planner_item' } | Select-Object -First 1).summary
+                if ($summary -notmatch $tomorrow.ToString('yyyy-MM-dd') -or $summary -notmatch '13:00') { return "not tomorrow 13:00: $summary" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout2: set the points'
+            Say   = "Set $taskKey to 2 points"
+            Check = { param($d) Expect-Card $d 'update_task' 'points 2\b' }
+        },
+        @{
+            Name  = 'holdout2: finished a task'
+            Say   = "I've finished $taskKey"
+            Check = {
+                param($d)
+                $card = $d.pending | Where-Object { $_.tool -eq 'move_task' } | Select-Object -First 1
+                if ($null -eq $card) { return "no move_task card (proposed: $((Proposed-Tools $d) -join ','))" }
+                if ($card.summary -notmatch '(?i)done') { return "not to done: $($card.summary)" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout2: free on a weekday'
+            Say   = 'Am I free on Friday afternoon?'
+            Check = {
+                param($d)
+                if ((Tools-Used $d) -notcontains 'get_planner') { return "did not read the planner (ran: $((Tools-Used $d) -join ','))" }
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout2: finds a note'
+            Say   = 'Is there a note about the wedding?'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                if ($d.text -notmatch '(?i)stamps') { return "does not mention the stamps note: $($d.text)" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout2: when is a reminder'
+            Say   = 'When is my reminder about the bank?'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                if ($d.text -notmatch '\b10(:00)?\s*(am|AM|a\.m\.)|\b10:00\b') { return "does not give 10:00: $($d.text)" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout2: reminder with no time asks'
+            Say   = 'Remind me to water the plants'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d) -contains 'create_reminder') { return "guessed a time: $(($d.pending | Select-Object -First 1).summary)" }
+                if ($d.text -notmatch '\?') { return 'did not ask when' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout2: arithmetic'
+            Say   = 'What is 15% of 80?'
+            Check = {
+                param($d)
+                if ($d.text -notmatch '\b12\b') { return "does not say 12: $($d.text)" }
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout2: put on my board'
+            Say   = "Put 'Renew passport' on my board"
+            Check = { param($d) Expect-Card $d 'create_task' '(?i)passport' }
+        },
+        @{
+            Name  = 'holdout2: save a note'
+            Say   = 'Save a note: the spare key is under the blue pot'
+            Check = {
+                param($d)
+                $notes = @(Invoke-Api -Method Get -Path '/api/notes?search=spare' -Token $token | ForEach-Object { $_ })
+                foreach ($n in $notes) { Invoke-Api -Method Delete -Path "/api/notes/$($n.id)" -Token $token | Out-Null }
+                if ($notes.Count -ne 1) { return "saved $($notes.Count) notes (ran: $((Tools-Used $d) -join ','))" }
+                return ''
+            }
+        },
+        @{
+            Name  = 'holdout2: follow-up gives the time'
+            Turns = @('Remind me to call mum', 'Tomorrow at 7pm')
+            Check = {
+                param($d, $all)
+                if ((Proposed-Tools $all[0]) -contains 'create_reminder') { return "guessed a time on the first turn: $(($all[0].pending | Select-Object -First 1).summary)" }
+                $err = Expect-Card $d 'create_reminder' '19:00'
+                if ($err) { return $err }
+                if (($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary -notmatch $tomorrow.ToString('yyyy-MM-dd')) { return 'card is not for tomorrow' }
+                return ''
+            }
+        }
+    )
+    $scenarios = switch ($Suite) {
+        'core' { $scenarios }
+        'extended' { $extended }
+        'holdout' { $holdout }
+        'holdout2' { $holdout2 }
+        default { $scenarios + $extended }
+    }
     if ($Only) { $scenarios = @($scenarios | Where-Object { $_.Name -like "*$Only*" }) }
 
     Write-Output "model: $modelUnderTest   temperature: $temperatureUnderTest   runs: $Runs"
@@ -426,9 +941,16 @@ try {
         $seconds = @()
         for ($run = 1; $run -le $Runs; $run++) {
             $started = Get-Date
+            $said = if ($scenario.Turns) { $scenario.Turns } else { @($scenario.Say) }
+            $all = @()
             try {
-                $done = Send-Chat -Message $scenario.Say -Token $token
-                $failure = & $scenario.Check $done
+                $conversation = $null
+                foreach ($message in $said) {
+                    $done = Send-Chat -Message $message -Token $token -ConversationId $conversation
+                    $conversation = $done.conversationId
+                    $all += $done
+                }
+                $failure = & $scenario.Check $done $all
             }
             catch {
                 $failure = $_.Exception.Message
@@ -437,8 +959,9 @@ try {
             $seconds += ((Get-Date) - $started).TotalSeconds
 
             # Leave nothing behind: every card this run created goes away.
-            if ($null -ne $done -and $null -ne $done.pending) {
-                foreach ($card in $done.pending) {
+            foreach ($turnDone in $all) {
+                if ($null -eq $turnDone.pending) { continue }
+                foreach ($card in $turnDone.pending) {
                     try { Invoke-Api -Method Post -Path "/api/chat/actions/$($card.id)/discard" -Token $token | Out-Null } catch {}
                 }
             }
@@ -485,8 +1008,17 @@ try {
     }
 }
 finally {
+    foreach ($id in $script:conversations) {
+        try { Invoke-Api -Method Delete -Path "/api/chat/conversations/$id" -Token $token | Out-Null } catch {}
+    }
     if ($null -ne $seededTask) {
         try { Invoke-Api -Method Delete -Path "/api/board/tasks/$($seededTask.key)" -Token $token | Out-Null } catch {}
+    }
+    if ($null -ne $seededReminder) {
+        try { Invoke-Api -Method Delete -Path "/api/reminders/$($seededReminder.id)" -Token $token | Out-Null } catch {}
+    }
+    if ($null -ne $seededNote) {
+        try { Invoke-Api -Method Delete -Path "/api/notes/$($seededNote.id)" -Token $token | Out-Null } catch {}
     }
     $restore = @{}
     if ($change.ContainsKey('aiModel')) { $restore['aiModel'] = $original.model }

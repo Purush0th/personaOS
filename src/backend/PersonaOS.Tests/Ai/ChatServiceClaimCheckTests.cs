@@ -141,7 +141,7 @@ public class ChatServiceClaimCheckTests
             .EnqueueToolCall("toolu_1", "create_reminder", """{"message":"Stretch"}""")
             .EnqueueText("I've added a reminder to stretch — it's waiting for you below.");
 
-        var events = await CollectAsync(chat.StreamChatAsync(null, "Remind me to stretch"));
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Remind me to stretch at 5pm"));
 
         Assert.Equal(2, streamer.CallCount); // the tool round and its reply — no correction
         Assert.Null(Assert.Single(events, e => e.Type == "done").UnverifiedClaim);

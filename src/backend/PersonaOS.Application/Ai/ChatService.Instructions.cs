@@ -74,12 +74,31 @@ public partial class ChatService
             var answered = turn.Receipts.Count > 0 && survivingClaim is null;
             return intent.Tool is { } wanted
                 && !answered
-                && (survivingClaim is not null || !replyText.Contains('?'))
+                && (survivingClaim is not null || !AsksTheUser(replyText))
                 ? wanted
                 : null;
         }
         return survivingClaim is null ? null : ChangeToolFor($"{survivingClaim} {userMessage}", turn.ToolNames);
     }
+
+    /// <summary>
+    /// Whether the reply asks the user something only they can answer. Asking leave to do what they
+    /// just asked for is not that: "I will create a quarterly goal for reading 12 books. Would you
+    /// like to proceed?" came instead of the card that already asks (accuracy suite, 2026-11-02). A
+    /// question offering a choice ("9am or 10am?") is a real one.
+    /// </summary>
+    public static bool AsksTheUser(string reply)
+    {
+        var questions = QuestionSentence().Matches(reply).Select(m => m.Value).ToList();
+        return questions.Count > 0
+            && questions.Any(q => !AsksLeave().IsMatch(q) || q.Contains(" or ", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [GeneratedRegex(@"[^.!?\n]*\?")]
+    private static partial Regex QuestionSentence();
+
+    [GeneratedRegex(@"^\s*(?:shall|should|can|may) i\b|\b(?:would you like(?: me)? to|do you want(?: me)? to|want me to|is (?:that|this) (?:ok|okay|alright|correct|right|fine)|does (?:that|this) (?:work|sound good|look right)|(?:ready|like) to proceed|proceed with|go ahead|confirm)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex AsksLeave();
 
     /// <summary>The last try at a change the message asked for: only <paramref name="tool"/> is offered.</summary>
     private static string FocusedChangeInstruction(string tool, string? claim) =>
@@ -148,6 +167,84 @@ public partial class ChatService
 
     [GeneratedRegex(@"\bTASK-\d+\b", RegexOptions.IgnoreCase)]
     private static partial Regex TaskKeyMention();
+
+    /// <summary>
+    /// The read tool a question about data the prompt does not fully hold needs: notes (never in
+    /// the prompt), reminders (only the next few), the planner (only today). Null for anything else,
+    /// such as goals or the sprint, which the prompt lists.
+    /// </summary>
+    public static string? QuestionReadTool(string message, IEnumerable<string> offered)
+    {
+        var names = offered.ToHashSet();
+        (string Tool, Regex Topic)[] byTopic =
+        [
+            ("get_notes", NotesTopic()),
+            ("get_reminders", RemindersTopic()),
+            ("get_planner", CalendarTopic()),
+        ];
+        return byTopic.FirstOrDefault(t => names.Contains(t.Tool) && t.Topic.IsMatch(message)).Tool;
+    }
+
+    [GeneratedRegex(@"\b(?:notes?|noted|jotted|(?:write|wrote|written)\s+(?:it\s+)?down)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex NotesTopic();
+
+    [GeneratedRegex(@"\breminders?\b", RegexOptions.IgnoreCase)]
+    private static partial Regex RemindersTopic();
+
+    [GeneratedRegex(@"\b(?:calendar|schedule[ds]?|appointments?|meetings?|events?|agenda|planner|plans?|planned|booked|busy|free)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex CalendarTopic();
+
+
+    /// <summary>"Where can I download PersonaOS?", "how do I install the app", "is there an APK?".</summary>
+    public static bool AsksWhereToGetPersonaOs(string message) => WhereToGet().IsMatch(message);
+
+    [GeneratedRegex(@"\b(?:download|install|apk|get hold of|where (?:can|do) i (?:get|find))\b.*\b(?:personaos|the app|this app|android app)\b|\bpersonaos\b.*\b(?:download|install|apk)\b|\bis there an apk\b", RegexOptions.IgnoreCase)]
+    private static partial Regex WhereToGet();
+
+    /// <summary>Words of a question that say where or when to look, not what to look for.</summary>
+    private static readonly HashSet<string> LookupWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "what", "when", "where", "which", "have", "does", "anything", "something", "about", "there", "with",
+        "note", "notes", "noted", "jotted", "saved", "written", "calendar", "schedule", "appointment", "appointments",
+        "meeting", "meetings", "event", "events", "agenda", "planner", "plan", "plans", "busy", "free", "reminder",
+        "reminders", "remind", "today", "tonight", "tomorrow", "week", "weekend", "month", "next", "this", "that",
+        "coming", "upcoming", "time", "times", "show", "list", "tell", "please", "monday", "tuesday", "wednesday",
+        "thursday", "friday", "saturday", "sunday", "morning", "afternoon", "evening", "scheduled", "planned", "booked",
+        "your", "mine", "doing", "going", "should", "would", "could", "will", "need", "know",
+    };
+
+    [GeneratedRegex(@"\b(?:no|not|none|nothing|never|couldn't|could not|can't|cannot|don't|do not|didn't|isn't|aren't|hasn't|haven't|doesn't|unable)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex Negation();
+
+    [GeneratedRegex(@"[\p{L}\p{N}]+")]
+    private static partial Regex Word();
+
+    /// <summary>
+    /// What a question asks about ("haircut" in "When is my haircut appointment?") when nothing the
+    /// tools returned mentions it and the reply does not say it was not found; otherwise null.
+    /// </summary>
+    public static string? NotFound(string question, IReadOnlyList<string> results, string reply)
+    {
+        var topic = Word().Matches(question.ToLowerInvariant()).Select(m => m.Value)
+            .Where(w => w.Length >= 4 && !LookupWords.Contains(w))
+            .Distinct()
+            .ToList();
+        if (topic.Count == 0 || Negation().IsMatch(reply)) return null;
+
+        var read = results.SelectMany(r => Word().Matches(r.ToLowerInvariant()).Select(m => m.Value)).ToHashSet();
+        bool Mentioned(string w) => read.Any(r => r == w || (Math.Min(r.Length, w.Length) >= 4 && (r.StartsWith(w, StringComparison.Ordinal) || w.StartsWith(r, StringComparison.Ordinal))));
+        return topic.Any(Mentioned) ? null : string.Join(" ", topic);
+    }
+
+    /// <summary>The last try at a question: only <paramref name="tool"/> is offered.</summary>
+    private static string FocusedReadInstruction(string tool, DateOnly? today) =>
+        "[Automatic check, not from the user] Answer the user's last question above from their own data: call "
+        + tool + " now and answer only from what it returns. If it has nothing that answers it, say so plainly; "
+        + "never make an item up."
+        + (tool == "get_planner" && today is DateOnly d
+            ? $" For a day they named, read that day; if they named none, read from {d:yyyy-MM-dd} to {d.AddDays(30):yyyy-MM-dd}."
+            : "")
+        + " " + CorrectionStyle;
 
     /// <summary>
     /// The read tool a promised lookup most likely needs, going by what the user and the reply

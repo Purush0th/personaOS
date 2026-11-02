@@ -20,6 +20,10 @@ public abstract class ReminderToolBase : IPersonaTool
     /// <summary>Tools that act on an existing item override this to check it early.</summary>
     public virtual Task ValidateAsync(JsonElement input, CancellationToken ct = default) => Task.CompletedTask;
 
+    /// <summary>Tools that can fill in what the model left out override this.</summary>
+    public virtual Task<string> CompleteInputAsync(JsonElement input, CancellationToken ct = default) =>
+        Task.FromResult(input.GetRawText());
+
     /// <summary>Tools that act on an existing item name it, for the confirmation card.</summary>
     public virtual Task<string?> DescribeTargetAsync(JsonElement input, CancellationToken ct = default) =>
         Task.FromResult<string?>(null);
@@ -151,24 +155,54 @@ public class CreateReminderTool(IReminderService reminders, IGoalService goals) 
     }
 }
 
+/// <summary>
+/// Takes the reminder by its id or by its words. Asked to "cancel my reminder to call the bank",
+/// qwen2.5:3b called it with reminderId 1, an id it had never been shown, three tries in three
+/// (accuracy suite, 2026-11-02); the words it does know.
+/// </summary>
 public class CancelReminderTool(IReminderService reminders) : ReminderToolBase
 {
     public override string Name => "cancel_reminder";
     public override string Description =>
-        "Cancels a pending reminder so it will not fire. Use get_reminders to find the id.";
+        "Cancels a pending reminder so it will not fire. Name it by 'message' (a few of its words, e.g. " +
+        "\"call the bank\"), or by the 'reminderId' get_reminders returned.";
     public override string InputSchemaJson => """
         {
           "type": "object",
           "properties": {
-            "reminderId": { "type": "integer", "description": "Reminder id to cancel." }
-          },
-          "required": ["reminderId"]
+            "message": { "type": "string", "description": "A few words of the reminder to cancel, as the user named it." },
+            "reminderId": { "type": "integer", "description": "Only an id get_reminders returned; never guess one." }
+          }
         }
         """;
 
+    /// <summary>A reminder named by its words gets its id: the one pending reminder they match.</summary>
+    public override async Task<string> CompleteInputAsync(JsonElement input, CancellationToken ct = default)
+    {
+        if (GetString(input, "message") is not { Length: > 0 } words) return input.GetRawText();
+        // An id that exists stands; a guessed one gives way to the words.
+        if (GetInt(input, "reminderId") is int given && await reminders.GetAsync(given, ct) is { Status: ReminderStatuses.Pending })
+            return input.GetRawText();
+
+        var matches = ReminderMatch.Best(await reminders.ListAsync(includeCompleted: false, ct), words);
+        return matches.Count == 1
+            ? JsonSerializer.Serialize(new { reminderId = matches[0].Id })
+            : input.GetRawText();
+    }
+
     public override async Task ValidateAsync(JsonElement input, CancellationToken ct = default)
     {
-        var id = RequireInt(input, "reminderId");
+        if (GetInt(input, "reminderId") is not int id)
+        {
+            var words = GetString(input, "message");
+            if (string.IsNullOrWhiteSpace(words)) throw new ReminderValidationException("Say which reminder: 'message' or 'reminderId'.");
+            var matches = ReminderMatch.Best(await reminders.ListAsync(includeCompleted: false, ct), words);
+            throw new ReminderValidationException(matches.Count == 0
+                ? $"No pending reminder matches \"{words}\". Check get_reminders."
+                : $"Several pending reminders match \"{words}\": "
+                    + string.Join("; ", matches.Select(r => $"{r.Id} “{r.Message}” at {r.DueAtLocal:yyyy-MM-dd HH:mm}"))
+                    + ". Ask the user which one.");
+        }
         if (await reminders.GetAsync(id, ct) is null)
             throw new ReminderValidationException($"Reminder {id} does not exist. Use an id from get_reminders.");
     }
@@ -185,5 +219,40 @@ public class CancelReminderTool(IReminderService reminders) : ReminderToolBase
         return cancelled is null
             ? throw new ReminderValidationException($"Reminder {id} does not exist.")
             : Ok(cancelled);
+    }
+}
+
+/// <summary>Which pending reminders a few words name: those sharing the most telling words with them.</summary>
+public static partial class ReminderMatch
+{
+    private static readonly HashSet<string> Filler = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "the", "and", "for", "my", "me", "to", "a", "an", "about", "reminder", "remind", "cancel", "delete", "remove", "that", "this",
+    };
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"[\p{L}\p{N}]+")]
+    private static partial System.Text.RegularExpressions.Regex Word();
+
+    public static IReadOnlyList<ReminderDto> Best(IEnumerable<ReminderDto> pending, string words)
+    {
+        var wanted = Words(words).ToHashSet();
+        if (wanted.Count == 0) return [];
+        var scored = pending
+            .Select(r => (Reminder: r, Score: Words(r.Message).Distinct().Count(w => wanted.Any(x => Same(w, x)))))
+            .Where(s => s.Score > 0)
+            .ToList();
+        if (scored.Count == 0) return [];
+        var top = scored.Max(s => s.Score);
+        return [.. scored.Where(s => s.Score == top).Select(s => s.Reminder)];
+    }
+
+    private static IEnumerable<string> Words(string text) =>
+        Word().Matches(text.ToLowerInvariant()).Select(m => m.Value).Where(w => w.Length >= 3 && !Filler.Contains(w));
+
+    private static bool Same(string a, string b)
+    {
+        if (a == b) return true;
+        var (shorter, longer) = a.Length <= b.Length ? (a, b) : (b, a);
+        return shorter.Length >= 4 && longer.StartsWith(shorter, StringComparison.Ordinal);
     }
 }
