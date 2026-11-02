@@ -103,8 +103,25 @@ Deferred by the owner:
       plain question). After: core+extended 97.7%, holdout 97.4%, holdout2 94.9%. Results table in
       docs/model-accuracy.md §7. Next: write holdout3 first, then arithmetic and "put it on my
       calendar" after a statement.
+- [x] **A7. Holdout3 fixes** (2026-11-02). Holdout3 (15 scenarios) scored 75.6% on its first run.
+      Fixed: `RelativeDateGuard` read "the day after tomorrow" as tomorrow and
+      refused the right date on every call (empty reply); `OtherDayItemGuard` takes today's items out
+      of an answer about another day; `TaskCommand.Edit` routes plain priority/points/rename edits;
+      a rename card now shows the new title; `Arithmetic` works out plain sums and replaces a reply
+      that gives the wrong number; `UserTimeGuard` drops a filler end date that kept a named weekday
+      from being corrected; `UnaskedLinkGuard` drops a task or goal link nobody asked for; "thanks"
+      no longer proposes a memory. After: holdout3 97.8%, core+extended 99.2%, holdout 94.9%,
+      holdout2 100%. Still flaky: a paraphrased item title in "anything tomorrow", a missing
+      question mark when a task has no title. Next: write holdout4 before tuning further.
 - [x] **U4. Conversation starters** (2026-11-02). The empty chat offers Today's plan (sends) and
       Remind me / New task / Jot a note (fill the composer, keyboard up), on web and phone.
+- [x] **U5. A calmer chat** (owner, 2026-11-02: "i hate the scroll and the overuse of the logo").
+      Web and phone: the Orb shows only while the assistant is working, not beside every reply; a
+      new speaker gets more room above than one speaker's next line; the list stops following the
+      stream once the reader scrolls up, and a Latest button brings them back; proposal cards are a
+      tonal surface, answered ones a quiet line. Web: the list spans the page so its scrollbar sits
+      at the window edge, with a thin themed scrollbar; on a phone width the mode chips scroll in
+      one row instead of pushing the send button out.
 
 ## Planner as a calendar (owner, 2026-10-03)
 

@@ -110,9 +110,24 @@ class _ChatScreenState extends State<ChatScreen> {
   /// True while an old conversation's messages are being fetched.
   bool _loadingHistory = false;
 
+  /// Whether the list follows the newest message. It stops once the reader scrolls up to read
+  /// back, so a streaming reply no longer drags them to the bottom, and picks up again at the
+  /// bottom or when they send.
+  bool _following = true;
+
+  /// Shown while the reader is away from the newest message: one tap back to it.
+  bool _awayFromLatest = false;
+
+  void _onScroll() {
+    final position = _scroll.position;
+    _following = position.maxScrollExtent - position.pixels < 48;
+    if (_awayFromLatest == _following) setState(() => _awayFromLatest = !_following);
+  }
+
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_onScroll);
     if (widget.voiceEnabled && widget.voice == null) unawaited(_useServerSpeechIfChosen());
     unawaited(_openLatestConversation());
   }
@@ -255,12 +270,33 @@ class _ChatScreenState extends State<ChatScreen> {
     return ready;
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool force = false}) {
+    if (force) _following = true;
+    if (!_following) {
+      if (!_awayFromLatest) setState(() => _awayFromLatest = true);
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
         _scroll.jumpTo(_scroll.position.maxScrollExtent);
       }
     });
+  }
+
+  void _toLatest() {
+    setState(() {
+      _following = true;
+      _awayFromLatest = false;
+    });
+    if (_scroll.hasClients) {
+      unawaited(
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    }
   }
 
   /// A starter that is a whole question goes straight out; one that needs finishing ("Remind me to")
@@ -287,7 +323,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _streaming = true;
       _input.clear();
     });
-    _scrollToBottom();
+    _scrollToBottom(force: true);
 
     _subscription = widget.api
         .streamChat(text, conversationId: _conversationId, mode: _mode)
@@ -409,7 +445,7 @@ class _ChatScreenState extends State<ChatScreen> {
           );
         _loadingHistory = false;
       });
-      _scrollToBottom();
+      _scrollToBottom(force: true);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _loadingHistory = false);
@@ -534,12 +570,35 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : _bubbles.isEmpty
                     ? _EmptyChat(nickname: widget.assistantNickname, onStarter: _useStarter)
-                    : ListView.builder(
-                        controller: _scroll,
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _bubbles.length,
-                        itemBuilder: (context, i) =>
-                            _BubbleView(bubble: _bubbles[i], onResolve: _resolveAction, onOpenItem: _openItem),
+                    : Stack(
+                        children: [
+                          ListView.builder(
+                            controller: _scroll,
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                            itemCount: _bubbles.length,
+                            itemBuilder: (context, i) => _BubbleView(
+                              bubble: _bubbles[i],
+                              onResolve: _resolveAction,
+                              onOpenItem: _openItem,
+                              startsTurn: i > 0 && _bubbles[i].isUser != _bubbles[i - 1].isUser,
+                            ),
+                          ),
+                          // Reading back while a reply arrives: the list stays put, and this takes them back.
+                          if (_awayFromLatest)
+                            Positioned(
+                              bottom: 12,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: FilledButton.tonalIcon(
+                                  key: const Key('to-latest'),
+                                  onPressed: _toLatest,
+                                  icon: const Icon(PhosphorIconsRegular.arrowDown, size: 18),
+                                  label: const Text('Latest'),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
               ),
               _ModeSwitch(mode: _mode, onChanged: _streaming ? null : (mode) => setState(() => _mode = mode)),

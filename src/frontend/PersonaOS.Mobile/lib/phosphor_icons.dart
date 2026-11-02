@@ -10,6 +10,7 @@ abstract final class PhosphorIconsRegular {
   static const IconData alarm = IconData(0xe006, fontFamily: 'Phosphor');
   static const IconData androidLogo = IconData(0xe008, fontFamily: 'Phosphor');
   static const IconData arrowClockwise = IconData(0xe036, fontFamily: 'Phosphor');
+  static const IconData arrowDown = IconData(0xe03e, fontFamily: 'Phosphor');
   static const IconData arrowUp = IconData(0xe08e, fontFamily: 'Phosphor');
   static const IconData arrowsInLineVertical = IconData(0xe532, fontFamily: 'Phosphor');
   static const IconData arrowsOutLineVertical = IconData(0xe536, fontFamily: 'Phosphor');
