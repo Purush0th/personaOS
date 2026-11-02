@@ -344,6 +344,14 @@ public sealed class MemoryWordsGuardTests
         Assert.IsType<ToolCallVerdict.Answer>(verdict);
     }
 
+    [Theory]
+    [InlineData("The user thanked me and said that's all for now")]
+    [InlineData("User is grateful for the help, all good for now")]
+    public async Task A_memory_made_of_the_courtesy_itself_is_refused(string content)
+    {
+        Assert.IsType<ToolCallVerdict.Answer>(await Check("Thanks, that's all for now", content));
+    }
+
     [Fact]
     public async Task A_memory_from_the_users_words_passes()
     {

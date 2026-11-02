@@ -380,6 +380,25 @@ public partial class ChatService(
             }
         }
 
+        // "Make TASK-11 low priority" or "Rename TASK-11 to …" that ended with no card making that
+        // change: proposed from its words, and any other card gives way to it.
+        if (first.Error is null
+            && request.Turn.ToolNames.Contains("update_task")
+            && Board.TaskCommand.Edit(userMessage) is { } edit
+            && !request.Turn.Proposals.Any(p => p.ToolName == "update_task" && edit.IsMetBy(p.InputJson)))
+        {
+            logger.LogWarning("Model {Model} made no card for a plain task edit; proposing it.", config.AiModel);
+            var before = request.Turn.Proposals.Count;
+            await toolCallGuards.DecideAsync(new AiToolCall($"server-edit-{Guid.NewGuid():N}", "update_task", edit.ToJson()), request.Turn, ct);
+            if (request.Turn.Proposals.Count > before)
+            {
+                var mine = request.Turn.Proposals[^1];
+                request.Turn.Proposals.RemoveAll(p => !ReferenceEquals(p, mine));
+                final.Rewrite(EmptyReplyGuard.ProposalOnly);
+                unverifiedClaim = false;
+            }
+        }
+
         // "Book lunch with Marco tomorrow at 1pm" that ended with no planner card: proposed from its
         // words, and a task or goal card made for it instead gives way.
         if (first.Error is null
@@ -425,6 +444,16 @@ public partial class ChatService(
                 final.Rewrite(EmptyReplyGuard.ProposalOnly);
                 unverifiedClaim = false;
             }
+        }
+
+        // A plain sum the reply got wrong: the sum is worked out in code (see Arithmetic) and said
+        // instead, and a card made for it goes, since a sum changes nothing.
+        if (first.Error is null && Arithmetic.Parse(userMessage) is { } sum && !Arithmetic.Says(final.Text, sum.Value))
+        {
+            logger.LogWarning("Model {Model} got a sum wrong; saying it from code.", config.AiModel);
+            request.Turn.Proposals.Clear();
+            final.Rewrite($"{sum.Question} = {sum.Answer}");
+            unverifiedClaim = false;
         }
 
         // Asked where to get PersonaOS, the reply named "the GitHub releases page" without the link,

@@ -149,13 +149,14 @@ the production model. Each scenario is a fresh conversation run three times; the
 of passing runs. A holdout set is written before any tuning against it, and its first number is the
 honest one: once a failure in it has been fixed, it measures the fix, not generalisation.
 
-| Date | Change | Core + extended | Holdout | Holdout2 |
-|---|---|---|---|---|
-| 2026-11-02 | Baseline (core 97.2%, extended 66.7%) | — | — | — |
-| 2026-11-02 | Times read in code, titles from the user's words, grounding | 97.0% | 84.6% (first run) | — |
-| 2026-11-02 | Calendar words, memory guard, reminder cancel router | 96.2% | 89.7% | — |
-| 2026-11-02 | Calendar request guard, one-day planner reads | 95.5% | 100% | 79.5% (first run) |
-| 2026-11-02 | Plain bookings and "I've finished TASK-n" routed in code; month names fixed | 97.7% | 97.4% | 94.9% |
+| Date | Change | Core + extended | Holdout | Holdout2 | Holdout3 |
+|---|---|---|---|---|---|
+| 2026-11-02 | Baseline (core 97.2%, extended 66.7%) | — | — | — | — |
+| 2026-11-02 | Times read in code, titles from the user's words, grounding | 97.0% | 84.6% (first run) | — | — |
+| 2026-11-02 | Calendar words, memory guard, reminder cancel router | 96.2% | 89.7% | — | — |
+| 2026-11-02 | Calendar request guard, one-day planner reads | 95.5% | 100% | 79.5% (first run) | — |
+| 2026-11-02 | Plain bookings and "I've finished TASK-n" routed in code; month names fixed | 97.7% | 97.4% | 94.9% | 75.6% (first run) |
+| 2026-11-02 | Day after tomorrow, other-day answers, task edits and sums in code; weekday end-date fix | 99.2% | 94.9% | 100% | 97.8% |
 
 What the numbers taught, for the next round:
 
@@ -165,6 +166,10 @@ What the numbers taught, for the next round:
   Prompt wording moved the 3B model a few points at most.
 - **A fresh holdout finds what tuning hides.** Holdout2 found "I've finished TASK-11" proposing
   complete_sprint, and "Marco" read as the month of March; neither showed in 171 tuned runs.
-- **Still weak on the 3B model:** arithmetic ("15% of 80" gave 20 and 5), "I have X tomorrow, put it
-  on my calendar" (sometimes a task or a goal), and saying no to a memory after "thanks". The next
-  holdout should be written before working on these.
+- **Holdout3 found real bugs, not model weakness.** Its worst failures were code: "the day after
+  tomorrow" read as tomorrow by a guard that then refused the right date, and a filler end date that
+  stopped a named weekday from being corrected. Arithmetic, "put it on my calendar" after a
+  statement and "thanks" proposing a memory are now handled in code.
+- **Still weak on the 3B model:** an answer about another day that paraphrases an item's title (so
+  the exact-title check misses it), and a question for a missing task title that has no question
+  mark. Write holdout4 before working on these.

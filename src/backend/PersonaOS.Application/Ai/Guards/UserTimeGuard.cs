@@ -83,6 +83,16 @@ public sealed class UserTimeGuard : IToolCallGuard
     {
         var changes = new List<string>();
         var givenDate = input["date"]?.GetValueKind() == JsonValueKind.String ? input["date"]!.GetValue<string>() : null;
+        // An end day not after the start is the model filling the field in, not a long event; the
+        // tool drops it before the card. Left in, it kept this guard off the wrong day: "Thursday"
+        // went through as Friday with endDate Friday (holdout3, 2026-11-02).
+        if (Text(input["endDate"]) is { } endDate
+            && (!DateOnly.TryParse(endDate, CultureInfo.InvariantCulture, out var last)
+                || !DateOnly.TryParse(givenDate, CultureInfo.InvariantCulture, out var first) || last <= first))
+        {
+            input.Remove("endDate");
+        }
+
         if (said.Day is DateOnly day && givenDate != day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             && input["endDate"] is null)
         {

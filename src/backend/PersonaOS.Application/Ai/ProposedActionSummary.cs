@@ -71,6 +71,13 @@ public static class ProposedActionSummary
         }
 
         var parts = new List<string>();
+        // The item is named by its old title, so a new one is a change to show. Asked to rename
+        // TASK-11, the card read only "Update task TASK-11 “Water the balcony plants”" (holdout3).
+        if (target is not null && ToolPayloadText.FirstValue(input, ["title"]) is { } title && !target.Contains(title, StringComparison.OrdinalIgnoreCase))
+        {
+            parts.Add($"title to “{ToolPayloadText.Truncate(title, 80)}”");
+        }
+
         foreach (var (field, prefix) in Details)
         {
             var value = ToolPayloadText.FirstValue(input, [field]);
