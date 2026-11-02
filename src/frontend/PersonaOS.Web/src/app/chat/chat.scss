@@ -6,41 +6,50 @@
   flex-direction: column;
 }
 
+// The thread reads at a comfortable width, centred; the list itself spans the page so its
+// scrollbar sits at the window's edge. In the 52rem column it ran down the middle of the screen.
+$column: 52rem;
+
 .thread {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
   width: 100%;
-  // The history is in the nav now, so the thread reads at a comfortable width, centred.
-  max-width: 52rem;
-  margin: 0 auto;
+
+  > .composer,
+  > .under {
+    width: min(#{$column}, calc(100% - 2rem));
+    margin-inline: auto;
+    box-sizing: border-box;
+  }
 }
 
 .messages {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  padding: 0.25rem 0.5rem 1rem 0;
+  gap: 0.35rem;
+  padding: 0.5rem max(1rem, calc((100% - #{$column}) / 2)) 1.5rem;
 }
 
-// The assistant writes on the page like a document, beside its Orb; only what the user typed
-// and a failed reply sit in a bubble.
+// The assistant writes on the page like a person writing back; only what the user typed and a
+// failed reply sit in a bubble.
 .bubble {
   position: relative;
   max-width: 44rem;
-  padding: 0.1rem 0 0.1rem 2.25rem;
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-large);
+  line-height: 1.55;
   overflow-wrap: anywhere;
   animation: rise 320ms var(--ease-enter) both;
 
-  > .avatar {
-    position: absolute;
-    left: 0;
-    top: 0.2rem;
+  // A new speaker starts a new turn: more room above it than between one speaker's lines.
+  &.turn {
+    margin-top: 1.25rem;
   }
 
   // What the user typed keeps its own line breaks.
@@ -137,10 +146,19 @@
     color: var(--mat-sys-on-error-container);
   }
 
+  // Working on it: the Orb breathes beside what it is doing. It is the only place it shows.
   .tool,
   .thinking {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
     color: var(--mat-sys-on-surface-variant);
-    font: var(--mat-sys-body-small);
+    font: var(--mat-sys-body-medium);
+
+    .orb {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
   }
 }
 
@@ -226,22 +244,25 @@
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin-top: 0.6rem;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-medium);
-  background: var(--mat-sys-surface);
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem 0.65rem 1rem;
+  border-radius: 1rem;
+  // A step up in tone from the page, not a hairline box: it waits for the user's answer.
+  background: var(--mat-sys-surface-container-high);
   color: var(--mat-sys-on-surface);
 
+  // Once answered it is a record, said quietly in a line.
   &.resolved {
+    margin-top: 0.5rem;
+    padding: 0;
     background: none;
-    border-style: dashed;
+    color: var(--mat-sys-on-surface-variant);
   }
 
   .what {
     flex: 1;
     min-width: 12rem;
-    font: var(--mat-sys-body-small);
+    font: var(--mat-sys-body-medium);
   }
 
   .buttons {

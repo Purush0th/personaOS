@@ -46,6 +46,33 @@ describe('Chat', () => {
     expect(TestBed.inject(Router).url).toBe('/chat');
   });
 
+  it('writes finished replies without the Orb, and spaces each new turn', async () => {
+    // Owner, 2026-11-02: the Orb beside every reply was "overuse of the logo".
+    const harness = await RouterTestingHarness.create('/chat/k3n9x2qp');
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/chat/conversations/k3n9x2qp')
+      .flush({
+        id: 7,
+        publicId: 'k3n9x2qp',
+        title: 'Plans',
+        mode: 'chat',
+        messages: [
+          { role: 'user', content: 'What is on today?' },
+          { role: 'assistant', content: 'A walk at six.' },
+          { role: 'assistant', content: 'And dinner.' },
+        ],
+      });
+    await new Promise(resolve => setTimeout(resolve));
+    harness.detectChanges();
+    await harness.fixture.whenStable();
+
+    const page = harness.routeNativeElement!;
+    const bubbles = Array.from(page.querySelectorAll('.bubble'));
+    expect(bubbles.length).toBe(3);
+    expect(page.querySelector('.messages .orb')).toBeNull();
+    expect(bubbles.map(b => b.classList.contains('turn'))).toEqual([false, true, false]);
+  });
+
   it('fills the composer from a starter that needs finishing', async () => {
     const harness = await RouterTestingHarness.create('/chat?new=1');
     await harness.fixture.whenStable();

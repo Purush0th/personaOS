@@ -671,12 +671,61 @@ mat-icon[class*='p-'],
     flex-direction: column;
     margin-bottom: 0;
     padding-bottom: 1rem;
+    // The chat centres its own column; its message list spans the window so the scrollbar sits
+    // at the edge, not beside the text.
+    max-width: none;
+    padding-inline: 0;
   }
 }
 
 app-chat {
   flex: 1 1 0;
   min-height: 0;
+}
+
+/* On a phone the mode chips run in one row that scrolls sideways; wrapped into two they made
+   the composer a quarter of the screen. Here because the chip set's inner list is Material's. */
+@media (max-width: 600px) {
+  app-chat .composer .mdc-evolution-chip-set__chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+
+/* Scrollbars: a thin rounded thumb on no track and no arrow buttons, in the line colour, so a
+   list says it scrolls without a grey bar beside it (owner: "i hate the scroll", 2026-11-02).
+   Chromium uses the ::-webkit-scrollbar rules only while scrollbar-width and scrollbar-color are
+   unset, so those two are given to the browsers that lack the pseudo-elements. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--line-strong) padding-box;
+
+  &:hover {
+    background: var(--mat-sys-on-surface-variant) padding-box;
+  }
 }
 
 /* The planner grid's "New event" button for the keyboard: out of sight until it has keyboard
