@@ -4,8 +4,21 @@
   <meta charset="utf-8">
   <title>PersonaOS</title>
   <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- viewport-fit=cover lets the app run under an iPhone's notch and home bar in standalone mode;
+       the shell pads itself with the safe-area insets (app.scss). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Your self-hosted personal AI assistant.">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Installable: "Add to Home Screen" on an iPhone (the iOS way in, TODO) and "Install app" on
+       Android and desktop browsers open it full screen, with the Orb as its icon. -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="PersonaOS">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <!-- The browser's bar in the page's colour. ThemeService sets it to the page's own surface once
        the app runs; these cover the first paint. -->
   <meta name="theme-color" content="#f4f4f6" media="(prefers-color-scheme: light)">

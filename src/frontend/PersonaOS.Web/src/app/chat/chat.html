@@ -97,6 +97,11 @@
           What's on your mind?
           <span>{{ branding.branding()?.assistantNickname ?? 'Your assistant' }} will handle the rest.</span>
         </h1>
+        <div class="starters">
+          @for (starter of starters; track starter.label) {
+            <button type="button" (click)="useStarter(starter)" [disabled]="streaming()">{{ starter.label }}</button>
+          }
+        </div>
       </div>
     }
   </div>
@@ -105,6 +110,7 @@
        send button is the Orb: the message goes to the assistant. -->
   <form class="composer" (ngSubmit)="send()">
     <textarea
+      #draftBox
       name="draft"
       [(ngModel)]="draft"
       (keydown)="onKeydown($event)"
@@ -142,6 +148,6 @@
   </form>
   <p class="under muted small">
     <span>{{ modeHint() }}</span>
-    <span id="composer-keys">Enter sends · Shift+Enter for a new line</span>
+    <span id="composer-keys" class="keys-hint">Enter sends · Shift+Enter for a new line</span>
   </p>
 </section>

@@ -29,6 +29,40 @@
   }
 }
 
+// Ways in under the greeting: a whole question, or the start of one to finish.
+.starters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.75rem;
+
+  button {
+    min-height: 2.5rem;
+    padding: 0 1rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: var(--composer-bg);
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-label-large);
+    cursor: pointer;
+    transition: border-color 200ms var(--ease-standard), transform 120ms var(--ease-standard);
+
+    &:hover {
+      border-color: var(--accent);
+    }
+
+    &:active {
+      transform: scale(0.97);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+  }
+}
+
 // The composer: one rounded card with the message on top and the mode chips and the Orb send
 // button along its foot. The card takes the focus ring, since the textarea inside has none.
 .composer {

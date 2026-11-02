@@ -45,4 +45,21 @@ describe('Chat', () => {
     TestBed.inject(HttpTestingController).expectNone('/api/chat/conversations');
     expect(TestBed.inject(Router).url).toBe('/chat');
   });
+
+  it('fills the composer from a starter that needs finishing', async () => {
+    const harness = await RouterTestingHarness.create('/chat?new=1');
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+
+    const remind = Array.from(harness.routeNativeElement!.querySelectorAll<HTMLButtonElement>('.starters button'))
+      .find(b => b.textContent?.trim() === 'Remind me');
+    remind!.click();
+    harness.detectChanges();
+    await harness.fixture.whenStable();
+
+    const box = harness.routeNativeElement!.querySelector('textarea')!;
+    expect(box.value).toBe('Remind me to ');
+    expect(document.activeElement).toBe(box);
+    TestBed.inject(HttpTestingController).expectNone(() => true);
+  });
 });

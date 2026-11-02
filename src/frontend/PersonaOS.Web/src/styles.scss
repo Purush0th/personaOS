@@ -703,3 +703,10 @@ app-chat {
     overflow: hidden;
   }
 }
+
+/* Keyboard shortcuts mean nothing on a touch screen, where the keyboard has its own return key. */
+@media (pointer: coarse) {
+  .keys-hint {
+    display: none;
+  }
+}
