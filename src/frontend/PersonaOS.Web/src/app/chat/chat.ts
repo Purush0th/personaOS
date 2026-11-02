@@ -85,15 +85,44 @@ export class Chat implements OnInit {
 
   draft = '';
 
+  /**
+   * Whether the list follows the newest message. It stops following once the reader scrolls up
+   * to read back, so a streaming reply no longer drags them to the bottom, and picks up again at
+   * the bottom or when they send.
+   */
+  private following = true;
+  /** Shown while the reader is away from the newest message: one tap back to it. */
+  protected readonly awayFromLatest = signal(false);
+
   constructor() {
-    // Keep the newest message in view as the reply streams in.
     effect(() => {
       this.bubbles();
       queueMicrotask(() => {
-        const el = this.scroller()?.nativeElement;
-        if (el) el.scrollTop = el.scrollHeight;
+        if (this.following) this.toLatest('auto');
+        else this.awayFromLatest.set(true);
       });
     });
+  }
+
+  protected onScroll(): void {
+    const el = this.scroller()?.nativeElement;
+    if (!el) return;
+    this.following = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    this.awayFromLatest.set(!this.following);
+  }
+
+  protected toLatest(behavior: ScrollBehavior = 'smooth'): void {
+    const el = this.scroller()?.nativeElement;
+    if (!el) return;
+    this.following = true;
+    this.awayFromLatest.set(false);
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }
+
+  /** A reply's first line after the user spoke, or the user's after a reply: a new turn, with room above it. */
+  protected startsTurn(index: number): boolean {
+    const all = this.bubbles();
+    return index > 0 && (all[index].role === 'user') !== (all[index - 1].role === 'user');
   }
 
   ngOnInit(): void {
@@ -199,6 +228,8 @@ export class Chat implements OnInit {
 
     this.draft = '';
     this.streaming.set(true);
+    // Sending is a wish to see the answer, wherever the reader had scrolled to.
+    this.following = true;
     this.bubbles.update(list => [
       ...list,
       { role: 'user', text: message },

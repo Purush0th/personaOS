@@ -102,6 +102,9 @@
 
     mat-chip-listbox {
       flex: 1;
+      // Lets the chip row shrink and scroll inside the card instead of pushing the send button out.
+      min-width: 0;
+      overflow: hidden;
       --mat-chip-container-height: 28px;
       --mat-chip-container-shape-radius: var(--mat-sys-corner-full);
     }
@@ -136,4 +139,30 @@
   justify-content: space-between;
   gap: 0.25rem 1rem;
   margin: 0.4rem 0.25rem 0;
+}
+
+// Back to the newest message, shown only while reading back.
+.to-latest {
+  position: absolute;
+  right: 50%;
+  bottom: 7.5rem;
+  transform: translateX(50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.25rem;
+  padding: 0 0.9rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-label-large);
+  box-shadow: 0 6px 20px -8px rgb(0 0 0 / 50%);
+  cursor: pointer;
+  animation: fade 200ms var(--ease-enter) both;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }

@@ -1,15 +1,14 @@
 <section class="thread">
-  <!-- A log: a screen reader reads each new message, and the reply once it is complete. -->
-  <div class="messages" #scroller role="log" aria-label="Conversation" [attr.aria-busy]="streaming()">
-    @for (bubble of bubbles(); track $index) {
-      <div class="bubble" [class.user]="bubble.role === 'user'" [class.failed]="bubble.isError">
-        <!-- The assistant writes on the page beside its Orb, which breathes while it works. -->
-        @if (bubble.role !== 'user' && !bubble.isError) {
-          <span class="orb avatar" [class.thinking]="!bubble.text" aria-hidden="true"></span>
-        }
+  <!-- A log: a screen reader reads each new message, and the reply once it is complete. The list
+       spans the page, so its scrollbar sits at the window's edge, not beside the text. -->
+  <div class="messages" #scroller role="log" aria-label="Conversation" [attr.aria-busy]="streaming()" (scroll)="onScroll()">
+    @for (bubble of bubbles(); track $index; let i = $index) {
+      <div class="bubble" [class.user]="bubble.role === 'user'" [class.failed]="bubble.isError" [class.turn]="startsTurn(i)">
+        <!-- The assistant writes on the page like a person writing back. The Orb shows only while
+             it is working on a reply; beside every finished one it was noise (owner, 2026-11-02). -->
         @if (bubble.tool) {
           <span class="tool" role="status">
-            <mat-icon inline>wrench</mat-icon>
+            <span class="orb thinking" aria-hidden="true"></span>
             {{ bubble.tool }}
             <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
           </span>
@@ -21,7 +20,10 @@
           }
         } @else {
           <!-- Three dots that pulse in turn while the reply is on its way (it was a still "…"). -->
-          <span class="thinking dots" role="status" aria-label="Thinking"><i></i><i></i><i></i></span>
+          <span class="thinking" role="status" aria-label="Thinking">
+            <span class="orb thinking" aria-hidden="true"></span>
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          </span>
         }
 
         <!-- Changes the assistant proposed. Nothing has been saved until Confirm: the
@@ -105,6 +107,14 @@
       </div>
     }
   </div>
+
+  <!-- Reading back while a reply arrives: the list no longer jumps, and this takes them back. -->
+  @if (awayFromLatest()) {
+    <button type="button" class="to-latest" (click)="toLatest()">
+      <mat-icon inline>arrow-down</mat-icon>
+      Latest
+    </button>
+  }
 
   <!-- One card holds the message, the mode and the send button, as one thing to type into. The
        send button is the Orb: the message goes to the assistant. -->
