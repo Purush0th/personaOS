@@ -113,6 +113,25 @@ Deferred by the owner:
       no longer proposes a memory. After: holdout3 97.8%, core+extended 99.2%, holdout 94.9%,
       holdout2 100%. Still flaky: a paraphrased item title in "anything tomorrow", a missing
       question mark when a task has no title. Next: write holdout4 before tuning further.
+- [~] **A8. Fine-tune the local model on PersonaOS's own work** (claimed: infra session, 2026-11-02;
+      owner: "find is there a way to train the model for our case"). A proxy records what the API
+      sends Ollama; a training prompt set (kept apart from every eval suite) runs through the real
+      API, and the app's final, guard-checked answer becomes the label. LoRA on qwen2.5:3b-instruct
+      in Docker (unsloth) on the RTX 3060, exported to GGUF for Ollama, scored with model-check.
+      Done so far: scripts in `scripts/training/` (README there); 233 prompts collected, the stock
+      model passed 212 (91%); 603 examples. Found and fixed on the way: the "waiting for
+      confirmation" tool result was invalid JSON (a stray `}`); a reminder kept its time in its
+      text; "add X to my to-do list / backlog" became an event, a plan or a sprint (now routed in
+      code); a plain question was classed as making something, so its read retry never ran
+      (fixed 2026-11-03; suites now 99.5 / 98.5 / 98.5 / 98.7%). Trained 2026-11-03: rank-16 QLoRA, 2 epochs on 543 examples, train loss 0.79 to 0.19,
+      held-out loss 0.242 to 0.228; merged 16-bit model in `data/training/model` (gitignored, the
+      Qwen research licence keeps it local). Blocked: Ollama 0.40 cannot import a Qwen2 safetensors model or quantize a GGUF, so the
+      merged model needs llama.cpp's converter (`convert_hf_to_gguf.py`, b11721) - owner to allow.
+- [ ] **A9. Goal periods in code.** With no time in the message ("Set a goal: learn basic
+      Spanish") qwen2.5:3b picks a month at random, sometimes one already over, and puts monthly
+      goals under yearly ones (training capture, 2026-11-02). Decide the default period (likely the
+      current quarter) and set it in code the way `UserTimeGuard` sets times; goal calls are left
+      out of the training data until then.
 - [x] **U4. Conversation starters** (2026-11-02). The empty chat offers Today's plan (sends) and
       Remind me / New task / Jot a note (fill the composer, keyboard up), on web and phone.
 - [x] **U5. A calmer chat** (owner, 2026-11-02: "i hate the scroll and the overuse of the logo").
