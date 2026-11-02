@@ -59,6 +59,26 @@ public static partial class WhenPhrase
     [GeneratedRegex(@"\bat\s+\d{1,2}(?::\d{2})?\b", RegexOptions.IgnoreCase)]
     private static partial Regex BareHour();
 
+    /// <summary>
+    /// A time, or today, tonight or tomorrow, at the very end of a text, with the word that leads into
+    /// it ("at 7pm", "in 20 minutes"). Not a weekday or a bare number: "Prepare for Monday" and "Read
+    /// chapter 12" say what the reminder is about.
+    /// </summary>
+    [GeneratedRegex(@"(?:[\s,]+(?:(?:at|by|this|in|for)\s+)?(?:\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|(?:[01]\d|2[0-3]):[0-5]\d|noon|midday|midnight|today|tonight|tomorrow|day\s+after\s+tomorrow|(?:the\s+)?(?:morning|afternoon|evening)|\d+\s+(?:min(?:ute)?s?|hours?|hrs?)|an?\s+hour|half\s+an\s+hour)|[\s,]+at\s+\d{1,2}(?::\d{2})?)[\s.!]*$", RegexOptions.IgnoreCase)]
+    private static partial Regex TrailingWhen();
+
+    /// <summary>
+    /// <paramref name="text"/> without the time at its end: "Water the ferns at 7pm tomorrow" is
+    /// "Water the ferns". Left as it is when nothing else would remain.
+    /// </summary>
+    public static string WithoutTrailingWhen(string text)
+    {
+        var rest = text;
+        for (var match = TrailingWhen().Match(rest); match.Success && match.Index > 0; match = TrailingWhen().Match(rest))
+            rest = rest[..match.Index];
+        return rest.Count(char.IsLetter) >= 3 ? rest.TrimEnd() : text;
+    }
+
     /// <summary>What <paramref name="message"/> pins down, said at <paramref name="now"/> (the user's local time).</summary>
     public static Reading? Read(string? message, DateTime now)
     {

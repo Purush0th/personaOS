@@ -84,7 +84,7 @@ public sealed class ConfirmationGate(IPersonaToolRegistry registry) : IToolCallG
     public static string Waiting(string tool) =>
         $"{{\"status\":\"not_executed\",\"reason\":\"'{tool}' changes the user's data and is waiting for their "
         + "confirmation on a card shown under your reply\",\"next\":\"describe the change in your own words; "
-        + "it is not done yet; do not call this tool again\"}}";
+        + "it is not done yet; do not call this tool again\"}";
 
     public string Name => "confirmation-gate";
 

@@ -34,6 +34,30 @@ public class IntentTests
     }
 
     [Fact]
+    public async Task A_question_about_what_exists_is_never_taken_as_making_something()
+    {
+        // At temperature 0 qwen2.5:3b called this create_reminder every time (accuracy suite, 2026-11-03).
+        var streamer = new FakeAiMessageStreamer().EnqueueIntent("create_reminder");
+
+        var result = await Classify(streamer, "When is my reminder about the bank?", "create_reminder", "create_task");
+
+        Assert.Equal(new IntentResult("question", null), result);
+    }
+
+    [Theory]
+    [InlineData("When is my reminder about the bank?", true)]
+    [InlineData("What notes do I have about the boiler?", true)]
+    [InlineData("Is there anything on my calendar Friday?", true)]
+    [InlineData("Do I have a task for the gutters?", true)]
+    [InlineData("Remind me to call the bank at 10am", false)]
+    [InlineData("When can you remind me about the bank?", false)]
+    [InlineData("What should I add to my board?", false)]
+    [InlineData("Could you add a task to fix the gate?", false)]
+    [InlineData("When is my dentist appointment", false)]
+    public void Only_a_plain_question_about_what_exists_counts(string message, bool expected) =>
+        Assert.Equal(expected, IntentClassifier.AsksAboutWhatExists(message));
+
+    [Fact]
     public async Task The_check_is_held_to_a_schema_of_the_intents_this_turn_can_serve()
     {
         var streamer = new FakeAiMessageStreamer().EnqueueIntent("question");

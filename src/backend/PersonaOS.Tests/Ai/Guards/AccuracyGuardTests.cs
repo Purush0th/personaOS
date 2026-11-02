@@ -49,6 +49,29 @@ public class UserTimeGuardTests
     }
 
     [Theory]
+    [InlineData("Water the ferns at 7pm", "Water the ferns")]
+    [InlineData("Call mum at 7pm tomorrow", "Call mum")]
+    [InlineData("Check the oven in 20 minutes.", "Check the oven")]
+    [InlineData("Take the pills tonight", "Take the pills")]
+    [InlineData("Prepare for Monday", "Prepare for Monday")]
+    [InlineData("Read chapter 12", "Read chapter 12")]
+    [InlineData("At 7pm", "At 7pm")]
+    public void The_time_comes_off_the_end_of_a_reminder(string message, string expected)
+    {
+        // Training capture, 2026-11-02: "Remind me to water the ferns at 7pm" went off at 7pm as "Water the ferns at 7pm".
+        Assert.Equal(expected, WhenPhrase.WithoutTrailingWhen(message));
+    }
+
+    [Fact]
+    public async Task A_reminder_keeps_its_time_out_of_its_message()
+    {
+        var verdict = await Check(Turn("Remind me to water the ferns at 7pm"), "create_reminder",
+            """{"message":"Water the ferns at 7pm","dueAtLocal":"2026-11-02T19:00:00"}""");
+
+        Assert.Equal("Water the ferns", Field(verdict, "message"));
+    }
+
+    [Theory]
     [InlineData("Remind me to pay the rent")]
     [InlineData("Remind me tomorrow to pay the rent")]
     public async Task A_reminder_with_no_time_given_is_refused_with_ask_when(string message)
@@ -261,6 +284,11 @@ public class TaskRequestTests
     [InlineData("Add a task to my backlog to book the car service", "Book the car service")]
     [InlineData("Add a task to my backlog", null)]
     [InlineData("What tasks do I have?", null)]
+    [InlineData("add repaint the hallway to my to-do list please", "Repaint the hallway")]
+    [InlineData("Can you add write the quarterly summary to my backlog?", "Write the quarterly summary")]
+    [InlineData("put fix the gate on the board", "Fix the gate")]
+    [InlineData("Add yoga class to my planner on Friday at 6pm", null)]
+    [InlineData("Add milk to my shopping list", null)]
     public void The_title_is_read_from_the_users_words(string message, string? title)
     {
         Assert.Equal(title, PersonaOS.Application.Board.TaskRequest.TitleOf(message));
