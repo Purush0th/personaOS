@@ -68,6 +68,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _input = TextEditingController();
+  final _inputFocus = FocusNode();
   final _scroll = ScrollController();
   final List<_Bubble> _bubbles = [];
 
@@ -160,6 +161,7 @@ class _ChatScreenState extends State<ChatScreen> {
     // The microphone closes with the screen; a reply being read finishes.
     unawaited(_voice.release());
     _input.dispose();
+    _inputFocus.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -259,6 +261,18 @@ class _ChatScreenState extends State<ChatScreen> {
         _scroll.jumpTo(_scroll.position.maxScrollExtent);
       }
     });
+  }
+
+  /// A starter that is a whole question goes straight out; one that needs finishing ("Remind me to")
+  /// lands in the composer with the keyboard up.
+  void _useStarter(ChatStarter starter) {
+    _input.text = starter.text;
+    _input.selection = TextSelection.collapsed(offset: _input.text.length);
+    if (starter.complete) {
+      _send();
+    } else {
+      _inputFocus.requestFocus();
+    }
   }
 
   void _send() {
@@ -519,7 +533,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: _loadingHistory
                     ? const Center(child: CircularProgressIndicator())
                     : _bubbles.isEmpty
-                    ? _EmptyChat(nickname: widget.assistantNickname)
+                    ? _EmptyChat(nickname: widget.assistantNickname, onStarter: _useStarter)
                     : ListView.builder(
                         controller: _scroll,
                         padding: const EdgeInsets.all(12),
@@ -551,6 +565,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       Expanded(
                         child: TextField(
                           controller: _input,
+                          focusNode: _inputFocus,
                           minLines: 1,
                           maxLines: 4,
                           textInputAction: TextInputAction.send,
@@ -589,7 +604,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         onPressed: _streaming ? null : _send,
                         icon: _streaming
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Orb(size: 40, child: Icon(PhosphorIconsRegular.arrowUp, color: Colors.white, size: 20)),
+                            : const Orb(
+                                size: 40,
+                                child: Icon(PhosphorIconsRegular.arrowUp, color: Colors.white, size: 20),
+                              ),
                       ),
                     ],
                   ),
@@ -686,10 +704,30 @@ class _HandsFreeBanner extends StatelessWidget {
   }
 }
 
+/// A way to start a conversation from the empty chat.
+class ChatStarter {
+  const ChatStarter(this.label, this.text, {this.complete = false});
+
+  final String label;
+  final String text;
+
+  /// Whether [text] is a whole message to send, rather than the start of one to finish.
+  final bool complete;
+
+  /// Plain requests the assistant handles well on a small local model (accuracy suite, 2026-11-02).
+  static const all = [
+    ChatStarter("Today's plan", "What's on my planner today?", complete: true),
+    ChatStarter('Remind me', 'Remind me to '),
+    ChatStarter('New task', 'Add a task to '),
+    ChatStarter('Jot a note', 'Jot down a note: '),
+  ];
+}
+
 class _EmptyChat extends StatelessWidget {
-  const _EmptyChat({required this.nickname});
+  const _EmptyChat({required this.nickname, required this.onStarter});
 
   final String nickname;
+  final ValueChanged<ChatStarter> onStarter;
 
   @override
   Widget build(BuildContext context) {
@@ -714,6 +752,20 @@ class _EmptyChat extends StatelessWidget {
               '$nickname will handle the rest.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final starter in ChatStarter.all)
+                  ActionChip(
+                    key: Key('starter-${starter.label}'),
+                    label: Text(starter.label),
+                    onPressed: () => onStarter(starter),
+                  ),
+              ],
             ),
           ],
         ),
