@@ -19,11 +19,25 @@ public static partial class PlannerCommand
         RegexOptions.IgnoreCase)]
     private static partial Regex Books();
 
+    /// <summary>
+    /// "I have a dentist appointment tomorrow at 4pm, put it on my calendar": the event first, then
+    /// the ask. Told this, qwen2.5:3b proposed a task once and a goal once in three (accuracy suite,
+    /// 2026-11-02).
+    /// </summary>
+    [GeneratedRegex(
+        @"^\s*(?<what>.+?)\s*[,.;:\-–—]+\s*(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:put|add|pop|stick)\s+(?:it|that|this)\s+(?:on|in|to|into)\s+(?:my|the)\s+(?:calendar|planner|diary|agenda)(?:\s+please)?[\s?.!]*$",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex StatesThenAdds();
+
+    [GeneratedRegex(@"^(?:i\s+have|i've\s+got|i\s+got|there's|there\s+is|i'm\s+having)\s+", RegexOptions.IgnoreCase)]
+    private static partial Regex IHave();
+
     /// <summary>A task, a reminder or a goal is asked for in other words, and the model handles those.</summary>
     [GeneratedRegex(@"\b(?:task|to-?do|ticket|board|backlog|sprint|remind|reminder|alarm|goal)\b", RegexOptions.IgnoreCase)]
     private static partial Regex OtherThing();
 
-    [GeneratedRegex(@"(?:\s+(?:on|at|for|this|next|in|from|by))+$", RegexOptions.IgnoreCase)]
+    // "the" is left behind by "the day after tomorrow".
+    [GeneratedRegex(@"(?:\s+(?:on|at|for|this|next|in|from|by|the))+$", RegexOptions.IgnoreCase)]
     private static partial Regex DanglingWords();
 
     [GeneratedRegex(@"^(?:a|an|the|my)\s+", RegexOptions.IgnoreCase)]
@@ -33,10 +47,12 @@ public static partial class PlannerCommand
     public static Booking? Parse(string? message, DateTime now)
     {
         if (string.IsNullOrWhiteSpace(message) || OtherThing().IsMatch(message)) return null;
-        if (Books().Match(message) is not { Success: true } match) return null;
+        var match = Books().Match(message);
+        if (!match.Success) match = StatesThenAdds().Match(message);
+        if (!match.Success) return null;
         if (WhenPhrase.Read(message, now) is not { Day: DateOnly day } said) return null;
 
-        var what = match.Groups["what"].Value;
+        var what = IHave().Replace(match.Groups["what"].Value.Trim(), string.Empty);
         foreach (var words in new[] { said.DayWords, said.TimeWords }.Where(w => w.Length > 0))
             what = Regex.Replace(what, Regex.Escape(words), " ", RegexOptions.IgnoreCase);
         what = Regex.Replace(what, @"\s+", " ").Trim();

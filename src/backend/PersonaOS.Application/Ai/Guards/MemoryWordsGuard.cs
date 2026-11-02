@@ -21,6 +21,10 @@ public sealed partial class MemoryWordsGuard : IToolCallGuard
         "from", "into", "have", "has", "had", "was", "were", "are", "will", "would", "can", "could", "please",
         "remember", "keep", "mind", "note", "told", "said", "says", "likes", "like", "wants", "want", "prefers",
         "prefer", "conversation", "chat", "fact", "preference", "also", "just", "very", "really",
+        // Courtesies: "Thanks, that's all for now" was kept as a memory that shared "thanks", "all"
+        // and "now" with it, two tries in three (accuracy suite, 2026-11-02).
+        "thanks", "thank", "thanked", "thanking", "appreciate", "appreciated", "all", "now", "okay", "cool",
+        "great", "nice", "good", "bye", "goodbye", "cheers", "help", "helped", "helpful", "later",
     };
 
     [GeneratedRegex(@"[\p{L}\p{N}]+")]

@@ -15,6 +15,8 @@ namespace PersonaOS.Application.Ai.Guards;
 /// their calendar into a planner item.</item>
 /// <item><see cref="UserTimeGuard"/> holds a reminder or event to the day and time the user gave,
 /// and refuses a reminder whose time nobody gave.</item>
+/// <item><see cref="UnaskedLinkGuard"/> drops a task or goal link from a planner item when the user
+/// spoke of neither.</item>
 /// <item><see cref="RepeatedCallGuard"/> answers a call already made this turn from memory.</item>
 /// <item><see cref="RelativeDateGuard"/> sends back a change for a different day than the
 /// "today", "tomorrow" or "yesterday" the user said, with the right date.</item>
@@ -35,6 +37,7 @@ public sealed class ToolCallPipeline(IPersonaToolRegistry registry, ILogger<Tool
         new OfferedToolGuard(),
         new CalendarRequestGuard(),
         new UserTimeGuard(),
+        new UnaskedLinkGuard(),
         new RepeatedCallGuard(),
         new RelativeDateGuard(),
         new TaskTitleGuard(),

@@ -26,6 +26,13 @@ public sealed partial class RelativeDateGuard : IToolCallGuard
     [GeneratedRegex(@"\btomorrow\b", RegexOptions.IgnoreCase)]
     private static partial Regex Tomorrow();
 
+    /// <summary>
+    /// "the day after tomorrow", which also says "tomorrow". Read as tomorrow, the right date was
+    /// refused on every call and the turn ended with no card (holdout3, 2026-11-02).
+    /// </summary>
+    [GeneratedRegex(@"\bday\s+after\s+tomorrow\b", RegexOptions.IgnoreCase)]
+    private static partial Regex DayAfterTomorrow();
+
     [GeneratedRegex(@"\byesterday\b", RegexOptions.IgnoreCase)]
     private static partial Regex Yesterday();
 
@@ -60,7 +67,8 @@ public sealed partial class RelativeDateGuard : IToolCallGuard
         if (string.IsNullOrWhiteSpace(message) || OtherDay().IsMatch(message)) return null;
         var named = new List<(string, DateOnly)>();
         if (Today().Match(message) is { Success: true } t) named.Add((t.Value.ToLowerInvariant(), today));
-        if (Tomorrow().IsMatch(message)) named.Add(("tomorrow", today.AddDays(1)));
+        if (DayAfterTomorrow().IsMatch(message)) named.Add(("the day after tomorrow", today.AddDays(2)));
+        else if (Tomorrow().IsMatch(message)) named.Add(("tomorrow", today.AddDays(1)));
         if (Yesterday().IsMatch(message)) named.Add(("yesterday", today.AddDays(-1)));
         return named.Count == 1 ? named[0] : null;
     }
