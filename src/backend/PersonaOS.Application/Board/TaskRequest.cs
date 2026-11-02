@@ -23,6 +23,17 @@ public static partial class TaskRequest
         RegexOptions.IgnoreCase)]
     private static partial Regex PutsOnTheBoard();
 
+    /// <summary>
+    /// "Add repaint the hallway to my to-do list please", "Can you add X to my backlog?": the place
+    /// named last, with no quotes. qwen2.5:3b made these calendar events, a plan or a sprint (training
+    /// capture, 2026-11-02).
+    /// </summary>
+    [GeneratedRegex(
+        @"^\s*(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:add|put|stick)\s+(?<text>.+?)\s+(?:on|to|in|onto|into)\s+(?:my|the)\s+"
+        + @"(?:board|backlog|to-?do(?:\s+list)?|todo(?:\s+list)?|task\s+list|tasks)(?:\s*,?\s*please)?[\s?.!]*$",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex AddsToAPlace();
+
     /// <summary>"to my backlog" left over, or nothing but a place: no title in it.</summary>
     [GeneratedRegex(@"^(?:to\s+|in\s+|on\s+)?(?:my|the)\s+(?:board|backlog|list|tasks|sprint)$", RegexOptions.IgnoreCase)]
     private static partial Regex OnlyAPlace();
@@ -33,6 +44,7 @@ public static partial class TaskRequest
         if (string.IsNullOrWhiteSpace(message)) return null;
         var match = PutsOnTheBoard().Match(message);
         if (!match.Success) match = AsksForATask().Match(message);
+        if (!match.Success) match = AddsToAPlace().Match(message);
         if (!match.Success) return null;
 
         var text = match.Groups["text"].Value.Trim().Trim('\'', '"', '“', '”', '‘', '’').Trim();

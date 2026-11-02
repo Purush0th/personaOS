@@ -62,8 +62,24 @@ public sealed class UserTimeGuard : IToolCallGuard
             : NoVerdict;
     }
 
-    /// <summary>Sets dueAtLocal to the day and time the user said; null when it already was.</summary>
+    /// <summary>
+    /// Sets dueAtLocal to the day and time the user said, and takes the time off the end of the
+    /// message: "Remind me to water the ferns at 7pm" was saved as "Water the ferns at 7pm", read out
+    /// at 7pm (training capture, 2026-11-02). Null when nothing changed.
+    /// </summary>
     private static string? FixReminder(JsonObject input, WhenPhrase.Reading said)
+    {
+        var due = FixDue(input, said);
+        var message = Text(input["message"]);
+        var trimmed = message is null ? null : WhenPhrase.WithoutTrailingWhen(message);
+        if (trimmed is null || trimmed == message) return due;
+
+        input["message"] = trimmed;
+        var why = $"message \"{message}\" to \"{trimmed}\"";
+        return due is null ? why : $"{due}; {why}";
+    }
+
+    private static string? FixDue(JsonObject input, WhenPhrase.Reading said)
     {
         if (input["dueAtLocal"]?.GetValueKind() != JsonValueKind.String
             || !DateTime.TryParse(input["dueAtLocal"]!.GetValue<string>(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var given))

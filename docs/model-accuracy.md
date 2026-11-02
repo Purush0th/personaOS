@@ -157,6 +157,7 @@ honest one: once a failure in it has been fixed, it measures the fix, not genera
 | 2026-11-02 | Calendar request guard, one-day planner reads | 95.5% | 100% | 79.5% (first run) | — |
 | 2026-11-02 | Plain bookings and "I've finished TASK-n" routed in code; month names fixed | 97.7% | 97.4% | 94.9% | 75.6% (first run) |
 | 2026-11-02 | Day after tomorrow, other-day answers, task edits and sums in code; weekday end-date fix | 99.2% | 94.9% | 100% | 97.8% |
+| 2026-11-03 | To-do phrasings routed, reminder text loses its time, questions never classed as "make" (5 runs) | 99.5% | 98.5% | 98.5% | 98.7% |
 
 What the numbers taught, for the next round:
 
@@ -173,3 +174,9 @@ What the numbers taught, for the next round:
 - **Still weak on the 3B model:** an answer about another day that paraphrases an item's title (so
   the exact-title check misses it), and a question for a missing task title that has no question
   mark. Write holdout4 before working on these.
+- **The training capture is a test set too.** Running 233 fresh prompts to build fine-tuning data
+  (`scripts/training/`) found three code bugs before any training: invalid JSON in the "waiting for
+  confirmation" result, reminders repeating their time, and "add X to my to-do list" made an event.
+- **The intent check can block a guard.** "When is my reminder about the bank?" was classed
+  create_reminder at temperature 0, so the read-before-answering retry, which waits for a question,
+  never ran (holdout2 fell to 92.3%). A plain question is now never classed as making something.

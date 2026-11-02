@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
@@ -85,7 +86,7 @@ public sealed record IntentResult(string Intent, string? Tool)
 /// Only intents whose tool is offered this turn are on offer. Anything unusable comes back null,
 /// and the chat goes on as it did without a classification.
 /// </summary>
-public sealed class IntentClassifier(ILogger<IntentClassifier> logger)
+public sealed partial class IntentClassifier(ILogger<IntentClassifier> logger)
 {
     /// <summary>Earlier messages the classifier sees, for "yes" or "tomorrow 9 a.m." that continue one.</summary>
     private const int ContextMessages = 4;
@@ -131,9 +132,29 @@ public sealed class IntentClassifier(ILogger<IntentClassifier> logger)
             return null;
         }
 
+        if (ChatIntents.CreatingTool.ContainsKey(intent) && AsksAboutWhatExists(userMessage))
+        {
+            logger.LogInformation("Intent {Intent} given to a question; taken as a question.", intent);
+            intent = ChatIntents.Question;
+        }
+
         logger.LogInformation("Intent of the message: {Intent}", intent);
         return new IntentResult(intent, ChatIntents.CreatingTool.GetValueOrDefault(intent));
     }
+
+    /// <summary>
+    /// "When is my reminder about the bank?", "What notes do I have?": a question about what is
+    /// already there, which makes nothing. At temperature 0 qwen2.5:3b called the first one
+    /// create_reminder every time, so it was never read and the reply said there was no such
+    /// reminder (accuracy suite, 2026-11-03). "Can you remind me at 5?" is a request, not this.
+    /// </summary>
+    public static bool AsksAboutWhatExists(string message) => ExistingQuestion().IsMatch(message);
+
+    [GeneratedRegex(
+        @"^\s*(?:when|what|which|where|how\s+many|how\s+much|is\s+there|are\s+there|do\s+i\s+have|have\s+i|did\s+i)\b"
+        + @"(?!.*\b(?:remind\s+me|can\s+you|could\s+you|would\s+you|will\s+you|should\s+i)\b).*\?\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex ExistingQuestion();
 
     /// <summary>The intents this turn can serve: those whose tool is offered, and those that make nothing.</summary>
     public static IReadOnlyList<string> OnOffer(IReadOnlyCollection<string> offeredTools) =>

@@ -399,6 +399,25 @@ public partial class ChatService(
             }
         }
 
+        // "Add repaint the hallway to my to-do list" that ended with no task card: proposed from its
+        // words, and the calendar event, plan or sprint made for it instead gives way (training
+        // capture, 2026-11-02: 11 of 60 plain task requests went astray).
+        if (first.Error is null
+            && request.Turn.ToolNames.Contains("create_task")
+            && !request.Turn.Proposals.Any(p => p.ToolName == "create_task")
+            && Board.TaskRequest.TitleOf(userMessage) is { } taskTitle)
+        {
+            logger.LogWarning("Model {Model} made no task card for a plain task request; proposing it.", config.AiModel);
+            var before = request.Turn.Proposals.Count;
+            await toolCallGuards.DecideAsync(new AiToolCall($"server-task-{Guid.NewGuid():N}", "create_task", JsonSerializer.Serialize(new { title = taskTitle })), request.Turn, ct);
+            if (request.Turn.Proposals.Count > before)
+            {
+                request.Turn.Proposals.RemoveAll(p => p.ToolName != "create_task");
+                final.Rewrite(EmptyReplyGuard.ProposalOnly);
+                unverifiedClaim = false;
+            }
+        }
+
         // "Book lunch with Marco tomorrow at 1pm" that ended with no planner card: proposed from its
         // words, and a task or goal card made for it instead gives way.
         if (first.Error is null

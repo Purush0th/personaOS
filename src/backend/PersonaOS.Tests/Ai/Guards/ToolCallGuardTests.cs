@@ -77,7 +77,8 @@ public class ToolCallGuardTests
         var verdict = Assert.IsType<ToolCallVerdict.Answer>(await new ConfirmationGate(Registry(create)).CheckAsync(call, turn, default));
 
         Assert.False(verdict.IsError);
-        Assert.Contains("not_executed", verdict.Content);
+        // Valid JSON: it ended in "}}" until 2026-11-02 (found in the training capture).
+        Assert.Equal("not_executed", System.Text.Json.JsonDocument.Parse(verdict.Content).RootElement.GetProperty("status").GetString());
         var proposal = Assert.Single(turn.Proposals);
         Assert.Equal("create_goal", proposal.ToolName);
         Assert.Empty(create.Invocations);
