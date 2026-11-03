@@ -18,9 +18,9 @@ typedef EventsByDay = Map<String, List<PlannerItem>>;
 /// server's field names.
 typedef EventMoved = void Function(PlannerItem item, Map<String, Object?> change);
 
-/// The height of one hour in the time grid: 1.5× the old 52, so short routine items can be read
-/// (owner, 2026-11-03).
-const hourHeight = 78.0;
+/// The height of one hour in the time grid: twice the old 78, so a 5-minute routine item has room
+/// for a line of text (owner, 2026-11-03).
+const hourHeight = 156.0;
 
 /// The height of one lane of bars in the strip above the hours.
 const _barHeight = 20.0;
@@ -403,7 +403,7 @@ class _TimeGridViewState extends State<TimeGridView> {
                           opacity: _lifted(e.item) ? 0.35 : 1,
                           child: _EventBlock(
                             event: e,
-                            thin: height < 12,
+                            thin: height < 10,
                             narrow: width / e.columns < 72,
                             past: dayOnly(day).isBefore(dayOnly(_now)) || (isToday && e.endMinutes <= nowMinutes),
                             onTap: () => widget.onOpen(e.item),
