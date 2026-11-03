@@ -235,6 +235,39 @@ html {
     trigger-text-size: var(--mat-sys-body-medium-size),
     trigger-text-line-height: var(--mat-sys-body-medium-line-height),
   ));
+  /* Switches in proportion to their 14px labels: Material's 52 × 32 track is sized for a phone
+     and dwarfed the words beside it (owner, 2026-11-03). A 36 × 20 track, its handle 12px off and
+     14px on; each margin centres the handle 10px from its end. Toggles also drop the tick icon
+     (hideIcon), which only added weight. */
+  @include mat.slide-toggle-overrides((
+    track-width: 36px,
+    track-height: 20px,
+    track-outline-width: 1.5px,
+    selected-track-outline-width: 1.5px,
+    state-layer-size: 32px,
+    unselected-handle-size: 12px,
+    selected-handle-size: 14px,
+    with-icon-handle-size: 14px,
+    pressed-handle-size: 16px,
+    unselected-handle-horizontal-margin: 0 4px,
+    unselected-with-icon-handle-horizontal-margin: 0 3px,
+    unselected-pressed-handle-horizontal-margin: 0 2px,
+    selected-handle-horizontal-margin: 0 19px,
+    selected-with-icon-handle-horizontal-margin: 0 19px,
+    selected-pressed-handle-horizontal-margin: 0 18px,
+  ));
+  /* Buttons a step smaller than Material's 40px with 24px sides, which read heavy next to 14px
+     text and in rows of quiet controls (owner, 2026-11-03). */
+  @include mat.button-overrides((
+    filled-container-height: 36px,
+    outlined-container-height: 36px,
+    tonal-container-height: 36px,
+    protected-container-height: 36px,
+    filled-horizontal-padding: 16px,
+    outlined-horizontal-padding: 16px,
+    tonal-horizontal-padding: 16px,
+    protected-horizontal-padding: 16px,
+  ));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -605,6 +638,11 @@ a.key-link {
 
 /* "+ Create" at the foot of a board column or a backlog section: quiet, full width, left aligned,
    the way Jira shows it, rather than a coloured button competing with the work. */
+/* A switch's label sits a clear step from the track, not Material's 4px. */
+.mat-mdc-slide-toggle .mdc-label {
+  padding-left: 10px;
+}
+
 .create-trigger.mat-mdc-button {
   --mat-button-text-label-text-color: var(--mat-sys-on-surface-variant);
   --mat-button-text-container-shape: var(--mat-sys-corner-small);

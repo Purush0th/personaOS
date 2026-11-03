@@ -145,12 +145,12 @@
       </mat-card-header>
       <mat-card-content class="modules">
         @for (module of modules; track module) {
-          <mat-slide-toggle [(ngModel)]="features[module]" [name]="'feature-' + module">
-            {{ module }}
+          <mat-slide-toggle hideIcon [(ngModel)]="features[module]" [name]="'feature-' + module">
+            {{ module | titlecase }}
           </mat-slide-toggle>
         }
         @if (features['proactive']) {
-          <mat-slide-toggle [(ngModel)]="phraseBriefs" name="phraseBriefs">
+          <mat-slide-toggle hideIcon [(ngModel)]="phraseBriefs" name="phraseBriefs">
             Let {{ nickname || 'the assistant' }} word the briefs
           </mat-slide-toggle>
           <p class="muted small brief-note">

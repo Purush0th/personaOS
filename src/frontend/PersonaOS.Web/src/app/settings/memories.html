@@ -7,7 +7,7 @@
   </mat-card-header>
 
   <mat-card-content>
-    <mat-slide-toggle [checked]="autoSave()" (change)="toggleAutoSave($event.checked)" class="auto-save">
+    <mat-slide-toggle hideIcon [checked]="autoSave()" (change)="toggleAutoSave($event.checked)" class="auto-save">
       Save memories without asking
     </mat-slide-toggle>
     <p class="muted small note">

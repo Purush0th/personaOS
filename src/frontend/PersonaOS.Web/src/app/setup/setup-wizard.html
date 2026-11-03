@@ -110,7 +110,7 @@
           <h3>Modules</h3>
           <div class="modules">
             @for (f of features; track f.key) {
-              <mat-slide-toggle [name]="'feature_' + f.key" [(ngModel)]="f.enabled">{{ f.label }}</mat-slide-toggle>
+              <mat-slide-toggle hideIcon [name]="'feature_' + f.key" [(ngModel)]="f.enabled">{{ f.label }}</mat-slide-toggle>
             }
           </div>
         </mat-card-content>

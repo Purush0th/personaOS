@@ -1,4 +1,5 @@
 import { Component, HostListener, OnInit, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
+import { TitleCasePipe } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 
 import { MatButtonModule } from '@angular/material/button';
@@ -27,6 +28,7 @@ const MODULES = ['goals', 'board', 'planner', 'reminders', 'notes', 'memory', 'v
   selector: 'app-settings',
   imports: [
     FormsModule,
+    TitleCasePipe,
     Memories,
     PushConfig,
     SpeechConfig,
