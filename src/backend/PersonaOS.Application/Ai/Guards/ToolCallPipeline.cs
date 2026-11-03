@@ -15,14 +15,14 @@ namespace PersonaOS.Application.Ai.Guards;
 /// their calendar into a planner item.</item>
 /// <item><see cref="UserTimeGuard"/> holds a reminder or event to the day and time the user gave,
 /// and refuses a reminder whose time nobody gave.</item>
-/// <item><see cref="GoalPeriodGuard"/> holds a new goal to the period the user named, and refuses
-/// one whose period nobody gave.</item>
 /// <item><see cref="UnaskedLinkGuard"/> drops a task or goal link from a planner item when the user
 /// spoke of neither.</item>
 /// <item><see cref="RepeatedCallGuard"/> answers a call already made this turn from memory.</item>
 /// <item><see cref="RelativeDateGuard"/> sends back a change for a different day than the
 /// "today", "tomorrow" or "yesterday" the user said, with the right date.</item>
-/// <item><see cref="TaskTitleGuard"/> refuses a task titled with words the user never said.</item>
+/// <item><see cref="TaskTitleGuard"/> refuses a task or goal titled with words the user never said.</item>
+/// <item><see cref="GoalPeriodGuard"/> holds a new goal to the period the user named, and refuses
+/// one whose period nobody gave.</item>
 /// <item><see cref="NoteWordsGuard"/> and <see cref="MemoryWordsGuard"/> keep what is saved without a
 /// card to the user's own words.</item>
 /// <item><see cref="ConfirmationGate"/> turns a call that would change the user's data into a card,
@@ -39,11 +39,11 @@ public sealed class ToolCallPipeline(IPersonaToolRegistry registry, ILogger<Tool
         new OfferedToolGuard(),
         new CalendarRequestGuard(),
         new UserTimeGuard(),
-        new GoalPeriodGuard(),
         new UnaskedLinkGuard(),
         new RepeatedCallGuard(),
         new RelativeDateGuard(),
         new TaskTitleGuard(),
+        new GoalPeriodGuard(),
         new NoteWordsGuard(),
         new MemoryWordsGuard(),
         new ConfirmationGate(registry),

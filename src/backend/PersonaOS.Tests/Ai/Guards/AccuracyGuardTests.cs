@@ -160,6 +160,20 @@ public class TaskTitleGuardTests
         Assert.Single(turn.Refusals);
     }
 
+    [Fact]
+    public async Task A_goal_title_nobody_said_is_refused_too()
+    {
+        // Production chat, 2026-11-03: asked to put a routine on the calendar, it proposed this goal.
+        var turn = new ChatTurnState("test-model", new HashSet<string> { "create_goal" }, ["create_goal"],
+            userMessage: "go ahead create items to the calendar", earlierUserMessages: ["no notification required. but add everything in the list now"]);
+
+        var verdict = await new TaskTitleGuard().CheckAsync(
+            new AiToolCall("1", "create_goal", """{"title":"Weekly Reflections","periodType":"month"}"""), turn, default);
+
+        Assert.True(Assert.IsType<ToolCallVerdict.Answer>(verdict).IsError);
+        Assert.Contains("the goal needs a title, and none was given.", turn.Refusals);
+    }
+
     [Theory]
     [InlineData("Add a task to follow up with Ravi tomorrow.", "Follow up with Ravi")]
     [InlineData("Put 'renew the passport' on my board.", "Renew passport")]

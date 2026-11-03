@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -194,6 +195,50 @@ public partial class ChatService
     [GeneratedRegex(@"\b(?:calendar|schedule[ds]?|appointments?|meetings?|events?|agenda|planner|plans?|planned|booked|busy|free)\b", RegexOptions.IgnoreCase)]
     private static partial Regex CalendarTopic();
 
+
+    /// <summary>
+    /// The routine to put on the calendar this turn: the one in this message, or, when this message
+    /// only points back at it ("add everything in the list now", "go ahead create items to the
+    /// calendar"), the latest one the user sent. Null when the message asks for board tasks
+    /// instead, or holds no routine and points at none.
+    /// </summary>
+    public static Planner.ScheduleRequest.Schedule? ScheduleFor(string message, IReadOnlyList<string> earlier, DateOnly today)
+    {
+        if (BoardWords().IsMatch(message) && !CalendarWords().IsMatch(message)) return null;
+        if (Planner.ScheduleRequest.IsSchedule(message)) return Planner.ScheduleRequest.Read(message, today, earlier);
+        if (!CalendarWords().IsMatch(message) && !AllOfIt().IsMatch(message)) return null;
+
+        for (var i = earlier.Count - 1; i >= 0; i--)
+        {
+            if (!Planner.ScheduleRequest.IsSchedule(earlier[i])) continue;
+            return Planner.ScheduleRequest.Read(earlier[i], today, [.. earlier.Where((_, j) => j != i), message]);
+        }
+        return null;
+    }
+
+    /// <summary>The reply over a routine's cards: how many, from when, how it repeats.</summary>
+    public static string ScheduleReply(int proposed, int rows, DateOnly from, Planner.ScheduleRequest.Schedule schedule)
+    {
+        var text = new StringBuilder($"Here {(proposed == 1 ? "is 1 item" : $"are {proposed} items")} for your calendar from {from.ToString("d MMM", CultureInfo.InvariantCulture)}");
+        if (schedule.Repeat is { } repeat)
+        {
+            text.Append(repeat == "weekdays" ? ", repeating every weekday" : ", repeating daily");
+            if (schedule.Until is DateOnly until) text.Append(CultureInfo.InvariantCulture, $" until {until.ToString("d MMM yyyy", CultureInfo.InvariantCulture)}");
+        }
+        if (schedule.NoNotification) text.Append(", with no notifications");
+        text.Append(". Confirm them below if they look right.");
+        if (proposed < rows) text.Append(CultureInfo.InvariantCulture, $" {rows - proposed} of the {rows} rows could not be proposed; the cards say which are there.");
+        return text.ToString();
+    }
+
+    [GeneratedRegex(@"\b(?:board|backlog|sprint)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex BoardWords();
+
+    [GeneratedRegex(@"\b(?:calendar|planner|schedule|block|routine)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex CalendarWords();
+
+    [GeneratedRegex(@"\b(?:everything|all\s+(?:of\s+)?(?:them|it|the\s+items)|the\s+(?:whole\s+)?list|the\s+items)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex AllOfIt();
 
     /// <summary>"Where can I download PersonaOS?", "how do I install the app", "is there an APK?".</summary>
     public static bool AsksWhereToGetPersonaOs(string message) => WhereToGet().IsMatch(message);

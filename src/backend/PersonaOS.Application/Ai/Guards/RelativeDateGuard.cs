@@ -47,6 +47,8 @@ public sealed partial class RelativeDateGuard : IToolCallGuard
     public Task<ToolCallVerdict?> CheckAsync(AiToolCall call, ChatTurnState turn, CancellationToken ct)
     {
         if (!turn.MutatingTools.Contains(call.Name) || turn.UserToday is not DateOnly today) return NoVerdict;
+        // A routine's rows carry their own times; "Plan tomorrow" in one is a title, not a day.
+        if (call.Name == "add_planner_item" && Planner.ScheduleRequest.IsSchedule(turn.UserMessage)) return NoVerdict;
         if (IntendedDay(turn.UserMessage, today) is not (string word, DateOnly intended)) return NoVerdict;
 
         var given = DayIn(call.InputJson, call.Name, today);

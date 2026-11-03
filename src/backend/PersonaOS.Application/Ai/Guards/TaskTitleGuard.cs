@@ -9,10 +9,13 @@ namespace PersonaOS.Application.Ai.Guards;
 /// qwen2.5:3b proposed "Task for later" instead of asking what the task is (accuracy suite,
 /// 2026-11-02). A title with nothing in it from the user's messages, this one or the last few, is
 /// answered with "ask what the task is"; a title of filler words alone is never the user's.
+/// A goal is held to the same rule: told "go ahead create items to the calendar", qwen2.5:3b
+/// proposed a goal "Weekly Reflections" that no message mentioned (production chat, 2026-11-03).
 /// </summary>
 public sealed partial class TaskTitleGuard : IToolCallGuard
 {
     private const string TaskTool = "create_task";
+    private const string GoalTool = "create_goal";
 
     /// <summary>Words that say nothing about what the task is.</summary>
     private static readonly HashSet<string> Filler = new(StringComparer.OrdinalIgnoreCase)
@@ -30,7 +33,7 @@ public sealed partial class TaskTitleGuard : IToolCallGuard
 
     public Task<ToolCallVerdict?> CheckAsync(AiToolCall call, ChatTurnState turn, CancellationToken ct)
     {
-        if (call.Name != TaskTool || string.IsNullOrWhiteSpace(turn.UserMessage)) return NoVerdict;
+        if (call.Name is not (TaskTool or GoalTool) || string.IsNullOrWhiteSpace(turn.UserMessage)) return NoVerdict;
         var title = Title(call.InputJson);
 
         if (!string.IsNullOrWhiteSpace(title))
@@ -41,7 +44,7 @@ public sealed partial class TaskTitleGuard : IToolCallGuard
         }
 
         // A missing or made-up title, and the message plainly says what the task is: that is the title.
-        if (Board.TaskRequest.TitleOf(turn.UserMessage) is { } asked && WithTitle(call.InputJson, asked) is { } input)
+        if (call.Name == TaskTool && Board.TaskRequest.TitleOf(turn.UserMessage) is { } asked && WithTitle(call.InputJson, asked) is { } input)
         {
             return Task.FromResult<ToolCallVerdict?>(new ToolCallVerdict.Rewrite(
                 call with { InputJson = input }, $"title \"{title}\" to the user's \"{asked}\""));
@@ -49,11 +52,12 @@ public sealed partial class TaskTitleGuard : IToolCallGuard
 
         if (string.IsNullOrWhiteSpace(title)) return NoVerdict; // the tool's own check says a title is needed
 
-        turn.Refusals.Add("the task needs a title, and none was given.");
-        var message = $"\"{title}\" is not something the user said. If they have not said what the task is, ask them "
-            + "in one short question; otherwise call create_task again with a title in their own words.";
+        var kind = call.Name == TaskTool ? "task" : "goal";
+        turn.Refusals.Add($"the {kind} needs a title, and none was given.");
+        var message = $"\"{title}\" is not something the user said. If they have not said what the {kind} is, ask them "
+            + $"in one short question; otherwise call {call.Name} again with a title in their own words.";
         return Task.FromResult<ToolCallVerdict?>(new ToolCallVerdict.Answer(
-            JsonSerializer.Serialize(new { error = message }), IsError: true, $"task title not from the user: \"{title}\""));
+            JsonSerializer.Serialize(new { error = message }), IsError: true, $"{kind} title not from the user: \"{title}\""));
     }
 
     private static IEnumerable<string> Words(string text) =>

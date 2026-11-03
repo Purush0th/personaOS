@@ -62,6 +62,31 @@ public class ChatServiceClaimCheckTests
     }
 
     [Fact]
+    public async Task A_routine_for_the_calendar_becomes_one_card_a_row_whatever_the_model_made()
+    {
+        // Production chat, 2026-11-03: a pasted routine became board tasks and a goal nobody named.
+        var (_, chat, streamer) = Setup(new FakeTool("add_planner_item", mutates: true), new FakeTool("create_task", mutates: true));
+        streamer
+            .EnqueueToolCall("toolu_1", "create_task", """{"title":"Wake up, make bed"}""")
+            .EnqueueText("I have proposed a new goal and a task.");
+        const string routine = """
+            Block my calendar daily till Dec 31 with this, no notifications
+            6:00–6:05	Wake up, make bed
+            12:45–1:10	Lunch
+            1:10–1:15	Transition
+            """;
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, routine));
+
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.Equal(3, done.Pending!.Count);
+        Assert.All(done.Pending!, p => Assert.Equal("add_planner_item", p.Tool));
+        Assert.Contains(done.Pending!, p => p.Summary.Contains("Transition") && p.Summary.Contains("13:10"));
+        // The clock says 08:00, after the first row, so the routine starts the next day.
+        Assert.Equal("Here are 3 items for your calendar from 16 Sep, repeating daily until 31 Dec 2026, with no notifications. Confirm them below if they look right.", done.Text);
+    }
+
+    [Fact]
     public async Task A_claim_the_model_takes_back_is_replaced_and_not_flagged()
     {
         var (db, chat, streamer) = Setup(new FakeTool("create_reminder", mutates: true));
