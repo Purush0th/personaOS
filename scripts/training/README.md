@@ -51,10 +51,19 @@ this project. Keep the model on your own machines. The scripts here are Apache-2
    Training text is rendered by `ollama_template.py`, a port of Ollama's own qwen2.5 template, so
    the model is trained on exactly what it will see when served.
 
-5. **Import into Ollama** and quantize like the stock model:
+5. **Import into Ollama** at the stock model's quantization. Ollama 0.40 cannot import a Qwen2
+   safetensors model (its safetensors path is MLX-only) or quantize a GGUF at import, so llama.cpp
+   (tag b11721) converts and quantizes it first, in the same container:
 
    ```bash
-   ollama create personaos-qwen2.5:3b -q q4_K_M -f scripts/training/Modelfile
+   docker run --rm -e UNSLOTH_SKIP_GPU_CHECK=1 -v "$PWD/data/training:/work" unsloth/unsloth:core-v0.1.908-beta bash -c "
+     pip install -q cmake && git clone -q --depth 1 --branch b11721 https://github.com/ggml-org/llama.cpp /tmp/llama.cpp &&
+     pip install -q /tmp/llama.cpp/gguf-py &&
+     python /tmp/llama.cpp/convert_hf_to_gguf.py /work/model --outtype f16 --outfile /work/model.f16.gguf &&
+     cd /tmp/llama.cpp && cmake -B build -DGGML_CUDA=OFF -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=OFF &&
+     cmake --build build --target llama-quantize -j 8 &&
+     ./build/bin/llama-quantize /work/model.f16.gguf /work/model.q4_K_M.gguf Q4_K_M"
+   ollama create personaos-qwen2.5:3b -f scripts/training/Modelfile
    ```
 
 6. **Measure.** Run every suite against the stock and the trained model and compare:

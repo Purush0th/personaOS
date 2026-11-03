@@ -1,6 +1,7 @@
 # The fine-tuned model, served exactly like the stock qwen2.5:3b-instruct: same template, same
-# default system line. FROM is the merged model train.py writes, relative to this file.
-FROM ../../data/training/model
+# default system line. FROM is train.py's merged model as a q4_K_M GGUF (the stock model's
+# quantization), relative to this file; README "Import into Ollama" has the llama.cpp steps.
+FROM ../../data/training/model.q4_K_M.gguf
 
 TEMPLATE """{{- if .Messages }}
 {{- if or .System .Tools }}<|im_start|>system
