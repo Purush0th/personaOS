@@ -6,32 +6,32 @@ import 'package:personaos_mobile/screens/board_screen.dart';
 import 'package:personaos_mobile/screens/sprint_page.dart';
 
 Map<String, dynamic> _task(int n, String column, String? sprintKey, {int? points}) => {
-      'id': n,
-      'key': 'TASK-$n',
-      'title': 'Task $n',
-      'points': points,
-      'column': column,
-      'sprintKey': sprintKey,
-      'carryOverCount': 0,
-      'addedMidSprint': false,
-    };
+  'id': n,
+  'key': 'TASK-$n',
+  'title': 'Task $n',
+  'points': points,
+  'column': column,
+  'sprintKey': sprintKey,
+  'carryOverCount': 0,
+  'addedMidSprint': false,
+};
 
 Map<String, dynamic> _sprint(int n, String status, {int tasks = 0, int done = 0}) => {
-      'id': n,
-      'key': 'SPRINT-$n',
-      'number': n,
-      'name': status == 'active' ? 'Week two' : null,
-      'status': status,
-      'startsAtUtc': '2026-09-${10 + n}T14:30:00',
-      'endsAtUtc': '2026-09-${16 + n}T12:30:00',
-      'committedPoints': status == 'planned' ? null : 8,
-      'addedPoints': 2,
-      'removedPoints': 0,
-      'completedPoints': 3,
-      'totalPoints': 8,
-      'taskCount': tasks,
-      'doneTaskCount': done,
-    };
+  'id': n,
+  'key': 'SPRINT-$n',
+  'number': n,
+  'name': status == 'active' ? 'Week two' : null,
+  'status': status,
+  'startsAtUtc': '2026-09-${10 + n}T14:30:00',
+  'endsAtUtc': '2026-09-${16 + n}T12:30:00',
+  'committedPoints': status == 'planned' ? null : 8,
+  'addedPoints': 2,
+  'removedPoints': 0,
+  'completedPoints': 3,
+  'totalPoints': 8,
+  'taskCount': tasks,
+  'doneTaskCount': done,
+};
 
 /// The plan has a running sprint, a planned one and a backlog; sprint calls are recorded.
 class TabsApi extends PersonaOsApi {
@@ -41,31 +41,37 @@ class TabsApi extends PersonaOsApi {
 
   @override
   Future<BoardView> getBoard() async => BoardView.fromJson({
-        'sprint': _sprint(2, 'active', tasks: 2, done: 1),
-        'velocity': 7.5,
-        'wipLimit': 3,
-        'todo': [_task(2, 'todo', 'SPRINT-2', points: 5)],
-        'inProgress': <Map<String, dynamic>>[],
-        'done': [_task(3, 'done', 'SPRINT-2', points: 3)],
-      });
+    'sprint': _sprint(2, 'active', tasks: 2, done: 1),
+    'velocity': 7.5,
+    'wipLimit': 3,
+    'todo': [_task(2, 'todo', 'SPRINT-2', points: 5)],
+    'inProgress': <Map<String, dynamic>>[],
+    'done': [_task(3, 'done', 'SPRINT-2', points: 3)],
+  });
 
   @override
   Future<PlanView> getPlan() async => PlanView.fromJson({
-        'sprints': [
-          {'sprint': _sprint(2, 'active', tasks: 2, done: 1), 'tasks': [_task(2, 'todo', 'SPRINT-2', points: 5)]},
-          {'sprint': _sprint(3, 'planned'), 'tasks': [_task(4, 'todo', 'SPRINT-3', points: 2)]},
-        ],
-        'backlog': [_task(1, 'backlog', null)],
-      });
+    'sprints': [
+      {
+        'sprint': _sprint(2, 'active', tasks: 2, done: 1),
+        'tasks': [_task(2, 'todo', 'SPRINT-2', points: 5)],
+      },
+      {
+        'sprint': _sprint(3, 'planned'),
+        'tasks': [_task(4, 'todo', 'SPRINT-3', points: 2)],
+      },
+    ],
+    'backlog': [_task(1, 'backlog', null)],
+  });
 
   @override
   Future<List<Goal>> getGoals({bool includeDropped = false}) async => [];
 
   @override
   Future<SprintReport> getSprintReport({int count = 104}) async => SprintReport.fromJson({
-        'velocity': 7.5,
-        'sprints': [_sprint(2, 'active', tasks: 2, done: 1), _sprint(1, 'closed', tasks: 3, done: 3)],
-      });
+    'velocity': 7.5,
+    'sprints': [_sprint(2, 'active', tasks: 2, done: 1), _sprint(1, 'closed', tasks: 3, done: 3)],
+  });
 
   @override
   Future<SprintDetail> getSprintDetail(String key) async {
@@ -95,9 +101,13 @@ class TabsApi extends PersonaOsApi {
   Future<void> deleteSprint(String key) async => calls.add('delete $key');
 
   @override
-  Future<void> moveTask(String key,
-          {required String column, String? sprintKey, int? index, bool acknowledgeScopeChange = false}) async =>
-      calls.add('move $key $column ${sprintKey ?? '-'}');
+  Future<void> moveTask(
+    String key, {
+    required String column,
+    String? sprintKey,
+    int? index,
+    bool acknowledgeScopeChange = false,
+  }) async => calls.add('move $key $column ${sprintKey ?? '-'}');
 }
 
 void main() {
@@ -106,7 +116,12 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final api = TabsApi();
-    await tester.pumpWidget(MaterialApp(theme: personaOsTheme, home: BoardScreen(api: api)));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: personaOsTheme,
+        home: BoardScreen(api: api),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(Tab, tab));
     await tester.pumpAndSettle();
@@ -167,7 +182,9 @@ void main() {
     testWidgets('the running sprint completes, unfinished work to the next sprint', (tester) async {
       final api = await open(tester, 'Backlog');
 
-      await tester.tap(find.descendant(of: find.byKey(const Key('section-SPRINT-2')), matching: find.byTooltip('Sprint actions')));
+      await tester.tap(
+        find.descendant(of: find.byKey(const Key('section-SPRINT-2')), matching: find.byTooltip('Sprint actions')),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Complete sprint'));
       await tester.pumpAndSettle();
@@ -181,7 +198,9 @@ void main() {
     testWidgets('a planned sprint cannot start while another runs, and can be deleted', (tester) async {
       final api = await open(tester, 'Backlog');
 
-      await tester.tap(find.descendant(of: find.byKey(const Key('section-SPRINT-3')), matching: find.byTooltip('Sprint actions')));
+      await tester.tap(
+        find.descendant(of: find.byKey(const Key('section-SPRINT-3')), matching: find.byTooltip('Sprint actions')),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Start sprint'), findsNothing);
       await tester.tap(find.text('Delete'));
@@ -195,7 +214,9 @@ void main() {
     testWidgets('a sprint opens on its own page, which can complete it', (tester) async {
       final api = await open(tester, 'Backlog');
 
-      await tester.tap(find.descendant(of: find.byKey(const Key('section-SPRINT-2')), matching: find.byTooltip('Sprint actions')));
+      await tester.tap(
+        find.descendant(of: find.byKey(const Key('section-SPRINT-2')), matching: find.byTooltip('Sprint actions')),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Open sprint'));
       await tester.pumpAndSettle();
@@ -233,8 +254,11 @@ void main() {
       expect(find.byKey(const Key('burndown')), findsOneWidget);
       expect(find.text('Task 2'), findsOneWidget);
       // The report's own list, not the search field's scrollable inside it.
-      await tester.scrollUntilVisible(find.textContaining('Velocity 7.5'), 300,
-          scrollable: find.ancestor(of: find.text('Committed'), matching: find.byType(Scrollable)).first);
+      await tester.scrollUntilVisible(
+        find.textContaining('Velocity 7.5'),
+        300,
+        scrollable: find.ancestor(of: find.text('Committed'), matching: find.byType(Scrollable)).first,
+      );
       expect(find.textContaining('Velocity 7.5'), findsOneWidget);
     });
 

@@ -66,17 +66,27 @@ class _BacklogViewState extends State<BacklogView> {
 
   Future<void> _start(SprintInfo sprint) => _sprint(() => startSprintFlow(context, widget.api, sprint));
 
-  Future<void> _complete(SprintInfo sprint, List<SprintPlan> plan) => _sprint(() => completeSprintFlow(
-      context, widget.api, sprint,
-      next: plan.map((p) => p.sprint).where((s) => s.isPlanned).firstOrNull));
+  Future<void> _complete(SprintInfo sprint, List<SprintPlan> plan) => _sprint(
+    () => completeSprintFlow(
+      context,
+      widget.api,
+      sprint,
+      next: plan.map((p) => p.sprint).where((s) => s.isPlanned).firstOrNull,
+    ),
+  );
 
   Future<void> _delete(SprintInfo sprint) => _sprint(() => deleteSprintFlow(context, widget.api, sprint));
 
   /// The sprint's own page; whatever was done there reloads both tabs.
-  Future<void> _openSprint(SprintInfo sprint) => _sprint(() async =>
-      await Navigator.of(context).push<bool>(
-          MaterialPageRoute(builder: (_) => SprintPage(api: widget.api, sprintKey: sprint.key))) ==
-      true);
+  Future<void> _openSprint(SprintInfo sprint) => _sprint(
+    () async =>
+        await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => SprintPage(api: widget.api, sprintKey: sprint.key),
+          ),
+        ) ==
+        true,
+  );
 
   // -------------------------------------------------------------- tasks
 
@@ -85,17 +95,17 @@ class _BacklogViewState extends State<BacklogView> {
     final changed = task != null
         ? await showTaskQuickView(context, widget.api, task.key, task: task, goals: widget.goals)
         : await showModalBottomSheet<bool>(
-              context: context,
-              isScrollControlled: true,
-              showDragHandle: true,
-              builder: (_) => TaskSheet(
-                api: widget.api,
-                goals: widget.goals,
-                sprints: plan.map((p) => p.sprint).toList(),
-                defaultSprintKey: sprintKey,
-              ),
-            ) ==
-            true;
+                context: context,
+                isScrollControlled: true,
+                showDragHandle: true,
+                builder: (_) => TaskSheet(
+                  api: widget.api,
+                  goals: widget.goals,
+                  sprints: plan.map((p) => p.sprint).toList(),
+                  defaultSprintKey: sprintKey,
+                ),
+              ) ==
+              true;
     if (changed) {
       await _reload();
       widget.onChanged?.call();
@@ -128,20 +138,20 @@ class _BacklogViewState extends State<BacklogView> {
         }
         if (snapshot.hasError) {
           return Center(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text('Could not load the backlog.'),
-              const SizedBox(height: 12),
-              OutlinedButton(onPressed: _reload, child: const Text('Retry')),
-            ]),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Could not load the backlog.'),
+                const SizedBox(height: 12),
+                OutlinedButton(onPressed: _reload, child: const Text('Retry')),
+              ],
+            ),
           );
         }
 
         final plan = snapshot.data!;
         final anyRunning = plan.sprints.any((p) => p.sprint.isActive);
-        final targets = [
-          for (final p in plan.sprints) (p.sprint.key, sprintLabel(p.sprint)),
-          (_backlog, 'Backlog'),
-        ];
+        final targets = [for (final p in plan.sprints) (p.sprint.key, sprintLabel(p.sprint)), (_backlog, 'Backlog')];
 
         return RefreshIndicator(
           onRefresh: _reload,
@@ -158,13 +168,14 @@ class _BacklogViewState extends State<BacklogView> {
                     subtitle: '${sprintWhen(p.sprint.startsAtUtc)} – ${sprintWhen(p.sprint.endsAtUtc)}',
                     tasks: p.tasks,
                     collapsed: _collapsed.contains(p.sprint.key),
-                    onToggle: () => setState(() => _collapsed.contains(p.sprint.key)
-                        ? _collapsed.remove(p.sprint.key)
-                        : _collapsed.add(p.sprint.key)),
+                    onToggle: () => setState(
+                      () => _collapsed.contains(p.sprint.key)
+                          ? _collapsed.remove(p.sprint.key)
+                          : _collapsed.add(p.sprint.key),
+                    ),
                     actions: [
                       _Action('Open sprint', () => _openSprint(p.sprint)),
-                      if (p.sprint.isPlanned && !anyRunning)
-                        _Action('Start sprint', () => _start(p.sprint)),
+                      if (p.sprint.isPlanned && !anyRunning) _Action('Start sprint', () => _start(p.sprint)),
                       if (p.sprint.isActive) _Action('Complete sprint', () => _complete(p.sprint, plan.sprints)),
                       _Action('Edit', () => _editSprint(p.sprint)),
                       if (p.sprint.isPlanned) _Action('Delete', () => _delete(p.sprint), destructive: true),
@@ -180,7 +191,8 @@ class _BacklogViewState extends State<BacklogView> {
                   tasks: plan.backlog,
                   collapsed: _collapsed.contains(_backlog),
                   onToggle: () => setState(
-                      () => _collapsed.contains(_backlog) ? _collapsed.remove(_backlog) : _collapsed.add(_backlog)),
+                    () => _collapsed.contains(_backlog) ? _collapsed.remove(_backlog) : _collapsed.add(_backlog),
+                  ),
                   header: FilledButton.tonalIcon(
                     onPressed: _editSprint,
                     icon: const Icon(PhosphorIconsRegular.plus, size: 18),
@@ -277,18 +289,22 @@ class _Section extends StatelessWidget {
                         children: [
                           Text(title, style: theme.textTheme.titleSmall),
                           if (status != null)
-                            Text(status!,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                    color: status == 'running' ? StatusTone.done.ink(context) : scheme.outline)),
-                          Text('${tasks.length} ${tasks.length == 1 ? 'task' : 'tasks'} · $points pts',
-                              style: theme.textTheme.bodySmall),
+                            Text(
+                              status!,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: status == 'running' ? StatusTone.done.ink(context) : scheme.outline,
+                              ),
+                            ),
+                          Text(
+                            '${tasks.length} ${tasks.length == 1 ? 'task' : 'tasks'} · $points pts',
+                            style: theme.textTheme.bodySmall,
+                          ),
                         ],
                       ),
                       if (subtitle != null) Text(subtitle!, style: theme.textTheme.bodySmall),
                       // On a phone the extra control goes under the title: beside it, it squeezed
                       // "Backlog" into a column of letters.
-                      if (header != null && narrow)
-                        Padding(padding: const EdgeInsets.only(top: 6), child: header),
+                      if (header != null && narrow) Padding(padding: const EdgeInsets.only(top: 6), child: header),
                     ],
                   ),
                 ),
@@ -301,8 +317,7 @@ class _Section extends StatelessWidget {
                       for (final action in actions)
                         PopupMenuItem(
                           value: action,
-                          child: Text(action.label,
-                              style: action.destructive ? TextStyle(color: scheme.error) : null),
+                          child: Text(action.label, style: action.destructive ? TextStyle(color: scheme.error) : null),
                         ),
                     ],
                   ),

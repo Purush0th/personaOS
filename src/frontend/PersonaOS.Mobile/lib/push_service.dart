@@ -200,21 +200,25 @@ class PushService {
     // ReminderAlarms — and a second initialize() replaces the response callbacks it registered,
     // which would silently break Snooze, Dismiss and opening a ringing alarm.
     final android = _local.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    await android?.createNotificationChannel(const AndroidNotificationChannel(
-      channelId,
-      _channelName,
-      description: 'Reminders you set, and scheduled briefs from your assistant.',
-      // High, so a reminder shows as a heads-up banner rather than sitting silently in the
-      // shade — a reminder that is not noticed has not been delivered.
-      importance: Importance.high,
-    ));
-    await android?.createNotificationChannel(const AndroidNotificationChannel(
-      plannerChannelId,
-      _plannerChannelName,
-      description: 'Planner events about to begin, as set on each event.',
-      // High too: "starts in 5 minutes" is no use read afterwards.
-      importance: Importance.high,
-    ));
+    await android?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        channelId,
+        _channelName,
+        description: 'Reminders you set, and scheduled briefs from your assistant.',
+        // High, so a reminder shows as a heads-up banner rather than sitting silently in the
+        // shade — a reminder that is not noticed has not been delivered.
+        importance: Importance.high,
+      ),
+    );
+    await android?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        plannerChannelId,
+        _plannerChannelName,
+        description: 'Planner events about to begin, as set on each event.',
+        // High too: "starts in 5 minutes" is no use read afterwards.
+        importance: Importance.high,
+      ),
+    );
   }
 
   void _openFromPush(RemoteMessage message) {
@@ -258,8 +262,7 @@ class PushService {
   }
 }
 
-bool _isReminderPush(RemoteMessage message) =>
-    '${message.data['type']}'.startsWith('reminder_');
+bool _isReminderPush(RemoteMessage message) => '${message.data['type']}'.startsWith('reminder_');
 
 /// A data push that arrived while the app was not in the foreground. Runs in its own isolate with
 /// no UI and no signed-in session, which is why reminder messages carry everything needed to act.

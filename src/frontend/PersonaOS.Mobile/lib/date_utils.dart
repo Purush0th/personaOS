@@ -17,8 +17,7 @@ String localYmd(DateTime date) {
 /// uploaded a second ago was displayed as `5h ago`. Mark it UTC explicitly
 /// unless the string already carries a zone.
 DateTime parseServerUtc(String value) {
-  final hasZone = value.endsWith('Z') ||
-      RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(value);
+  final hasZone = value.endsWith('Z') || RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(value);
   return DateTime.parse(hasZone ? value : '${value}Z');
 }
 

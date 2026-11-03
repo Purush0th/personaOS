@@ -472,7 +472,9 @@ class _EventEditorPageState extends State<EventEditorPage> {
             for (final option in options)
               ListTile(
                 title: Text(option.label),
-                trailing: (option.custom ? _custom : !_custom && option.rule == _rule) ? const Icon(PhosphorIconsRegular.check) : null,
+                trailing: (option.custom ? _custom : !_custom && option.rule == _rule)
+                    ? const Icon(PhosphorIconsRegular.check)
+                    : null,
                 onTap: () => Navigator.pop(context, option),
               ),
           ],

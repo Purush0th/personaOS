@@ -12,11 +12,7 @@ import '../phosphor_icons.dart';
 /// open started a new thread and the history sat on the server unreachable.
 /// This is the list the web app has had all along.
 class ConversationsScreen extends StatefulWidget {
-  const ConversationsScreen({
-    super.key,
-    required this.api,
-    required this.assistantNickname,
-  });
+  const ConversationsScreen({super.key, required this.api, required this.assistantNickname});
 
   final PersonaOsApi api;
   final String assistantNickname;
@@ -36,7 +32,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
   Future<void> _refresh() async {
     final reloaded = widget.api.getConversations();
-    setState(() { _conversations = reloaded; });
+    setState(() {
+      _conversations = reloaded;
+    });
     await reloaded;
   }
 
@@ -50,28 +48,19 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           'deleted. This cannot be undone.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
         ],
       ),
     );
     if (confirmed != true) return;
 
     try {
-      await widget.api.deleteConversation(conversation.publicId.isEmpty
-          ? '${conversation.id}'
-          : conversation.publicId);
+      await widget.api.deleteConversation(conversation.publicId.isEmpty ? '${conversation.id}' : conversation.publicId);
       await _refresh();
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -84,11 +73,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       appBar: AppBar(
         title: const Text('History'),
         actions: [
-          IconButton(
-            icon: const Icon(PhosphorIconsRegular.arrowClockwise),
-            tooltip: 'Refresh',
-            onPressed: _refresh,
-          ),
+          IconButton(icon: const Icon(PhosphorIconsRegular.arrowClockwise), tooltip: 'Refresh', onPressed: _refresh),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -96,66 +81,67 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         icon: const Icon(PhosphorIconsRegular.plus),
         label: const Text('New chat'),
       ),
-      body: ReadableWidth(child: FutureBuilder<List<ConversationSummary>>(
-        future: _conversations,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _Message(
-              icon: PhosphorIconsRegular.cloudSlash,
-              title: 'Could not load history',
-              detail: '${snapshot.error}',
-            );
-          }
+      body: ReadableWidth(
+        child: FutureBuilder<List<ConversationSummary>>(
+          future: _conversations,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return _Message(
+                icon: PhosphorIconsRegular.cloudSlash,
+                title: 'Could not load history',
+                detail: '${snapshot.error}',
+              );
+            }
 
-          final conversations = snapshot.data ?? const [];
-          if (conversations.isEmpty) {
-            return _Message(
-              icon: PhosphorIconsRegular.chatsCircle,
-              title: 'No conversations yet',
-              detail: 'Start one with ${widget.assistantNickname}.',
-            );
-          }
+            final conversations = snapshot.data ?? const [];
+            if (conversations.isEmpty) {
+              return _Message(
+                icon: PhosphorIconsRegular.chatsCircle,
+                title: 'No conversations yet',
+                detail: 'Start one with ${widget.assistantNickname}.',
+              );
+            }
 
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-              itemCount: conversations.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final conversation = conversations[index];
-                return Card(
-                  child: ListTile(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18)),
-                    leading: CircleAvatar(
-                      backgroundColor: scheme.primaryContainer,
-                      foregroundColor: scheme.onPrimaryContainer,
-                      child: const Icon(PhosphorIconsRegular.chatCircle, size: 20),
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                itemCount: conversations.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final conversation = conversations[index];
+                  return Card(
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      leading: CircleAvatar(
+                        backgroundColor: scheme.primaryContainer,
+                        foregroundColor: scheme.onPrimaryContainer,
+                        child: const Icon(PhosphorIconsRegular.chatCircle, size: 20),
+                      ),
+                      title: Text(
+                        conversation.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(relativeTime(conversation.updatedAtUtc)),
+                      trailing: IconButton(
+                        icon: const Icon(PhosphorIconsRegular.trash),
+                        tooltip: 'Delete',
+                        onPressed: () => _delete(conversation),
+                      ),
+                      onTap: () => Navigator.of(context).pop(conversation),
                     ),
-                    title: Text(
-                      conversation.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(relativeTime(conversation.updatedAtUtc)),
-                    trailing: IconButton(
-                      icon: const Icon(PhosphorIconsRegular.trash),
-                      tooltip: 'Delete',
-                      onPressed: () => _delete(conversation),
-                    ),
-                    onTap: () => Navigator.of(context).pop(conversation),
-                  ),
-                );
-              },
-            ),
-          );
-        },
-      )),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -186,8 +172,7 @@ class _Message extends StatelessWidget {
           children: [
             Icon(icon, size: 44, color: scheme.outline),
             const SizedBox(height: 14),
-            Text(title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text(
               detail,

@@ -15,33 +15,31 @@ void main() {
     message: 'Take your medicine',
   );
 
-  Future<List<String>> openAlarm(
-    WidgetTester tester, {
-    bool actionsFail = false,
-  }) async {
+  Future<List<String>> openAlarm(WidgetTester tester, {bool actionsFail = false}) async {
     final calls = <String>[];
     Future<void> record(String name) async {
       calls.add(name);
       if (actionsFail) throw StateError('notification plugin unavailable');
     }
 
-    await tester.pumpWidget(MaterialApp(
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: TextButton(
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              fullscreenDialog: true,
-              builder: (_) => AlarmScreen(
-                alarm: alarm,
-                onDismiss: (_) => record('dismiss'),
-                onSnooze: (_) => record('snooze'),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  fullscreenDialog: true,
+                  builder: (_) =>
+                      AlarmScreen(alarm: alarm, onDismiss: (_) => record('dismiss'), onSnooze: (_) => record('snooze')),
+                ),
               ),
-            )),
-            child: const Text('home'),
+              child: const Text('home'),
+            ),
           ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('home'));
     await tester.pumpAndSettle();
     expect(find.text('Take your medicine'), findsOneWidget);

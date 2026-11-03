@@ -31,12 +31,11 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
     _memories = widget.api.getMemories();
     // A failed read leaves the switch as it was: the list below still loads. (A bare
     // catchError returning nothing for a Future<bool> would itself throw.)
-    unawaited(widget.api.getMemoryAutoSave().then(
-      (on) {
+    unawaited(
+      widget.api.getMemoryAutoSave().then((on) {
         if (mounted) setState(() => _autoSave = on);
-      },
-      onError: (Object _) {},
-    ));
+      }, onError: (Object _) {}),
+    );
   }
 
   @override
@@ -47,7 +46,9 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
 
   Future<void> _refresh() async {
     final reloaded = widget.api.getMemories();
-    setState(() { _memories = reloaded; });
+    setState(() {
+      _memories = reloaded;
+    });
     await reloaded;
   }
 
@@ -95,14 +96,8 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
         title: const Text('Delete memory?'),
         content: Text('“${memory.content}” will be forgotten.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
         ],
       ),
     );
@@ -120,9 +115,10 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
   List<MemoryDto> _filter(List<MemoryDto> all) {
     final words = _search.text.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
     return all
-        .where((m) =>
-            (_category == null || m.category == _category) &&
-            words.every((w) => m.content.toLowerCase().contains(w)))
+        .where(
+          (m) =>
+              (_category == null || m.category == _category) && words.every((w) => m.content.toLowerCase().contains(w)),
+        )
         .toList();
   }
 
@@ -138,128 +134,136 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
         icon: const Icon(PhosphorIconsRegular.plus),
         label: const Text('Add'),
       ),
-      body: ReadableWidth(child: Column(
-        children: [
-          if (autoSave != null)
-            SwitchListTile(
-              title: const Text('Save memories without asking'),
-              subtitle: Text(autoSave
-                  ? 'The assistant saves one when you tell it something worth keeping, and says so.'
-                  : 'Each memory comes as a card to confirm first.'),
-              value: autoSave,
-              onChanged: _setAutoSave,
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-            child: TextField(
-              controller: _search,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Search memories',
-                prefixIcon: const Icon(PhosphorIconsRegular.magnifyingGlass),
-                suffixIcon: _search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(PhosphorIconsRegular.x),
-                        tooltip: 'Clear',
-                        onPressed: () => setState(_search.clear),
-                      ),
+      body: ReadableWidth(
+        child: Column(
+          children: [
+            if (autoSave != null)
+              SwitchListTile(
+                title: const Text('Save memories without asking'),
+                subtitle: Text(
+                  autoSave
+                      ? 'The assistant saves one when you tell it something worth keeping, and says so.'
+                      : 'Each memory comes as a card to confirm first.',
+                ),
+                value: autoSave,
+                onChanged: _setAutoSave,
               ),
-              onChanged: (_) => setState(() {}),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              child: TextField(
+                controller: _search,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: 'Search memories',
+                  prefixIcon: const Icon(PhosphorIconsRegular.magnifyingGlass),
+                  suffixIcon: _search.text.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(PhosphorIconsRegular.x),
+                          tooltip: 'Clear',
+                          onPressed: () => setState(_search.clear),
+                        ),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
             ),
-          ),
-          SizedBox(
-            height: 48,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                for (final category in MemoryDto.categories)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(MemoryDto.label(category)),
-                      selected: _category == category,
-                      onSelected: (on) => setState(() => _category = on ? category : null),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: FutureBuilder<List<MemoryDto>>(
-              future: _memories,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('${snapshot.error}'));
-                }
-
-                final all = snapshot.data ?? const [];
-                final shown = _filter(all);
-                if (shown.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(PhosphorIconsRegular.brain, size: 44, color: scheme.outline),
-                          const SizedBox(height: 14),
-                          Text(all.isEmpty ? 'No memories yet' : 'No memory matches',
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                          if (all.isEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              'Tell the assistant something worth keeping, like "I prefer morning workouts", or add one here.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: scheme.onSurfaceVariant),
-                            ),
-                          ],
-                        ],
+            SizedBox(
+              height: 48,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  for (final category in MemoryDto.categories)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(MemoryDto.label(category)),
+                        selected: _category == category,
+                        onSelected: (on) => setState(() => _category = on ? category : null),
                       ),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: FutureBuilder<List<MemoryDto>>(
+                future: _memories,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('${snapshot.error}'));
+                  }
+
+                  final all = snapshot.data ?? const [];
+                  final shown = _filter(all);
+                  if (shown.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(PhosphorIconsRegular.brain, size: 44, color: scheme.outline),
+                            const SizedBox(height: 14),
+                            Text(
+                              all.isEmpty ? 'No memories yet' : 'No memory matches',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                            ),
+                            if (all.isEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                'Tell the assistant something worth keeping, like "I prefer morning workouts", or add one here.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: scheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+                      itemCount: shown.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final memory = shown[index];
+                        return Card(
+                          child: ListTile(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                            title: Text(memory.content),
+                            subtitle: Text(
+                              [
+                                MemoryDto.label(memory.category),
+                                if (memory.sourceConversationTitle?.isNotEmpty ?? false)
+                                  'from “${memory.sourceConversationTitle}”',
+                                relativeTime(memory.updatedAtUtc),
+                              ].join(' · '),
+                            ),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (choice) => choice == 'edit' ? _edit(memory) : _delete(memory),
+                              itemBuilder: (context) => const [
+                                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                PopupMenuItem(value: 'delete', child: Text('Delete')),
+                              ],
+                            ),
+                            onTap: () => _edit(memory),
+                          ),
+                        );
+                      },
                     ),
                   );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-                    itemCount: shown.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final memory = shown[index];
-                      return Card(
-                        child: ListTile(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                          title: Text(memory.content),
-                          subtitle: Text([
-                            MemoryDto.label(memory.category),
-                            if (memory.sourceConversationTitle?.isNotEmpty ?? false)
-                              'from “${memory.sourceConversationTitle}”',
-                            relativeTime(memory.updatedAtUtc),
-                          ].join(' · ')),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (choice) => choice == 'edit' ? _edit(memory) : _delete(memory),
-                            itemBuilder: (context) => const [
-                              PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              PopupMenuItem(value: 'delete', child: Text('Delete')),
-                            ],
-                          ),
-                          onTap: () => _edit(memory),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
+                },
+              ),
             ),
-          ),
-        ],
-      )),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -303,19 +307,13 @@ class _MemoryEditorState extends State<_MemoryEditor> {
           DropdownButtonFormField<String>(
             initialValue: _category,
             decoration: const InputDecoration(labelText: 'Category'),
-            items: [
-              for (final c in MemoryDto.categories)
-                DropdownMenuItem(value: c, child: Text(MemoryDto.label(c))),
-            ],
+            items: [for (final c in MemoryDto.categories) DropdownMenuItem(value: c, child: Text(MemoryDto.label(c)))],
             onChanged: (value) => setState(() => _category = value ?? _category),
           ),
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
         FilledButton(
           onPressed: _content.text.trim().isEmpty
               ? null

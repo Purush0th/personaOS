@@ -119,8 +119,8 @@ class _SpeechConfigSectionState extends State<SpeechConfigSection> {
     final what = s.speechToText && s.textToSpeech
         ? 'speech-to-text and text-to-speech'
         : s.speechToText
-            ? 'speech-to-text only'
-            : 'text-to-speech only';
+        ? 'speech-to-text only'
+        : 'text-to-speech only';
 
     return Card(
       key: const Key('speech-config'),
@@ -129,8 +129,7 @@ class _SpeechConfigSectionState extends State<SpeechConfigSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(on ? 'On · $what' : 'Off · the phone uses its own speech engine',
-                style: theme.textTheme.titleSmall),
+            Text(on ? 'On · $what' : 'Off · the phone uses its own speech engine', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             Text(
               'Optional. A speech server with an OpenAI-style audio API (faster-whisper, Kokoro, '
@@ -179,8 +178,11 @@ class _SpeechConfigSectionState extends State<SpeechConfigSection> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Icon(_result!.ok ? PhosphorIconsRegular.checkCircle : PhosphorIconsRegular.warningCircle,
-                      size: 20, color: _result!.ok ? scheme.primary : scheme.error),
+                  Icon(
+                    _result!.ok ? PhosphorIconsRegular.checkCircle : PhosphorIconsRegular.warningCircle,
+                    size: 20,
+                    color: _result!.ok ? scheme.primary : scheme.error,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(child: Text(_result!.message)),
                 ],

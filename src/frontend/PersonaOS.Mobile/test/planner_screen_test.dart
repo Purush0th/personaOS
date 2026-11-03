@@ -38,8 +38,9 @@ class _Api extends PersonaOsApi {
     String? recurrence,
     int? goalId,
     int? taskId,
-  }) async =>
-      calls.add('create $title $date${endDate == null ? '' : '..$endDate'} $scheduledTime-$endTime notify=$notifyBeforeMinutes repeat=$recurrence');
+  }) async => calls.add(
+    'create $title $date${endDate == null ? '' : '..$endDate'} $scheduledTime-$endTime notify=$notifyBeforeMinutes repeat=$recurrence',
+  );
 
   @override
   Future<void> updateEvent(int id, Map<String, Object?> change, {EditScope? scope, String? occurrence}) async =>
@@ -63,20 +64,19 @@ PlannerItem _event(
   String? rule,
   String status = 'planned',
   String? endDate,
-}) =>
-    PlannerItem(
-      id: id,
-      title: title,
-      date: date,
-      endDate: endDate,
-      scheduledTime: start,
-      endTime: end,
-      status: status,
-      goalTitle: null,
-      notifyBeforeMinutes: 30,
-      recurrence: rule,
-      recurrenceText: rule == null ? null : 'Weekly on Saturday',
-    );
+}) => PlannerItem(
+  id: id,
+  title: title,
+  date: date,
+  endDate: endDate,
+  scheduledTime: start,
+  endTime: end,
+  status: status,
+  goalTitle: null,
+  notifyBeforeMinutes: 30,
+  recurrence: rule,
+  recurrenceText: rule == null ? null : 'Weekly on Saturday',
+);
 
 void main() {
   final today = localYmd(DateTime.now());
@@ -156,7 +156,9 @@ void main() {
   });
 
   testWidgets('marking one day of a repeating event done sends that day', (tester) async {
-    final api = await open(tester, [_event(4, 'Orders Collection', today, start: '08:30:00', end: '09:30:00', rule: 'FREQ=WEEKLY')]);
+    final api = await open(tester, [
+      _event(4, 'Orders Collection', today, start: '08:30:00', end: '09:30:00', rule: 'FREQ=WEEKLY'),
+    ]);
 
     await tester.tap(find.text('Orders Collection'));
     await tester.pumpAndSettle();
@@ -168,7 +170,9 @@ void main() {
   });
 
   testWidgets('deleting a repeating event asks which events', (tester) async {
-    final api = await open(tester, [_event(4, 'Orders Collection', today, start: '08:30:00', end: '09:30:00', rule: 'FREQ=WEEKLY')]);
+    final api = await open(tester, [
+      _event(4, 'Orders Collection', today, start: '08:30:00', end: '09:30:00', rule: 'FREQ=WEEKLY'),
+    ]);
 
     await tester.tap(find.text('Orders Collection'));
     await tester.pumpAndSettle();
@@ -201,7 +205,11 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final api = _Api([]);
-    await tester.pumpWidget(MaterialApp(home: EventEditorPage(api: api, date: DateTime(2026, 10, 3), start: '08:30')));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventEditorPage(api: api, date: DateTime(2026, 10, 3), start: '08:30'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byKey(const Key('event-title')), 'Orders');
@@ -224,19 +232,22 @@ void main() {
 
   testWidgets('a custom notification past four weeks says when it would be and cannot be saved', (tester) async {
     tall(tester);
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => showDialog<int>(
-              context: context,
-              builder: (_) => CustomNotifyDialog(day: DateTime(2026, 10, 6), start: '09:00', initialMinutes: 4 * 10080),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showDialog<int>(
+                context: context,
+                builder: (_) =>
+                    CustomNotifyDialog(day: DateTime(2026, 10, 6), start: '09:00', initialMinutes: 4 * 10080),
+              ),
+              child: const Text('open'),
             ),
-            child: const Text('open'),
           ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
@@ -302,7 +313,9 @@ void main() {
   });
 
   testWidgets('dragging one of a repeating event asks which events, and cancelling puts it back', (tester) async {
-    final api = await open(tester, [_event(4, 'Orders', today, start: '09:00:00', end: '10:00:00', rule: 'FREQ=WEEKLY')]);
+    final api = await open(tester, [
+      _event(4, 'Orders', today, start: '09:00:00', end: '10:00:00', rule: 'FREQ=WEEKLY'),
+    ]);
 
     Future<void> drag() async {
       final finger = await tester.startGesture(tester.getCenter(find.byKey(Key('event-4-$today'))));
@@ -345,7 +358,11 @@ void main() {
     tall(tester);
     final api = _Api([]);
     final trip = _event(1, 'Goa trip', '2026-10-09', endDate: '2026-10-11');
-    await tester.pumpWidget(MaterialApp(home: EventEditorPage(api: api, item: trip)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventEditorPage(api: api, item: trip),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Fri, 9 Oct 2026'), findsOneWidget);

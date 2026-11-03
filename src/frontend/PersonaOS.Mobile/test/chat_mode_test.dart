@@ -22,9 +22,11 @@ class _Api extends PersonaOsApi {
 void main() {
   Future<_Api> open(WidgetTester tester) async {
     final api = _Api();
-    await tester.pumpWidget(MaterialApp(
-      home: ChatScreen(api: api, assistantNickname: 'Juno', voiceEnabled: false),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatScreen(api: api, assistantNickname: 'Juno', voiceEnabled: false),
+      ),
+    );
     await tester.pumpAndSettle();
     return api;
   }

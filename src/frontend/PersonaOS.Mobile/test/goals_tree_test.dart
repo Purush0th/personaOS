@@ -4,45 +4,60 @@ import 'package:personaos_mobile/api/personaos_api.dart';
 import 'package:personaos_mobile/screens/goal_forms.dart';
 import 'package:personaos_mobile/screens/goals_screen.dart';
 
-Map<String, dynamic> _goal(int id, String type, String slot,
-        {int? parentId, List<Map<String, dynamic>> tasks = const [], List<Map<String, dynamic>> children = const [],
-        String? completeProblem, String start = '2026-10-01', String end = '2026-12-31'}) =>
-    {
-      'id': id,
-      'key': 'GOAL-$id',
-      'title': 'Goal $id',
-      'periodType': type,
-      'slot': slot,
-      'periodStart': start,
-      'periodEnd': end,
-      'parentId': parentId,
-      'parentKey': parentId == null ? null : 'GOAL-$parentId',
-      'status': 'active',
-      'progress': 0,
-      'effectiveProgress': 0,
-      'taskCount': tasks.length,
-      'doneTaskCount': 0,
-      'childCount': children.length,
-      'completedChildCount': 0,
-      'completeProblem': completeProblem,
-      'tasks': tasks,
-      'children': children,
-    };
+Map<String, dynamic> _goal(
+  int id,
+  String type,
+  String slot, {
+  int? parentId,
+  List<Map<String, dynamic>> tasks = const [],
+  List<Map<String, dynamic>> children = const [],
+  String? completeProblem,
+  String start = '2026-10-01',
+  String end = '2026-12-31',
+}) => {
+  'id': id,
+  'key': 'GOAL-$id',
+  'title': 'Goal $id',
+  'periodType': type,
+  'slot': slot,
+  'periodStart': start,
+  'periodEnd': end,
+  'parentId': parentId,
+  'parentKey': parentId == null ? null : 'GOAL-$parentId',
+  'status': 'active',
+  'progress': 0,
+  'effectiveProgress': 0,
+  'taskCount': tasks.length,
+  'doneTaskCount': 0,
+  'childCount': children.length,
+  'completedChildCount': 0,
+  'completeProblem': completeProblem,
+  'tasks': tasks,
+  'children': children,
+};
 
 Map<String, dynamic> _child(Map<String, dynamic> g) => {
-      'id': g['id'],
-      'key': g['key'],
-      'title': g['title'],
-      'periodType': g['periodType'],
-      'slot': g['slot'],
-      'status': g['status'],
-      'effectiveProgress': 0,
-    };
+  'id': g['id'],
+  'key': g['key'],
+  'title': g['title'],
+  'periodType': g['periodType'],
+  'slot': g['slot'],
+  'status': g['status'],
+  'effectiveProgress': 0,
+};
 
 /// A year > quarter > month, and a standalone month listed first.
-final _month = _goal(3, 'month', 'Oct 2026', parentId: 2, end: '2026-10-31', tasks: [
-  {'id': 9, 'key': 'TASK-9', 'title': 'Run', 'points': null, 'column': 'backlog', 'sprintNumber': null},
-], completeProblem: 'GOAL-3 has open tasks: TASK-9.');
+final _month = _goal(
+  3,
+  'month',
+  'Oct 2026',
+  parentId: 2,
+  end: '2026-10-31',
+  tasks: [
+    {'id': 9, 'key': 'TASK-9', 'title': 'Run', 'points': null, 'column': 'backlog', 'sprintNumber': null},
+  ],
+  completeProblem: 'GOAL-3 has open tasks: TASK-9.',
+);
 final _quarter = _goal(2, 'quarter', 'Q4 2026', parentId: 1, children: [_child(_month)]);
 final _year = _goal(1, 'year', '2026', start: '2026-09-27', children: [_child(_quarter)]);
 final _standalone = _goal(4, 'month', 'Nov 2026', start: '2026-11-01', end: '2026-11-30');
@@ -68,7 +83,11 @@ void main() {
     tester.view.devicePixelRatio = 2.5;
     addTearDown(tester.view.reset);
     final api = _FakeApi();
-    await tester.pumpWidget(MaterialApp(home: GoalsScreen(api: api, today: today)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GoalsScreen(api: api, today: today),
+      ),
+    );
     await tester.pumpAndSettle();
     return api;
   }
@@ -78,8 +97,12 @@ void main() {
 
     // The card itself moves in; the tile around it spans the list.
     Finder card(String key) => find.descendant(of: find.byKey(Key('goal-$key')), matching: find.byType(Card));
-    final x = [for (final key in ['GOAL-4', 'GOAL-1', 'GOAL-2', 'GOAL-3']) tester.getTopLeft(card(key)).dx];
-    final y = [for (final key in ['GOAL-4', 'GOAL-1', 'GOAL-2', 'GOAL-3']) tester.getTopLeft(find.byKey(Key('goal-$key'))).dy];
+    final x = [
+      for (final key in ['GOAL-4', 'GOAL-1', 'GOAL-2', 'GOAL-3']) tester.getTopLeft(card(key)).dx,
+    ];
+    final y = [
+      for (final key in ['GOAL-4', 'GOAL-1', 'GOAL-2', 'GOAL-3']) tester.getTopLeft(find.byKey(Key('goal-$key'))).dy,
+    ];
 
     expect(y, orderedEquals([...y]..sort()));
     expect(x[0], x[1]);
@@ -90,7 +113,8 @@ void main() {
   testWidgets('offers tasks only on monthly goals and the next level on the others', (tester) async {
     await open(tester);
 
-    Finder inCard(String key, String text) => find.descendant(of: find.byKey(Key('goal-$key')), matching: find.text(text));
+    Finder inCard(String key, String text) =>
+        find.descendant(of: find.byKey(Key('goal-$key')), matching: find.text(text));
     expect(inCard('GOAL-3', 'Create task'), findsOneWidget);
     expect(inCard('GOAL-1', 'Add quarterly goal'), findsOneWidget);
     expect(inCard('GOAL-1', 'Create task'), findsNothing);
@@ -141,9 +165,13 @@ void main() {
     await open(tester);
 
     List<String> inLane(String key) => [
-          for (final g in ['GOAL-1', 'GOAL-2', 'GOAL-3', 'GOAL-4'])
-            if (find.descendant(of: find.byKey(Key('lane-$key')), matching: find.byKey(Key('goal-$g'))).evaluate().isNotEmpty) g,
-        ];
+      for (final g in ['GOAL-1', 'GOAL-2', 'GOAL-3', 'GOAL-4'])
+        if (find
+            .descendant(of: find.byKey(Key('lane-$key')), matching: find.byKey(Key('goal-$g')))
+            .evaluate()
+            .isNotEmpty)
+          g,
+    ];
     expect(inLane('GOAL-4'), ['GOAL-4']);
     expect(inLane('GOAL-1'), ['GOAL-1', 'GOAL-2', 'GOAL-3']);
   });

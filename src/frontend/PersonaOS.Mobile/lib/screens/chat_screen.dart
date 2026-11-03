@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../api/personaos_api.dart';
+import '../hands_free_service.dart';
 import '../item_links.dart';
 import '../layout.dart';
 import '../phosphor_icons.dart';
@@ -97,7 +98,24 @@ class _ChatScreenState extends State<ChatScreen> {
   /// that ends an utterance, speak the reply, then listen again. The two halves
   /// never overlap — the microphone stays shut while the phone is talking, or
   /// the assistant hears itself and answers its own words.
-  bool _handsFree = false;
+  bool get _handsFree => _handsFreeOn;
+  set _handsFree(bool on) {
+    if (on == _handsFreeOn) return;
+    _handsFreeOn = on;
+    // While it is on, the loop keeps going with the app in the background or the screen off.
+    if (on) {
+      unawaited(HandsFreeService.instance.start(onEnded: _endedFromNotification));
+    } else {
+      unawaited(HandsFreeService.instance.stop());
+    }
+  }
+
+  bool _handsFreeOn = false;
+
+  /// The notification's End button: the same as tapping the hands-free button.
+  void _endedFromNotification() {
+    if (_handsFree && mounted) unawaited(_toggleHandsFree());
+  }
 
   /// True while the hands-free loop is speaking, so the mic button reflects it.
   bool _speaking = false;
@@ -173,6 +191,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     unawaited(_subscription?.cancel());
+    _handsFree = false;
     // The microphone closes with the screen; a reply being read finishes.
     unawaited(_voice.release());
     _input.dispose();
@@ -221,9 +240,9 @@ class _ChatScreenState extends State<ChatScreen> {
           unawaited(_listenOnce());
         }
       },
-      // Wait out a natural pause before deciding the turn is over. The default
-      // is short enough to cut people off mid-sentence.
-      pauseFor: _handsFree ? const Duration(seconds: 3) : null,
+      // Wait out a natural pause before deciding the turn is over, but no longer: at 3 s every
+      // turn felt slow (owner, 2026-11-03), and the pause detector no longer needs the margin.
+      pauseFor: _handsFree ? const Duration(milliseconds: 1500) : null,
       listenFor: _handsFree ? const Duration(seconds: 60) : null,
     );
   }

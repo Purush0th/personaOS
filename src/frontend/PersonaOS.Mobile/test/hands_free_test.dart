@@ -25,21 +25,17 @@ class _FakeChatApi extends PersonaOsApi {
 
   @override
   Future<PendingAction> confirmAction(String id) async => PendingAction(
-        id: id,
-        tool: 'create_goal',
-        summary: 'Create goal “Learn Rust”',
-        status: 'confirmed',
-        resultSummary: 'Learn Rust — month',
-        resultOk: true,
-      );
+    id: id,
+    tool: 'create_goal',
+    summary: 'Create goal “Learn Rust”',
+    status: 'confirmed',
+    resultSummary: 'Learn Rust — month',
+    resultOk: true,
+  );
 
   @override
-  Future<PendingAction> discardAction(String id) async => PendingAction(
-        id: id,
-        tool: 'create_goal',
-        summary: 'Create goal “Learn Rust”',
-        status: 'discarded',
-      );
+  Future<PendingAction> discardAction(String id) async =>
+      PendingAction(id: id, tool: 'create_goal', summary: 'Create goal “Learn Rust”', status: 'discarded');
 }
 
 /// Records what the screen asks of speech, and never touches a platform plugin.
@@ -48,11 +44,7 @@ class _FakeVoice extends VoiceService {
   final List<String> spoken = [];
 
   @override
-  Future<bool> ensureStt({
-    void Function(String status)? onStatus,
-    void Function(String error)? onError,
-  }) async =>
-      true;
+  Future<bool> ensureStt({void Function(String status)? onStatus, void Function(String error)? onError}) async => true;
 
   @override
   Future<void> listen({
@@ -78,20 +70,16 @@ class _FakeVoice extends VoiceService {
 }
 
 Future<void> _pumpChat(WidgetTester tester, _FakeChatApi api, _FakeVoice voice) async {
-  await tester.pumpWidget(MaterialApp(
-    home: ChatScreen(
-      api: api,
-      assistantNickname: 'Juno',
-      voiceEnabled: true,
-      voice: voice,
+  await tester.pumpWidget(
+    MaterialApp(
+      home: ChatScreen(api: api, assistantNickname: 'Juno', voiceEnabled: true, voice: voice),
     ),
-  ));
+  );
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('a proposal pauses hands-free, and resolving it starts listening again',
-      (tester) async {
+  testWidgets('a proposal pauses hands-free, and resolving it starts listening again', (tester) async {
     // Reported from the phone: after a confirm card the voice conversation stalled
     // for good, because nothing turned the loop back on.
     final api = _FakeChatApi();

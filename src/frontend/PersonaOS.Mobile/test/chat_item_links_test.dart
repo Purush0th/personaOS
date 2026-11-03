@@ -35,7 +35,11 @@ class _Api extends PersonaOsApi {
 void main() {
   testWidgets('a task key in a reply opens the task', (tester) async {
     final api = _Api();
-    await tester.pumpWidget(MaterialApp(home: ChatScreen(api: api, assistantNickname: 'Juno', voiceEnabled: false)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatScreen(api: api, assistantNickname: 'Juno', voiceEnabled: false),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'what about taxes?');
     await tester.tap(find.byIcon(PhosphorIconsRegular.arrowUp));

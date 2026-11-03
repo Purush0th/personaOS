@@ -599,7 +599,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 context,
               ).push(MaterialPageRoute<void>(builder: (_) => AboutScreen(serverUrl: widget.serverUrl))),
             ),
-            IconButton(icon: const Icon(PhosphorIconsRegular.linkBreak), tooltip: 'Change server', onPressed: _forgetServer),
+            IconButton(
+              icon: const Icon(PhosphorIconsRegular.linkBreak),
+              tooltip: 'Change server',
+              onPressed: _forgetServer,
+            ),
           ],
         ),
         body: FutureBuilder<Branding>(

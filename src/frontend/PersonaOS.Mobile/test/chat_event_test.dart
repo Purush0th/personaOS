@@ -12,11 +12,7 @@ void main() {
         'type': 'done',
         'conversationId': 7,
         'actions': [
-          {
-            'tool': 'create_reminder',
-            'ok': true,
-            'summary': 'Call the bank — 2026-09-06 18:00 · pending',
-          },
+          {'tool': 'create_reminder', 'ok': true, 'summary': 'Call the bank — 2026-09-06 18:00 · pending'},
         ],
       });
 

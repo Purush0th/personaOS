@@ -139,7 +139,12 @@ class _GoalsScreenState extends State<GoalsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Goals'),
-          bottom: const TabBar(tabs: [Tab(text: 'Goals'), Tab(text: 'Timeline')]),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Goals'),
+              Tab(text: 'Timeline'),
+            ],
+          ),
         ),
         floatingActionButton: FutureBuilder<List<Goal>>(
           future: _goals,
@@ -192,7 +197,12 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
                     key: const Key('goals-fold-all'),
-                    icon: Icon(anyCollapsed ? PhosphorIconsRegular.arrowsOutLineVertical : PhosphorIconsRegular.arrowsInLineVertical, size: 18),
+                    icon: Icon(
+                      anyCollapsed
+                          ? PhosphorIconsRegular.arrowsOutLineVertical
+                          : PhosphorIconsRegular.arrowsInLineVertical,
+                      size: 18,
+                    ),
                     label: Text(anyCollapsed ? 'Expand all' : 'Collapse all'),
                     onPressed: () => setState(() {
                       if (anyCollapsed) {
@@ -225,7 +235,12 @@ class _GoalsScreenState extends State<GoalsScreen> {
                             if (!_collapsed.remove(row.goal.id)) _collapsed.add(row.goal.id);
                           }),
                           onOpen: () async {
-                            await showGoalQuickView(context, widget.api, row.goal.key, boardEnabled: widget.boardEnabled);
+                            await showGoalQuickView(
+                              context,
+                              widget.api,
+                              row.goal.key,
+                              boardEnabled: widget.boardEnabled,
+                            );
                             _reload();
                           },
                           onOpenTask: (task) async {
@@ -330,8 +345,11 @@ class _GoalTile extends StatelessWidget {
                     onTap: onFold,
                     child: Padding(
                       padding: const EdgeInsets.only(right: 6),
-                      child: Icon(collapsed ? PhosphorIconsRegular.caretRight : PhosphorIconsRegular.caretDown,
-                          size: 20, semanticLabel: '${collapsed ? 'Expand' : 'Collapse'} ${goal.key}'),
+                      child: Icon(
+                        collapsed ? PhosphorIconsRegular.caretRight : PhosphorIconsRegular.caretDown,
+                        size: 20,
+                        semanticLabel: '${collapsed ? 'Expand' : 'Collapse'} ${goal.key}',
+                      ),
                     ),
                   ),
                 Expanded(
@@ -341,11 +359,17 @@ class _GoalTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                     child: Row(
                       children: [
-                        Text(goal.key,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.primary, decoration: TextDecoration.underline)),
+                        Text(
+                          goal.key,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(goal.title, style: const TextStyle(fontWeight: FontWeight.w600))),
+                        Expanded(
+                          child: Text(goal.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        ),
                       ],
                     ),
                   ),
@@ -360,15 +384,17 @@ class _GoalTile extends StatelessWidget {
             ),
             if (goal.periodStart != null && goal.periodEnd != null)
               Text.rich(
-                TextSpan(children: [
-                  TextSpan(text: formatGoalRange(goal.periodStart!, goal.periodEnd!)),
-                  if (completed) const TextSpan(text: '  · completed'),
-                  if (!completed && goal.periodEnd!.isBefore(today))
-                    TextSpan(
-                      text: '  · overdue',
-                      style: TextStyle(color: theme.colorScheme.error, fontWeight: FontWeight.w600),
-                    ),
-                ]),
+                TextSpan(
+                  children: [
+                    TextSpan(text: formatGoalRange(goal.periodStart!, goal.periodEnd!)),
+                    if (completed) const TextSpan(text: '  · completed'),
+                    if (!completed && goal.periodEnd!.isBefore(today))
+                      TextSpan(
+                        text: '  · overdue',
+                        style: TextStyle(color: theme.colorScheme.error, fontWeight: FontWeight.w600),
+                      ),
+                  ],
+                ),
                 style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline),
               ),
             Padding(
@@ -383,10 +409,17 @@ class _GoalTile extends StatelessWidget {
             for (final task in goal.tasks) _taskRow(theme, task),
             // Tasks sit only under monthly goals; a year or quarter is broken into goals below it.
             if (_isMonth && !completed && boardEnabled)
-              TextButton.icon(onPressed: onAddTask, icon: const Icon(PhosphorIconsRegular.plus, size: 18), label: const Text('Create task'))
+              TextButton.icon(
+                onPressed: onAddTask,
+                icon: const Icon(PhosphorIconsRegular.plus, size: 18),
+                label: const Text('Create task'),
+              )
             else if (addChild != null)
               TextButton.icon(
-                  onPressed: onAddChild, icon: const Icon(PhosphorIconsRegular.plus, size: 18), label: Text('Add ${goalsOfType(addChild)}')),
+                onPressed: onAddChild,
+                icon: const Icon(PhosphorIconsRegular.plus, size: 18),
+                label: Text('Add ${goalsOfType(addChild)}'),
+              ),
           ],
         ),
       ),
@@ -421,9 +454,13 @@ class _GoalTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               child: Row(
                 children: [
-                  Text(task.key,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.primary, decoration: TextDecoration.underline)),
+                  Text(
+                    task.key,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -457,8 +494,6 @@ class _GoalTile extends StatelessWidget {
     );
   }
 
-
-
   Widget _actions(BuildContext context) {
     final addChild = childTypeToAdd(goal);
     return PopupMenuButton<String>(
@@ -484,7 +519,8 @@ class _GoalTile extends StatelessWidget {
       },
       itemBuilder: (context) => [
         if (goal.setsProgressByHand) const PopupMenuItem(value: 'progress', child: Text('Update progress')),
-        if (_isMonth && boardEnabled && goal.status == 'active') const PopupMenuItem(value: 'task', child: Text('Add task…')),
+        if (_isMonth && boardEnabled && goal.status == 'active')
+          const PopupMenuItem(value: 'task', child: Text('Add task…')),
         if (addChild != null) PopupMenuItem(value: 'child', child: Text('Add ${goalsOfType(addChild)}')),
         if (goal.periodType != 'year') const PopupMenuItem(value: 'move', child: Text('Move')),
         if (goal.status == 'active')
@@ -494,8 +530,11 @@ class _GoalTile extends StatelessWidget {
         else
           const PopupMenuItem(value: 'reopen', child: Text('Reopen')),
         goal.childCount > 0
-            ? blockedMenuItem(context, 'Delete',
-                'Delete its ${goalsOfType(goal.periodType == 'year' ? 'quarter' : 'month', 2)} first.')
+            ? blockedMenuItem(
+                context,
+                'Delete',
+                'Delete its ${goalsOfType(goal.periodType == 'year' ? 'quarter' : 'month', 2)} first.',
+              )
             : const PopupMenuItem(value: 'delete', child: Text('Delete')),
       ],
     );

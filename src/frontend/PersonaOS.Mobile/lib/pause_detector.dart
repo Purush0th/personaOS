@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 /// Decides from microphone levels when someone has finished speaking.
 ///
 /// A fixed threshold does not work on phones: the background level differs per
@@ -30,11 +32,20 @@ class PauseDetector {
   /// the gain rising during a pause (about a second at ten readings a second).
   static const _riseRate = 0.05;
 
+  /// The last few seconds of readings, to check the background against.
+  static const _window = 40;
+
+  /// Readings averaged to judge silence, so a room that flickers a few decibels either side of its
+  /// level reads as the steady level it is, not as words.
+  static const _smoothing = 3;
+
   double? _background;
   DateTime? _startedAt;
   DateTime? _quietSince;
   bool _heard = false;
   double? _loudest;
+  DateTime? _droppedAt;
+  final _recent = <double>[];
 
   /// Whether any speech has been heard yet.
   bool get heard => _heard;
@@ -45,21 +56,40 @@ class PauseDetector {
     _startedAt ??= at;
     if (level <= _noReading) return _gaveUp(at);
 
+    _recent.add(level);
+    if (_recent.length > _window) _recent.removeAt(0);
+
     final background = _background;
     if (background == null || level < background) {
       _background = level;
     } else if (level < background + speechMargin) {
       _background = background + (level - background) * _riseRate;
     }
+    // The lowest reading is the background only while the room keeps going back down to it. A
+    // few low readings (the microphone's first buffers) once set it for good, and every reading
+    // after them looked like speech, so a recording never ended (owner, 2026-11-03). The tenth
+    // lowest in a hundred cannot be set by a handful of them.
+    if (_recent.length >= 10) {
+      final sorted = [..._recent]..sort();
+      _background = math.max(_background!, sorted[sorted.length ~/ 10]);
+    }
 
     final floor = _background!;
+    final tail = _recent.length < _smoothing ? _recent : _recent.sublist(_recent.length - _smoothing);
+    final steady = tail.reduce((a, b) => a + b) / tail.length;
     // Someone who starts talking at once is heard before the background is
     // known: once it turns out lower, the earlier loud readings were speech.
-    _loudest = _loudest == null || level > _loudest! ? level : _loudest;
-    // Those readings looked like background then, so the pause starts now.
+    if (_loudest == null || level > _loudest!) {
+      _loudest = level;
+      _droppedAt = null;
+    } else if (level < _loudest! - speechMargin) {
+      _droppedAt ??= at;
+    }
+    // Those readings looked like background then: the pause began when the level fell away from
+    // them, which may be a few readings back by the time the background is known.
     if (!_heard && _loudest! >= floor + speechMargin) {
       _heard = true;
-      _quietSince = null;
+      _quietSince = _droppedAt;
     }
 
     if (level >= floor + speechMargin) {
@@ -67,7 +97,7 @@ class PauseDetector {
       _quietSince = null;
       return false;
     }
-    if (level < floor + silenceMargin) {
+    if (level < floor + silenceMargin || steady < floor + silenceMargin) {
       _quietSince ??= at;
       if (_heard && at.difference(_quietSince!) >= pauseFor) return true;
     } else {

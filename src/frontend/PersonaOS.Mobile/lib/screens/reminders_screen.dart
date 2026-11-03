@@ -41,8 +41,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       unawaited(PushService.instance.resyncAlarms(widget.api));
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -81,36 +80,38 @@ class _RemindersScreenState extends State<RemindersScreen> {
         icon: const Icon(PhosphorIconsRegular.alarm),
         label: const Text('New reminder'),
       ),
-      body: ReadableWidth(child: RefreshIndicator(
-        onRefresh: () async => _reload(),
-        child: FutureBuilder<List<Reminder>>(
-          future: _reminders,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return _messageList('Could not load reminders.',
-                  color: Theme.of(context).colorScheme.error);
-            }
-            final items = snapshot.data!;
-            if (items.isEmpty) {
-              return _messageList(
+      body: ReadableWidth(
+        child: RefreshIndicator(
+          onRefresh: () async => _reload(),
+          child: FutureBuilder<List<Reminder>>(
+            future: _reminders,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return _messageList('Could not load reminders.', color: Theme.of(context).colorScheme.error);
+              }
+              final items = snapshot.data!;
+              if (items.isEmpty) {
+                return _messageList(
                   'Nothing pending. Ask your assistant — "remind me to call the '
-                  'dentist tomorrow at 9".');
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(0, 8, 0, 88),
-              itemCount: items.length,
-              itemBuilder: (context, i) => _ReminderTile(
-                reminder: items[i],
-                onCancel: () => _run(() => widget.api.cancelReminder(items[i].id)),
-                onDelete: () => _run(() => widget.api.deleteReminder(items[i].id)),
-              ),
-            );
-          },
+                  'dentist tomorrow at 9".',
+                );
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(0, 8, 0, 88),
+                itemCount: items.length,
+                itemBuilder: (context, i) => _ReminderTile(
+                  reminder: items[i],
+                  onCancel: () => _run(() => widget.api.cancelReminder(items[i].id)),
+                  onDelete: () => _run(() => widget.api.deleteReminder(items[i].id)),
+                ),
+              );
+            },
+          ),
         ),
-      )),
+      ),
     );
   }
 
@@ -120,9 +121,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
         Padding(
           padding: const EdgeInsets.all(32),
           child: Center(
-            child: Text(message,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: color ?? Colors.grey.shade600)),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: color ?? Colors.grey.shade600),
+            ),
           ),
         ),
       ],
@@ -131,11 +134,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
 }
 
 class _ReminderTile extends StatelessWidget {
-  const _ReminderTile({
-    required this.reminder,
-    required this.onCancel,
-    required this.onDelete,
-  });
+  const _ReminderTile({required this.reminder, required this.onCancel, required this.onDelete});
 
   final Reminder reminder;
   final VoidCallback onCancel;
@@ -155,18 +154,12 @@ class _ReminderTile extends StatelessWidget {
       opacity: pending ? 1 : 0.6,
       child: ListTile(
         leading: Icon(pending ? PhosphorIconsRegular.alarm : PhosphorIconsRegular.bellSimpleSlash),
-        title: Text(
-          reminder.message,
-          style: TextStyle(
-            decoration: pending ? null : TextDecoration.lineThrough,
-          ),
-        ),
+        title: Text(reminder.message, style: TextStyle(decoration: pending ? null : TextDecoration.lineThrough)),
         subtitle: Text(subtitle),
         trailing: PopupMenuButton<String>(
           onSelected: (choice) => choice == 'cancel' ? onCancel() : onDelete(),
           itemBuilder: (context) => [
-            if (pending)
-              const PopupMenuItem(value: 'cancel', child: Text('Cancel')),
+            if (pending) const PopupMenuItem(value: 'cancel', child: Text('Cancel')),
             const PopupMenuItem(value: 'delete', child: Text('Delete')),
           ],
         ),
@@ -175,10 +168,7 @@ class _ReminderTile extends StatelessWidget {
   }
 
   String _formatDue(DateTime dt) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final hh = dt.hour.toString().padLeft(2, '0');
     final mm = dt.minute.toString().padLeft(2, '0');
@@ -256,18 +246,12 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
   Widget build(BuildContext context) {
     final due = _due;
     return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
+      padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(context).viewInsets.bottom + 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('New reminder',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('New reminder', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           TextField(
             controller: _message,
@@ -286,15 +270,12 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
               due == null
                   ? 'Pick date & time'
                   : '${localYmd(due)} at '
-                      '${due.hour.toString().padLeft(2, '0')}:'
-                      '${due.minute.toString().padLeft(2, '0')}',
+                        '${due.hour.toString().padLeft(2, '0')}:'
+                        '${due.minute.toString().padLeft(2, '0')}',
             ),
           ),
           const SizedBox(height: 16),
-          FilledButton(
-            onPressed: _busy ? null : _submit,
-            child: Text(_busy ? 'Adding…' : 'Add reminder'),
-          ),
+          FilledButton(onPressed: _busy ? null : _submit, child: Text(_busy ? 'Adding…' : 'Add reminder')),
         ],
       ),
     );

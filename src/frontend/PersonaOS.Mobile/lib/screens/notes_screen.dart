@@ -86,7 +86,9 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Future<void> _open(NoteDto note) async {
     final result = await Navigator.of(context).push<_EditResult>(
-      MaterialPageRoute(builder: (_) => NoteEditorPage(note: note, boardEnabled: widget.boardEnabled)),
+      MaterialPageRoute(
+        builder: (_) => NoteEditorPage(note: note, boardEnabled: widget.boardEnabled),
+      ),
     );
     if (result == null || !mounted) return;
     switch (result.action) {
@@ -117,7 +119,10 @@ class _NotesScreenState extends State<NotesScreen> {
     }
     if (!mounted) return;
     setState(() => _notes = _notes.where((n) => n.id != note.id).toList());
-    _show('Note deleted', action: SnackBarAction(label: 'Undo', onPressed: () => unawaited(_restore(note.text))));
+    _show(
+      'Note deleted',
+      action: SnackBarAction(label: 'Undo', onPressed: () => unawaited(_restore(note.text))),
+    );
   }
 
   Future<void> _restore(String text) async {
@@ -249,10 +254,7 @@ class _NotesScreenState extends State<NotesScreen> {
             ),
           ),
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _load,
-              child: _cards(context),
-            ),
+            child: RefreshIndicator(onRefresh: _load, child: _cards(context)),
           ),
         ],
       ),
@@ -289,11 +291,7 @@ class _NotesScreenState extends State<NotesScreen> {
             children: [
               for (var c = 0; c < columns; c++)
                 Expanded(
-                  child: Column(
-                    children: [
-                      for (var i = c; i < notes.length; i += columns) _card(context, notes[i]),
-                    ],
-                  ),
+                  child: Column(children: [for (var i = c; i < notes.length; i += columns) _card(context, notes[i])]),
                 ),
             ],
           ),

@@ -30,11 +30,16 @@ class _PushConfigSectionState extends State<PushConfigSection> {
   @override
   void initState() {
     super.initState();
-    unawaited(widget.api.getPushStatus().then((s) {
-      if (mounted) setState(() => _status = s);
-    }, onError: (_) {
-      // An older server has no push setup to show; the section then says nothing about its state.
-    }));
+    unawaited(
+      widget.api.getPushStatus().then(
+        (s) {
+          if (mounted) setState(() => _status = s);
+        },
+        onError: (_) {
+          // An older server has no push setup to show; the section then says nothing about its state.
+        },
+      ),
+    );
   }
 
   void _show(String message) {
@@ -76,9 +81,9 @@ class _PushConfigSectionState extends State<PushConfigSection> {
   }
 
   Future<void> _upload() => _run(
-        () => widget.api.setPushConfig(serviceAccountJson: _serviceAccount!.$2, googleServicesJson: _googleServices!.$2),
-        'Push is on.',
-      );
+    () => widget.api.setPushConfig(serviceAccountJson: _serviceAccount!.$2, googleServicesJson: _googleServices!.$2),
+    'Push is on.',
+  );
 
   Future<void> _remove() async {
     final ok = await showDialog<bool>(
@@ -133,19 +138,23 @@ class _PushConfigSectionState extends State<PushConfigSection> {
               icon: PhosphorIconsRegular.key,
               label: 'Service account key',
               picked: _serviceAccount?.$1,
-              onPick: _busy ? null : () async {
-                final file = await _pick();
-                if (file != null) setState(() => _serviceAccount = file);
-              },
+              onPick: _busy
+                  ? null
+                  : () async {
+                      final file = await _pick();
+                      if (file != null) setState(() => _serviceAccount = file);
+                    },
             ),
             _FileRow(
               icon: PhosphorIconsRegular.androidLogo,
               label: 'google-services.json',
               picked: _googleServices?.$1,
-              onPick: _busy ? null : () async {
-                final file = await _pick();
-                if (file != null) setState(() => _googleServices = file);
-              },
+              onPick: _busy
+                  ? null
+                  : () async {
+                      final file = await _pick();
+                      if (file != null) setState(() => _googleServices = file);
+                    },
             ),
             const SizedBox(height: 8),
             Text('The key is encrypted on the server and never shown again — uploading replaces it.', style: small),
@@ -158,11 +167,13 @@ class _PushConfigSectionState extends State<PushConfigSection> {
                 if (configured) TextButton(onPressed: _busy ? null : _remove, child: const Text('Turn off')),
                 FilledButton(
                   onPressed: _busy || _serviceAccount == null || _googleServices == null ? null : _upload,
-                  child: Text(_busy
-                      ? 'Saving…'
-                      : configured
-                          ? 'Replace Firebase files'
-                          : 'Turn on push'),
+                  child: Text(
+                    _busy
+                        ? 'Saving…'
+                        : configured
+                        ? 'Replace Firebase files'
+                        : 'Turn on push',
+                  ),
                 ),
               ],
             ),

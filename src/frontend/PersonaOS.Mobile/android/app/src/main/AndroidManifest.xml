@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Voice (Phase 6): push-to-talk speech recognition. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Hands-free with the app in the background or the screen off (HandsFreeService): Android
+         lets an app listen out of sight only from a foreground service of the microphone type. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <!--
       Flutter only adds INTERNET to the debug and profile manifests, so without this a
       RELEASE build has no network access at all and can never reach the user's server.
@@ -61,6 +66,10 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <service
+            android:name=".HandsFreeService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|mediaPlayback" />
         <!-- flutter_local_notifications: these receivers are what actually fire a scheduled alarm,
              restore alarms after a reboot or an app update, and deliver the Dismiss / Snooze
              buttons back to the app. Without them scheduling "succeeds" and nothing ever rings. -->

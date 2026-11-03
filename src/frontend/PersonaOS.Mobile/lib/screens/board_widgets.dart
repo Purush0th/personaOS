@@ -8,10 +8,7 @@ import '../layout.dart';
 
 /// Runs [attempt]; when the server says it changes a running sprint's scope, asks and retries
 /// with the acknowledgement. Returns false when the user declines.
-Future<bool> runWithScopeConfirmation(
-  BuildContext context,
-  Future<void> Function(bool acknowledge) attempt,
-) async {
+Future<bool> runWithScopeConfirmation(BuildContext context, Future<void> Function(bool acknowledge) attempt) async {
   try {
     await attempt(false);
     return true;
@@ -43,8 +40,7 @@ String sprintWhen(DateTime utc) {
   return '${weekdays[t.weekday - 1]} ${t.day} ${months[t.month - 1]} $hh:$mm';
 }
 
-String sprintLabel(SprintInfo sprint) =>
-    sprint.name == null ? sprint.key : '${sprint.key} · ${sprint.name}';
+String sprintLabel(SprintInfo sprint) => sprint.name == null ? sprint.key : '${sprint.key} · ${sprint.name}';
 
 /// One task on the board.
 class TaskCard extends StatelessWidget {
@@ -93,14 +89,11 @@ class TaskCard extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     if (task.goalKey != null) GoalChip(goalKey: task.goalKey!, title: task.goalTitle ?? task.goalKey!),
-                    if (task.carryOverCount > 0)
-                      Text('↻ ${task.carryOverCount}', style: theme.textTheme.labelSmall),
+                    if (task.carryOverCount > 0) Text('↻ ${task.carryOverCount}', style: theme.textTheme.labelSmall),
                     if (task.addedMidSprint)
                       Text('added', style: theme.textTheme.labelSmall?.copyWith(color: StatusTone.review.ink(context))),
-                    if (task.commentCount > 0)
-                      Text('💬 ${task.commentCount}', style: theme.textTheme.labelSmall),
-                    if (task.attachmentCount > 0)
-                      Text('📎 ${task.attachmentCount}', style: theme.textTheme.labelSmall),
+                    if (task.commentCount > 0) Text('💬 ${task.commentCount}', style: theme.textTheme.labelSmall),
+                    if (task.attachmentCount > 0) Text('📎 ${task.attachmentCount}', style: theme.textTheme.labelSmall),
                   ],
                 ),
               ],
@@ -175,7 +168,6 @@ class GoalChip extends StatelessWidget {
     );
   }
 }
-
 
 /// Where a task can be moved on the board: the sprint's other columns. A backlog task is in no
 /// sprint, so it has none; it reaches a sprint through its sprint field or the Backlog tab.

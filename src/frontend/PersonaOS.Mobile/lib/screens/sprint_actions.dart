@@ -18,7 +18,13 @@ Future<bool> _attempt(BuildContext context, Future<void> Function() action) asyn
   }
 }
 
-Future<bool> _ask(BuildContext context, String title, String message, String action, {bool destructive = false}) async =>
+Future<bool> _ask(
+  BuildContext context,
+  String title,
+  String message,
+  String action, {
+  bool destructive = false,
+}) async =>
     await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -38,7 +44,10 @@ Future<bool> _ask(BuildContext context, String title, String message, String act
 
 /// Creates a sprint, or renames (and, while planned, moves) [sprint].
 Future<bool> editSprintFlow(BuildContext context, PersonaOsApi api, [SprintInfo? sprint]) async {
-  final result = await showDialog<_SprintDraft>(context: context, builder: (_) => _SprintDialog(sprint: sprint));
+  final result = await showDialog<_SprintDraft>(
+    context: context,
+    builder: (_) => _SprintDialog(sprint: sprint),
+  );
   if (result == null || !context.mounted) return false;
   return _attempt(
     context,
@@ -66,20 +75,24 @@ Future<bool> completeSprintFlow(BuildContext context, PersonaOsApi api, SprintIn
     context: context,
     builder: (context) => AlertDialog(
       title: Text('Complete ${sprintLabel(sprint)}?'),
-      content: Text(open == 0
-          ? 'Everything in it is done.'
-          : '$open unfinished ${open == 1 ? 'task' : 'tasks'} will move on. Where to?'),
+      content: Text(
+        open == 0
+            ? 'Everything in it is done.'
+            : '$open unfinished ${open == 1 ? 'task' : 'tasks'} will move on. Where to?',
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         if (open > 0 && next != null)
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('To the backlog')),
         FilledButton(
           onPressed: () => Navigator.pop(context, open > 0 && next == null),
-          child: Text(open == 0
-              ? 'Complete sprint'
-              : next != null
-                  ? 'To ${next.key}'
-                  : 'To the backlog'),
+          child: Text(
+            open == 0
+                ? 'Complete sprint'
+                : next != null
+                ? 'To ${next.key}'
+                : 'To the backlog',
+          ),
         ),
       ],
     ),
@@ -134,8 +147,7 @@ class _SprintDialogState extends State<_SprintDialog> {
     super.dispose();
   }
 
-  String _day(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  String _day(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {

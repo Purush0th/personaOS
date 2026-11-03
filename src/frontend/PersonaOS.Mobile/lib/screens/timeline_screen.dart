@@ -108,8 +108,10 @@ class _TimelineViewState extends State<TimelineView> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${goal.key} · ${periodLabels[goal.periodType]} · ${goal.slot}',
-                style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.outline)),
+            Text(
+              '${goal.key} · ${periodLabels[goal.periodType]} · ${goal.slot}',
+              style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.outline),
+            ),
             const SizedBox(height: 4),
             Text(goal.title, style: theme.textTheme.titleMedium),
             if (goal.periodStart != null && goal.periodEnd != null)
@@ -117,8 +119,10 @@ class _TimelineViewState extends State<TimelineView> {
             const SizedBox(height: 12),
             LinearProgressIndicator(value: goal.effectiveProgress / 100, minHeight: 6),
             const SizedBox(height: 4),
-            Text('${goal.effectiveProgress}%${goal.status == 'completed' ? ' · completed' : ''}',
-                style: theme.textTheme.bodySmall),
+            Text(
+              '${goal.effectiveProgress}%${goal.status == 'completed' ? ' · completed' : ''}',
+              style: theme.textTheme.bodySmall,
+            ),
             for (final child in goal.children)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -155,7 +159,11 @@ class _TimelineViewState extends State<TimelineView> {
               if (rows.any((r) => r.hasChildren))
                 IconButton(
                   tooltip: anyCollapsed ? 'Expand all' : 'Collapse all',
-                  icon: Icon(anyCollapsed ? PhosphorIconsRegular.arrowsOutLineVertical : PhosphorIconsRegular.arrowsInLineVertical),
+                  icon: Icon(
+                    anyCollapsed
+                        ? PhosphorIconsRegular.arrowsOutLineVertical
+                        : PhosphorIconsRegular.arrowsInLineVertical,
+                  ),
                   onPressed: () => setState(() {
                     if (anyCollapsed) {
                       _collapsed.clear();
@@ -185,12 +193,15 @@ class _TimelineViewState extends State<TimelineView> {
         return switch (snapshot.connectionState) {
           ConnectionState.done when snapshot.hasError => const Center(child: Text('Could not load goals.')),
           ConnectionState.done => Column(
-              children: [
-                toolbar,
-                Expanded(
-                  child: visible.isEmpty
-                      ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('No goals in $_year.')))
-                      : LayoutBuilder(builder: (context, constraints) {
+            children: [
+              toolbar,
+              Expanded(
+                child: visible.isEmpty
+                    ? Center(
+                        child: Padding(padding: const EdgeInsets.all(32), child: Text('No goals in $_year.')),
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
                           // Months share the width left beside the labels, never below their minimum;
                           // a narrow phone scrolls the year sideways instead.
                           const padding = 16.0;
@@ -199,10 +210,11 @@ class _TimelineViewState extends State<TimelineView> {
                           _labels = available - _wideLabelWidth >= monthWidth * 12 ? _wideLabelWidth : _labelWidth;
                           _month = math.max(monthWidth, (available - _labels) / 12);
                           return _chart(context, visible);
-                        }),
-                ),
-              ],
-            ),
+                        },
+                      ),
+              ),
+            ],
+          ),
           _ => const Center(child: CircularProgressIndicator()),
         };
       },
@@ -218,9 +230,12 @@ class _TimelineViewState extends State<TimelineView> {
     // See-through, so the month lines painted under the year still show on the band.
     final fill = theme.colorScheme.onSurface.withValues(alpha: 0.06);
     Widget band(List<Widget> children, BorderRadius radius) => DecoratedBox(
-          decoration: BoxDecoration(color: fill, borderRadius: radius),
-          child: Padding(padding: const EdgeInsets.symmetric(vertical: _lanePad), child: Column(children: children)),
-        );
+      decoration: BoxDecoration(color: fill, borderRadius: radius),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: _lanePad),
+        child: Column(children: children),
+      ),
+    );
     final height = _axisHeight + rows.length * _rowHeight + lanes.length * 2 * _lanePad + (lanes.length - 1) * _laneGap;
     const left = BorderRadius.horizontal(left: Radius.circular(8));
     const right = BorderRadius.horizontal(right: Radius.circular(8));
@@ -283,25 +298,32 @@ class _TimelineViewState extends State<TimelineView> {
       height: _axisHeight,
       child: Column(
         children: [
-          Row(children: [
-            for (var q = 1; q <= 4; q++)
-              SizedBox(
-                width: _month * 3,
-                height: _axisHeight / 2,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 4, top: 4),
-                  child: Text('Q$q', style: style?.copyWith(fontWeight: FontWeight.w700)),
+          Row(
+            children: [
+              for (var q = 1; q <= 4; q++)
+                SizedBox(
+                  width: _month * 3,
+                  height: _axisHeight / 2,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4, top: 4),
+                    child: Text('Q$q', style: style?.copyWith(fontWeight: FontWeight.w700)),
+                  ),
                 ),
-              ),
-          ]),
-          Row(children: [
-            for (final name in monthNames)
-              SizedBox(
-                width: _month,
-                height: _axisHeight / 2,
-                child: Padding(padding: const EdgeInsets.only(left: 4, top: 4), child: Text(name, style: style)),
-              ),
-          ]),
+            ],
+          ),
+          Row(
+            children: [
+              for (final name in monthNames)
+                SizedBox(
+                  width: _month,
+                  height: _axisHeight / 2,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4, top: 4),
+                    child: Text(name, style: style),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -319,8 +341,11 @@ class _TimelineViewState extends State<TimelineView> {
             InkWell(
               key: Key('fold-${row.goal.key}'),
               onTap: () => setState(() => collapsed ? _collapsed.remove(row.goal.id) : _collapsed.add(row.goal.id)),
-              child: Icon(collapsed ? PhosphorIconsRegular.caretRight : PhosphorIconsRegular.caretDown, size: 20,
-                  semanticLabel: '${collapsed ? 'Expand' : 'Collapse'} ${row.goal.key}'),
+              child: Icon(
+                collapsed ? PhosphorIconsRegular.caretRight : PhosphorIconsRegular.caretDown,
+                size: 20,
+                semanticLabel: '${collapsed ? 'Expand' : 'Collapse'} ${row.goal.key}',
+              ),
             )
           else
             const SizedBox(width: 20),
@@ -339,19 +364,23 @@ class _TimelineViewState extends State<TimelineView> {
     final end = goal.periodEnd ?? DateTime(_year, 12, 31);
     final left = _x(start);
     final right = _x(end, end: true);
-    final height = switch (goal.periodType) { 'year' => 24.0, 'quarter' => 20.0, _ => 16.0 };
+    final height = switch (goal.periodType) {
+      'year' => 24.0,
+      'quarter' => 20.0,
+      _ => 16.0,
+    };
     final completed = goal.status == 'completed';
     final overdue = !completed && end.isBefore(_today);
     final background = completed
         ? theme.colorScheme.tertiaryContainer
         : overdue
-            ? theme.colorScheme.errorContainer
-            : theme.colorScheme.primaryContainer;
+        ? theme.colorScheme.errorContainer
+        : theme.colorScheme.primaryContainer;
     final foreground = completed
         ? theme.colorScheme.onTertiaryContainer
         : overdue
-            ? theme.colorScheme.onErrorContainer
-            : theme.colorScheme.onPrimaryContainer;
+        ? theme.colorScheme.onErrorContainer
+        : theme.colorScheme.onPrimaryContainer;
 
     return SizedBox(
       height: _rowHeight,
@@ -364,8 +393,13 @@ class _TimelineViewState extends State<TimelineView> {
             height: height,
             child: Semantics(
               button: true,
-              label: '${goal.key} ${goal.title}, ${periodLabels[goal.periodType]!.toLowerCase()} ${goal.slot}, '
-                  '${goal.effectiveProgress}% done${completed ? ', completed' : overdue ? ', overdue' : ''}',
+              label:
+                  '${goal.key} ${goal.title}, ${periodLabels[goal.periodType]!.toLowerCase()} ${goal.slot}, '
+                  '${goal.effectiveProgress}% done${completed
+                      ? ', completed'
+                      : overdue
+                      ? ', overdue'
+                      : ''}',
               child: GestureDetector(
                 key: Key('bar-${goal.key}'),
                 onTap: () => widget.api == null ? _details(goal) : showGoalQuickView(context, widget.api!, goal.key),
@@ -385,7 +419,9 @@ class _TimelineViewState extends State<TimelineView> {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             // A month's bar sits under its month already; there is room only for the number.
-                            goal.periodType == 'month' ? '${goal.effectiveProgress}%' : '${goal.slot} · ${goal.effectiveProgress}%',
+                            goal.periodType == 'month'
+                                ? '${goal.effectiveProgress}%'
+                                : '${goal.slot} · ${goal.effectiveProgress}%',
                             maxLines: 1,
                             overflow: TextOverflow.clip,
                             softWrap: false,
@@ -431,9 +467,13 @@ class _GridPainter extends CustomPainter {
       canvas.drawLine(Offset(x, top), Offset(x, size.height), line);
     }
     if (todayX case final x?) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), Paint()
-        ..color = todayColor
-        ..strokeWidth = 2);
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        Paint()
+          ..color = todayColor
+          ..strokeWidth = 2,
+      );
     }
   }
 
