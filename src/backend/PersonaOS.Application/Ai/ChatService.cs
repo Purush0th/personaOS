@@ -449,6 +449,14 @@ public partial class ChatService(
             unverifiedClaim = false;
         }
 
+        // The same for a goal with no period: the owner chose asking over a default (2026-11-03).
+        if (first.Error is null && request.Turn.Proposals.Count == 0
+            && request.Turn.Refusals.Contains(GoalPeriodGuard.NoPeriodGiven) && !final.Text.Contains('?'))
+        {
+            final.Rewrite(GoalPeriodGuard.Ask);
+            unverifiedClaim = false;
+        }
+
         // "Cancel my reminder to call the bank" that ended with no card: proposed from its words.
         if (first.Error is null
             && request.Turn.Proposals.Count == 0

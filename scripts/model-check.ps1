@@ -511,6 +511,17 @@ try {
             Check = { param($d) Expect-Card $d 'create_goal' '(?i)book' }
         },
         @{
+            # Owner, 2026-11-03: a goal with no period is asked about, never given a guessed one.
+            Name  = 'goal with no period asks'
+            Say   = 'Set a goal: learn to bake sourdough'
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d) -contains 'create_goal') { return "guessed a period: $(($d.pending | Select-Object -First 1).summary)" }
+                if ($d.text -notmatch '(?i)month|quarter|year') { return "did not ask which period: $($d.text)" }
+                return ''
+            }
+        },
+        @{
             Name  = 'remembers a fact'
             Say   = 'I am allergic to peanuts, please remember that'
             Check = {

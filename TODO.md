@@ -130,11 +130,11 @@ Deferred by the owner:
       the gaps of its data: no goal calls (left out for A9), no edits, more notes than reminders.
       Next: a dataset covering every intent the suites test, edits and follow-ups included (after
       A9), then retrain and re-score; the stock model stays in use until a run beats it on all four.
-- [ ] **A9. Goal periods in code.** With no time in the message ("Set a goal: learn basic
-      Spanish") qwen2.5:3b picks a month at random, sometimes one already over, and puts monthly
-      goals under yearly ones (training capture, 2026-11-02). Decide the default period (likely the
-      current quarter) and set it in code the way `UserTimeGuard` sets times; goal calls are left
-      out of the training data until then.
+- [x] **A9. Goal periods in code** (2026-11-03). With no period in the message ("Set a goal: learn
+      basic Spanish") qwen2.5:3b picked a month at random. Owner chose to ask, not default:
+      `GoalPeriodGuard` refuses a goal with no period in this or the last few messages, and the reply
+      asks "this month, this quarter or this year?"; a named period ("next year", "Q2", "by March",
+      "in 2028") is set in code. Goal calls can now go back into the training data (A8).
 - [x] **U4. Conversation starters** (2026-11-02). The empty chat offers Today's plan (sends) and
       Remind me / New task / Jot a note (fill the composer, keyboard up), on web and phone.
 - [x] **U5. A calmer chat** (owner, 2026-11-02: "i hate the scroll and the overuse of the logo").

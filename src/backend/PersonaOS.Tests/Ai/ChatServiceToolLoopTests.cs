@@ -339,7 +339,7 @@ public class ChatServiceToolLoopTests
         streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#","periodType":"month"}""");
         streamer.EnqueueText("I can create that — confirm when you're ready.");
 
-        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal for this month"));
 
         Assert.Empty(tool.Invocations);
         var done = Assert.Single(events, e => e.Type == "done");
@@ -455,7 +455,7 @@ public class ChatServiceToolLoopTests
         streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
         streamer.EnqueueText("ok");
 
-        await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        await CollectAsync(chat.StreamChatAsync(null, "Add a goal for this month"));
 
         var resultTurn = Assert.Single(streamer.ReceivedTurns[1], t => t.ToolResults is { Count: > 0 });
         var told = resultTurn.ToolResults![0].Content;
@@ -476,7 +476,7 @@ public class ChatServiceToolLoopTests
         var (db, chat, streamer) = Setup(tool);
         streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
         streamer.EnqueueText("Confirm?");
-        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal for this month"));
         var id = Assert.Single(Assert.Single(events, e => e.Type == "done").Pending!).Id;
 
         var confirmed = await chat.ConfirmActionAsync(id);
@@ -495,7 +495,7 @@ public class ChatServiceToolLoopTests
         var (_, chat, streamer) = Setup(tool);
         streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
         streamer.EnqueueText("Confirm?");
-        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal for this month"));
         var id = Assert.Single(Assert.Single(events, e => e.Type == "done").Pending!).Id;
 
         await chat.ConfirmActionAsync(id);
@@ -511,7 +511,7 @@ public class ChatServiceToolLoopTests
         var (_, chat, streamer) = Setup(tool);
         streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
         streamer.EnqueueText("Confirm?");
-        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal for this month"));
         var id = Assert.Single(Assert.Single(events, e => e.Type == "done").Pending!).Id;
 
         var discarded = await chat.DiscardActionAsync(id);
@@ -545,7 +545,7 @@ public class ChatServiceToolLoopTests
         var (_, chat, streamer) = Setup(tool);
         streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
         streamer.EnqueueText("Confirm?");
-        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal for this month"));
         var conversationId = events[0].ConversationId!.Value;
 
         var detail = await chat.GetConversationAsync(conversationId.ToString());
@@ -562,7 +562,7 @@ public class ChatServiceToolLoopTests
         var (db, chat, streamer) = Setup(tool);
         streamer.EnqueueToolCall("c1", "create_goal", """{"title":"Learn C#"}""");
         streamer.EnqueueText("Confirm?");
-        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal"));
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Add a goal for this month"));
         var publicId = (await db.Conversations.SingleAsync()).PublicId;
         Assert.NotEmpty(await db.ChatMessages.ToListAsync());
         Assert.NotEmpty(await db.PendingActions.ToListAsync());
