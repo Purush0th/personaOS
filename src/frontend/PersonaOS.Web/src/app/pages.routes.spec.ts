@@ -1,12 +1,12 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { Router, UrlSegment, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 
 import { AuthService } from './core/auth.service';
 import { GoalDetail } from './goals/goal-detail';
-import { PAGE_ROUTES } from './pages.routes';
+import { PAGE_ROUTES, chatUrl } from './pages.routes';
 import { Timeline } from './timeline/timeline';
 
 describe('PAGE_ROUTES', () => {
@@ -42,5 +42,19 @@ describe('PAGE_ROUTES', () => {
     await harness.navigateByUrl('/board/goals/GOAL-2');
 
     expect(TestBed.inject(Router).url).toBe('/goals/GOAL-2');
+  });
+});
+
+describe('chatUrl', () => {
+  const segments = (...paths: string[]) => paths.map(p => new UrlSegment(p, {}));
+
+  it('matches /chat and /chat/<slug> as one route, so the page is kept when a thread gets its address', () => {
+    expect(chatUrl(segments('chat'))?.posParams).toBeUndefined();
+    expect(chatUrl(segments('chat', 'k3n9x2qp'))?.posParams?.['slug'].path).toBe('k3n9x2qp');
+  });
+
+  it('leaves every other address to its own route', () => {
+    expect(chatUrl(segments('goals'))).toBeNull();
+    expect(chatUrl(segments('chat', 'a', 'b'))).toBeNull();
   });
 });

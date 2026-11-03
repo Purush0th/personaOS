@@ -375,7 +375,8 @@ class _TimeGridViewState extends State<TimeGridView> {
                   ),
                 for (final e in placed)
                   () {
-                    final height = ((e.endMinutes - e.startMinutes) / 60 * hourHeight - 2).clamp(16.0, double.infinity);
+                    // True to its time: layoutDay already draws a short event taller where nothing follows it.
+                    final height = ((e.endMinutes - e.startMinutes) / 60 * hourHeight - 2).clamp(3.0, double.infinity);
                     final start = minutesOf(e.item.scheduledTime!);
                     final end = e.item.endTime == null ? start + 60 : minutesOf(e.item.endTime!);
                     return Positioned(
@@ -386,7 +387,9 @@ class _TimeGridViewState extends State<TimeGridView> {
                       child: GestureDetector(
                         // Held near its bottom edge, the end moves; anywhere else, the whole event.
                         onLongPressStart: (d) => _pickUp(
-                          height >= 2 * _edge && d.localPosition.dy >= height - _edge ? _DragKind.resize : _DragKind.move,
+                          height >= 2 * _edge && d.localPosition.dy >= height - _edge
+                              ? _DragKind.resize
+                              : _DragKind.move,
                           e.item,
                           d.globalPosition,
                           start: start,
@@ -399,6 +402,7 @@ class _TimeGridViewState extends State<TimeGridView> {
                           opacity: _lifted(e.item) ? 0.35 : 1,
                           child: _EventBlock(
                             event: e,
+                            thin: height < 12,
                             narrow: width / e.columns < 72,
                             past: dayOnly(day).isBefore(dayOnly(_now)) || (isToday && e.endMinutes <= nowMinutes),
                             onTap: () => widget.onOpen(e.item),
@@ -450,13 +454,22 @@ class _TimeGridViewState extends State<TimeGridView> {
 }
 
 class _EventBlock extends StatelessWidget {
-  const _EventBlock({required this.event, required this.past, required this.onTap, this.narrow = false});
+  const _EventBlock({
+    required this.event,
+    required this.past,
+    required this.onTap,
+    this.narrow = false,
+    this.thin = false,
+  });
 
   final PlacedEvent event;
   final bool past;
 
   /// Too narrow for a word to fit: titles stay on one line.
   final bool narrow;
+
+  /// Too thin for a line of text (a 5-minute item with another right after): a strip, no words.
+  final bool thin;
   final VoidCallback onTap;
 
   @override
@@ -493,26 +506,28 @@ class _EventBlock extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: compact ? 1 : 3),
-            // What does not fit the block is cut at its edge, as on Google Calendar, instead of
-            // overflowing: a narrow column or a short event has room for less.
-            child: ClipRect(
-              child: OverflowBox(
-                alignment: Alignment.topLeft,
-                maxHeight: double.infinity,
-                // A one-line event runs on past the edge and is cut there; a taller one wraps.
-                maxWidth: compact ? double.infinity : null,
-                child: compact
-                    ? Row(mainAxisSize: MainAxisSize.min, children: [title, const SizedBox(width: 4), time])
-                    : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [title, time],
-                      ),
-              ),
-            ),
-          ),
+          child: thin
+              ? Semantics(label: '${item.title}, ${formatTime(item.scheduledTime!)}', child: const SizedBox.expand())
+              : Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: compact ? 1 : 3),
+                  // What does not fit the block is cut at its edge, as on Google Calendar, instead of
+                  // overflowing: a narrow column or a short event has room for less.
+                  child: ClipRect(
+                    child: OverflowBox(
+                      alignment: Alignment.topLeft,
+                      maxHeight: double.infinity,
+                      // A one-line event runs on past the edge and is cut there; a taller one wraps.
+                      maxWidth: compact ? double.infinity : null,
+                      child: compact
+                          ? Row(mainAxisSize: MainAxisSize.min, children: [title, const SizedBox(width: 4), time])
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [title, time],
+                            ),
+                    ),
+                  ),
+                ),
         ),
       ),
     );
@@ -714,7 +729,10 @@ class MonthGridView extends StatelessWidget {
                           width: 22,
                           height: 22,
                           alignment: Alignment.center,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: day == today ? scheme.primary : null),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: day == today ? scheme.primary : null,
+                          ),
                           child: Text(
                             '${day.day}',
                             style: TextStyle(
@@ -736,10 +754,7 @@ class MonthGridView extends StatelessWidget {
                 width: bar.span * width - (bar.startsBefore ? 0 : 1) - (bar.endsAfter ? 0 : 2),
                 top: _numberHeight + bar.lane * _laneHeight,
                 height: _laneHeight - 1,
-                child: GestureDetector(
-                  onTap: () => onOpen(bar.item),
-                  child: _monthEvent(context, bar, today),
-                ),
+                child: GestureDetector(onTap: () => onOpen(bar.item), child: _monthEvent(context, bar, today)),
               ),
             for (var i = 0; i < days.length; i++)
               if (more[i] > 0)
@@ -1031,7 +1046,8 @@ class ScheduleListView extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  if (item.repeats) Icon(PhosphorIconsRegular.repeat, size: 16, color: eventTextColor(context, item)),
+                                  if (item.repeats)
+                                    Icon(PhosphorIconsRegular.repeat, size: 16, color: eventTextColor(context, item)),
                                 ],
                               ),
                             ),

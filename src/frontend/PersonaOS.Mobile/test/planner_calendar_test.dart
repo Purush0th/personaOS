@@ -85,6 +85,22 @@ void main() {
       expect(placed, hasLength(1));
       expect(placed.single.endMinutes - placed.single.startMinutes, minEventMinutes);
     });
+
+    test('stacks back-to-back short events full width, each drawn only down to the next', () {
+      final placed = layoutDay([
+        _item(1, '06:00', '06:05'),
+        _item(2, '06:05', '06:10'),
+        _item(3, '06:10', '06:20'),
+        _item(4, '06:20', '06:30'),
+      ]);
+      expect(placed.map((p) => [p.column, p.columns]), everyElement([0, 1]));
+      expect(placed.map((p) => [p.startMinutes, p.endMinutes]), [
+        [360, 365],
+        [365, 370],
+        [370, 380],
+        [380, 400],
+      ]);
+    });
   });
 
   group('repeat', () {
@@ -182,9 +198,25 @@ void main() {
     });
 
     test('stacks overlapping bars in lanes, the longest first', () {
-      final saturday = PlannerItem(id: 2, title: 'Sat', date: '2026-10-10', scheduledTime: null, status: 'planned', goalTitle: null);
-      final monday = PlannerItem(id: 3, title: 'Mon', date: '2026-10-05', scheduledTime: null, status: 'planned', goalTitle: null);
-      final lanes = [for (final b in layoutBars(week, [saturday, monday, trip])) (b.item.id, b.lane)];
+      final saturday = PlannerItem(
+        id: 2,
+        title: 'Sat',
+        date: '2026-10-10',
+        scheduledTime: null,
+        status: 'planned',
+        goalTitle: null,
+      );
+      final monday = PlannerItem(
+        id: 3,
+        title: 'Mon',
+        date: '2026-10-05',
+        scheduledTime: null,
+        status: 'planned',
+        goalTitle: null,
+      );
+      final lanes = [
+        for (final b in layoutBars(week, [saturday, monday, trip])) (b.item.id, b.lane),
+      ];
       expect(lanes, [(3, 0), (1, 0), (2, 1)]);
     });
 

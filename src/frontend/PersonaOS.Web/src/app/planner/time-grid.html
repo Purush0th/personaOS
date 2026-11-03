@@ -94,6 +94,8 @@
               [class.goal]="hue(event.item) !== null"
               [style.--hue]="hue(event.item)"
               [class.compact]="compact(event)"
+              [class.thin]="thin(event)"
+              [attr.title]="thin(event) ? event.item.title + ', ' + formatTime(event.item.scheduledTime!) : null"
               [class.past]="isPast(col.date, event)"
               [class.done]="event.item.status !== 'planned'"
               [class.lifted]="isDragged(event.item)"
