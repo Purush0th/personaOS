@@ -123,10 +123,13 @@ Deferred by the owner:
       confirmation" tool result was invalid JSON (a stray `}`); a reminder kept its time in its
       text; "add X to my to-do list / backlog" became an event, a plan or a sprint (now routed in
       code); a plain question was classed as making something, so its read retry never ran
-      (fixed 2026-11-03; suites now 99.5 / 98.5 / 98.5 / 98.7%). Trained 2026-11-03: rank-16 QLoRA, 2 epochs on 543 examples, train loss 0.79 to 0.19,
-      held-out loss 0.242 to 0.228; merged 16-bit model in `data/training/model` (gitignored, the
-      Qwen research licence keeps it local). Blocked: Ollama 0.40 cannot import a Qwen2 safetensors model or quantize a GGUF, so the
-      merged model needs llama.cpp's converter (`convert_hf_to_gguf.py`, b11721) - owner to allow.
+      (fixed 2026-11-03; suites now 99.5 / 98.5 / 98.5 / 98.7%). Trained 2026-11-03: rank-16
+      QLoRA, 2 epochs on 543 examples, held-out loss 0.242 to 0.228; converted and quantized with
+      llama.cpp b11721 (owner allowed) and imported as `personaos-qwen2.5:3b` (local only, Qwen
+      research licence). **Scored worse, not adopted:** 93.6 / 92.3 / 95.4 / 93.3%. It failed in
+      the gaps of its data: no goal calls (left out for A9), no edits, more notes than reminders.
+      Next: a dataset covering every intent the suites test, edits and follow-ups included (after
+      A9), then retrain and re-score; the stock model stays in use until a run beats it on all four.
 - [ ] **A9. Goal periods in code.** With no time in the message ("Set a goal: learn basic
       Spanish") qwen2.5:3b picks a month at random, sometimes one already over, and puts monthly
       goals under yearly ones (training capture, 2026-11-02). Decide the default period (likely the

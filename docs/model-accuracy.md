@@ -158,6 +158,7 @@ honest one: once a failure in it has been fixed, it measures the fix, not genera
 | 2026-11-02 | Plain bookings and "I've finished TASK-n" routed in code; month names fixed | 97.7% | 97.4% | 94.9% | 75.6% (first run) |
 | 2026-11-02 | Day after tomorrow, other-day answers, task edits and sums in code; weekday end-date fix | 99.2% | 94.9% | 100% | 97.8% |
 | 2026-11-03 | To-do phrasings routed, reminder text loses its time, questions never classed as "make" (5 runs) | 99.5% | 98.5% | 98.5% | 98.7% |
+| 2026-11-03 | Same code, fine-tuned model (first LoRA, 543 examples); not adopted | 93.6% | 92.3% | 95.4% | 93.3% |
 
 What the numbers taught, for the next round:
 
@@ -180,3 +181,8 @@ What the numbers taught, for the next round:
 - **The intent check can block a guard.** "When is my reminder about the bank?" was classed
   create_reminder at temperature 0, so the read-before-answering retry, which waits for a question,
   never ran (holdout2 fell to 92.3%). A plain question is now never classed as making something.
+- **The first fine-tune made the model worse, in exactly the gaps of its data.** Goal calls were
+  left out of training (A9), and the tuned model stopped proposing goals (0/5 in three scenarios);
+  there were no edit examples, and "start TASK-11" moved it to done; notes outnumbered reminders,
+  and "don't let me forget" became a note. Low held-out loss said nothing about this. The next
+  dataset needs every intent the suites cover, edits and follow-ups included, before training again.
