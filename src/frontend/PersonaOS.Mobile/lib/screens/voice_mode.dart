@@ -204,26 +204,20 @@ class _VoiceModeViewState extends State<VoiceModeView> with SingleTickerProvider
                   ),
                 ),
                 const SizedBox(height: 20),
+                // One way out, in the middle. Sending early and interrupting are the Orb's own tap, so a
+                // second button only repeated it (owner, 2026-11-04).
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 0, 32, 24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _RoundButton(
-                        tooltip: action.isEmpty ? status : action,
-                        icon: widget.phase == VoicePhase.speaking
-                            ? PhosphorIconsRegular.speakerSlash
-                            : PhosphorIconsRegular.arrowUp,
-                        fill: const Color(0x26FFFFFF),
-                        onPressed: action.isEmpty ? null : widget.onTapOrb,
-                      ),
-                      _RoundButton(
-                        tooltip: 'End hands-free',
-                        icon: PhosphorIconsRegular.x,
-                        fill: const Color(0xFFD9443A),
-                        onPressed: widget.onEnd,
-                      ),
-                    ],
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: IconButton(
+                    tooltip: 'End hands-free',
+                    onPressed: widget.onEnd,
+                    iconSize: 26,
+                    style: IconButton.styleFrom(
+                      fixedSize: const Size.square(64),
+                      backgroundColor: const Color(0xFFD9443A),
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(PhosphorIconsRegular.x),
                   ),
                 ),
               ],
@@ -231,32 +225,6 @@ class _VoiceModeViewState extends State<VoiceModeView> with SingleTickerProvider
           ),
         ),
       ),
-    );
-  }
-}
-
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({required this.tooltip, required this.icon, required this.fill, required this.onPressed});
-
-  final String tooltip;
-  final IconData icon;
-  final Color fill;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      iconSize: 26,
-      style: IconButton.styleFrom(
-        fixedSize: const Size.square(64),
-        backgroundColor: fill,
-        foregroundColor: Colors.white,
-        disabledBackgroundColor: const Color(0x0FFFFFFF),
-        disabledForegroundColor: const Color(0x4DFFFFFF),
-      ),
-      icon: Icon(icon),
     );
   }
 }

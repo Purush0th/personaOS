@@ -170,7 +170,7 @@ void main() {
     expect(voice.listenCalls, 2);
   });
 
-  testWidgets('hands-free fills the screen, and its buttons send now and end it', (tester) async {
+  testWidgets('hands-free fills the screen, and the Orb sends now and one button ends it', (tester) async {
     // Owner, 2026-11-03: a banner was not enough; voice should take the whole screen.
     final api = _FakeChatApi();
     final voice = _FakeVoice();
@@ -180,6 +180,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(VoiceModeView), findsOneWidget);
     expect(find.text('Listening'), findsOneWidget);
+    // Owner, 2026-11-04: one button only, the way out; the Orb itself sends early.
+    expect(find.descendant(of: find.byType(VoiceModeView), matching: find.byType(IconButton)), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('voice-orb')));
     await tester.pump();
