@@ -94,6 +94,12 @@ void main() {
     final api = _Api(events);
     await tester.pumpWidget(MaterialApp(home: PlannerScreen(api: api)));
     await tester.pumpAndSettle();
+    // The day opens an hour before now, so in the small hours a morning event is off screen:
+    // bring the first timed one into view, whatever the time the tests run.
+    for (final e in events.where((e) => e.date == today && e.scheduledTime != null).take(1)) {
+      await tester.ensureVisible(find.byKey(Key('event-${e.id}-$today')));
+      await tester.pumpAndSettle();
+    }
     return api;
   }
 
