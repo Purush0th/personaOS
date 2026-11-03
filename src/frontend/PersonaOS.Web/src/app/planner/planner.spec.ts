@@ -141,8 +141,8 @@ describe('Planner calendar', () => {
 
   it('places a timed event by its time', () => {
     const orders = [...page().querySelectorAll<HTMLElement>('app-time-grid .event')].find(e => e.textContent!.includes('Orders'))!;
-    expect(orders.style.top).toBe(`${8.5 * 48}px`);
-    expect(orders.style.height).toBe(`${48 - 2}px`);
+    expect(orders.style.top).toBe(`${8.5 * 72}px`);
+    expect(orders.style.height).toBe(`${72 - 2}px`);
     // The red current-time line is drawn only on today, which this pinned week does not hold.
     expect(page().querySelector('.now')).toBeNull();
   });
