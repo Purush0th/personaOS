@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaos_mobile/api/personaos_api.dart';
@@ -28,11 +29,15 @@ class _FakeServer extends ServerSpeech {
   @override
   Future<void> finish() async => finished = true;
 
+  /// Stands in for the server's audio: the text itself, so playing it records what was said.
   @override
-  Future<void> speak(String text) async {
+  Future<List<int>> synthesize(String text) async {
     if (failSpeaking) throw ApiException('No speech service.');
-    spoken.add(text);
+    return utf8.encode(text);
   }
+
+  @override
+  Future<void> play(List<int> audio) async => spoken.add(utf8.decode(audio));
 
   @override
   Future<void> stopSpeaking() async {}
@@ -115,6 +120,37 @@ void main() {
 
     expect(voice.deviceSpoken, isEmpty);
   });
+
+  test('a long reply is voiced a sentence at a time, the next made while one plays', () async {
+    final server = _FakeServer();
+    final voice = _Voice()
+      ..server = server
+      ..useServerTts = true;
+
+    await voice.speak(
+      'Your morning starts at six with the bed made and a short prayer. '
+      'Then you read twenty pages before creating content at seven. '
+      'Lunch is at a quarter to one.',
+    );
+
+    expect(server.spoken, [
+      'Your morning starts at six with the bed made and a short prayer.',
+      'Then you read twenty pages before creating content at seven.',
+      'Lunch is at a quarter to one.',
+    ]);
+  });
+
+  test("when the server's voice fails partway, the phone reads only what is left", () async {
+    final server = _FailsSecond();
+    final voice = _Voice()
+      ..server = server
+      ..useServerTts = true;
+
+    await voice.speak('The first sentence is long enough on its own. The second one is never voiced by the server.');
+
+    expect(server.spoken, ['The first sentence is long enough on its own.']);
+    expect(voice.deviceSpoken, ['The second one is never voiced by the server.']);
+  });
 }
 
 /// Plays until stopped, then fails the way a player cut off mid-reply does.
@@ -122,11 +158,22 @@ class _StoppableServer extends _FakeServer {
   final _stopped = Completer<void>();
 
   @override
-  Future<void> speak(String text) async {
+  Future<void> play(List<int> audio) async {
     await _stopped.future;
     throw StateError('Player stopped');
   }
 
   @override
   Future<void> stopSpeaking() async => _stopped.complete();
+}
+
+/// Voices the first piece, then fails.
+class _FailsSecond extends _FakeServer {
+  var _made = 0;
+
+  @override
+  Future<List<int>> synthesize(String text) async {
+    if (++_made > 1) throw ApiException('Speech service went away.');
+    return utf8.encode(text);
+  }
 }

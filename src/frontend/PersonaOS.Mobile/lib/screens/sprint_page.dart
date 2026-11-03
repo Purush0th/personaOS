@@ -111,7 +111,10 @@ class _SprintPageState extends State<SprintPage> {
                   if (sprint.isPlanned && anyRunning)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: Text('It can start once the running sprint is complete.', style: theme.textTheme.bodySmall),
+                      child: Text(
+                        'It can start once the running sprint is complete.',
+                        style: theme.textTheme.bodySmall,
+                      ),
                     ),
                   const SizedBox(height: 16),
                   // A planned sprint has no burndown and nothing committed yet; its tasks are listed.

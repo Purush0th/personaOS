@@ -9,6 +9,7 @@ import 'board_widgets.dart';
 import 'comments_section.dart';
 import 'goal_forms.dart';
 import 'task_views.dart';
+
 // A goal is seen two ways, each with its own job:
 // - the quick view: a short look from a list (where it sits, how far along it is, what is under
 //   it), with completing it and a way to its full page;
@@ -37,24 +38,24 @@ class _GoalQuickLoaderState extends State<_GoalQuickLoader> {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<Goal>(
-        future: _goal,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()));
-          }
-          if (snapshot.hasError) {
-            return const SizedBox(height: 120, child: Center(child: Text('Could not load that goal.')));
-          }
-          return GoalQuickView(
-            api: widget.api,
-            goal: snapshot.data!,
-            boardEnabled: widget.boardEnabled,
-            onChanged: () => setState(() {
-              _goal = widget.api.getGoal(widget.goalKey);
-            }),
-          );
-        },
+    future: _goal,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) {
+        return const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()));
+      }
+      if (snapshot.hasError) {
+        return const SizedBox(height: 120, child: Center(child: Text('Could not load that goal.')));
+      }
+      return GoalQuickView(
+        api: widget.api,
+        goal: snapshot.data!,
+        boardEnabled: widget.boardEnabled,
+        onChanged: () => setState(() {
+          _goal = widget.api.getGoal(widget.goalKey);
+        }),
       );
+    },
+  );
 }
 
 /// The quick view: key, type and slot, title, dates and priority, progress with what drives it,
@@ -70,9 +71,11 @@ class GoalQuickView extends StatelessWidget {
   void _openPage(BuildContext context) {
     final navigator = Navigator.of(context);
     navigator.pop();
-    navigator.push(MaterialPageRoute<void>(
-      builder: (_) => GoalPage(api: api, goalKey: goal.key, boardEnabled: boardEnabled),
-    ));
+    navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) => GoalPage(api: api, goalKey: goal.key, boardEnabled: boardEnabled),
+      ),
+    );
   }
 
   @override
@@ -100,7 +103,11 @@ class GoalQuickView extends StatelessWidget {
                 icon: const Icon(PhosphorIconsRegular.arrowsOutSimple),
                 onPressed: () => _openPage(context),
               ),
-              IconButton(tooltip: 'Close', icon: const Icon(PhosphorIconsRegular.x), onPressed: () => Navigator.pop(context)),
+              IconButton(
+                tooltip: 'Close',
+                icon: const Icon(PhosphorIconsRegular.x),
+                onPressed: () => Navigator.pop(context),
+              ),
             ],
           ),
           Padding(
@@ -149,11 +156,11 @@ class GoalQuickView extends StatelessWidget {
 
 /// Dates, status, priority and parent on one line.
 String _facts(Goal goal) => [
-      if (goal.periodStart != null && goal.periodEnd != null) formatGoalRange(goal.periodStart!, goal.periodEnd!),
-      if (goal.status == 'completed') 'completed',
-      'priority ${(priorities[goal.priority] ?? goal.priority).toLowerCase()}',
-      if (goal.parentKey != null) 'under ${goal.parentKey}',
-    ].join(' · ');
+  if (goal.periodStart != null && goal.periodEnd != null) formatGoalRange(goal.periodStart!, goal.periodEnd!),
+  if (goal.status == 'completed') 'completed',
+  'priority ${(priorities[goal.priority] ?? goal.priority).toLowerCase()}',
+  if (goal.parentKey != null) 'under ${goal.parentKey}',
+].join(' · ');
 
 /// The progress bar and what drives it: child goals, tasks, or the user's own estimate.
 class _Progress extends StatelessWidget {
@@ -167,8 +174,8 @@ class _Progress extends StatelessWidget {
     final driver = goal.childCount > 0
         ? '${goal.completedChildCount} of ${goal.childCount} ${goalsOfType(childTypeOf(goal.periodType) ?? 'month', goal.childCount)} completed'
         : goal.taskCount > 0
-            ? '${goal.doneTaskCount} of ${goal.taskCount} ${goal.taskCount == 1 ? 'task' : 'tasks'} done'
-            : 'set by hand';
+        ? '${goal.doneTaskCount} of ${goal.taskCount} ${goal.taskCount == 1 ? 'task' : 'tasks'} done'
+        : 'set by hand';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -239,15 +246,18 @@ class _GoalPageState extends State<GoalPage> {
       (widget.api.getGoal(widget.goalKey), widget.api.getGoals().catchError((Object _) => <Goal>[])).wait;
 
   void _reload() => setState(() {
-        _data = _load();
-      });
+    _data = _load();
+  });
 
   Future<void> _act(String choice, Goal goal, List<Goal> goals) async {
     final navigator = Navigator.of(context);
     bool? changed;
     switch (choice) {
       case 'progress':
-        final value = await showDialog<int>(context: context, builder: (_) => ProgressDialog(initial: goal.progress));
+        final value = await showDialog<int>(
+          context: context,
+          builder: (_) => ProgressDialog(initial: goal.progress),
+        );
         if (value == null || value == goal.progress) return;
         try {
           await widget.api.setGoalProgress(goal.id, value);
@@ -310,30 +320,32 @@ class _GoalPageState extends State<GoalPage> {
                     if (addChild != null) PopupMenuItem(value: 'child', child: Text('Add ${goalsOfType(addChild)}')),
                     if (goal.periodType != 'year') const PopupMenuItem(value: 'move', child: Text('Move')),
                     goal.childCount > 0
-                        ? blockedMenuItem(context, 'Delete',
-                            'Delete its ${goalsOfType(childTypeOf(goal.periodType) ?? 'month', 2)} first.')
+                        ? blockedMenuItem(
+                            context,
+                            'Delete',
+                            'Delete its ${goalsOfType(childTypeOf(goal.periodType) ?? 'month', 2)} first.',
+                          )
                         : const PopupMenuItem(value: 'delete', child: Text('Delete')),
                   ],
                 ),
             ],
           ),
           body: switch (snapshot) {
-            _ when snapshot.connectionState != ConnectionState.done =>
-              const Center(child: CircularProgressIndicator()),
+            _ when snapshot.connectionState != ConnectionState.done => const Center(child: CircularProgressIndicator()),
             _ when snapshot.hasError => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Could not load that goal.'),
-                    const SizedBox(height: 12),
-                    OutlinedButton(onPressed: _reload, child: const Text('Try again')),
-                  ],
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Could not load that goal.'),
+                  const SizedBox(height: 12),
+                  OutlinedButton(onPressed: _reload, child: const Text('Try again')),
+                ],
               ),
+            ),
             _ => ReadableWidth(
-                maxWidth: 1100,
-                child: GoalView(api: widget.api, goal: goal!, boardEnabled: widget.boardEnabled, onChanged: _reload),
-              ),
+              maxWidth: 1100,
+              child: GoalView(api: widget.api, goal: goal!, boardEnabled: widget.boardEnabled, onChanged: _reload),
+            ),
           },
         );
       },
@@ -369,9 +381,15 @@ class GoalView extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 3, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _main(context))),
+              Expanded(
+                flex: 3,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _main(context)),
+              ),
               const SizedBox(width: 24),
-              Expanded(flex: 2, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _discussion())),
+              Expanded(
+                flex: 2,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _discussion()),
+              ),
             ],
           ),
         );
@@ -382,8 +400,10 @@ class GoalView extends StatelessWidget {
   List<Widget> _main(BuildContext context) {
     final theme = Theme.of(context);
     return [
-      Text('${goal.key} · ${periodLabels[goal.periodType] ?? goal.periodType} · ${goal.slot}',
-          style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.outline)),
+      Text(
+        '${goal.key} · ${periodLabels[goal.periodType] ?? goal.periodType} · ${goal.slot}',
+        style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.outline),
+      ),
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -424,7 +444,9 @@ class GoalView extends StatelessWidget {
             key: Key('child-${child.key}'),
             contentPadding: EdgeInsets.zero,
             title: Text('${child.key} ${child.title}'),
-            subtitle: Text('${child.slot} · ${child.effectiveProgress}%${child.status == 'completed' ? ' · completed' : ''}'),
+            subtitle: Text(
+              '${child.slot} · ${child.effectiveProgress}%${child.status == 'completed' ? ' · completed' : ''}',
+            ),
             trailing: const Icon(PhosphorIconsRegular.caretRight),
             onTap: () async {
               await showGoalQuickView(context, api, child.key, boardEnabled: boardEnabled);
@@ -451,10 +473,10 @@ class GoalView extends StatelessWidget {
   }
 
   List<Widget> _discussion() => [
-        AttachmentsSection(api: api, itemType: 'goal', itemKey: goal.key),
-        const Divider(height: 32),
-        CommentsSection(api: api, itemType: 'goal', itemKey: goal.key),
-      ];
+    AttachmentsSection(api: api, itemType: 'goal', itemKey: goal.key),
+    const Divider(height: 32),
+    CommentsSection(api: api, itemType: 'goal', itemKey: goal.key),
+  ];
 
   /// Title, description and priority, as on the goal's web page.
   Future<void> _edit(BuildContext context) async {
@@ -507,7 +529,10 @@ class _GoalEditDialogState extends State<_GoalEditDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: _title, decoration: const InputDecoration(labelText: 'Title')),
+            TextField(
+              controller: _title,
+              decoration: const InputDecoration(labelText: 'Title'),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _description,

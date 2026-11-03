@@ -4,13 +4,13 @@ import 'package:personaos_mobile/api/personaos_api.dart';
 import 'package:personaos_mobile/screens/memories_screen.dart';
 
 MemoryDto _memory(int id, String content, String category, {String? from}) => MemoryDto(
-      id: id,
-      content: content,
-      category: category,
-      updatedAtUtc: DateTime.utc(2026, 9, 29),
-      sourceConversationId: from == null ? null : 'abcd1234',
-      sourceConversationTitle: from,
-    );
+  id: id,
+  content: content,
+  category: category,
+  updatedAtUtc: DateTime.utc(2026, 9, 29),
+  sourceConversationId: from == null ? null : 'abcd1234',
+  sourceConversationTitle: from,
+);
 
 class _FakeApi extends PersonaOsApi {
   _FakeApi() : super(serverUrl: 'http://fake');

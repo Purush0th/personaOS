@@ -89,9 +89,11 @@ class _TaskQuickViewState extends State<TaskQuickView> {
     final navigator = Navigator.of(context);
     widget.onChanged?.call();
     navigator.pop();
-    await navigator.push(MaterialPageRoute<bool>(
-      builder: (_) => TaskPage(api: widget.api, taskKey: _task.key, goals: widget.goals),
-    ));
+    await navigator.push(
+      MaterialPageRoute<bool>(
+        builder: (_) => TaskPage(api: widget.api, taskKey: _task.key, goals: widget.goals),
+      ),
+    );
   }
 
   @override
@@ -248,9 +250,10 @@ class _TaskPageState extends State<TaskPage> {
 
   Future<(BoardTask, List<SprintInfo>, List<Goal>)> _load() async {
     final task = widget.api.getTask(widget.taskKey);
-    final sprints = widget.api
-        .getPlan()
-        .then((p) => p.sprints.map((s) => s.sprint).toList(), onError: (Object _) => <SprintInfo>[]);
+    final sprints = widget.api.getPlan().then(
+      (p) => p.sprints.map((s) => s.sprint).toList(),
+      onError: (Object _) => <SprintInfo>[],
+    );
     final goals = widget.goals.isNotEmpty
         ? Future.value(widget.goals)
         // Tasks sit only under open monthly goals; with goals switched off there are none to pick.
@@ -455,17 +458,17 @@ class _TaskSheetState extends State<TaskSheet> {
   }
 
   Future<void> _moveTo(String column) => _guard(
-        done: 'Moved to ${BoardColumns.label(column)}.',
-        () => runWithScopeConfirmation(
-          context,
-          (ack) => widget.api.moveTask(
-            widget.task!.key,
-            column: column,
-            sprintKey: column == BoardColumns.backlog ? null : widget.task!.sprintKey,
-            acknowledgeScopeChange: ack,
-          ),
-        ),
-      );
+    done: 'Moved to ${BoardColumns.label(column)}.',
+    () => runWithScopeConfirmation(
+      context,
+      (ack) => widget.api.moveTask(
+        widget.task!.key,
+        column: column,
+        sprintKey: column == BoardColumns.backlog ? null : widget.task!.sprintKey,
+        acknowledgeScopeChange: ack,
+      ),
+    ),
+  );
 
   Future<void> _delete() async {
     final task = widget.task!;
@@ -569,10 +572,7 @@ class _TaskSheetState extends State<TaskSheet> {
             const SizedBox(height: 16),
             Align(
               alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: _busy ? null : _save,
-                child: Text(_busy ? 'Saving…' : 'Add task'),
-              ),
+              child: FilledButton(onPressed: _busy ? null : _save, child: Text(_busy ? 'Saving…' : 'Add task')),
             ),
           ],
         ),
@@ -581,24 +581,24 @@ class _TaskSheetState extends State<TaskSheet> {
   }
 
   List<Widget> _textFields() => [
-        TextField(
-          controller: _title,
-          autofocus: !_editing,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: InputDecoration(labelText: 'Task', border: const OutlineInputBorder(), errorText: _error),
-        ),
-        if (_editing) ...[
-          const SizedBox(height: 12),
-          TextField(
-            key: const Key('task-description'),
-            controller: _description,
-            minLines: 3,
-            maxLines: 12,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
-          ),
-        ],
-      ];
+    TextField(
+      controller: _title,
+      autofocus: !_editing,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: InputDecoration(labelText: 'Task', border: const OutlineInputBorder(), errorText: _error),
+    ),
+    if (_editing) ...[
+      const SizedBox(height: 12),
+      TextField(
+        key: const Key('task-description'),
+        controller: _description,
+        minLines: 3,
+        maxLines: 12,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+      ),
+    ],
+  ];
 
   /// Points, priority, goal and sprint: shared by the new-task sheet and the details.
   List<Widget> _fields(BuildContext context) {
@@ -610,7 +610,11 @@ class _TaskSheetState extends State<TaskSheet> {
         spacing: 6,
         runSpacing: 6,
         children: [
-          ChoiceChip(label: const Text('–'), selected: _points == null, onSelected: (_) => setState(() => _points = null)),
+          ChoiceChip(
+            label: const Text('–'),
+            selected: _points == null,
+            onSelected: (_) => setState(() => _points = null),
+          ),
           for (final p in valuePoints)
             ChoiceChip(label: Text('$p'), selected: _points == p, onSelected: (_) => setState(() => _points = p)),
         ],
@@ -640,7 +644,10 @@ class _TaskSheetState extends State<TaskSheet> {
           items: [
             const DropdownMenuItem<int?>(value: null, child: Text('No goal')),
             for (final g in widget.goals)
-              DropdownMenuItem<int?>(value: g.id, child: Text('${g.key} ${g.title} · ${g.slot}', overflow: TextOverflow.ellipsis)),
+              DropdownMenuItem<int?>(
+                value: g.id,
+                child: Text('${g.key} ${g.title} · ${g.slot}', overflow: TextOverflow.ellipsis),
+              ),
             // Its own goal, even when not among those offered: a dropdown whose value is not
             // among its items cannot build.
             if (_goalId != null && !widget.goals.any((g) => g.id == _goalId))
@@ -661,7 +668,10 @@ class _TaskSheetState extends State<TaskSheet> {
           items: [
             const DropdownMenuItem<String?>(value: null, child: Text('Backlog (no sprint)')),
             for (final s in widget.sprints)
-              DropdownMenuItem<String?>(value: s.key, child: Text(sprintLabel(s), overflow: TextOverflow.ellipsis)),
+              DropdownMenuItem<String?>(
+                value: s.key,
+                child: Text(sprintLabel(s), overflow: TextOverflow.ellipsis),
+              ),
             // Its own sprint, even when not among those offered (a closed one, or a view opened
             // without the plan).
             if (_sprintKey != null && !widget.sprints.any((s) => s.key == _sprintKey))
@@ -702,8 +712,10 @@ class _TaskSheetState extends State<TaskSheet> {
       ],
       if (task.carryOverCount > 0) ...[
         const SizedBox(height: 8),
-        Text('Carried over ${task.carryOverCount} ${task.carryOverCount == 1 ? 'time' : 'times'}.',
-            style: theme.textTheme.bodySmall),
+        Text(
+          'Carried over ${task.carryOverCount} ${task.carryOverCount == 1 ? 'time' : 'times'}.',
+          style: theme.textTheme.bodySmall,
+        ),
       ],
       const SizedBox(height: 16),
       ..._fields(context),
@@ -733,8 +745,8 @@ class _TaskSheetState extends State<TaskSheet> {
   }
 
   List<Widget> _discussion() => [
-        AttachmentsSection(api: widget.api, itemType: 'task', itemKey: widget.task!.key),
-        const Divider(height: 32),
-        CommentsSection(api: widget.api, itemType: 'task', itemKey: widget.task!.key),
-      ];
+    AttachmentsSection(api: widget.api, itemType: 'task', itemKey: widget.task!.key),
+    const Divider(height: 32),
+    CommentsSection(api: widget.api, itemType: 'task', itemKey: widget.task!.key),
+  ];
 }

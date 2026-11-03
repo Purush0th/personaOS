@@ -5,37 +5,37 @@ import 'package:personaos_mobile/screens/goals_screen.dart';
 import 'package:personaos_mobile/screens/task_views.dart';
 
 BoardTask _task({String column = 'todo'}) => BoardTask.fromJson({
-      'id': 7,
-      'key': 'TASK-7',
-      'title': 'File taxes',
-      'description': 'Need the P60 first.',
-      'points': 3,
-      'column': column,
-      'sprintKey': 'SPRINT-2',
-      'commentCount': 1,
-      'goalId': 4,
-      'goalKey': 'GOAL-4',
-      'goalTitle': 'October',
-    });
+  'id': 7,
+  'key': 'TASK-7',
+  'title': 'File taxes',
+  'description': 'Need the P60 first.',
+  'points': 3,
+  'column': column,
+  'sprintKey': 'SPRINT-2',
+  'commentCount': 1,
+  'goalId': 4,
+  'goalKey': 'GOAL-4',
+  'goalTitle': 'October',
+});
 
 Map<String, dynamic> _goalJson() => {
-      'id': 4,
-      'key': 'GOAL-4',
-      'title': 'October',
-      'periodType': 'month',
-      'slot': 'Oct 2026',
-      'periodStart': '2026-10-01',
-      'periodEnd': '2026-10-31',
-      'status': 'active',
-      'progress': 0,
-      'effectiveProgress': 50,
-      'taskCount': 1,
-      'doneTaskCount': 0,
-      'description': 'Get the paperwork done.',
-      'tasks': [
-        {'id': 7, 'key': 'TASK-7', 'title': 'File taxes', 'points': 3, 'column': 'todo'},
-      ],
-    };
+  'id': 4,
+  'key': 'GOAL-4',
+  'title': 'October',
+  'periodType': 'month',
+  'slot': 'Oct 2026',
+  'periodStart': '2026-10-01',
+  'periodEnd': '2026-10-31',
+  'status': 'active',
+  'progress': 0,
+  'effectiveProgress': 50,
+  'taskCount': 1,
+  'doneTaskCount': 0,
+  'description': 'Get the paperwork done.',
+  'tasks': [
+    {'id': 7, 'key': 'TASK-7', 'title': 'File taxes', 'points': 3, 'column': 'todo'},
+  ],
+};
 
 /// Comments are kept per item; every call is recorded.
 class ItemsApi extends PersonaOsApi {
@@ -61,13 +61,15 @@ class ItemsApi extends PersonaOsApi {
   @override
   Future<void> addComment(String itemType, String key, String body) async {
     calls.add('comment $itemType $key $body');
-    (comments['$itemType $key'] ??= []).add(WorkItemComment(
-      id: 2,
-      author: 'user',
-      body: body,
-      createdAtUtc: DateTime.utc(2026, 9, 30),
-      updatedAtUtc: DateTime.utc(2026, 9, 30),
-    ));
+    (comments['$itemType $key'] ??= []).add(
+      WorkItemComment(
+        id: 2,
+        author: 'user',
+        body: body,
+        createdAtUtc: DateTime.utc(2026, 9, 30),
+        updatedAtUtc: DateTime.utc(2026, 9, 30),
+      ),
+    );
   }
 
   @override
@@ -77,9 +79,14 @@ class ItemsApi extends PersonaOsApi {
   }
 
   @override
-  Future<void> updateTask(String key,
-          {String? title, int? points, int? goalId, String? description, String? priority}) async =>
-      calls.add('update $key description=${description ?? '(unchanged)'}');
+  Future<void> updateTask(
+    String key, {
+    String? title,
+    int? points,
+    int? goalId,
+    String? description,
+    String? priority,
+  }) async => calls.add('update $key description=${description ?? '(unchanged)'}');
 
   @override
   Future<List<Goal>> getGoals() async => [Goal.fromJson(_goalJson())];
@@ -93,8 +100,13 @@ class ItemsApi extends PersonaOsApi {
   String column = 'todo';
 
   @override
-  Future<void> moveTask(String key,
-      {required String column, String? sprintKey, int? index, bool acknowledgeScopeChange = false}) async {
+  Future<void> moveTask(
+    String key, {
+    required String column,
+    String? sprintKey,
+    int? index,
+    bool acknowledgeScopeChange = false,
+  }) async {
     calls.add('move $key $column ${sprintKey ?? '-'}');
     this.column = column;
   }
@@ -119,15 +131,17 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final api = ItemsApi();
-    await tester.pumpWidget(MaterialApp(
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: TextButton(onPressed: () => showTaskQuickView(context, api, 'TASK-7'), child: const Text('open')),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: TextButton(onPressed: () => showTaskQuickView(context, api, 'TASK-7'), child: const Text('open')),
+            ),
           ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     return api;
@@ -138,7 +152,11 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final api = ItemsApi();
-    await tester.pumpWidget(MaterialApp(home: TaskPage(api: api, taskKey: 'TASK-7')));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TaskPage(api: api, taskKey: 'TASK-7'),
+      ),
+    );
     await tester.pumpAndSettle();
     return api;
   }
@@ -198,8 +216,11 @@ void main() {
       expect(find.byKey(const Key('attachments')), findsOneWidget);
       expect(find.text('Reminder set for Friday.'), findsOneWidget);
 
-      await tester.scrollUntilVisible(find.byKey(const Key('comment-draft')), 300,
-          scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('comment-draft')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.enterText(find.byKey(const Key('comment-draft')), 'Asked HR for it.');
       await tester.pump();
       await tester.tap(find.widgetWithText(TextButton, 'Comment'));
@@ -235,7 +256,11 @@ void main() {
     Future<ItemsApi> openGoals(WidgetTester tester) async {
       tall(tester);
       final api = ItemsApi();
-      await tester.pumpWidget(MaterialApp(home: GoalsScreen(api: api, today: DateTime(2026, 10, 1))));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GoalsScreen(api: api, today: DateTime(2026, 10, 1)),
+        ),
+      );
       await tester.pumpAndSettle();
       return api;
     }
@@ -250,9 +275,12 @@ void main() {
       expect(find.byKey(const Key('goal-quick-view-GOAL-4')), findsOneWidget);
       expect(find.text('Get the paperwork done.'), findsOneWidget);
       expect(
-          find.descendant(
-              of: find.byKey(const Key('goal-quick-view-GOAL-4')), matching: find.textContaining('50% · 0 of 1 task done')),
-          findsOneWidget);
+        find.descendant(
+          of: find.byKey(const Key('goal-quick-view-GOAL-4')),
+          matching: find.textContaining('50% · 0 of 1 task done'),
+        ),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('comments')), findsNothing);
       expect(find.byKey(const Key('goal-view-GOAL-4')), findsNothing);
     });

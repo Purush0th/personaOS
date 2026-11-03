@@ -34,41 +34,41 @@ class _Api extends PersonaOsApi {
 
   @override
   Future<List<MemoryDto>> getMemories() async => [
-        MemoryDto(
-          id: 1,
-          content: 'Prefers morning workouts before work, ideally a run and some strength training',
-          category: 'preference',
-          updatedAtUtc: DateTime.utc(2026, 9, 29),
-          sourceConversationId: 'abcd1234',
-          sourceConversationTitle: 'Planning the week of workouts and runs',
-        ),
-      ];
+    MemoryDto(
+      id: 1,
+      content: 'Prefers morning workouts before work, ideally a run and some strength training',
+      category: 'preference',
+      updatedAtUtc: DateTime.utc(2026, 9, 29),
+      sourceConversationId: 'abcd1234',
+      sourceConversationTitle: 'Planning the week of workouts and runs',
+    ),
+  ];
 
   @override
   Future<bool> getMemoryAutoSave() async => true;
 
   @override
   Future<List<NoteDto>> getNotes() async => [
-        NoteDto(id: 1, text: 'Call the plumber about the balcony leak', updatedAtUtc: DateTime.utc(2026, 10, 10)),
-        NoteDto(
-          id: 2,
-          text: 'Fix the balcony door\nThe hinge squeaks when it opens, and the lock sticks in the rain.',
-          updatedAtUtc: DateTime.utc(2026, 10, 10),
-        ),
-        NoteDto(id: 3, text: 'Buy AA batteries', updatedAtUtc: DateTime.utc(2026, 10, 10)),
-      ];
+    NoteDto(id: 1, text: 'Call the plumber about the balcony leak', updatedAtUtc: DateTime.utc(2026, 10, 10)),
+    NoteDto(
+      id: 2,
+      text: 'Fix the balcony door\nThe hinge squeaks when it opens, and the lock sticks in the rain.',
+      updatedAtUtc: DateTime.utc(2026, 10, 10),
+    ),
+    NoteDto(id: 3, text: 'Buy AA batteries', updatedAtUtc: DateTime.utc(2026, 10, 10)),
+  ];
 
   @override
   Future<InstanceSettings> getSettings() async => InstanceSettings.fromJson({
-        'assistantNickname': 'Juno',
-        'personaTemplate': '',
-        'aiProvider': 'ollama',
-        'aiModel': 'qwen2.5:3b-instruct',
-        'aiBaseUrl': 'http://localhost:11434',
-        'timeZone': 'Asia/Kolkata',
-        'features': <String, bool>{'voice': true, 'memory': true},
-        'hasAnthropicApiKey': false,
-      });
+    'assistantNickname': 'Juno',
+    'personaTemplate': '',
+    'aiProvider': 'ollama',
+    'aiModel': 'qwen2.5:3b-instruct',
+    'aiBaseUrl': 'http://localhost:11434',
+    'timeZone': 'Asia/Kolkata',
+    'features': <String, bool>{'voice': true, 'memory': true},
+    'hasAnthropicApiKey': false,
+  });
 
   @override
   Future<String> getAboutMe() async => 'Vegetarian.';
@@ -94,7 +94,9 @@ void main() {
 
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-        const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'), (call) async => null);
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+      (call) async => null,
+    );
   });
 
   final screens = <String, Widget Function(PersonaOsApi api)>{
@@ -131,6 +133,7 @@ void main() {
       await tester.pumpAndSettle();
       return tester.getSize(find.byType(Card).first).width;
     }
+
     addTearDown(tester.view.reset);
 
     expect(await widthOf(const Size(1280, 800)), lessThanOrEqualTo(Breakpoints.readable));

@@ -16,7 +16,9 @@ void main() {
   // The screen asks the secure store whether a sign-in is saved; there is none in a test.
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-        const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'), (call) async => null);
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+      (call) async => null,
+    );
   });
 
   Future<List<http.Request>> run(WidgetTester tester, Future<void> Function() interact) async {
@@ -25,15 +27,15 @@ void main() {
       requests.add(request);
       final body = switch ((request.method, request.url.path)) {
         ('GET', '/api/setup') => {
-            'assistantNickname': 'Juno',
-            'personaTemplate': '',
-            'aiProvider': 'ollama',
-            'aiModel': 'qwen2.5:3b-instruct',
-            'aiBaseUrl': 'http://localhost:11434',
-            'timeZone': 'Asia/Kolkata',
-            'features': <String, bool>{},
-            'hasAnthropicApiKey': false,
-          },
+          'assistantNickname': 'Juno',
+          'personaTemplate': '',
+          'aiProvider': 'ollama',
+          'aiModel': 'qwen2.5:3b-instruct',
+          'aiBaseUrl': 'http://localhost:11434',
+          'timeZone': 'Asia/Kolkata',
+          'features': <String, bool>{},
+          'hasAnthropicApiKey': false,
+        },
         ('GET', '/api/profile') => {'aboutMe': 'Vegetarian.', 'updatedAtUtc': '2026-09-23T00:00:00Z'},
         _ => {'message': 'ok'},
       };
@@ -41,7 +43,11 @@ void main() {
     });
 
     await http.runWithClient(() async {
-      await tester.pumpWidget(MaterialApp(home: SettingsScreen(api: PersonaOsApi(serverUrl: 'http://test'))));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SettingsScreen(api: PersonaOsApi(serverUrl: 'http://test')),
+        ),
+      );
       await tester.pumpAndSettle();
       await interact();
     }, () => server);

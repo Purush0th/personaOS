@@ -136,18 +136,25 @@ class ServerSpeech {
 
   /// Speaks [text] in the server's voice, returning once playback ends.
   /// Throws [ApiException] when the server cannot, so the caller can fall back.
-  Future<void> speak(String text) async {
+  Future<void> speak(String text) async => play(await synthesize(text));
+
+  /// The server's voice reading [text], as audio. Throws [ApiException] when the server cannot.
+  Future<List<int>> synthesize(String text) => api.speak(text);
+
+  /// Plays [audio] from [synthesize], returning once playback ends or [stopSpeaking] cuts it.
+  Future<void> play(List<int> audio) async {
     _stopped = Completer<void>();
-    final bytes = await api.speak(text);
+    final stopped = _stopped;
     final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/reply-${DateTime.now().millisecondsSinceEpoch}.mp3');
-    await file.writeAsBytes(bytes, flush: true);
+    final file = File('${dir.path}/reply-${DateTime.now().microsecondsSinceEpoch}.mp3');
+    await file.writeAsBytes(audio, flush: true);
     try {
+      if (stopped.isCompleted) return;
       await _player.stop();
       final done = _player.onPlayerComplete.first;
       await _player.play(DeviceFileSource(file.path));
       // A stop from outside ends playback without "complete": don't wait forever.
-      await Future.any([done, _stopped.future]);
+      await Future.any([done, stopped.future]);
     } finally {
       unawaited(file.delete().catchError((_) => file));
     }

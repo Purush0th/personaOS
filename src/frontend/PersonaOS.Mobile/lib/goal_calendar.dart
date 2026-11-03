@@ -22,17 +22,17 @@ const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep
 
 /// The type a goal's parent must have; null for a year, which never nests.
 String? parentTypeOf(String type) => switch (type) {
-      'quarter' => 'year',
-      'month' => 'quarter',
-      _ => null,
-    };
+  'quarter' => 'year',
+  'month' => 'quarter',
+  _ => null,
+};
 
 /// The type of goal that nests under this one; null for a month.
 String? childTypeOf(String type) => switch (type) {
-      'year' => 'quarter',
-      'quarter' => 'month',
-      _ => null,
-    };
+  'year' => 'quarter',
+  'quarter' => 'month',
+  _ => null,
+};
 
 DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -52,10 +52,10 @@ int goalDays(DateTime start, DateTime end) => _day(end).difference(_day(start)).
 
 /// "2026", "Q4 2026" or "Oct 2026" — the same as the server's label.
 String slotLabel(String type, DateTime end) => switch (type) {
-      'quarter' => 'Q${quarterOf(end)} ${end.year}',
-      'month' => '${monthNames[end.month - 1]} ${end.year}',
-      _ => '${end.year}',
-    };
+  'quarter' => 'Q${quarterOf(end)} ${end.year}',
+  'month' => '${monthNames[end.month - 1]} ${end.year}',
+  _ => '${end.year}',
+};
 
 /// The months of the quarter that ends on [quarterEnd], e.g. [10, 11, 12].
 List<int> monthsOfQuarter(DateTime quarterEnd) {
@@ -83,7 +83,8 @@ class ParentSlot {
   ParentSlot? parent,
 }) {
   today = _day(today);
-  ({DateTime? start, DateTime? end, String? problem}) fail(String problem) => (start: null, end: null, problem: problem);
+  ({DateTime? start, DateTime? end, String? problem}) fail(String problem) =>
+      (start: null, end: null, problem: problem);
 
   if (type == 'year') {
     final first = _day(start ?? (year > today.year ? DateTime(year, 1, 1) : today));
@@ -117,7 +118,9 @@ class ParentSlot {
   final days = goalDays(first, calendarEnd);
   final min = minDays[type]!;
   if (days < min) {
-    return fail('$label has only $days days left; a ${type == 'quarter' ? 'quarterly' : 'monthly'} goal needs at least $min.');
+    return fail(
+      '$label has only $days days left; a ${type == 'quarter' ? 'quarterly' : 'monthly'} goal needs at least $min.',
+    );
   }
   return (start: first, end: calendarEnd, problem: null);
 }

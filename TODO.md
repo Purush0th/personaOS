@@ -34,6 +34,18 @@ Waiting for the owner to say so:
       `System.Security.Cryptography.Pkcs`/`.Xml` pinned to 10.0.13: new advisories had failed the
       image's restore. APK `PersonaOS-2026-10-15-arm64.apk` sent.
 
+Voice:
+- [x] V1. Hands-free like ChatGPT's voice mode (mobile, 2026-11-03). Owner: "not detecting
+      pauses", "should run in background", "slow and buggy". Fixed: the pause detector's
+      background could be pinned by the mic's first low readings (now held up by the 10th
+      percentile of the last 4 s) and a wandering room never counted as silence (now judged on a
+      3-reading average too); hands-free pause 3 s -> 1.5 s; the server's voice plays a sentence
+      at a time, fetching the next while one plays (`speechParts`), and the phone's voice reads
+      only what is left if the server fails partway; a microphone foreground service
+      (`HandsFreeService.kt`, notification with End) keeps the loop going in the background.
+- [ ] Phone check: V1 on the owner's phone (pauses, speed, screen off / app in background). The
+      phone's own speech recognizer may not listen in the background; the server's does.
+
 Not yet tried on the owner's phone:
 - [ ] Phone check: Notes screen (built and tested, not yet tried on the owner's phone).
 - [ ] Phone check: calendar views C1–C4 (built; only widget tests so far).

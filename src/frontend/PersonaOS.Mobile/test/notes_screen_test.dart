@@ -50,7 +50,11 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final api = _Api(notes);
-    await tester.pumpWidget(MaterialApp(home: NotesScreen(api: api, boardEnabled: board)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NotesScreen(api: api, boardEnabled: board),
+      ),
+    );
     await tester.pumpAndSettle();
     return api;
   }
@@ -139,15 +143,17 @@ void main() {
     tester.view.physicalSize = const Size(320, 600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(MaterialApp(
-      home: NotesScreen(
-        api: _Api([
-          for (var i = 0; i < 12; i++) _note(i, 'Note $i ${'with a fairly long line of words ' * (i % 4 + 1)}'),
-          _note(99, 'Supercalifragilisticexpialidocious-and-then-some-unbroken-text-that-will-not-wrap'),
-        ]),
-        boardEnabled: true,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NotesScreen(
+          api: _Api([
+            for (var i = 0; i < 12; i++) _note(i, 'Note $i ${'with a fairly long line of words ' * (i % 4 + 1)}'),
+            _note(99, 'Supercalifragilisticexpialidocious-and-then-some-unbroken-text-that-will-not-wrap'),
+          ]),
+          boardEnabled: true,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);

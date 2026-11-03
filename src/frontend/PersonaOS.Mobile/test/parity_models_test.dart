@@ -34,12 +34,7 @@ void main() {
               {'tool': 'create_goal', 'summary': 'Learn Rust', 'ok': true},
             ],
             'pendingActions': [
-              {
-                'id': 'a1',
-                'tool': 'create_reminder',
-                'summary': 'Remind me',
-                'status': 'pending',
-              },
+              {'id': 'a1', 'tool': 'create_reminder', 'summary': 'Remind me', 'status': 'pending'},
             ],
           },
         ],
@@ -78,10 +73,7 @@ void main() {
     test('reports no stored key when the server says so', () {
       // The key itself is never returned, so the flag is the only signal the
       // settings screen has for whether a blank field means "keep" or "none".
-      final settings = InstanceSettings.fromJson({
-        'assistantNickname': 'Friday',
-        'hasAnthropicApiKey': false,
-      });
+      final settings = InstanceSettings.fromJson({'assistantNickname': 'Friday', 'hasAnthropicApiKey': false});
 
       expect(settings.hasApiKey, isFalse);
       expect(settings.features, isEmpty);
@@ -125,8 +117,7 @@ void main() {
     });
 
     test('a freshly-stamped document reads as just now', () {
-      final serverStyle =
-          DateTime.now().toUtc().toIso8601String().replaceAll('Z', '');
+      final serverStyle = DateTime.now().toUtc().toIso8601String().replaceAll('Z', '');
       expect(relativeTime(parseServerUtc(serverStyle)), 'just now');
     });
   });

@@ -13,12 +13,12 @@ class BoardColumns {
   static const board = [todo, inProgress, done];
 
   static String label(String column) => switch (column) {
-        backlog => 'Backlog',
-        todo => 'To do',
-        inProgress => 'In progress',
-        done => 'Done',
-        _ => column,
-      };
+    backlog => 'Backlog',
+    todo => 'To do',
+    inProgress => 'In progress',
+    done => 'Done',
+    _ => column,
+  };
 }
 
 /// The server refuses an unacknowledged change to a running sprint with this code.
@@ -39,13 +39,13 @@ class GoalTaskSummary {
   });
 
   factory GoalTaskSummary.fromJson(Map<String, dynamic> json) => GoalTaskSummary(
-        id: json['id'] as int,
-        key: json['key'] as String,
-        title: json['title'] as String,
-        points: json['points'] as int?,
-        column: json['column'] as String,
-        sprintNumber: json['sprintNumber'] as int?,
-      );
+    id: json['id'] as int,
+    key: json['key'] as String,
+    title: json['title'] as String,
+    points: json['points'] as int?,
+    column: json['column'] as String,
+    sprintNumber: json['sprintNumber'] as int?,
+  );
 
   final int id;
   final String key;
@@ -69,14 +69,14 @@ class GoalChildSummary {
   });
 
   factory GoalChildSummary.fromJson(Map<String, dynamic> json) => GoalChildSummary(
-        id: json['id'] as int,
-        key: json['key'] as String,
-        title: json['title'] as String,
-        periodType: json['periodType'] as String,
-        slot: json['slot'] as String? ?? '',
-        status: json['status'] as String,
-        effectiveProgress: json['effectiveProgress'] as int? ?? 0,
-      );
+    id: json['id'] as int,
+    key: json['key'] as String,
+    title: json['title'] as String,
+    periodType: json['periodType'] as String,
+    slot: json['slot'] as String? ?? '',
+    status: json['status'] as String,
+    effectiveProgress: json['effectiveProgress'] as int? ?? 0,
+  );
 
   final int id;
   final String key;
@@ -115,32 +115,32 @@ class Goal {
   });
 
   factory Goal.fromJson(Map<String, dynamic> json) => Goal(
-        id: json['id'] as int,
-        key: json['key'] as String? ?? '',
-        title: json['title'] as String,
-        periodType: json['periodType'] as String,
-        slot: json['slot'] as String? ?? '',
-        periodStart: DateTime.tryParse(json['periodStart'] as String? ?? ''),
-        periodEnd: DateTime.tryParse(json['periodEnd'] as String? ?? ''),
-        parentId: json['parentId'] as int?,
-        parentKey: json['parentKey'] as String?,
-        description: json['description'] as String?,
-        priority: json['priority'] as String? ?? 'medium',
-        status: json['status'] as String,
-        progress: json['progress'] as int,
-        effectiveProgress: json['effectiveProgress'] as int,
-        taskCount: json['taskCount'] as int? ?? 0,
-        doneTaskCount: json['doneTaskCount'] as int? ?? 0,
-        childCount: json['childCount'] as int? ?? 0,
-        completedChildCount: json['completedChildCount'] as int? ?? 0,
-        completeProblem: json['completeProblem'] as String?,
-        tasks: (json['tasks'] as List<dynamic>? ?? const [])
-            .map((e) => GoalTaskSummary.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        children: (json['children'] as List<dynamic>? ?? const [])
-            .map((e) => GoalChildSummary.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    id: json['id'] as int,
+    key: json['key'] as String? ?? '',
+    title: json['title'] as String,
+    periodType: json['periodType'] as String,
+    slot: json['slot'] as String? ?? '',
+    periodStart: DateTime.tryParse(json['periodStart'] as String? ?? ''),
+    periodEnd: DateTime.tryParse(json['periodEnd'] as String? ?? ''),
+    parentId: json['parentId'] as int?,
+    parentKey: json['parentKey'] as String?,
+    description: json['description'] as String?,
+    priority: json['priority'] as String? ?? 'medium',
+    status: json['status'] as String,
+    progress: json['progress'] as int,
+    effectiveProgress: json['effectiveProgress'] as int,
+    taskCount: json['taskCount'] as int? ?? 0,
+    doneTaskCount: json['doneTaskCount'] as int? ?? 0,
+    childCount: json['childCount'] as int? ?? 0,
+    completedChildCount: json['completedChildCount'] as int? ?? 0,
+    completeProblem: json['completeProblem'] as String?,
+    tasks: (json['tasks'] as List<dynamic>? ?? const [])
+        .map((e) => GoalTaskSummary.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    children: (json['children'] as List<dynamic>? ?? const [])
+        .map((e) => GoalChildSummary.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 
   final int id;
   final String key;
@@ -208,25 +208,25 @@ class BoardTask {
   });
 
   factory BoardTask.fromJson(Map<String, dynamic> json) => BoardTask(
-        id: json['id'] as int,
-        key: json['key'] as String,
-        title: json['title'] as String,
-        description: json['description'] as String?,
-        points: json['points'] as int?,
-        column: json['column'] as String,
-        sprintNumber: json['sprintNumber'] as int?,
-        goalId: json['goalId'] as int?,
-        goalKey: json['goalKey'] as String?,
-        goalTitle: json['goalTitle'] as String?,
-        priority: json['priority'] as String? ?? 'medium',
-        sprintKey: json['sprintKey'] as String?,
-        addedMidSprint: json['addedMidSprint'] as bool? ?? false,
-        carryOverCount: json['carryOverCount'] as int? ?? 0,
-        commentCount: json['commentCount'] as int? ?? 0,
-        attachmentCount: json['attachmentCount'] as int? ?? 0,
-        createdAtUtc: json['createdAtUtc'] == null ? null : parseServerUtc(json['createdAtUtc'] as String),
-        updatedAtUtc: json['updatedAtUtc'] == null ? null : parseServerUtc(json['updatedAtUtc'] as String),
-      );
+    id: json['id'] as int,
+    key: json['key'] as String,
+    title: json['title'] as String,
+    description: json['description'] as String?,
+    points: json['points'] as int?,
+    column: json['column'] as String,
+    sprintNumber: json['sprintNumber'] as int?,
+    goalId: json['goalId'] as int?,
+    goalKey: json['goalKey'] as String?,
+    goalTitle: json['goalTitle'] as String?,
+    priority: json['priority'] as String? ?? 'medium',
+    sprintKey: json['sprintKey'] as String?,
+    addedMidSprint: json['addedMidSprint'] as bool? ?? false,
+    carryOverCount: json['carryOverCount'] as int? ?? 0,
+    commentCount: json['commentCount'] as int? ?? 0,
+    attachmentCount: json['attachmentCount'] as int? ?? 0,
+    createdAtUtc: json['createdAtUtc'] == null ? null : parseServerUtc(json['createdAtUtc'] as String),
+    updatedAtUtc: json['updatedAtUtc'] == null ? null : parseServerUtc(json['updatedAtUtc'] as String),
+  );
 
   final int id;
   final String key;
@@ -268,12 +268,12 @@ class WorkItemAttachment {
   });
 
   factory WorkItemAttachment.fromJson(Map<String, dynamic> json) => WorkItemAttachment(
-        id: json['id'] as int,
-        fileName: json['fileName'] as String? ?? 'file',
-        contentType: json['contentType'] as String? ?? 'application/octet-stream',
-        sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
-        createdAtUtc: parseServerUtc(json['createdAtUtc'] as String),
-      );
+    id: json['id'] as int,
+    fileName: json['fileName'] as String? ?? 'file',
+    contentType: json['contentType'] as String? ?? 'application/octet-stream',
+    sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+    createdAtUtc: parseServerUtc(json['createdAtUtc'] as String),
+  );
 
   final int id;
   final String fileName;
@@ -293,12 +293,12 @@ class WorkItemComment {
   });
 
   factory WorkItemComment.fromJson(Map<String, dynamic> json) => WorkItemComment(
-        id: json['id'] as int,
-        author: json['author'] as String? ?? 'user',
-        body: json['body'] as String? ?? '',
-        createdAtUtc: parseServerUtc(json['createdAtUtc'] as String),
-        updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
-      );
+    id: json['id'] as int,
+    author: json['author'] as String? ?? 'user',
+    body: json['body'] as String? ?? '',
+    createdAtUtc: parseServerUtc(json['createdAtUtc'] as String),
+    updatedAtUtc: parseServerUtc(json['updatedAtUtc'] as String),
+  );
 
   final int id;
 
@@ -335,26 +335,26 @@ class SprintInfo {
   });
 
   factory SprintInfo.fromJson(Map<String, dynamic> json) => SprintInfo(
-        id: json['id'] as int,
-        key: json['key'] as String? ?? 'SPRINT-${json['number']}',
-        number: json['number'] as int,
-        name: json['name'] as String?,
-        status: json['status'] as String,
-        startsAtUtc: parseServerUtc(json['startsAtUtc'] as String),
-        endsAtUtc: parseServerUtc(json['endsAtUtc'] as String),
-        committedPoints: json['committedPoints'] as int?,
-        addedPoints: json['addedPoints'] as int? ?? 0,
-        removedPoints: json['removedPoints'] as int? ?? 0,
-        completedPoints: json['completedPoints'] as int? ?? 0,
-        carriedOverPoints: json['carriedOverPoints'] as int?,
-        totalPoints: json['totalPoints'] as int? ?? 0,
-        unestimatedCount: json['unestimatedCount'] as int? ?? 0,
-        scopeLocked: json['scopeLocked'] as bool? ?? false,
-        startedAtUtc: json['startedAtUtc'] == null ? null : parseServerUtc(json['startedAtUtc'] as String),
-        closedAtUtc: json['closedAtUtc'] == null ? null : parseServerUtc(json['closedAtUtc'] as String),
-        taskCount: json['taskCount'] as int? ?? 0,
-        doneTaskCount: json['doneTaskCount'] as int? ?? 0,
-      );
+    id: json['id'] as int,
+    key: json['key'] as String? ?? 'SPRINT-${json['number']}',
+    number: json['number'] as int,
+    name: json['name'] as String?,
+    status: json['status'] as String,
+    startsAtUtc: parseServerUtc(json['startsAtUtc'] as String),
+    endsAtUtc: parseServerUtc(json['endsAtUtc'] as String),
+    committedPoints: json['committedPoints'] as int?,
+    addedPoints: json['addedPoints'] as int? ?? 0,
+    removedPoints: json['removedPoints'] as int? ?? 0,
+    completedPoints: json['completedPoints'] as int? ?? 0,
+    carriedOverPoints: json['carriedOverPoints'] as int?,
+    totalPoints: json['totalPoints'] as int? ?? 0,
+    unestimatedCount: json['unestimatedCount'] as int? ?? 0,
+    scopeLocked: json['scopeLocked'] as bool? ?? false,
+    startedAtUtc: json['startedAtUtc'] == null ? null : parseServerUtc(json['startedAtUtc'] as String),
+    closedAtUtc: json['closedAtUtc'] == null ? null : parseServerUtc(json['closedAtUtc'] as String),
+    taskCount: json['taskCount'] as int? ?? 0,
+    doneTaskCount: json['doneTaskCount'] as int? ?? 0,
+  );
 
   final int id;
 
@@ -390,10 +390,10 @@ class BurndownPoint {
   BurndownPoint({required this.date, required this.remainingPoints, required this.completedPoints});
 
   factory BurndownPoint.fromJson(Map<String, dynamic> json) => BurndownPoint(
-        date: DateTime.parse(json['date'] as String),
-        remainingPoints: (json['remainingPoints'] as num?)?.toInt() ?? 0,
-        completedPoints: (json['completedPoints'] as num?)?.toInt() ?? 0,
-      );
+    date: DateTime.parse(json['date'] as String),
+    remainingPoints: (json['remainingPoints'] as num?)?.toInt() ?? 0,
+    completedPoints: (json['completedPoints'] as num?)?.toInt() ?? 0,
+  );
 
   final DateTime date;
   final int remainingPoints;
@@ -405,15 +405,15 @@ class SprintDetail {
   SprintDetail({required this.sprint, required this.tasks, required this.burndown, this.velocity});
 
   factory SprintDetail.fromJson(Map<String, dynamic> json) => SprintDetail(
-        sprint: SprintInfo.fromJson(json['sprint'] as Map<String, dynamic>),
-        tasks: (json['tasks'] as List<dynamic>? ?? const [])
-            .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        burndown: (json['burndown'] as List<dynamic>? ?? const [])
-            .map((e) => BurndownPoint.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        velocity: (json['velocity'] as num?)?.toDouble(),
-      );
+    sprint: SprintInfo.fromJson(json['sprint'] as Map<String, dynamic>),
+    tasks: (json['tasks'] as List<dynamic>? ?? const [])
+        .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    burndown: (json['burndown'] as List<dynamic>? ?? const [])
+        .map((e) => BurndownPoint.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    velocity: (json['velocity'] as num?)?.toDouble(),
+  );
 
   final SprintInfo sprint;
   final List<BoardTask> tasks;
@@ -422,21 +422,13 @@ class SprintDetail {
 }
 
 class BoardView {
-  BoardView({
-    required this.sprint,
-    required this.velocity,
-    required this.wipLimit,
-    required this.columns,
-  });
+  BoardView({required this.sprint, required this.velocity, required this.wipLimit, required this.columns});
 
   factory BoardView.fromJson(Map<String, dynamic> json) {
-    List<BoardTask> tasks(String name) => (json[name] as List<dynamic>? ?? const [])
-        .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
-        .toList();
+    List<BoardTask> tasks(String name) =>
+        (json[name] as List<dynamic>? ?? const []).map((e) => BoardTask.fromJson(e as Map<String, dynamic>)).toList();
     return BoardView(
-      sprint: json['sprint'] == null
-          ? null
-          : SprintInfo.fromJson(json['sprint'] as Map<String, dynamic>),
+      sprint: json['sprint'] == null ? null : SprintInfo.fromJson(json['sprint'] as Map<String, dynamic>),
       velocity: (json['velocity'] as num?)?.toDouble(),
       wipLimit: json['wipLimit'] as int? ?? 3,
       columns: {
@@ -463,11 +455,9 @@ class SprintReport {
   SprintReport({required this.velocity, required this.sprints});
 
   factory SprintReport.fromJson(Map<String, dynamic> json) => SprintReport(
-        velocity: (json['velocity'] as num?)?.toDouble(),
-        sprints: (json['sprints'] as List<dynamic>)
-            .map((e) => SprintInfo.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    velocity: (json['velocity'] as num?)?.toDouble(),
+    sprints: (json['sprints'] as List<dynamic>).map((e) => SprintInfo.fromJson(e as Map<String, dynamic>)).toList(),
+  );
 
   final double? velocity;
   final List<SprintInfo> sprints;
@@ -478,11 +468,11 @@ class SprintPlan {
   SprintPlan({required this.sprint, required this.tasks});
 
   factory SprintPlan.fromJson(Map<String, dynamic> json) => SprintPlan(
-        sprint: SprintInfo.fromJson(json['sprint'] as Map<String, dynamic>),
-        tasks: (json['tasks'] as List<dynamic>? ?? const [])
-            .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    sprint: SprintInfo.fromJson(json['sprint'] as Map<String, dynamic>),
+    tasks: (json['tasks'] as List<dynamic>? ?? const [])
+        .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 
   final SprintInfo sprint;
   final List<BoardTask> tasks;
@@ -493,13 +483,13 @@ class PlanView {
   PlanView({required this.sprints, required this.backlog});
 
   factory PlanView.fromJson(Map<String, dynamic> json) => PlanView(
-        sprints: (json['sprints'] as List<dynamic>? ?? const [])
-            .map((e) => SprintPlan.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        backlog: (json['backlog'] as List<dynamic>? ?? const [])
-            .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    sprints: (json['sprints'] as List<dynamic>? ?? const [])
+        .map((e) => SprintPlan.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    backlog: (json['backlog'] as List<dynamic>? ?? const [])
+        .map((e) => BoardTask.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 
   final List<SprintPlan> sprints;
   final List<BoardTask> backlog;

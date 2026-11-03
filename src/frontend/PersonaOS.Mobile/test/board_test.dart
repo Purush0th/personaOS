@@ -6,51 +6,53 @@ import 'package:personaos_mobile/main.dart';
 import 'package:personaos_mobile/screens/board_screen.dart';
 
 Map<String, dynamic> _task(int n, String column, {int? points, String? goalKey, String? goalTitle}) => {
-      'id': n,
-      'key': 'TASK-$n',
-      'title': 'Task $n',
-      'points': points,
-      'column': column,
-      // Everything but the backlog sits in the running sprint.
-      'sprintKey': column == 'backlog' ? null : 'SPRINT-2',
-      'goalKey': goalKey,
-      'goalTitle': goalTitle,
-      'carryOverCount': 0,
-      'addedMidSprint': false,
-    };
+  'id': n,
+  'key': 'TASK-$n',
+  'title': 'Task $n',
+  'points': points,
+  'column': column,
+  // Everything but the backlog sits in the running sprint.
+  'sprintKey': column == 'backlog' ? null : 'SPRINT-2',
+  'goalKey': goalKey,
+  'goalTitle': goalTitle,
+  'carryOverCount': 0,
+  'addedMidSprint': false,
+};
 
 Map<String, dynamic> _sprintJson({bool active = true}) => {
-      'id': 2,
-      'key': 'SPRINT-2',
-      'number': 2,
-      'name': 'Week two',
-      'status': active ? 'active' : 'planned',
-      'startsAtUtc': '2026-09-13T14:30:00',
-      'endsAtUtc': '2026-09-20T12:30:00',
-      'committedPoints': active ? 8 : null,
-      'addedPoints': 0,
-      'removedPoints': 0,
-      'completedPoints': 3,
-      'totalPoints': 8,
-      'unestimatedCount': 1,
-      'scopeLocked': active,
-    };
+  'id': 2,
+  'key': 'SPRINT-2',
+  'number': 2,
+  'name': 'Week two',
+  'status': active ? 'active' : 'planned',
+  'startsAtUtc': '2026-09-13T14:30:00',
+  'endsAtUtc': '2026-09-20T12:30:00',
+  'committedPoints': active ? 8 : null,
+  'addedPoints': 0,
+  'removedPoints': 0,
+  'completedPoints': 3,
+  'totalPoints': 8,
+  'unestimatedCount': 1,
+  'scopeLocked': active,
+};
 
 Map<String, dynamic> _boardJson({bool running = true}) => {
-      'sprint': running ? _sprintJson() : null,
-      'velocity': 7.5,
-      'wipLimit': 3,
-      'todo': running ? [_task(2, 'todo', points: 5, goalKey: 'GOAL-1', goalTitle: 'Learn Rust')] : <Map<String, dynamic>>[],
-      'inProgress': running ? [_task(3, 'in_progress', points: 3)] : <Map<String, dynamic>>[],
-      'done': <Map<String, dynamic>>[],
-    };
+  'sprint': running ? _sprintJson() : null,
+  'velocity': 7.5,
+  'wipLimit': 3,
+  'todo': running
+      ? [_task(2, 'todo', points: 5, goalKey: 'GOAL-1', goalTitle: 'Learn Rust')]
+      : <Map<String, dynamic>>[],
+  'inProgress': running ? [_task(3, 'in_progress', points: 3)] : <Map<String, dynamic>>[],
+  'done': <Map<String, dynamic>>[],
+};
 
 Map<String, dynamic> _planJson() => {
-      'sprints': [
-        {'sprint': _sprintJson(), 'tasks': <Map<String, dynamic>>[]},
-      ],
-      'backlog': [_task(1, 'backlog')],
-    };
+  'sprints': [
+    {'sprint': _sprintJson(), 'tasks': <Map<String, dynamic>>[]},
+  ],
+  'backlog': [_task(1, 'backlog')],
+};
 
 /// A board API that records moves and can insist a move is a scope change.
 class FakeBoardApi extends PersonaOsApi {
@@ -70,8 +72,13 @@ class FakeBoardApi extends PersonaOsApi {
   Future<List<Goal>> getGoals({bool includeDropped = false}) async => [];
 
   @override
-  Future<void> moveTask(String key,
-      {required String column, String? sprintKey, int? index, bool acknowledgeScopeChange = false}) async {
+  Future<void> moveTask(
+    String key, {
+    required String column,
+    String? sprintKey,
+    int? index,
+    bool acknowledgeScopeChange = false,
+  }) async {
     moves.add((key, column, acknowledgeScopeChange));
     if (scopeChange && !acknowledgeScopeChange) {
       throw ApiException('SPRINT-2 is running, so adding it is a scope change.', code: scopeChangeCode);
@@ -86,7 +93,12 @@ Future<void> _pumpBoard(WidgetTester tester, PersonaOsApi api) async {
   tester.view.physicalSize = const Size(1080, 2340);
   tester.view.devicePixelRatio = 2.75;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(MaterialApp(theme: personaOsTheme, home: BoardScreen(api: api)));
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: personaOsTheme,
+      home: BoardScreen(api: api),
+    ),
+  );
   await tester.pumpAndSettle();
 }
 
@@ -250,7 +262,12 @@ void main() {
         tester.view.physicalSize = size;
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
-        await tester.pumpWidget(MaterialApp(theme: personaOsTheme, home: BoardScreen(api: FakeBoardApi())));
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: personaOsTheme,
+            home: BoardScreen(api: FakeBoardApi()),
+          ),
+        );
         await tester.pumpAndSettle();
 
         for (final column in [BoardColumns.todo, BoardColumns.inProgress, BoardColumns.done]) {
@@ -279,7 +296,12 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final api = FakeBoardApi();
-      await tester.pumpWidget(MaterialApp(theme: personaOsTheme, home: BoardScreen(api: api)));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: personaOsTheme,
+          home: BoardScreen(api: api),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final gesture = await tester.startGesture(tester.getCenter(find.byKey(const Key('card-TASK-2'))));

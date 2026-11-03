@@ -48,5 +48,35 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // Hands-free in the background (lib/hands_free_service.dart, HandsFreeService).
+        val handsFree = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "personaos/hands_free")
+        HandsFreeService.onEnded = { runOnUiThread { handsFree.invokeMethod("ended", null) } }
+        handsFree.setMethodCallHandler { call, result ->
+            val service = Intent(this, HandsFreeService::class.java)
+            when (call.method) {
+                "start" -> {
+                    service.putExtra(HandsFreeService.EXTRA_TEXT, call.argument<String>("text"))
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(service) else startService(service)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        // Android refuses a microphone service it cannot show (no permission, or
+                        // started from the background): hands-free still works with the app open.
+                        result.success(false)
+                    }
+                }
+                "stop" -> {
+                    stopService(service)
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        HandsFreeService.onEnded = null
+        super.onDestroy()
     }
 }

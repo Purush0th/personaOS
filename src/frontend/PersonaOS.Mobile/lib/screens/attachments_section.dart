@@ -62,15 +62,15 @@ class _AttachmentsSectionState extends State<AttachmentsSection> {
   }
 
   Future<void> _open(WorkItemAttachment attachment) => _run(() async {
-        final bytes = await widget.api.downloadAttachment(attachment.id);
-        final dir = await getApplicationDocumentsDirectory();
-        final folder = Directory('${dir.path}/attachments');
-        await folder.create(recursive: true);
-        final file = File('${folder.path}/${attachment.id}-${attachment.fileName}');
-        await file.writeAsBytes(bytes, flush: true);
-        final result = await OpenFilex.open(file.path, type: attachment.contentType);
-        if (result.type != ResultType.done) _show('Saved, but no app here opens ${attachment.fileName}.');
-      });
+    final bytes = await widget.api.downloadAttachment(attachment.id);
+    final dir = await getApplicationDocumentsDirectory();
+    final folder = Directory('${dir.path}/attachments');
+    await folder.create(recursive: true);
+    final file = File('${folder.path}/${attachment.id}-${attachment.fileName}');
+    await file.writeAsBytes(bytes, flush: true);
+    final result = await OpenFilex.open(file.path, type: attachment.contentType);
+    if (result.type != ResultType.done) _show('Saved, but no app here opens ${attachment.fileName}.');
+  });
 
   Future<void> _delete(WorkItemAttachment attachment) async {
     final ok = await showDialog<bool>(
@@ -105,8 +105,10 @@ class _AttachmentsSectionState extends State<AttachmentsSection> {
             Row(
               children: [
                 Expanded(
-                  child: Text(files.isEmpty ? 'Attachments' : 'Attachments · ${files.length}',
-                      style: theme.textTheme.titleSmall),
+                  child: Text(
+                    files.isEmpty ? 'Attachments' : 'Attachments · ${files.length}',
+                    style: theme.textTheme.titleSmall,
+                  ),
                 ),
                 TextButton.icon(
                   onPressed: _busy ? null : _add,

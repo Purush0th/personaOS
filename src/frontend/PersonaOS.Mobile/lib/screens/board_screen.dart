@@ -115,37 +115,40 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
   }
 
   Future<void> _move(BoardTask task, String column, {int? index}) => _change(
-        (ack) => widget.api.moveTask(
-          task.key,
-          column: column,
-          sprintKey: column == BoardColumns.backlog ? null : _board?.sprint?.key,
-          index: index,
-          acknowledgeScopeChange: ack,
-        ),
-      );
+    (ack) => widget.api.moveTask(
+      task.key,
+      column: column,
+      sprintKey: column == BoardColumns.backlog ? null : _board?.sprint?.key,
+      index: index,
+      acknowledgeScopeChange: ack,
+    ),
+  );
 
   /// An existing task opens its quick view; without one, the new-task sheet.
   Future<void> _openTask({BoardTask? task}) async {
     final changed = task != null
         ? await showTaskQuickView(context, widget.api, task.key, task: task, goals: _goals)
         : await showModalBottomSheet<bool>(
-              context: context,
-              isScrollControlled: true,
-              showDragHandle: true,
-              builder: (_) => TaskSheet(
-                api: widget.api,
-                goals: _goals,
-                sprints: _plan?.sprints.map((s) => s.sprint).toList() ?? const [],
-                defaultSprintKey: _board?.sprint?.key,
-              ),
-            ) ==
-            true;
+                context: context,
+                isScrollControlled: true,
+                showDragHandle: true,
+                builder: (_) => TaskSheet(
+                  api: widget.api,
+                  goals: _goals,
+                  sprints: _plan?.sprints.map((s) => s.sprint).toList() ?? const [],
+                  defaultSprintKey: _board?.sprint?.key,
+                ),
+              ) ==
+              true;
     if (changed) await _reload();
   }
 
   Future<void> _openSprint(SprintInfo sprint) async {
-    final changed = await Navigator.of(context)
-        .push<bool>(MaterialPageRoute(builder: (_) => SprintPage(api: widget.api, sprintKey: sprint.key)));
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => SprintPage(api: widget.api, sprintKey: sprint.key),
+      ),
+    );
     if (changed == true) await _reload();
   }
 
@@ -177,7 +180,11 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
         ],
         bottom: TabBar(
           controller: _tabs,
-          tabs: const [Tab(text: 'Sprint'), Tab(text: 'Backlog'), Tab(text: 'Reports')],
+          tabs: const [
+            Tab(text: 'Sprint'),
+            Tab(text: 'Backlog'),
+            Tab(text: 'Reports'),
+          ],
         ),
       ),
       floatingActionButton: sprint == null || _tabs.index != 0
@@ -202,71 +209,67 @@ class _BoardScreenState extends State<BoardScreen> with SingleTickerProviderStat
 
   Widget _sprintTab(BoardView? board, SprintInfo? sprint) {
     return _loading
-          ? const Center(child: CircularProgressIndicator())
-          : board == null
-              ? _Message(text: _error ?? 'Could not load the board.', onRetry: _reload)
-              : sprint == null
-                  ? _NoSprint(plan: _plan, onReload: _reload)
-                  : RefreshIndicator(
-                      onRefresh: _reload,
-                      // Wide enough (a tablet, or a phone on its side): every column side by side,
-                      // the way the web board shows them. Narrow: one column per page.
-                      child: LayoutBuilder(
-                        builder: (context, constraints) => Column(
-                          children: [
-                            _SprintHeader(sprint: sprint, velocity: board.velocity),
-                            if (constraints.maxWidth >= Breakpoints.board)
-                              Expanded(
-                                child: _SideBySide(
-                                  columns: board.visibleColumns,
-                                  page: (column) => _columnPage(board, column),
-                                ),
-                              )
-                            else ...[
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 150),
-                                child: _dragging
-                                    ? _DropBar(
-                                        key: const ValueKey('drop-bar'),
-                                        columns: board.visibleColumns,
-                                        onDrop: _move,
-                                      )
-                                    : _ColumnTabs(
-                                        key: const ValueKey('tabs'),
-                                        board: board,
-                                        selected: _page,
-                                        onSelect: (i) => _pages.animateToPage(i,
-                                            duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
-                                      ),
+        ? const Center(child: CircularProgressIndicator())
+        : board == null
+        ? _Message(text: _error ?? 'Could not load the board.', onRetry: _reload)
+        : sprint == null
+        ? _NoSprint(plan: _plan, onReload: _reload)
+        : RefreshIndicator(
+            onRefresh: _reload,
+            // Wide enough (a tablet, or a phone on its side): every column side by side,
+            // the way the web board shows them. Narrow: one column per page.
+            child: LayoutBuilder(
+              builder: (context, constraints) => Column(
+                children: [
+                  _SprintHeader(sprint: sprint, velocity: board.velocity),
+                  if (constraints.maxWidth >= Breakpoints.board)
+                    Expanded(
+                      child: _SideBySide(columns: board.visibleColumns, page: (column) => _columnPage(board, column)),
+                    )
+                  else ...[
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 150),
+                      child: _dragging
+                          ? _DropBar(key: const ValueKey('drop-bar'), columns: board.visibleColumns, onDrop: _move)
+                          : _ColumnTabs(
+                              key: const ValueKey('tabs'),
+                              board: board,
+                              selected: _page,
+                              onSelect: (i) => _pages.animateToPage(
+                                i,
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeOut,
                               ),
-                              Expanded(
-                                child: PageView(
-                                  controller: _pages,
-                                  onPageChanged: (i) => setState(() => _page = i),
-                                  children: [for (final column in board.visibleColumns) _columnPage(board, column)],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
+                            ),
+                    ),
+                    Expanded(
+                      child: PageView(
+                        controller: _pages,
+                        onPageChanged: (i) => setState(() => _page = i),
+                        children: [for (final column in board.visibleColumns) _columnPage(board, column)],
                       ),
-                    );
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
   }
 
   Widget _columnPage(BoardView board, String column) => _ColumnPage(
-        key: Key('column-$column'),
-        column: column,
-        tasks: board.columns[column]!,
-        overWip: column == BoardColumns.inProgress && board.columns[column]!.length > board.wipLimit,
-        wipLimit: board.wipLimit,
-        onOpen: (task) => _openTask(task: task),
-        onDragChanged: (dragging) => setState(() => _dragging = dragging),
-        onDropBefore: (task, before) {
-          final others = board.columns[column]!.where((t) => t.key != task.key).toList();
-          final index = before == null ? others.length : others.indexWhere((t) => t.key == before.key);
-          unawaited(_move(task, column, index: index));
-        },
-      );
+    key: Key('column-$column'),
+    column: column,
+    tasks: board.columns[column]!,
+    overWip: column == BoardColumns.inProgress && board.columns[column]!.length > board.wipLimit,
+    wipLimit: board.wipLimit,
+    onOpen: (task) => _openTask(task: task),
+    onDragChanged: (dragging) => setState(() => _dragging = dragging),
+    onDropBefore: (task, before) {
+      final others = board.columns[column]!.where((t) => t.key != task.key).toList();
+      final index = before == null ? others.length : others.indexWhere((t) => t.key == before.key);
+      unawaited(_move(task, column, index: index));
+    },
+  );
 }
 
 /// Every column at once, for a wide screen. Columns share the width, but never get narrower than
@@ -281,24 +284,26 @@ class _SideBySide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      const padding = 8.0;
-      final fits = (constraints.maxWidth - padding * 2) / columns.length >= _minColumnWidth;
-      if (fits) {
-        return Padding(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const padding = 8.0;
+        final fits = (constraints.maxWidth - padding * 2) / columns.length >= _minColumnWidth;
+        if (fits) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: padding),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [for (final column in columns) Expanded(child: page(column))],
+            ),
+          );
+        }
+        return ListView(
+          scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: padding),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [for (final column in columns) Expanded(child: page(column))],
-          ),
+          children: [for (final column in columns) SizedBox(width: _minColumnWidth, child: page(column))],
         );
-      }
-      return ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: padding),
-        children: [for (final column in columns) SizedBox(width: _minColumnWidth, child: page(column))],
-      );
-    });
+      },
+    );
   }
 }
 
@@ -324,7 +329,7 @@ class _NoSprint extends StatelessWidget {
               planned.isEmpty
                   ? 'Plan one in the Backlog tab, then start it there.'
                   : '${sprintLabel(planned.first.sprint)} is planned and waiting. '
-                      'Start it from the Backlog tab.',
+                        'Start it from the Backlog tab.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -367,8 +372,7 @@ class _SprintHeader extends StatelessWidget {
             children: [
               Text('${sprint.committedPoints ?? sprint.totalPoints} committed', style: stat),
               Text('${sprint.completedPoints} done', style: stat),
-              if (sprint.addedPoints > 0)
-                Text('+${sprint.addedPoints} added', style: stat?.copyWith(color: warn)),
+              if (sprint.addedPoints > 0) Text('+${sprint.addedPoints} added', style: stat?.copyWith(color: warn)),
               if (sprint.removedPoints > 0)
                 Text('−${sprint.removedPoints} removed', style: stat?.copyWith(color: warn)),
               if (sprint.unestimatedCount > 0) Text('${sprint.unestimatedCount} unestimated', style: stat),
@@ -500,7 +504,10 @@ class _ColumnPage extends StatelessWidget {
                 children: [
                   // Side by side on a tablet a column can be narrow: the name gives way first.
                   Expanded(
-                    child: Align(alignment: Alignment.centerLeft, child: StatusChip(column: column)),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: StatusChip(column: column),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Text('${tasks.length} · $points pts', style: Theme.of(context).textTheme.bodySmall),
@@ -510,19 +517,21 @@ class _ColumnPage extends StatelessWidget {
             if (overWip)
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
-                child: Text('Over $wipLimit in progress. Finish some first.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: StatusTone.review.ink(context))),
+                child: Text(
+                  'Over $wipLimit in progress. Finish some first.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: StatusTone.review.ink(context)),
+                ),
               ),
             Expanded(
               child: tasks.isEmpty
-                  ? ListView(children: [
-                      Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Center(
-                          child: Text('Nothing here.', style: Theme.of(context).textTheme.bodySmall),
+                  ? ListView(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Center(child: Text('Nothing here.', style: Theme.of(context).textTheme.bodySmall)),
                         ),
-                      ),
-                    ])
+                      ],
+                    )
                   : ListView.builder(
                       itemCount: tasks.length,
                       itemBuilder: (context, i) {

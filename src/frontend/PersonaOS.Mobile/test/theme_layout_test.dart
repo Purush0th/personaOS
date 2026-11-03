@@ -13,18 +13,20 @@ void main() {
   for (final (name, theme) in [('light', personaOsTheme), ('dark', personaOsDarkTheme)]) {
     group('$name theme', () {
       testWidgets('a filled button lays out beside another button in a Row', (tester) async {
-        await tester.pumpWidget(MaterialApp(
-          theme: theme,
-          home: Scaffold(
-            body: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(onPressed: () {}, child: const Text('Discard')),
-                FilledButton(onPressed: () {}, child: const Text('Confirm')),
-              ],
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: Scaffold(
+              body: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(onPressed: () {}, child: const Text('Discard')),
+                  FilledButton(onPressed: () {}, child: const Text('Confirm')),
+                ],
+              ),
             ),
           ),
-        ));
+        );
 
         expect(tester.takeException(), isNull);
         expect(find.text('Confirm'), findsOneWidget);
@@ -32,26 +34,28 @@ void main() {
       });
 
       testWidgets('a dialog shows its filled primary action', (tester) async {
-        await tester.pumpWidget(MaterialApp(
-          theme: theme,
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: TextButton(
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('Delete conversation?'),
-                    actions: [
-                      TextButton(onPressed: () {}, child: const Text('Cancel')),
-                      FilledButton(onPressed: () {}, child: const Text('Delete')),
-                    ],
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('Delete conversation?'),
+                      actions: [
+                        TextButton(onPressed: () {}, child: const Text('Cancel')),
+                        FilledButton(onPressed: () {}, child: const Text('Delete')),
+                      ],
+                    ),
                   ),
+                  child: const Text('open'),
                 ),
-                child: const Text('open'),
               ),
             ),
           ),
-        ));
+        );
 
         await tester.tap(find.text('open'));
         await tester.pumpAndSettle();

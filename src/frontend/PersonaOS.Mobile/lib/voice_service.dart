@@ -36,6 +36,53 @@ String speakableText(String markdown) {
   return text.replaceAll(RegExp(r'[ \t]+'), ' ').trim();
 }
 
+/// Splits speakable [text] into the pieces it is voiced in: whole sentences, a short one joined to
+/// the next so the voice does not stop after every "Done.", a long one cut at a comma.
+///
+/// The server's voice used to synthesize a whole reply before playing any of it, so a long answer
+/// sat silent for seconds (owner, 2026-11-03: "talking to the assistant feels slow"). Voiced a
+/// piece at a time, the first sentence plays while the next is made.
+List<String> speechParts(String text, {int atLeast = 40, int atMost = 220}) {
+  final sentences = RegExp(
+    r'[^.!?\n]+(?:[.!?]+["”’)]*|\n+|$)',
+  ).allMatches(text).map((m) => m.group(0)!.trim()).where((s) => s.isNotEmpty);
+  final parts = <String>[];
+  var current = '';
+  void add(String piece) {
+    current = current.isEmpty ? piece : '$current $piece';
+    if (current.length >= atLeast) {
+      parts.add(current);
+      current = '';
+    }
+  }
+
+  for (final sentence in sentences) {
+    if (sentence.length <= atMost) {
+      add(sentence);
+      continue;
+    }
+    // A run-on sentence: cut after the last comma (or space) that keeps a piece short enough.
+    var rest = sentence;
+    while (rest.length > atMost) {
+      var cut = rest.lastIndexOf(', ', atMost);
+      if (cut < atLeast) cut = rest.lastIndexOf(' ', atMost);
+      if (cut < atLeast) cut = atMost;
+      add(rest.substring(0, cut + (rest.startsWith(', ', cut) ? 1 : 0)).trim());
+      rest = rest.substring(cut).replaceFirst(RegExp(r'^[,\s]+'), '');
+    }
+    if (rest.isNotEmpty) add(rest);
+  }
+  if (current.isNotEmpty) {
+    // A short tail rides with the piece before it.
+    if (parts.isNotEmpty && current.length < atLeast ~/ 2) {
+      parts[parts.length - 1] = '${parts.last} $current';
+    } else {
+      parts.add(current);
+    }
+  }
+  return parts;
+}
+
 /// Push-to-talk speech-to-text plus optional text-to-speech read-back.
 ///
 /// Kept deliberately thin: the chat screen owns the UI state (whether the mic
@@ -148,16 +195,30 @@ class VoiceService {
     if (text.trim().isEmpty) return;
     final turn = ++_speechTurn;
     if (_serverTts) {
-      try {
-        await server!.speak(text);
-        return;
-      } catch (_) {
-        // Stopped on purpose (Stop, or a newer reply took over): not a failure, so the
-        // phone's voice must not start reading it instead. Owner, 2026-10-11: leaving the
-        // chat mid-reply cut the server's voice and the phone's own picked the reply up.
+      final parts = speechParts(text);
+      // Each piece is fetched while the one before it plays. One that fails before it is awaited
+      // must not surface as an unhandled error: it is caught below when its turn comes.
+      Future<List<int>> fetch(String part) => server!.synthesize(part)..ignore();
+      Future<List<int>>? next = fetch(parts.first);
+      for (var i = 0; i < parts.length; i++) {
+        try {
+          final audio = await next!;
+          // Stopped while this piece was being made.
+          if (turn != _speechTurn) return;
+          next = i + 1 < parts.length ? fetch(parts[i + 1]) : null;
+          await server!.play(audio);
+        } catch (_) {
+          // Stopped on purpose (Stop, or a newer reply took over): not a failure, so the
+          // phone's voice must not start reading it instead. Owner, 2026-10-11: leaving the
+          // chat mid-reply cut the server's voice and the phone's own picked the reply up.
+          if (turn != _speechTurn) return;
+          // The server's voice is unavailable: the phone's own reads what is left.
+          await speakOnDevice(parts.skip(i).join(' '));
+          return;
+        }
         if (turn != _speechTurn) return;
-        // The server's voice is unavailable: read it with the phone's own instead.
       }
+      return;
     }
     await speakOnDevice(text);
   }

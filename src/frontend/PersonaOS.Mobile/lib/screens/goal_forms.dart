@@ -24,8 +24,8 @@ List<SlotOption> slotOptions(String type, int year, DateTime today, {Goal? paren
   final numbers = type == 'quarter'
       ? [1, 2, 3, 4]
       : parent?.periodEnd != null
-          ? monthsOfQuarter(parent!.periodEnd!)
-          : List.generate(12, (i) => i + 1);
+      ? monthsOfQuarter(parent!.periodEnd!)
+      : List.generate(12, (i) => i + 1);
   final taken = parent?.children.where((c) => c.id != movingId).map((c) => c.slot).toSet() ?? const <String>{};
   final parentSlot = _parentSlot(parent);
   return [
@@ -35,10 +35,10 @@ List<SlotOption> slotOptions(String type, int year, DateTime today, {Goal? paren
         final blocked = taken.contains(slotLabel(type, end))
             ? 'taken'
             : end.isBefore(today)
-                ? 'over'
-                : resolveGoalDates(type, year, value, null, today, parent: parentSlot).problem != null
-                    ? 'too short'
-                    : null;
+            ? 'over'
+            : resolveGoalDates(type, year, value, null, today, parent: parentSlot).problem != null
+            ? 'too short'
+            : null;
         return (value: value, label: type == 'quarter' ? 'Q$value' : monthNames[value - 1], blocked: blocked);
       }(),
   ];
@@ -48,14 +48,18 @@ ParentSlot? _parentSlot(Goal? parent) => parent == null || parent.periodStart ==
     ? null
     : ParentSlot(type: parent.periodType, start: parent.periodStart!, end: parent.periodEnd!);
 
-Widget _slotItemText(BuildContext context, SlotOption option) => Text.rich(TextSpan(children: [
+Widget _slotItemText(BuildContext context, SlotOption option) => Text.rich(
+  TextSpan(
+    children: [
       TextSpan(text: option.label),
       if (option.blocked != null)
         TextSpan(
           text: ' · ${option.blocked}',
           style: TextStyle(color: Theme.of(context).colorScheme.outline, fontSize: 12),
         ),
-    ]));
+    ],
+  ),
+);
 
 /// New goal (or Add quarter / Add month under [parent]): pick the type and its calendar slot and
 /// the dates follow. A year picks its start day; a quarter or month picks its slot. "Under" nests
@@ -92,13 +96,13 @@ class _GoalSheetState extends State<GoalSheet> {
   }
 
   ({DateTime? start, DateTime? end, String? problem}) get _resolved => resolveGoalDates(
-        _type,
-        _year,
-        _type == 'year' ? null : _slot,
-        _type == 'year' ? _start : null,
-        widget.today,
-        parent: _parentSlot(_parent),
-      );
+    _type,
+    _year,
+    _type == 'year' ? null : _slot,
+    _type == 'year' ? _start : null,
+    widget.today,
+    parent: _parentSlot(_parent),
+  );
 
   @override
   void dispose() {
@@ -152,8 +156,10 @@ class _GoalSheetState extends State<GoalSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(parent == null ? 'New goal' : 'Add ${goalsOfType(_type)}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              parent == null ? 'New goal' : 'Add ${goalsOfType(_type)}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             if (parent != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -252,8 +258,10 @@ class _GoalSheetState extends State<GoalSheet> {
             if (problem != null)
               Text(problem, style: TextStyle(color: theme.colorScheme.error))
             else if (resolved.start != null)
-              Text('${formatGoalRange(resolved.start!, resolved.end!)} · ${goalDays(resolved.start!, resolved.end!)} days',
-                  style: theme.textTheme.bodySmall),
+              Text(
+                '${formatGoalRange(resolved.start!, resolved.end!)} · ${goalDays(resolved.start!, resolved.end!)} days',
+                style: theme.textTheme.bodySmall,
+              ),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _busy || resolved.start == null ? null : _submit,
@@ -297,9 +305,14 @@ class _MoveGoalDialogState extends State<MoveGoalDialog> {
     final parent = _parent;
     if (parent == null) return widget.goal.parentId != null; // detaching
     return _slot != null &&
-        resolveGoalDates(widget.goal.periodType, parent.periodEnd!.year, _slot, null, widget.today,
-                    parent: _parentSlot(parent))
-                .start !=
+        resolveGoalDates(
+              widget.goal.periodType,
+              parent.periodEnd!.year,
+              _slot,
+              null,
+              widget.today,
+              parent: _parentSlot(parent),
+            ).start !=
             null;
   }
 
@@ -346,7 +359,10 @@ class _MoveGoalDialogState extends State<MoveGoalDialog> {
             items: [
               const DropdownMenuItem(value: 0, child: Text('–')),
               for (final p in _parents)
-                DropdownMenuItem(value: p.id, child: Text('${p.key} ${p.title} · ${p.slot}', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(
+                  value: p.id,
+                  child: Text('${p.key} ${p.title} · ${p.slot}', overflow: TextOverflow.ellipsis),
+                ),
             ],
             onChanged: (v) => setState(() {
               _parentId = v == 0 ? null : v;
@@ -358,18 +374,33 @@ class _MoveGoalDialogState extends State<MoveGoalDialog> {
             DropdownButtonFormField<int>(
               key: ValueKey('move-slot-${parent.id}'),
               initialValue: _slot,
-              decoration: InputDecoration(labelText: type == 'quarter' ? 'Quarter' : 'Month', border: const OutlineInputBorder()),
+              decoration: InputDecoration(
+                labelText: type == 'quarter' ? 'Quarter' : 'Month',
+                border: const OutlineInputBorder(),
+              ),
               items: [
-                for (final option in slotOptions(type, parent.periodEnd!.year, widget.today, parent: parent, movingId: widget.goal.id))
-                  DropdownMenuItem(value: option.value, enabled: option.blocked == null, child: _slotItemText(context, option)),
+                for (final option in slotOptions(
+                  type,
+                  parent.periodEnd!.year,
+                  widget.today,
+                  parent: parent,
+                  movingId: widget.goal.id,
+                ))
+                  DropdownMenuItem(
+                    value: option.value,
+                    enabled: option.blocked == null,
+                    child: _slotItemText(context, option),
+                  ),
               ],
               onChanged: (v) => setState(() => _slot = v),
             ),
           ] else
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text(widget.goal.parentId != null ? 'It becomes standalone and keeps its dates.' : 'Pick where it goes.',
-                  style: Theme.of(context).textTheme.bodySmall),
+              child: Text(
+                widget.goal.parentId != null ? 'It becomes standalone and keeps its dates.' : 'Pick where it goes.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
           if (_error != null)
             Padding(
@@ -453,7 +484,8 @@ class _DeleteGoalDialogState extends State<DeleteGoalDialog> {
                 ),
                 items: [
                   const DropdownMenuItem(value: 'keep', child: Text('Keep without a goal')),
-                  if (_targets.isNotEmpty) const DropdownMenuItem(value: 'reassign', child: Text('Move to other goals')),
+                  if (_targets.isNotEmpty)
+                    const DropdownMenuItem(value: 'reassign', child: Text('Move to other goals')),
                   const DropdownMenuItem(value: 'delete', child: Text('Delete them too')),
                 ],
                 onChanged: (v) => setState(() => _action = v!),
@@ -467,11 +499,17 @@ class _DeleteGoalDialogState extends State<DeleteGoalDialog> {
                       // "none", not null: a dropdown shows null as empty, and "No goal" is a real choice.
                       initialValue: _mapping[task.key] ?? 'none',
                       isExpanded: true,
-                      decoration: InputDecoration(labelText: '${task.key} ${task.title}', border: const OutlineInputBorder()),
+                      decoration: InputDecoration(
+                        labelText: '${task.key} ${task.title}',
+                        border: const OutlineInputBorder(),
+                      ),
                       items: [
                         const DropdownMenuItem(value: 'none', child: Text('No goal')),
                         for (final g in _targets)
-                          DropdownMenuItem(value: g.key, child: Text('${g.key} ${g.title} · ${g.slot}', overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(
+                            value: g.key,
+                            child: Text('${g.key} ${g.title} · ${g.slot}', overflow: TextOverflow.ellipsis),
+                          ),
                       ],
                       onChanged: (v) => setState(() => _mapping[task.key] = v == 'none' ? null : v),
                     ),
@@ -490,7 +528,10 @@ class _DeleteGoalDialogState extends State<DeleteGoalDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error, foregroundColor: theme.colorScheme.onError),
+          style: FilledButton.styleFrom(
+            backgroundColor: theme.colorScheme.error,
+            foregroundColor: theme.colorScheme.onError,
+          ),
           onPressed: _busy ? null : _delete,
           child: const Text('Delete'),
         ),

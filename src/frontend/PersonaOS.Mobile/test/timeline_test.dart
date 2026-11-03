@@ -4,33 +4,33 @@ import 'package:personaos_mobile/api/personaos_api.dart';
 import 'package:personaos_mobile/screens/timeline_screen.dart';
 
 Map<String, dynamic> _goal(int id, String type, String slot, String start, String end, {int? parentId}) => {
-      'id': id,
-      'key': 'GOAL-$id',
-      'title': 'Goal $id',
-      'periodType': type,
-      'slot': slot,
-      'periodStart': start,
-      'periodEnd': end,
-      'parentId': parentId,
-      'status': 'active',
-      'progress': 0,
-      'effectiveProgress': 40,
-      'taskCount': 0,
-      'doneTaskCount': 0,
-      'tasks': const <Map<String, dynamic>>[],
-    };
+  'id': id,
+  'key': 'GOAL-$id',
+  'title': 'Goal $id',
+  'periodType': type,
+  'slot': slot,
+  'periodStart': start,
+  'periodEnd': end,
+  'parentId': parentId,
+  'status': 'active',
+  'progress': 0,
+  'effectiveProgress': 40,
+  'taskCount': 0,
+  'doneTaskCount': 0,
+  'tasks': const <Map<String, dynamic>>[],
+};
 
 class _Api extends PersonaOsApi {
   _Api() : super(serverUrl: 'http://fake');
 
   @override
   Future<List<Goal>> getGoals() async => [
-        _goal(1, 'year', '2026', '2026-01-01', '2026-12-31'),
-        _goal(2, 'quarter', 'Q4 2026', '2026-10-01', '2026-12-31', parentId: 1),
-        _goal(3, 'month', 'Oct 2026', '2026-10-01', '2026-10-31', parentId: 2),
-        _goal(4, 'month', 'Nov 2026', '2026-11-01', '2026-11-30'),
-        _goal(5, 'year', '2027', '2027-01-01', '2027-12-31'),
-      ].map(Goal.fromJson).toList();
+    _goal(1, 'year', '2026', '2026-01-01', '2026-12-31'),
+    _goal(2, 'quarter', 'Q4 2026', '2026-10-01', '2026-12-31', parentId: 1),
+    _goal(3, 'month', 'Oct 2026', '2026-10-01', '2026-10-31', parentId: 2),
+    _goal(4, 'month', 'Nov 2026', '2026-11-01', '2026-11-30'),
+    _goal(5, 'year', '2027', '2027-01-01', '2027-12-31'),
+  ].map(Goal.fromJson).toList();
 }
 
 void main() {
@@ -38,9 +38,13 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 2.7;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: TimelineView(goals: _Api().getGoals(), today: DateTime(2026, 9, 27))),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TimelineView(goals: _Api().getGoals(), today: DateTime(2026, 9, 27)),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -113,14 +117,21 @@ void main() {
   });
 
   // Reported from a tablet: the year stopped at a fixed width and left the rest of the screen empty.
-  for (final (name, size) in [('tablet landscape', const Size(1280, 800)), ('tablet portrait', const Size(800, 1280))]) {
+  for (final (name, size) in [
+    ('tablet landscape', const Size(1280, 800)),
+    ('tablet portrait', const Size(800, 1280)),
+  ]) {
     testWidgets('on a $name the year fills the width beside the labels', (tester) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: TimelineView(goals: _Api().getGoals(), today: DateTime(2026, 9, 27))),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TimelineView(goals: _Api().getGoals(), today: DateTime(2026, 9, 27)),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final track = tester.getRect(find.byKey(const Key('timeline-scroll')));

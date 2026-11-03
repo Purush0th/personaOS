@@ -89,9 +89,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     unawaited(_load());
-    unawaited(_vault.hasSavedCredentials.then((saved) {
-      if (mounted) setState(() => _hasSavedSignIn = saved);
-    }));
+    unawaited(
+      _vault.hasSavedCredentials.then((saved) {
+        if (mounted) setState(() => _hasSavedSignIn = saved);
+      }),
+    );
     unawaited(_loadVoice());
   }
 
@@ -121,9 +123,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _vault.clear();
     if (!mounted) return;
     setState(() => _hasSavedSignIn = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Saved sign-in removed from this phone.')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved sign-in removed from this phone.')));
   }
 
   @override
@@ -153,12 +153,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _model.text = settings.aiModel;
         _baseUrl.text = settings.aiBaseUrl;
         _timeZone.text = settings.timeZone;
-        _provider = _providers.containsKey(settings.aiProvider)
-            ? settings.aiProvider
-            : 'anthropic';
-        _features = {
-          for (final key in _modules.keys) key: settings.features[key] ?? false,
-        };
+        _provider = _providers.containsKey(settings.aiProvider) ? settings.aiProvider : 'anthropic';
+        _features = {for (final key in _modules.keys) key: settings.features[key] ?? false};
         _hasApiKey = settings.hasApiKey;
         _loading = false;
       });
@@ -175,15 +171,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// rather than sent, because the server rejects a blank one and would
   /// otherwise turn "I did not touch that field" into an error.
   Map<String, Object?> _changes() => {
-        'assistantNickname': _nickname.text.trim(),
-        'personaTemplate': _persona.text.trim(),
-        'aiProvider': _provider,
-        'aiModel': _model.text.trim(),
-        'aiBaseUrl': _needsBaseUrl ? _baseUrl.text.trim() : '',
-        'timeZone': _timeZone.text.trim(),
-        'features': _features,
-        if (_apiKey.text.trim().isNotEmpty) 'anthropicApiKey': _apiKey.text.trim(),
-      };
+    'assistantNickname': _nickname.text.trim(),
+    'personaTemplate': _persona.text.trim(),
+    'aiProvider': _provider,
+    'aiModel': _model.text.trim(),
+    'aiBaseUrl': _needsBaseUrl ? _baseUrl.text.trim() : '',
+    'timeZone': _timeZone.text.trim(),
+    'features': _features,
+    if (_apiKey.text.trim().isNotEmpty) 'anthropicApiKey': _apiKey.text.trim(),
+  };
 
   Future<void> _save() async {
     setState(() => _saving = true);
@@ -192,13 +188,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (_aboutMe.text.trim() != _savedAboutMe) await widget.api.updateAboutMe(_aboutMe.text.trim());
       if (!mounted) return;
       _apiKey.clear();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Settings saved.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings saved.')));
       await _load();
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -233,251 +227,245 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ReadableWidth(child: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
+      body: ReadableWidth(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _loadError != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_loadError!, textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      FilledButton(onPressed: _load, child: const Text('Retry')),
+                    ],
+                  ),
+                ),
+              )
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                children: [
+                  const _SectionLabel('Assistant'),
+                  TextField(
+                    controller: _nickname,
+                    decoration: const InputDecoration(labelText: 'Nickname'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _persona,
+                    minLines: 3,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'Persona / tone',
+                      hintText: 'How should the assistant speak to you?',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _aboutMe,
+                    minLines: 3,
+                    maxLines: 8,
+                    maxLength: _aboutMeMaxLength,
+                    decoration: const InputDecoration(
+                      labelText: 'About you',
+                      hintText: 'What the assistant should always know, e.g. vegetarian, lives in Lisbon.',
+                      helperText: 'Sent with every message.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _timeZone,
+                    decoration: const InputDecoration(labelText: 'Time zone', hintText: 'e.g. Asia/Kolkata'),
+                  ),
+
+                  const _SectionLabel('AI provider'),
+                  DropdownButtonFormField<String>(
+                    initialValue: _provider,
+                    // Without this the longest provider name overflows the
+                    // field on a phone-width screen rather than ellipsising.
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Provider'),
+                    items: [
+                      for (final entry in _providers.entries)
+                        DropdownMenuItem(
+                          value: entry.key,
+                          child: Text(entry.value, overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                    onChanged: (value) => setState(() => _provider = value ?? _provider),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _model,
+                    decoration: const InputDecoration(labelText: 'Model', hintText: 'e.g. qwen2.5:3b-instruct'),
+                  ),
+                  if (_needsBaseUrl) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _baseUrl,
+                      keyboardType: TextInputType.url,
+                      decoration: InputDecoration(labelText: 'Base URL', hintText: _baseUrlHints[_provider]),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _apiKey,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'API key',
+                      helperMaxLines: 2,
+                      helperText: _hasApiKey
+                          ? 'A key is stored. Leave blank to keep it.'
+                          : 'No key stored. Local models may not need one.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _testing ? null : _test,
+                    icon: _testing
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(PhosphorIconsRegular.broadcast),
+                    label: Text(_testing ? 'Testing…' : 'Test connection'),
+                  ),
+                  if (_testResult != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: _testResult!.ok ? scheme.primaryContainer : scheme.errorContainer,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _testResult!.ok ? PhosphorIconsRegular.checkCircle : PhosphorIconsRegular.warningCircle,
+                            size: 20,
+                            color: _testResult!.ok ? scheme.onPrimaryContainer : scheme.onErrorContainer,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _testResult!.message,
+                              style: TextStyle(
+                                color: _testResult!.ok ? scheme.onPrimaryContainer : scheme.onErrorContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const _SectionLabel('Modules'),
+                  Card(
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(_loadError!, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton(onPressed: _load, child: const Text('Retry')),
+                        for (final entry in _modules.entries)
+                          SwitchListTile(
+                            title: Text(entry.value),
+                            value: _features[entry.key] ?? false,
+                            onChanged: (on) => setState(() => _features[entry.key] = on),
+                          ),
                       ],
                     ),
                   ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                  children: [
-                    const _SectionLabel('Assistant'),
-                    TextField(
-                      controller: _nickname,
-                      decoration: const InputDecoration(labelText: 'Nickname'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _persona,
-                      minLines: 3,
-                      maxLines: 6,
-                      decoration: const InputDecoration(
-                        labelText: 'Persona / tone',
-                        hintText: 'How should the assistant speak to you?',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _aboutMe,
-                      minLines: 3,
-                      maxLines: 8,
-                      maxLength: _aboutMeMaxLength,
-                      decoration: const InputDecoration(
-                        labelText: 'About you',
-                        hintText: 'What the assistant should always know, e.g. vegetarian, lives in Lisbon.',
-                        helperText: 'Sent with every message.',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _timeZone,
-                      decoration: const InputDecoration(
-                        labelText: 'Time zone',
-                        hintText: 'e.g. Asia/Kolkata',
-                      ),
-                    ),
 
-                    const _SectionLabel('AI provider'),
-                    DropdownButtonFormField<String>(
-                      initialValue: _provider,
-                      // Without this the longest provider name overflows the
-                      // field on a phone-width screen rather than ellipsising.
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Provider'),
-                      items: [
-                        for (final entry in _providers.entries)
-                          DropdownMenuItem(
-                            value: entry.key,
-                            child: Text(entry.value, overflow: TextOverflow.ellipsis),
-                          ),
+                  const SizedBox(height: 24),
+                  FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save settings')),
+
+                  const _SectionLabel('Appearance'),
+                  ValueListenableBuilder<ThemeMode>(
+                    valueListenable: themeChoice,
+                    builder: (context, mode, _) => SegmentedButton<ThemeMode>(
+                      key: const Key('appearance'),
+                      segments: const [
+                        ButtonSegment(
+                          value: ThemeMode.system,
+                          label: Text('System'),
+                          icon: Icon(PhosphorIconsRegular.circleHalf),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.light,
+                          label: Text('Light'),
+                          icon: Icon(PhosphorIconsRegular.sun),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.dark,
+                          label: Text('Dark'),
+                          icon: Icon(PhosphorIconsRegular.moon),
+                        ),
                       ],
-                      onChanged: (value) =>
-                          setState(() => _provider = value ?? _provider),
+                      selected: {mode},
+                      onSelectionChanged: (picked) => saveThemeChoice(picked.single),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _model,
-                      decoration: const InputDecoration(
-                        labelText: 'Model',
-                        hintText: 'e.g. qwen2.5:3b-instruct',
-                      ),
-                    ),
-                    if (_needsBaseUrl) ...[
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _baseUrl,
-                        keyboardType: TextInputType.url,
-                        decoration: InputDecoration(
-                          labelText: 'Base URL',
-                          hintText: _baseUrlHints[_provider],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _apiKey,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: 'API key',
-                        helperMaxLines: 2,
-                        helperText: _hasApiKey
-                            ? 'A key is stored. Leave blank to keep it.'
-                            : 'No key stored. Local models may not need one.',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _testing ? null : _test,
-                      icon: _testing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(PhosphorIconsRegular.broadcast),
-                      label: Text(_testing ? 'Testing…' : 'Test connection'),
-                    ),
-                    if (_testResult != null) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: _testResult!.ok
-                              ? scheme.primaryContainer
-                              : scheme.errorContainer,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              _testResult!.ok ? PhosphorIconsRegular.checkCircle : PhosphorIconsRegular.warningCircle,
-                              size: 20,
-                              color: _testResult!.ok
-                                  ? scheme.onPrimaryContainer
-                                  : scheme.onErrorContainer,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _testResult!.message,
-                                style: TextStyle(
-                                  color: _testResult!.ok
-                                      ? scheme.onPrimaryContainer
-                                      : scheme.onErrorContainer,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  ),
 
-                    const _SectionLabel('Modules'),
+                  const _SectionLabel('Push notifications'),
+                  PushConfigSection(api: widget.api),
+
+                  if ((_features['voice'] ?? false) && _speech != null) ...[
+                    const _SectionLabel('Speech service'),
+                    SpeechConfigSection(
+                      api: widget.api,
+                      status: _speech!,
+                      onChanged: (status) => setState(() => _speech = status),
+                    ),
+                  ],
+
+                  if ((_features['voice'] ?? false) && _speech != null) ...[
+                    const _SectionLabel('Voice on this phone'),
                     Card(
                       child: Column(
                         children: [
-                          for (final entry in _modules.entries)
-                            SwitchListTile(
-                              title: Text(entry.value),
-                              value: _features[entry.key] ?? false,
-                              onChanged: (on) =>
-                                  setState(() => _features[entry.key] = on),
-                            ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: _saving ? null : _save,
-                      child: Text(_saving ? 'Saving…' : 'Save settings'),
-                    ),
-
-                    const _SectionLabel('Appearance'),
-                    ValueListenableBuilder<ThemeMode>(
-                      valueListenable: themeChoice,
-                      builder: (context, mode, _) => SegmentedButton<ThemeMode>(
-                        key: const Key('appearance'),
-                        segments: const [
-                          ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(PhosphorIconsRegular.circleHalf)),
-                          ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(PhosphorIconsRegular.sun)),
-                          ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(PhosphorIconsRegular.moon)),
-                        ],
-                        selected: {mode},
-                        onSelectionChanged: (picked) => saveThemeChoice(picked.single),
-                      ),
-                    ),
-
-                    const _SectionLabel('Push notifications'),
-                    PushConfigSection(api: widget.api),
-
-                    if ((_features['voice'] ?? false) && _speech != null) ...[
-                      const _SectionLabel('Speech service'),
-                      SpeechConfigSection(
-                        api: widget.api,
-                        status: _speech!,
-                        onChanged: (status) => setState(() => _speech = status),
-                      ),
-                    ],
-
-                    if ((_features['voice'] ?? false) && _speech != null) ...[
-                      const _SectionLabel('Voice on this phone'),
-                      Card(
-                        child: Column(
-                          children: [
-                            SwitchListTile(
-                              title: const Text("Hear me with the server's speech service"),
-                              subtitle: Text(_speech!.speechToText
+                          SwitchListTile(
+                            title: const Text("Hear me with the server's speech service"),
+                            subtitle: Text(
+                              _speech!.speechToText
                                   ? 'Off: the phone recognises speech itself.'
-                                  : 'Not set up on the server (Speech service above).'),
-                              value: _voicePrefs.serverStt && _speech!.speechToText,
-                              onChanged: _speech!.speechToText ? (on) => _setVoice(serverStt: on) : null,
+                                  : 'Not set up on the server (Speech service above).',
                             ),
-                            SwitchListTile(
-                              title: const Text("Read replies in the server's voice"),
-                              subtitle: Text(_speech!.textToSpeech
+                            value: _voicePrefs.serverStt && _speech!.speechToText,
+                            onChanged: _speech!.speechToText ? (on) => _setVoice(serverStt: on) : null,
+                          ),
+                          SwitchListTile(
+                            title: const Text("Read replies in the server's voice"),
+                            subtitle: Text(
+                              _speech!.textToSpeech
                                   ? "Off: the phone's own voice reads them."
-                                  : 'Not set up on the server (Speech service above).'),
-                              value: _voicePrefs.serverTts && _speech!.textToSpeech,
-                              onChanged: _speech!.textToSpeech ? (on) => _setVoice(serverTts: on) : null,
+                                  : 'Not set up on the server (Speech service above).',
                             ),
-                          ],
-                        ),
+                            value: _voicePrefs.serverTts && _speech!.textToSpeech,
+                            onChanged: _speech!.textToSpeech ? (on) => _setVoice(serverTts: on) : null,
+                          ),
+                        ],
                       ),
-                    ],
-
-                    if (_hasSavedSignIn) ...[
-                      const _SectionLabel('Sign-in'),
-                      // The only way to remove a stored password from the
-                      // phone. Without it, opting in to fingerprint unlock
-                      // would be one-way.
-                      OutlinedButton.icon(
-                        onPressed: _forgetSignIn,
-                        icon: const Icon(PhosphorIconsRegular.signOut),
-                        label: const Text('Forget saved sign-in'),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8, left: 4),
-                        child: Text(
-                          'Removes the credentials kept for fingerprint unlock. '
-                          'You will type your password next time.',
-                          style: TextStyle(
-                              fontSize: 12, color: scheme.onSurfaceVariant),
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
-                )),
+
+                  if (_hasSavedSignIn) ...[
+                    const _SectionLabel('Sign-in'),
+                    // The only way to remove a stored password from the
+                    // phone. Without it, opting in to fingerprint unlock
+                    // would be one-way.
+                    OutlinedButton.icon(
+                      onPressed: _forgetSignIn,
+                      icon: const Icon(PhosphorIconsRegular.signOut),
+                      label: const Text('Forget saved sign-in'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, left: 4),
+                      child: Text(
+                        'Removes the credentials kept for fingerprint unlock. '
+                        'You will type your password next time.',
+                        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+      ),
     );
   }
 }

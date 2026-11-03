@@ -36,9 +36,9 @@ class _ReportsViewState extends State<ReportsView> {
   }
 
   void _pick(String key) => setState(() {
-        _selected = key;
-        _detail = widget.api.getSprintDetail(key);
-      });
+    _selected = key;
+    _detail = widget.api.getSprintDetail(key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,11 +50,14 @@ class _ReportsViewState extends State<ReportsView> {
         }
         if (snapshot.hasError) {
           return Center(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text('Could not load the reports.'),
-              const SizedBox(height: 12),
-              OutlinedButton(onPressed: _reload, child: const Text('Retry')),
-            ]),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Could not load the reports.'),
+                const SizedBox(height: 12),
+                OutlinedButton(onPressed: _reload, child: const Text('Retry')),
+              ],
+            ),
           );
         }
 
@@ -93,8 +96,10 @@ class _ReportsViewState extends State<ReportsView> {
                     for (final s in started)
                       DropdownMenuItem(
                         value: s.key,
-                        child: Text('${sprintLabel(s)}${s.isActive ? ' · running' : ''}',
-                            overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          '${sprintLabel(s)}${s.isActive ? ' · running' : ''}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                   ],
                   onChanged: (key) => key == null ? null : _pick(key),
@@ -110,10 +115,7 @@ class _ReportsViewState extends State<ReportsView> {
                       );
                     }
                     if (detail.hasError) {
-                      return const Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Text('Could not load that sprint.'),
-                      );
+                      return const Padding(padding: EdgeInsets.all(24), child: Text('Could not load that sprint.'));
                     }
                     final sprintKey = detail.data!.sprint.key;
                     return Column(
@@ -124,9 +126,11 @@ class _ReportsViewState extends State<ReportsView> {
                           child: TextButton.icon(
                             key: const Key('open-sprint'),
                             onPressed: () async {
-                              final changed = await Navigator.of(context).push<bool>(MaterialPageRoute(
-                                builder: (_) => SprintPage(api: widget.api, sprintKey: sprintKey),
-                              ));
+                              final changed = await Navigator.of(context).push<bool>(
+                                MaterialPageRoute(
+                                  builder: (_) => SprintPage(api: widget.api, sprintKey: sprintKey),
+                                ),
+                              );
                               if (changed == true) await _reload();
                             },
                             icon: const Icon(PhosphorIconsRegular.arrowsOutSimple, size: 18),
@@ -269,11 +273,13 @@ class _SprintSummaryState extends State<SprintSummary> {
                 ),
         ),
         const SizedBox(height: 4),
-        Row(children: [
-          _Legend(color: theme.colorScheme.primary, label: 'Points left'),
-          const SizedBox(width: 16),
-          _Legend(color: theme.colorScheme.outline, label: 'Ideal', dashed: true),
-        ]),
+        Row(
+          children: [
+            _Legend(color: theme.colorScheme.primary, label: 'Points left'),
+            const SizedBox(width: 16),
+            _Legend(color: theme.colorScheme.outline, label: 'Ideal', dashed: true),
+          ],
+        ),
         const SizedBox(height: 16),
         if (widget.searchable)
           Padding(
@@ -330,8 +336,11 @@ class TaskGroup extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               title: Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis),
               subtitle: Text(
-                [task.key, if (task.addedMidSprint) 'added mid-sprint', if (task.goalTitle != null) task.goalTitle!]
-                    .join(' · '),
+                [
+                  task.key,
+                  if (task.addedMidSprint) 'added mid-sprint',
+                  if (task.goalTitle != null) task.goalTitle!,
+                ].join(' · '),
                 style: theme.textTheme.bodySmall,
               ),
               trailing: PointsPill(points: task.points),
@@ -351,11 +360,14 @@ class _Legend extends StatelessWidget {
   final bool dashed;
 
   @override
-  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 16, height: dashed ? 1 : 3, color: color),
-        const SizedBox(width: 6),
-        Text(label, style: Theme.of(context).textTheme.labelSmall),
-      ]);
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(width: 16, height: dashed ? 1 : 3, color: color),
+      const SizedBox(width: 6),
+      Text(label, style: Theme.of(context).textTheme.labelSmall),
+    ],
+  );
 }
 
 /// Points left per day as a line, over the ideal straight line from the first day's total to none.

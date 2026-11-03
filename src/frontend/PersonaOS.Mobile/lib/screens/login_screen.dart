@@ -13,12 +13,7 @@ import '../phosphor_icons.dart';
 /// password form is only a fallback — for a phone reached many times a day,
 /// retyping a password each time is what stops the app being used.
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({
-    super.key,
-    required this.api,
-    required this.onLoggedIn,
-    this.vault,
-  });
+  const LoginScreen({super.key, required this.api, required this.onLoggedIn, this.vault});
 
   final PersonaOsApi api;
   final VoidCallback onLoggedIn;
@@ -86,10 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final error = await widget.api.login(
-        credentials.username,
-        credentials.password,
-      );
+      final error = await widget.api.login(credentials.username, credentials.password);
       if (!mounted) return;
 
       if (error == null) {
@@ -124,10 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      final error = await widget.api.login(
-        _username.text.trim(),
-        _password.text,
-      );
+      final error = await widget.api.login(_username.text.trim(), _password.text);
       if (!mounted) return;
       if (error != null) {
         setState(() {
@@ -161,10 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            const Text(
-              'Log in',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            const Text('Log in', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             TextField(
               controller: _username,
@@ -176,10 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
             TextField(
               controller: _password,
               obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Password',
-                errorText: _error,
-              ),
+              decoration: InputDecoration(labelText: 'Password', errorText: _error),
               onSubmitted: (_) => _login(),
             ),
             if (_biometricAvailable && !_hasSaved) ...[
@@ -190,16 +173,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
                 title: const Text('Unlock with fingerprint next time'),
-                subtitle: const Text(
-                  'Your sign-in is kept in the phone’s secure keystore.',
-                ),
+                subtitle: const Text('Your sign-in is kept in the phone’s secure keystore.'),
               ),
             ],
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _busy ? null : _login,
-              child: Text(_busy ? 'Signing in…' : 'Log in'),
-            ),
+            FilledButton(onPressed: _busy ? null : _login, child: Text(_busy ? 'Signing in…' : 'Log in')),
             if (_biometricAvailable && _hasSaved) ...[
               const SizedBox(height: 12),
               OutlinedButton.icon(

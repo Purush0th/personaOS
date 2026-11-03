@@ -11,17 +11,17 @@ class _FakeGoalsApi extends PersonaOsApi {
 
   @override
   Future<List<Goal>> getGoals({bool includeDropped = false}) async => [
-        Goal.fromJson({
-          'id': 2,
-          'key': 'GOAL-2',
-          'title': 'Create a nutrition plan',
-          'periodType': 'month',
-          'status': 'active',
-          'progress': 40,
-          'effectiveProgress': 40,
-          'taskCount': 0,
-        }),
-      ];
+    Goal.fromJson({
+      'id': 2,
+      'key': 'GOAL-2',
+      'title': 'Create a nutrition plan',
+      'periodType': 'month',
+      'status': 'active',
+      'progress': 40,
+      'effectiveProgress': 40,
+      'taskCount': 0,
+    }),
+  ];
 
   @override
   Future<void> setGoalProgress(int id, int progress) async => saved.add(progress);

@@ -68,6 +68,25 @@ void main() {
     expect(detector.heard, isFalse);
   });
 
+  test('a few very low readings as the mic warms up do not pin the background', () {
+    // The microphone's first buffers read far below the room (-85 dB in a -45 dB room). Taken as
+    // the background, every later reading looked like speech and the recording never ended:
+    // the owner's "hands-free is not detecting pauses" (2026-11-03).
+    final ended = _feed(_detector(), [..._hold(-85, 0.3), ..._hold(-45, 1.5), ..._hold(-20, 2), ..._hold(-45, 6)]);
+
+    expect(ended, isNotNull);
+    expect(ended!, closeTo(5.8, 0.3));
+  });
+
+  test('a room that wanders up and down after speech still ends', () {
+    // A fan or traffic: the background swings by 8 dB either side of -45.
+    final room = [for (var i = 0; i < 80; i++) -45.0 + (i.isEven ? 4 : -4)];
+    final ended = _feed(_detector(), [..._hold(-45, 1), ..._hold(-18, 2), ...room]);
+
+    expect(ended, isNotNull);
+    expect(ended!, lessThan(6.0));
+  });
+
   test('readings before the first buffer (-160 dB) do not set the background', () {
     final ended = _feed(_detector(), [..._hold(-160, 0.5), ..._hold(-60, 1), ..._hold(-25, 2), ..._hold(-60, 3)]);
 

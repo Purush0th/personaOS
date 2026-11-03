@@ -12,12 +12,7 @@ import 'package:timezone/timezone.dart' as tz;
 /// One reminder, as the phone needs it to ring.
 @immutable
 class ReminderAlarm {
-  const ReminderAlarm({
-    required this.reminderId,
-    required this.dueAtUtc,
-    required this.title,
-    required this.message,
-  });
+  const ReminderAlarm({required this.reminderId, required this.dueAtUtc, required this.title, required this.message});
 
   final int reminderId;
   final DateTime dueAtUtc;
@@ -39,11 +34,11 @@ class ReminderAlarm {
   }
 
   String toPayload() => jsonEncode({
-        'reminderId': reminderId,
-        'dueAtUtc': dueAtUtc.toIso8601String(),
-        'title': title,
-        'message': message,
-      });
+    'reminderId': reminderId,
+    'dueAtUtc': dueAtUtc.toIso8601String(),
+    'title': title,
+    'message': message,
+  });
 
   static ReminderAlarm? fromPayload(String? payload) {
     if (payload == null) return null;
@@ -114,30 +109,29 @@ class ReminderAlarms {
     tz_data.initializeTimeZones();
 
     await _plugin.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      ),
+      settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
       onDidReceiveNotificationResponse: _onResponse,
       onDidReceiveBackgroundNotificationResponse: alarmResponseInBackground,
     );
 
     await _plugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(const AndroidNotificationChannel(
-          _channelId,
-          _channelName,
-          description: 'Reminders that ring like an alarm clock.',
-          importance: Importance.max,
-          sound: UriAndroidNotificationSound('content://settings/system/alarm_alert'),
-          audioAttributesUsage: AudioAttributesUsage.alarm,
-        ));
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            _channelId,
+            _channelName,
+            description: 'Reminders that ring like an alarm clock.',
+            importance: Importance.max,
+            sound: UriAndroidNotificationSound('content://settings/system/alarm_alert'),
+            audioAttributesUsage: AudioAttributesUsage.alarm,
+          ),
+        );
   }
 
   /// Asks for the two permissions an alarm needs. Safe to call on every sign-in: Android only
   /// prompts when a permission is not already granted.
   Future<void> requestPermissions() async {
-    final android =
-        _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
 
     // Without exact-alarm permission Android silently downgrades the alarm to an inexact one,
@@ -262,29 +256,29 @@ class ReminderAlarms {
   }
 
   NotificationDetails _alarmDetails() => NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          importance: Importance.max,
-          priority: Priority.max,
-          category: AndroidNotificationCategory.alarm,
-          fullScreenIntent: true,
-          audioAttributesUsage: AudioAttributesUsage.alarm,
-          sound: const UriAndroidNotificationSound('content://settings/system/alarm_alert'),
-          // FLAG_INSISTENT: the sound loops until the alarm is dealt with, like an alarm clock,
-          // instead of playing once and going quiet.
-          additionalFlags: Int32List.fromList(<int>[4]),
-          ongoing: true,
-          autoCancel: false,
-          visibility: NotificationVisibility.public,
-          // A safety stop, so an alarm nobody is near cannot ring for hours.
-          timeoutAfter: const Duration(minutes: 10).inMilliseconds,
-          actions: const <AndroidNotificationAction>[
-            AndroidNotificationAction(AlarmActions.snooze, 'Snooze 10 min'),
-            AndroidNotificationAction(AlarmActions.dismiss, 'Dismiss'),
-          ],
-        ),
-      );
+    android: AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      importance: Importance.max,
+      priority: Priority.max,
+      category: AndroidNotificationCategory.alarm,
+      fullScreenIntent: true,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      sound: const UriAndroidNotificationSound('content://settings/system/alarm_alert'),
+      // FLAG_INSISTENT: the sound loops until the alarm is dealt with, like an alarm clock,
+      // instead of playing once and going quiet.
+      additionalFlags: Int32List.fromList(<int>[4]),
+      ongoing: true,
+      autoCancel: false,
+      visibility: NotificationVisibility.public,
+      // A safety stop, so an alarm nobody is near cannot ring for hours.
+      timeoutAfter: const Duration(minutes: 10).inMilliseconds,
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction(AlarmActions.snooze, 'Snooze 10 min'),
+        AndroidNotificationAction(AlarmActions.dismiss, 'Dismiss'),
+      ],
+    ),
+  );
 
   void _onResponse(NotificationResponse response) {
     final alarm = ReminderAlarm.fromPayload(response.payload);

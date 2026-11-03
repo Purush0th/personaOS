@@ -15,11 +15,8 @@ import 'package:local_auth/local_auth.dart';
 /// whenever the server rejects it, so a changed password cannot linger.
 class AuthVault {
   AuthVault({FlutterSecureStorage? storage, LocalAuthentication? auth})
-      : _storage = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            ),
-        _auth = auth ?? LocalAuthentication();
+    : _storage = storage ?? const FlutterSecureStorage(aOptions: AndroidOptions(encryptedSharedPreferences: true)),
+      _auth = auth ?? LocalAuthentication();
 
   static const _usernameKey = 'auth_username';
   static const _passwordKey = 'auth_password';
@@ -42,8 +39,7 @@ class AuthVault {
   }
 
   /// Whether credentials have been saved for fingerprint sign-in.
-  Future<bool> get hasSavedCredentials async =>
-      await _storage.read(key: _usernameKey) != null;
+  Future<bool> get hasSavedCredentials async => await _storage.read(key: _usernameKey) != null;
 
   Future<void> save(String username, String password) async {
     await _storage.write(key: _usernameKey, value: username);
