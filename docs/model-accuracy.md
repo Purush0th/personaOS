@@ -159,6 +159,7 @@ honest one: once a failure in it has been fixed, it measures the fix, not genera
 | 2026-11-02 | Day after tomorrow, other-day answers, task edits and sums in code; weekday end-date fix | 99.2% | 94.9% | 100% | 97.8% |
 | 2026-11-03 | To-do phrasings routed, reminder text loses its time, questions never classed as "make" (5 runs) | 99.5% | 98.5% | 98.5% | 98.7% |
 | 2026-11-03 | Same code, fine-tuned model (first LoRA, 543 examples); not adopted | 93.6% | 92.3% | 95.4% | 93.3% |
+| 2026-11-03 | Goal periods in code; a goal with no period is asked about (A9) | 99.1% | 96.9% | 100% | 98.7% |
 
 What the numbers taught, for the next round:
 

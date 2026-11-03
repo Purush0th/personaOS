@@ -25,8 +25,9 @@ WRITES = {"create_task", "create_reminder", "add_planner_item", "create_goal", "
 # Saved at once rather than proposed: the turn shows them as reads that ran, not as cards.
 SAVED_AT_ONCE = {"create_note", "create_memory"}
 # A goal's period is not checked by the app yet: with no time in the message the model picks a
-# month at random, sometimes one already over (training capture, 2026-11-02). Until the app decides
-# the period, goal calls are not labels; the goal intent still is.
+# month at random, sometimes one already over (training capture, 2026-11-02). GoalPeriodGuard has
+# held goals to the user's period since 2026-11-03; traces collected before then keep goal calls out
+# of the labels (the goal intent still is one). Empty this set once the traces are re-collected.
 NO_TOOL_LABELS = {"create_goal"}
 
 

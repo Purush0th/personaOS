@@ -159,7 +159,7 @@ public class ChatServiceClaimCheckTests
             .EnqueueText("I've created a goal called Learn Rust for you.")
             .EnqueueText("Here is Learn Rust as a monthly goal — confirm the card below to add it.");
 
-        var events = await CollectAsync(chat.StreamChatAsync(null, "Create a goal called Learn Rust"));
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Create a goal called Learn Rust this month"));
 
         Assert.Equal(3, streamer.CallCount);
         Assert.Contains(streamer.ReceivedTurns[2], t => t.Role == ChatRoles.User && t.Content.Contains("waiting for the user to tap"));
@@ -182,7 +182,7 @@ public class ChatServiceClaimCheckTests
             .EnqueueText(claim + " You'll see a card with the details.")
             .EnqueueText(claim + " You'll see a card with the details.");
 
-        var events = await CollectAsync(chat.StreamChatAsync(null, "Create a goal called Learn Rust"));
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Create a goal called Learn Rust this month"));
 
         var done = Assert.Single(events, e => e.Type == "done");
         Assert.Equal(EmptyReplyGuard.ProposalOnly + " You'll see a card with the details.", done.Text);
