@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'phosphor_icons.dart';
+
 /// Widths the screens adapt at, the same on a phone, a tablet, portrait or landscape: what counts
 /// is the width the screen actually has, not the kind of device.
 abstract final class Breakpoints {
@@ -76,8 +78,9 @@ class Presence extends StatelessWidget {
 }
 
 /// The Orb: the assistant itself. Three radial blooms on a violet sphere, with a soft glow. The
-/// same mark as the web app's `.orb`; it is the avatar beside replies, the send button and the
-/// centrepiece of an empty chat. A [child] (an icon) sits on top of it.
+/// same mark as the web app's `.orb`. It is the centrepiece of a screen (home, an empty chat,
+/// hands-free, the alarm) and appears once on it: as the send button and beside replies too, it was
+/// one Orb too many (owner, 2026-11-02 and 2026-11-04). A [child] (an icon) sits on top of it.
 class Orb extends StatelessWidget {
   const Orb({super.key, this.size = 24, this.glow = true, this.child});
 
@@ -112,6 +115,23 @@ class Orb extends StatelessWidget {
           if (child != null) Center(child: child),
         ],
       ),
+    );
+  }
+}
+
+/// The face of a send button: a plain filled circle with an arrow, so the screen's one Orb stays the
+/// only one.
+class SendFace extends StatelessWidget {
+  const SendFace({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: scheme.primary),
+      child: Icon(PhosphorIconsRegular.arrowUp, color: scheme.onPrimary, size: 20),
     );
   }
 }

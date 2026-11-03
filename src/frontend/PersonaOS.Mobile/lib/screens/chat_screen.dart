@@ -675,17 +675,13 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       ],
                       const SizedBox(width: 4),
-                      // Send is the Orb: the message goes to the assistant.
                       IconButton(
                         tooltip: 'Send',
                         padding: const EdgeInsets.all(4),
                         onPressed: _streaming ? null : _send,
                         icon: _streaming
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Orb(
-                                size: 40,
-                                child: Icon(PhosphorIconsRegular.arrowUp, color: Colors.white, size: 20),
-                              ),
+                            : const SendFace(),
                       ),
                     ],
                   ),

@@ -4,11 +4,11 @@
   <div class="messages" #scroller role="log" aria-label="Conversation" [attr.aria-busy]="streaming()" (scroll)="onScroll()">
     @for (bubble of bubbles(); track $index; let i = $index) {
       <div class="bubble" [class.user]="bubble.role === 'user'" [class.failed]="bubble.isError" [class.turn]="startsTurn(i)">
-        <!-- The assistant writes on the page like a person writing back. The Orb shows only while
-             it is working on a reply; beside every finished one it was noise (owner, 2026-11-02). -->
+        <!-- The assistant writes on the page like a person writing back. The Orb is the empty
+             conversation's alone: beside replies, and then while one was on its way, it was one Orb too
+             many (owner, 2026-11-02 and 2026-11-04). -->
         @if (bubble.tool) {
           <span class="tool" role="status">
-            <span class="orb thinking" aria-hidden="true"></span>
             {{ bubble.tool }}
             <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
           </span>
@@ -21,7 +21,6 @@
         } @else {
           <!-- Three dots that pulse in turn while the reply is on its way (it was a still "…"). -->
           <span class="thinking" role="status" aria-label="Thinking">
-            <span class="orb thinking" aria-hidden="true"></span>
             <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
           </span>
         }
@@ -116,8 +115,7 @@
     </button>
   }
 
-  <!-- One card holds the message, the mode and the send button, as one thing to type into. The
-       send button is the Orb: the message goes to the assistant. -->
+  <!-- One card holds the message, the mode and the send button, as one thing to type into.  -->
   <form class="composer" (ngSubmit)="send()">
     <textarea
       #draftBox

@@ -112,13 +112,10 @@
 
   .send {
     flex: none;
-    --mat-icon-button-icon-color: #ffffff;
+    // A plain filled circle: the Orb is the empty conversation's alone (owner, 2026-11-04).
+    --mat-icon-button-icon-color: var(--mat-sys-on-primary);
     --mat-icon-button-disabled-icon-color: var(--mat-sys-on-surface-variant);
-    background:
-      radial-gradient(circle at 72% 24%, #56c8f5, transparent 45%),
-      radial-gradient(circle at 25% 80%, #e36bd8, transparent 55%),
-      radial-gradient(circle at 50% 50%, #8b7cff, #3b2a9a 75%);
-    box-shadow: 0 0 1rem rgb(139 124 255 / 45%);
+    background: var(--mat-sys-primary);
     transition: transform 120ms var(--ease-standard);
 
     &:active:not(:disabled) {
@@ -127,7 +124,6 @@
 
     &:disabled {
       background: var(--mat-sys-surface-container-high);
-      box-shadow: none;
     }
   }
 }

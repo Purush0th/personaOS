@@ -901,7 +901,7 @@ class _Hero extends StatelessWidget {
                           style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant),
                         ),
                       ),
-                      const Orb(size: 40, child: Icon(PhosphorIconsRegular.arrowUp, color: Colors.white, size: 20)),
+                      const SendFace(),
                     ],
                   ),
                 ),
