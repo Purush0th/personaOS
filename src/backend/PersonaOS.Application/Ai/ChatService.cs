@@ -399,6 +399,38 @@ public partial class ChatService(
             }
         }
 
+        // A routine pasted as a table for the calendar: every row proposed from the table itself,
+        // and whatever the model made instead gives way (ScheduleRequest; production chat, 2026-11-03).
+        if (first.Error is null
+            && request.Turn.ToolNames.Contains("add_planner_item")
+            && request.Turn.UserNow is DateTime scheduleNow
+            && ScheduleFor(userMessage, request.Turn.EarlierUserMessages, DateOnly.FromDateTime(scheduleNow)) is { } schedule)
+        {
+            logger.LogWarning("Model {Model} was given a {Rows}-row routine; proposing its rows from the table.", config.AiModel, schedule.Rows.Count);
+            var startDay = DateOnly.FromDateTime(scheduleNow);
+            if (TimeOnly.FromDateTime(scheduleNow) >= schedule.Rows[0].Start) startDay = startDay.AddDays(1);
+            request.Turn.Proposals.Clear();
+            foreach (var row in schedule.Rows)
+            {
+                var item = new Dictionary<string, object>
+                {
+                    ["title"] = row.Title,
+                    ["date"] = startDay.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    ["scheduledTime"] = row.Start.ToString("HH:mm", CultureInfo.InvariantCulture),
+                };
+                if (row.End is TimeOnly end) item["endTime"] = end.ToString("HH:mm", CultureInfo.InvariantCulture);
+                if (schedule.Repeat is { } repeat) item["repeat"] = repeat;
+                if (schedule.Until is DateOnly until) item["repeatUntil"] = until.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                if (schedule.NoNotification) item["notifyBeforeMinutes"] = -1;
+                await toolCallGuards.DecideAsync(new AiToolCall($"server-schedule-{Guid.NewGuid():N}", "add_planner_item", JsonSerializer.Serialize(item)), request.Turn, ct);
+            }
+            if (request.Turn.Proposals.Count > 0)
+            {
+                final.Rewrite(ScheduleReply(request.Turn.Proposals.Count, schedule.Rows.Count, startDay, schedule));
+                unverifiedClaim = false;
+            }
+        }
+
         // "Add repaint the hallway to my to-do list" that ended with no task card: proposed from its
         // words, and the calendar event, plan or sprint made for it instead gives way (training
         // capture, 2026-11-02: 11 of 60 plain task requests went astray).

@@ -31,6 +31,8 @@ public sealed class UserTimeGuard : IToolCallGuard
     {
         if (call.Name == PlannerRead) return ReadTheDaySaid(call, turn);
         if (call.Name is not (Reminder or PlannerItem) || !turn.MutatingTools.Contains(call.Name)) return NoVerdict;
+        // A routine's rows carry their own times; "Plan tomorrow" in one is a title, not a day.
+        if (call.Name == "add_planner_item" && Planner.ScheduleRequest.IsSchedule(turn.UserMessage)) return NoVerdict;
 
         JsonObject? input;
         try
