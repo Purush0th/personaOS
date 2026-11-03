@@ -54,7 +54,7 @@ const HOUR_PX = 48;
 @Component({
   selector: 'app-time-grid',
   templateUrl: './time-grid.html',
-  styleUrls: ['./time-grid.scss', './drag.scss'],
+  styleUrls: ['./time-grid.scss', './short-events.scss', './drag.scss'],
   changeDetection: ChangeDetectionStrategy.Eager,
 })
 export class TimeGrid implements AfterViewInit, OnDestroy {
@@ -137,8 +137,14 @@ export class TimeGrid implements AfterViewInit, OnDestroy {
     return (minutes / 60) * HOUR_PX;
   }
 
+  /** True to its time: layoutDay already draws a short event taller where nothing follows it. */
   protected height(event: PlacedEvent): number {
-    return Math.max(((event.endMinutes - event.startMinutes) / 60) * HOUR_PX - 2, 16);
+    return Math.max(((event.endMinutes - event.startMinutes) / 60) * HOUR_PX - 2, 3);
+  }
+
+  /** Too thin for a line of text (a 5-minute item with another right after): a strip, named on hover. */
+  protected thin(event: PlacedEvent): boolean {
+    return this.height(event) < 12;
   }
 
   /** Short events have room for one line only: title and time side by side. */

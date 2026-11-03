@@ -199,7 +199,8 @@ String describeWhen(PlannerItem item) {
 bool isBar(PlannerItem item) => item.isAllDay || item.isMultiDay;
 
 /// Days from [a] to [b] (negative when [b] is earlier).
-int dayDiff(DateTime a, DateTime b) => DateTime.utc(b.year, b.month, b.day).difference(DateTime.utc(a.year, a.month, a.day)).inDays;
+int dayDiff(DateTime a, DateTime b) =>
+    DateTime.utc(b.year, b.month, b.day).difference(DateTime.utc(a.year, a.month, a.day)).inDays;
 
 /// Which of its days [day] is, and how many it has: "(Day 2/3)" as Google Calendar titles it.
 ({int n, int of}) dayOfSpan(PlannerItem item, DateTime day) {
@@ -308,17 +309,20 @@ class PlacedEvent {
 
   final PlannerItem item;
   final int startMinutes;
-  final int endMinutes;
+  int endMinutes;
   int column = 0;
   int columns = 1;
 }
 
-/// The shortest an event is drawn, so a 5-minute event can still be read and tapped.
+/// The shortest an event is drawn when nothing follows it closely, so it can still be read and tapped.
 const minEventMinutes = 20;
 
-/// Places a day's timed events side by side where they overlap, as Google Calendar does: each run
-/// of overlapping events shares the width, and an event takes the first column free at its start.
-/// One over several days is not here: it is a bar across the top.
+/// Places a day's timed events side by side where their times overlap, as Google Calendar does:
+/// each run of overlapping events shares the width, and an event takes the first column free at
+/// its start. Events that only meet (6:00–6:05, then 6:05–6:10) stay full width, one under the
+/// other: a short event is drawn taller only up to the next event below it. Overlap used to be
+/// judged on the taller drawing, which split a routine of 5-minute items into three columns
+/// (owner, 2026-11-03). One over several days is not here: it is a bar across the top.
 List<PlacedEvent> layoutDay(List<PlannerItem> items) {
   final timed =
       [
@@ -326,10 +330,7 @@ List<PlacedEvent> layoutDay(List<PlannerItem> items) {
           if (!isBar(item))
             () {
               final start = minutesOf(item.scheduledTime!);
-              final end = math.max(
-                item.endTime != null ? minutesOf(item.endTime!) : start + 60,
-                start + minEventMinutes,
-              );
+              final end = math.max(item.endTime != null ? minutesOf(item.endTime!) : start + 60, start + 1);
               return PlacedEvent(item, start, math.min(end, 24 * 60));
             }(),
       ]..sort((a, b) {
@@ -364,6 +365,18 @@ List<PlacedEvent> layoutDay(List<PlannerItem> items) {
     clusterEnd = math.max(clusterEnd, event.endMinutes);
   }
   close();
+
+  // Drawn at least minEventMinutes tall, but never into the next event drawn below it.
+  bool below(PlacedEvent a, PlacedEvent b) =>
+      b.startMinutes >= a.endMinutes &&
+      b.column / b.columns < (a.column + 1) / a.columns &&
+      a.column / a.columns < (b.column + 1) / b.columns;
+  for (final event in placed) {
+    final next = placed
+        .where((e) => e != event && below(event, e))
+        .fold(24 * 60, (soonest, e) => math.min(soonest, e.startMinutes));
+    event.endMinutes = math.max(event.endMinutes, math.min(event.startMinutes + minEventMinutes, next));
+  }
   return placed;
 }
 

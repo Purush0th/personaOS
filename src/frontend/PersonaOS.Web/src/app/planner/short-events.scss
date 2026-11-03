@@ -1,0 +1,33 @@
+// Short events in the time grid, loaded after time-grid.scss so these win over its .event rules.
+
+.event {
+  // One line only: title and time side by side.
+  &.compact {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding: 1px 8px;
+    white-space: nowrap;
+
+    .title {
+      flex: 0 1 auto;
+      width: auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .time {
+      width: auto;
+    }
+  }
+
+  // Too thin for a line (a 5-minute item with another right after): a strip, named on hover.
+  &.thin {
+    padding: 0;
+
+    > * {
+      display: none;
+    }
+  }
+}

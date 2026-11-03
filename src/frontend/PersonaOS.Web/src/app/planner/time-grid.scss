@@ -270,25 +270,7 @@ $gutter-narrow: 2.75rem;
     opacity: 0.9;
   }
 
-  &.compact {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: baseline;
-    gap: 0.4rem;
-    padding: 1px 8px;
-    white-space: nowrap;
-
-    .title {
-      flex: 0 1 auto;
-      width: auto;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .time {
-      width: auto;
-    }
-  }
+  // Short events: in short-events.scss.
 }
 
 .now {

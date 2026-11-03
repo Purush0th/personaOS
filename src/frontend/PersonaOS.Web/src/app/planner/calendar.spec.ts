@@ -89,6 +89,20 @@ describe('calendar', () => {
       expect(placed.length).toBe(1);
       expect(placed[0].endMinutes - placed[0].startMinutes).toBe(20);
     });
+
+    it('stacks back-to-back short events full width, each drawn only down to the next', () => {
+      const placed = layoutDay([item(1, '06:00', '06:05'), item(2, '06:05', '06:10'), item(3, '06:10', '06:20'), item(4, '06:20', '06:30')]);
+      expect(placed.map(p => [p.column, p.columns])).toEqual([[0, 1], [0, 1], [0, 1], [0, 1]]);
+      expect(placed.map(p => [p.startMinutes, p.endMinutes])).toEqual([[360, 365], [365, 370], [370, 380], [380, 400]]);
+    });
+
+    it('does not draw a short event in a shared column over the event after its run', () => {
+      const placed = layoutDay([item(1, '09:00', '09:10'), item(2, '09:00', '09:05'), item(3, '09:12', '10:00')]);
+      const byId = new Map(placed.map(p => [p.item.id, p]));
+      expect(byId.get(2)!.columns).toBe(2);
+      expect(byId.get(2)!.endMinutes).toBe(9 * 60 + 12);
+      expect(byId.get(3)!.columns).toBe(1);
+    });
   });
 
   describe('repeat', () => {

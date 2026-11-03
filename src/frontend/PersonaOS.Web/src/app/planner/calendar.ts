@@ -311,20 +311,23 @@ export interface PlacedEvent {
   columns: number;
 }
 
-/** The shortest an event is drawn, so a 5-minute event can still be read and clicked. */
+/** The shortest an event is drawn when nothing follows it closely, so it can still be read and clicked. */
 export const MIN_EVENT_MINUTES = 20;
 
 /**
- * Places a day's timed events side by side where they overlap, as Google Calendar does: each run
- * of overlapping events shares the width, and an event takes the first column free at its start.
- * One over several days is not here: it is a bar across the top.
+ * Places a day's timed events side by side where their times overlap, as Google Calendar does:
+ * each run of overlapping events shares the width, and an event takes the first column free at its
+ * start. Events that only meet (6:00–6:05, then 6:05–6:10) stay full width, one under the other:
+ * a short event is drawn taller only up to the next event in its column. Overlap used to be judged
+ * on the taller drawing, which split a routine of 5-minute items into three columns (owner,
+ * 2026-11-03). One over several days is not here: it is a bar across the top.
  */
 export function layoutDay(items: PlannerItemDto[]): PlacedEvent[] {
   const timed = items
     .filter(i => !isBar(i))
     .map(item => {
       const start = minutesOf(item.scheduledTime!);
-      const end = Math.max(item.endTime ? minutesOf(item.endTime) : start + 60, start + MIN_EVENT_MINUTES);
+      const end = Math.max(item.endTime ? minutesOf(item.endTime) : start + 60, start + 1);
       return { item, startMinutes: start, endMinutes: Math.min(end, 24 * 60), column: 0, columns: 1 };
     })
     .sort((a, b) => a.startMinutes - b.startMinutes || b.endMinutes - a.endMinutes);
@@ -350,6 +353,16 @@ export function layoutDay(items: PlannerItemDto[]): PlacedEvent[] {
   }
 
   close();
+
+  // Drawn at least MIN_EVENT_MINUTES tall, but never into the next event drawn below it.
+  const below = (a: PlacedEvent, b: PlacedEvent) =>
+    b.startMinutes >= a.endMinutes && b.column / b.columns < (a.column + 1) / a.columns && a.column / a.columns < (b.column + 1) / b.columns;
+  for (const event of placed) {
+    const next = placed
+      .filter(e => e !== event && below(event, e))
+      .reduce((soonest, e) => Math.min(soonest, e.startMinutes), 24 * 60);
+    event.endMinutes = Math.max(event.endMinutes, Math.min(event.startMinutes + MIN_EVENT_MINUTES, next));
+  }
   return placed;
 }
 
