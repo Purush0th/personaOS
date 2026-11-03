@@ -18,8 +18,9 @@ typedef EventsByDay = Map<String, List<PlannerItem>>;
 /// server's field names.
 typedef EventMoved = void Function(PlannerItem item, Map<String, Object?> change);
 
-/// The height of one hour in the time grid.
-const hourHeight = 52.0;
+/// The height of one hour in the time grid: 1.5× the old 52, so short routine items can be read
+/// (owner, 2026-11-03).
+const hourHeight = 78.0;
 
 /// The height of one lane of bars in the strip above the hours.
 const _barHeight = 20.0;
