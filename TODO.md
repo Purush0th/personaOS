@@ -43,7 +43,19 @@ Voice:
       at a time, fetching the next while one plays (`speechParts`), and the phone's voice reads
       only what is left if the server fails partway; a microphone foreground service
       (`HandsFreeService.kt`, notification with End) keeps the loop going in the background.
-- [ ] Phone check: V1 on the owner's phone (pauses, speed, screen off / app in background). The
+- [x] V2. Hands-free that ends a turn when the speaker stops, on a full screen (mobile, 2026-11-03).
+      Owner: "even after I speak, it is not stopping"; "I need a full screen UI". Loudness could
+      not do it (the phone's gain control lifts a quiet room until it sounds like talking), so the
+      server-speech recording is now raw 16 kHz audio scored 32 ms at a time by Silero VAD v5 on
+      the phone (`speech_detector.dart`, ONNX Runtime via `flutter_onnxruntime`, model in
+      `assets/models`, MIT): the turn ends 1.5 s after speech stops, and nothing is sent when no
+      speech was heard; the loudness detector stays as the fallback if the model cannot run.
+      Checked on the emulator in release: 5.9 ms a frame, speech 1.0 / silence 0.0, a 0.8 s gap
+      between sentences did not end the turn. Hands-free is a full screen (`voice_mode.dart`): the
+      Orb swells with the mic, turns while thinking, pulses while speaking; the reply as a
+      caption; tap to send now or to interrupt; End and Back leave it. Release APK is 64-bit ARM
+      only (`--split-per-abi`), 52 MB: the runtime is 20-35 MB per architecture.
+- [ ] Phone check: V1 on the owner's phone (pauses, speed, screen off / app in background). Also V2: the turn ending on a pause, and the full screen. The
       phone's own speech recognizer may not listen in the background; the server's does.
 
 Not yet tried on the owner's phone:

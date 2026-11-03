@@ -49,6 +49,8 @@ dependencies:
   timezone: ^0.11.1
   record: ^7.1.1
   audioplayers: ^6.8.1
+  # Runs the Silero voice-activity model on the phone for hands-free turn-taking.
+  flutter_onnxruntime: ^1.9.0
   path_provider: ^2.1.6
   open_filex: ^4.7.0
 dev_dependencies:
@@ -90,6 +92,11 @@ flutter:
     - family: Phosphor-Fill
       fonts:
         - asset: assets/fonts/Phosphor-Fill.ttf
+
+  # Silero VAD v5 (MIT, see assets/models/silero-vad-LICENSE.txt): tells speech from silence so
+  # hands-free knows when a turn is over (lib/speech_detector.dart).
+  assets:
+    - assets/models/silero_vad.onnx
 
   # To add assets to your application, add an assets section, like this:
   # assets:

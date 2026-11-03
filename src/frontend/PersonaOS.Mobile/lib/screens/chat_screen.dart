@@ -15,6 +15,7 @@ import '../voice_service.dart';
 import 'conversations_screen.dart';
 import 'goal_view.dart';
 import 'task_views.dart';
+import 'voice_mode.dart';
 
 part 'chat_messages.dart';
 
@@ -551,7 +552,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     // The conversation is the assistant's own screen: the whole of it, app bar included, sits on
     // the same dusk glow as the web app's chat page.
-    return Presence(
+    final chat = Presence(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
@@ -583,7 +584,6 @@ class _ChatScreenState extends State<ChatScreen> {
           maxWidth: 960,
           child: Column(
             children: [
-              if (_handsFree) _HandsFreeBanner(listening: _listening, speaking: _speaking),
               Expanded(
                 child: _loadingHistory
                     ? const Center(child: CircularProgressIndicator())
@@ -696,6 +696,37 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+
+    // Hands-free takes the whole screen; the chat goes on underneath, and is there again when it ends.
+    return Stack(
+      children: [
+        chat,
+        Positioned.fill(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: _handsFree ? _voiceMode() : const SizedBox.shrink(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _voiceMode() {
+    final last = _bubbles.lastOrNull;
+    final hearing = _listening || last == null;
+    return VoiceModeView(
+      nickname: widget.assistantNickname,
+      phase: _listening
+          ? VoicePhase.listening
+          : _speaking
+          ? VoicePhase.speaking
+          : VoicePhase.thinking,
+      level: _voice.micLevel,
+      caption: hearing ? _input.text : last.text,
+      captionIsUser: hearing || last.isUser,
+      onTapOrb: () => unawaited(_listening ? _voice.stopListening() : _voice.stopSpeaking()),
+      onEnd: () => unawaited(_toggleHandsFree()),
+    );
   }
 }
 
@@ -739,45 +770,6 @@ class _ModeSwitch extends StatelessWidget {
           child: Text(ChatMode.of(mode).hint, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
         ),
       ],
-    );
-  }
-}
-
-/// Says what hands-free mode is doing right now.
-///
-/// Without it the mode is invisible: the phone is silent between turns either
-/// because it is waiting for speech or because the loop has stopped, and those
-/// look identical.
-class _HandsFreeBanner extends StatelessWidget {
-  const _HandsFreeBanner({required this.listening, required this.speaking});
-
-  final bool listening;
-  final bool speaking;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (label, icon) = switch ((listening, speaking)) {
-      (true, _) => ('Listening…', PhosphorIconsFill.microphone),
-      (_, true) => ('Speaking…', PhosphorIconsRegular.speakerHigh),
-      _ => ('Thinking…', PhosphorIconsRegular.dotsThree),
-    };
-
-    return Container(
-      width: double.infinity,
-      color: scheme.primaryContainer,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 18, color: scheme.onPrimaryContainer),
-          const SizedBox(width: 8),
-          Text(
-            'Hands-free · $label',
-            style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
     );
   }
 }

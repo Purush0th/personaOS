@@ -28,3 +28,5 @@ including but not limited to:
   - Angular (MIT) — https://github.com/angular/angular
   - Flutter and Dart (BSD-3-Clause) — https://github.com/flutter/flutter
   - xUnit.net (Apache-2.0) — https://github.com/xunit/xunit
+  - Silero VAD model, bundled in the phone app (MIT) — https://github.com/snakers4/silero-vad
+  - ONNX Runtime (MIT) — https://github.com/microsoft/onnxruntime
