@@ -126,14 +126,7 @@ class _BubbleView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (bubble.text.isEmpty && !bubble.isUser)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Orb(size: 18),
-                const SizedBox(width: 10),
-                TypingDots(color: theme.colorScheme.onSurfaceVariant),
-              ],
-            )
+            TypingDots(color: theme.colorScheme.onSurfaceVariant)
           else if (bubble.isUser || bubble.isError)
             // Your own words and server errors are literal — rendering them
             // as Markdown would silently eat characters you actually typed.

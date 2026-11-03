@@ -55,6 +55,13 @@ void main() {
     expect(find.descendant(of: _messages, matching: find.byType(Orb)), findsNothing);
   });
 
+  testWidgets('an empty chat shows one Orb: the send button is a plain circle', (tester) async {
+    // Owner, 2026-11-04: "I don't like the shiny orb in two places."
+    await _open(tester, 0);
+    expect(find.byType(Orb), findsOneWidget);
+    expect(find.byType(SendFace), findsOneWidget);
+  });
+
   testWidgets('reading back shows Latest, which returns to the newest message', (tester) async {
     // Owner, 2026-11-02: "i hate the scroll" - new text pulled the list down while reading back.
     await _open(tester, 30);
