@@ -187,3 +187,36 @@ What the numbers taught, for the next round:
   there were no edit examples, and "start TASK-11" moved it to done; notes outnumbered reminders,
   and "don't let me forget" became a note. Low held-out loss said nothing about this. The next
   dataset needs every intent the suites cover, edits and follow-ups included, before training again.
+
+### Other models from Hugging Face (2026-11-03)
+
+The model had only ever been compared with `qwen2.5:0.5b` and `qwen3:4b` (September). Official
+small models published since then, pulled from Hugging Face into Ollama as Q4 GGUF
+(`ollama pull hf.co/<repo>:<quant>`), run on the same code at 3 runs per scenario. Every local
+model is now sent `think: false`; before this only names containing "qwen3" were, and Granite,
+MiniCPM and Gemma reason before every reply. "GPU" is what Ollama loads at the 16k context we use;
+prod has 6 GB, of which whisper and Kokoro take about 2.
+
+| Model | Core + extended | Holdout | Holdout2 | Holdout3 | All | s/turn | GPU |
+|---|---|---|---|---|---|---|---|
+| **qwen2.5:3b-instruct** (current) | 99.3% | 97.4% | 100% | 100% | **99.2%** | 2.0 | 2.7 GB |
+| Qwen3-4B-Instruct-2507 (unsloth Q4_K_M) | 92.6% | 100% | 100% | 95.6% | 95.3% | 2.6 | 5.1 GB |
+| gemma-4-E2B-it (Google QAT q4_0) | 88.1% | 82.1% | 89.7% | 95.6% | 88.8% | 1.8 | 1.8 GB* |
+| MiniCPM5-2B (OpenBMB Q4_K_M) | 85.9% | 87.2% | 87.2% | 88.9% | 86.8% | 1.7 | 2.3 GB |
+| granite-4.2-3b (IBM Q4_K_M) | 88.1% | 71.8% | 84.6% | 86.7% | 84.5% | 3.3 | 3.6 GB |
+
+\* Gemma's file is 3.35 GB with its vision and audio parts; Ollama loads 1.8 GB for text.
+
+Not tested: gemma-4-E4B and Nemotron-3.5-Bolt-E4B are about 5 GB at Q4, too big for prod beside
+voice; community "distill" and "uncensored" repacks were left out.
+
+- **qwen2.5:3b stays.** Nothing small beat it, and part of that is honest: the code and the core
+  suite grew around it, so a new model loses points the guards were written for.
+- **Qwen3-4B-Instruct-2507 is the one to watch.** It is the only model that generalised as well
+  (100% on two holdouts it never saw), but its misses are systematic, not noise: it saved
+  "write a two-line poem" as a note in 3 of 3 runs, said it did not know a task's points it had
+  read, asked for points before proposing a task, and twice returned an empty reply for a yearly
+  goal. It also needs 5.1 GB at a 16k context, which does not fit prod with voice. Worth trying
+  again if prod gets a bigger card or voice moves off the GPU.
+- **The 2B models are fast but not accurate enough**: Gemma 4 E2B and MiniCPM5 answer in under
+  2 s but miss one turn in eight to ten.

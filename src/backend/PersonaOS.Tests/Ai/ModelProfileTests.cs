@@ -69,9 +69,12 @@ public class ModelProfileTests
     }
 
     [Fact]
-    public void A_model_without_thinking_is_not_sent_a_think_switch()
+    public void Every_local_model_is_told_not_to_think()
     {
-        Assert.Null(ModelProfiles.For(Ollama, "qwen2.5:3b-instruct").OptionsFor(Ollama).Think);
+        // Granite 4.2, MiniCPM5 and Gemma 4 reason before each reply as Qwen3 does, and none of them
+        // is named "qwen3"; Ollama ignores the switch for a model that cannot think.
+        Assert.False(ModelProfiles.For(Ollama, "qwen2.5:3b-instruct").OptionsFor(Ollama).Think);
+        Assert.False(ModelProfiles.For(Ollama, "hf.co/ibm-granite/granite-4.2-3b-GGUF:Q4_K_M").OptionsFor(Ollama).Think);
     }
 
     [Fact]
