@@ -47,10 +47,12 @@ public sealed record ModelProfile(
 
     /// <summary>
     /// What to send with a request. Every adapter sends the temperature; only the native Ollama
-    /// adapter can act on the context size, the think switch and keep-alive.
+    /// adapter can act on the context size, the think switch and keep-alive. Thinking is switched
+    /// off for every local model, not only those named "qwen3": granite-4.2, MiniCPM5 and gemma-4
+    /// reason before each reply too (2026-11-03), and a model that cannot think ignores the switch.
     /// </summary>
     public AiModelOptions OptionsFor(string provider) => provider == InstanceConfig.Providers.Ollama
-        ? new AiModelOptions(ContextTokens, Think: Thinks ? false : null, LocalKeepAlive, Temperature)
+        ? new AiModelOptions(ContextTokens, Think: false, LocalKeepAlive, Temperature)
         : new AiModelOptions(Temperature: Temperature);
 }
 

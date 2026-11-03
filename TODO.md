@@ -54,6 +54,11 @@ Not yet tried on the owner's phone:
       the chat opens on the latest conversation (needs the next APK).
 
 AI accuracy (qwen2.5:3b):
+- [x] A10. Newer small models from Hugging Face against qwen2.5:3b (2026-11-03). Owner: "why
+      aren't we checking hugging face for models?" Scored granite-4.2-3b (84.5%),
+      Qwen3-4B-Instruct-2507 (95.3%, 5.1 GB), MiniCPM5-2B (86.8%), gemma-4-E2B (88.8%) against
+      qwen2.5:3b (99.2%): it stays. Table and reasons in docs/model-accuracy.md. Every local model
+      is now sent `think: false` (ModelProfile.OptionsFor).
 - [ ] AI accuracy: planner "no title" scenario fails about 1 in 3 full suite runs since notes
       (10/10 alone).
 - [ ] AI accuracy: the model sometimes asks for a task key after being told which tool to call.
