@@ -109,6 +109,10 @@ class VoiceService {
 
   bool get isListening => _serverStt ? server!.isRecording : _stt.isListening;
 
+  /// How loud the microphone is while listening, 0 to 1, for the hands-free screen to move with.
+  ValueListenable<double> get micLevel => _serverStt ? server!.level : _deviceLevel;
+  final _deviceLevel = ValueNotifier<double>(0);
+
   /// Initializes STT once; returns whether the device can transcribe (and the
   /// user granted mic + recognition permission). Safe to call repeatedly.
   ///
@@ -151,6 +155,8 @@ class VoiceService {
         onResult(result.recognizedWords);
         if (result.finalResult) onFinal(result.recognizedWords);
       },
+      // Android reports roughly -2 dB (quiet) to 10 dB (loud).
+      onSoundLevelChange: (db) => _deviceLevel.value = ((db + 2) / 12).clamp(0.0, 1.0),
       listenOptions: SpeechListenOptions(
         localeId: await _usableLocaleId(),
         pauseFor: pauseFor,

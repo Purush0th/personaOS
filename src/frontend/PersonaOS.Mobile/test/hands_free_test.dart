@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaos_mobile/api/personaos_api.dart';
-import 'package:personaos_mobile/phosphor_icons.dart';
 import 'package:personaos_mobile/screens/chat_screen.dart';
+import 'package:personaos_mobile/screens/voice_mode.dart';
 import 'package:personaos_mobile/voice_service.dart';
 
 /// Streams one reply that proposes a change, then answers confirm/discard.
@@ -42,6 +42,14 @@ class _FakeChatApi extends PersonaOsApi {
 class _FakeVoice extends VoiceService {
   int listenCalls = 0;
   final List<String> spoken = [];
+  void Function(String words)? _onResult;
+  void Function(String words)? _onFinal;
+
+  /// The user saying [words] to the open microphone, then pausing.
+  void say(String words) {
+    _onResult?.call(words);
+    _onFinal?.call(words);
+  }
 
   @override
   Future<bool> ensureStt({void Function(String status)? onStatus, void Function(String error)? onError}) async => true;
@@ -54,13 +62,17 @@ class _FakeVoice extends VoiceService {
     Duration? listenFor,
   }) async {
     listenCalls++;
+    _onResult = onResult;
+    _onFinal = onFinal;
   }
 
   @override
   Future<void> speak(String text) async => spoken.add(text);
 
+  int stopListeningCalls = 0;
+
   @override
-  Future<void> stopListening() async {}
+  Future<void> stopListening() async => stopListeningCalls++;
 
   @override
   Future<void> stopSpeaking() async {}
@@ -70,6 +82,9 @@ class _FakeVoice extends VoiceService {
 }
 
 Future<void> _pumpChat(WidgetTester tester, _FakeChatApi api, _FakeVoice voice) async {
+  // The hands-free screen moves for as long as it is open; still, the tests can wait for it to settle.
+  tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
+  addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
   await tester.pumpWidget(
     MaterialApp(
       home: ChatScreen(api: api, assistantNickname: 'Juno', voiceEnabled: true, voice: voice),
@@ -90,8 +105,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(voice.listenCalls, 1);
 
-    await tester.enterText(find.byType(TextField), 'add a goal to learn rust');
-    await tester.tap(find.byIcon(PhosphorIconsRegular.arrowUp));
+    voice.say('add a goal to learn rust');
     await tester.pumpAndSettle();
 
     // The card is waiting, so the loop stopped rather than talking over it.
@@ -115,8 +129,7 @@ void main() {
     await tester.tap(find.byTooltip('Hands-free'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'add a goal');
-    await tester.tap(find.byIcon(PhosphorIconsRegular.arrowUp));
+    voice.say('add a goal');
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Discard'));
@@ -135,8 +148,7 @@ void main() {
     await tester.tap(find.byTooltip('Hands-free'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'add a goal');
-    await tester.tap(find.byIcon(PhosphorIconsRegular.arrowUp));
+    voice.say('add a goal');
     await tester.pumpAndSettle();
 
     // Let the "paused" snackbar clear the button it sits over.
@@ -147,9 +159,49 @@ void main() {
     await tester.pumpAndSettle();
     expect(voice.listenCalls, 2);
 
-    await tester.tap(find.text('Confirm'));
+    // The card sits under the hands-free screen; resolve it as a tap on it would.
+    tester
+        .widget<ButtonStyleButton>(
+          find.ancestor(of: find.text('Confirm'), matching: find.bySubtype<ButtonStyleButton>()),
+        )
+        .onPressed!();
     await tester.pumpAndSettle();
 
     expect(voice.listenCalls, 2);
+  });
+
+  testWidgets('hands-free fills the screen, and its buttons send now and end it', (tester) async {
+    // Owner, 2026-11-03: a banner was not enough; voice should take the whole screen.
+    final api = _FakeChatApi();
+    final voice = _FakeVoice();
+    await _pumpChat(tester, api, voice);
+
+    await tester.tap(find.byTooltip('Hands-free'));
+    await tester.pumpAndSettle();
+    expect(find.byType(VoiceModeView), findsOneWidget);
+    expect(find.text('Listening'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('voice-orb')));
+    await tester.pump();
+    expect(voice.stopListeningCalls, 1);
+
+    await tester.tap(find.descendant(of: find.byType(VoiceModeView), matching: find.byTooltip('End hands-free')));
+    await tester.pumpAndSettle();
+    expect(find.byType(VoiceModeView), findsNothing);
+    expect(find.byTooltip('Hands-free'), findsOneWidget);
+  });
+
+  testWidgets('back leaves hands-free, not the chat', (tester) async {
+    final api = _FakeChatApi();
+    final voice = _FakeVoice();
+    await _pumpChat(tester, api, voice);
+
+    await tester.tap(find.byTooltip('Hands-free'));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(VoiceModeView), findsNothing);
+    expect(find.byType(ChatScreen), findsOneWidget);
   });
 }
