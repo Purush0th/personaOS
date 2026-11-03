@@ -39,8 +39,8 @@ interface Drag {
   end: number;
 }
 
-/** The height of one hour, in pixels: 1.5× the old 48, so short routine items can be read (owner, 2026-11-03). */
-const HOUR_PX = 72;
+/** The height of one hour, in pixels: twice the old 48, so short routine items can be read (owner, 2026-11-03). */
+const HOUR_PX = 96;
 
 /**
  * The Day, 4 days and Week views: a column per day with a strip on top for all-day events and
