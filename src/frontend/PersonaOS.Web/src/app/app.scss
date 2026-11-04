@@ -60,9 +60,12 @@ mat-sidenav-content {
     gap: 0.7rem;
     padding: 1.1rem 1.25rem 0.75rem;
 
-    .orb {
-      width: 2rem;
-      height: 2rem;
+    .mark {
+      flex: none;
+      width: 2.25rem;
+      height: 2.25rem;
+      background: var(--brand-mark);
+      mask: url('/mark.svg') 0 / 100%;
     }
 
     .names {

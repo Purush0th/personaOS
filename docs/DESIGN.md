@@ -87,6 +87,31 @@ glow (`box-shadow: 0 0 48px rgba(139,124,255,.45)`). Sizes: 24 (chat avatar), 40
 with the input level, **thinking** breathes (opacity .8→1, 1.6 s), **speaking** ripples.
 Under reduced motion it holds still and a text label carries the state.
 
+### The mark (logo): "Ripples"
+
+Chosen 2026-11-04. The Orb is the assistant *inside* the app; the mark is PersonaOS *outside* it:
+app icons, favicons, notifications, the brand in the nav rail. It replaced the Orb as the app icon
+because a glowing violet gradient sphere is what every AI product looks like.
+
+- **Idea.** You are the solid disc at the centre. Rows of dots spread out from you like a voice or
+  a drop in water. Neo, the assistant, is the small disc low on the left at the edge of the
+  ripples: close, and its own.
+- **Colour.** White on **deep plum `#4A2149`** wherever the icon is opaque (app icons, favicons).
+  On a light page the mark is deep plum alone; on a dark page it is white. One colour, always: no
+  gradient, no glow. Plum belongs to the mark only; violet stays the assistant's colour in the UI.
+- **Geometry** (100-unit square, centre 50,50): disc r 22; three rows of dots at r 31 / 38 / 45
+  (22 / 30 / 38 dots, dot r 2.2 / 1.8 / 1.4, opacity .8 / .5 / .26, each row turned 6° against the
+  last); Neo r 8.5 at 45 from the centre, angle 140° (lower left), with no dots within 13 of it.
+  Below about 40 px the mark uses two rows of larger dots (r 32 / 42, 14 / 18 dots), since fine
+  dots blur into a halo there; the notification icon uses the same small version.
+- **Where it comes from.** `scripts/make-icons.mjs` is the single source: it writes
+  `PersonaOS.Web/public/mark.svg`, the favicons and install icons, the Android adaptive, legacy,
+  themed (monochrome) and notification icons, and the iOS app icons. Change the numbers there and
+  run it; never edit a generated icon by hand. The web rail shows `mark.svg` as a CSS mask filled
+  with `--brand-mark`, so it follows the theme.
+- **Don't** put the mark in a violet tile, add a glow, recolour Neo, or use it as the assistant's
+  avatar (that is the Orb's job).
+
 ## 3. Type
 
 **Typeface: Geist** (OFL, variable 100–900; Geist Mono for numbers that line up). It reads as

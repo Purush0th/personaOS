@@ -117,6 +117,13 @@ Deferred by the owner:
       touch icon, `viewport-fit=cover` + safe-area padding, so "Add to Home Screen" on an iPhone
       opens it full screen (the iOS-through-the-web plan). Phone-width web: planner opens in Day
       view, the update banner is one line, keyboard hints hide on touch screens.
+- [x] **U3b. New mark: "Ripples", white on deep plum** (2026-11-04, owner-chosen after concept
+      boards in the untracked `.taste-skill/brand/`; an earlier "Gravity" pick was dropped for
+      looking like a camera/Instagram icon). Spec in `docs/DESIGN.md` §2 "The mark". One script,
+      `scripts/make-icons.mjs`, writes every copy: web favicons/PWA icons/`mark.svg`, Android
+      adaptive + legacy + themed monochrome + notification small icon (`ic_stat_personaos`, also
+      FCM's default and the local-notifications default), iOS AppIcon. The web rail shows
+      `mark.svg` as a mask in `--brand-mark`. Released as server alpha.24 and phone alpha.26.
 - [x] **A5. Routing round two** (2026-11-02). `CalendarRequestGuard`: "schedule/book a call…" or "put
       it on my calendar" with no word of a reminder turns a `create_reminder` into a planner item.
       A planner read for one named day is narrowed to it (the model read a range and gave today's
