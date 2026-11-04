@@ -57,6 +57,9 @@ public sealed class FcmPushSender : IPushSender, IDisposable
                 // An app that does not have this channel (one older than it) shows the
                 // notification in a default channel instead.
                 ChannelId = channel,
+                // The app's chime (res/raw/personaos_chime). From Android 8 the channel's sound
+                // plays instead, and the app gives its channels the same one.
+                Sound = "personaos_chime",
                 Tag = tag,
                 // Must be set explicitly. In FirebaseAdmin 3.6 EventTimestamp is a NON-nullable
                 // DateTime, so leaving it unset still serialises `event_time` as

@@ -15,13 +15,15 @@ public record PushResult(string Token, bool Success, bool TokenInvalid = false, 
 /// phone's settings, so a notification goes in the one the person would expect to mute it with.
 /// The names must match the app's (push_service.dart).
 /// </summary>
+// Renamed with the app's notification chime (2026-11-04): Android fixes a channel's sound when it
+// is created, so the sound came with new channels.
 public static class PushChannels
 {
     /// <summary>Reminders and the assistant's briefs and nudges.</summary>
-    public const string Reminders = "reminders";
+    public const string Reminders = "reminders_chime";
 
     /// <summary>"Starts in 30 minutes": planner events about to begin.</summary>
-    public const string PlannerEvents = "planner_events";
+    public const string PlannerEvents = "planner_events_chime";
 }
 
 /// <summary>

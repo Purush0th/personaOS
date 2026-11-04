@@ -12,6 +12,7 @@ using PersonaOS.Application.Ai.Models;
 using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
+using PersonaOS.Application.Planner;
 using PersonaOS.Domain.Entities;
 
 namespace PersonaOS.Application.Ai;
@@ -214,6 +215,31 @@ public partial class ChatService
             return Planner.ScheduleRequest.Read(earlier[i], today, [.. earlier.Where((_, j) => j != i), message]);
         }
         return null;
+    }
+
+    /// <summary>
+    /// The answer to "what's next?" or "when is my X?" read from the planner, or null when the
+    /// message asks neither or nothing in the planner is about X (that answer is left to the model
+    /// and the grounding guards).
+    /// </summary>
+    private async Task<string?> PlannerAnswerAsync(string message, DateTime now, CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(now);
+        if (Planner.PlannerQuestion.AsksNext(message))
+        {
+            var events = await db.EventsAsync(today, today.AddDays(1), ct: ct);
+            return Planner.PlannerQuestion.NextAnswer(
+                [.. events.Where(e => e.Date == today)], [.. events.Where(e => e.Date == today.AddDays(1))], now);
+        }
+
+        var topic = Planner.PlannerQuestion.TopicOf(message);
+        if (topic.Count == 0) return null;
+        // The day named, or the coming week.
+        var day = WhenPhrase.Read(message, now)?.Day;
+        var found = (await db.EventsAsync(day ?? today, day ?? today.AddDays(6), ct: ct))
+            .Where(e => Planner.PlannerQuestion.Matches(e.Title, topic))
+            .ToList();
+        return Planner.PlannerQuestion.WhenAnswer(message, found, today);
     }
 
     /// <summary>The reply over a routine's cards: how many, from when, how it repeats.</summary>

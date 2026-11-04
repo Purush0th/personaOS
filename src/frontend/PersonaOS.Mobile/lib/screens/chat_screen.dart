@@ -11,6 +11,7 @@ import '../layout.dart';
 import '../phosphor_icons.dart';
 import '../push_service.dart';
 import '../server_speech.dart';
+import '../utterance.dart';
 import '../voice_service.dart';
 import 'conversations_screen.dart';
 import 'goal_view.dart';
@@ -107,6 +108,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (on) {
       unawaited(HandsFreeService.instance.start(onEnded: _endedFromNotification));
     } else {
+      _heardSoFar = '';
       unawaited(HandsFreeService.instance.stop());
     }
   }
@@ -125,6 +127,9 @@ class _ChatScreenState extends State<ChatScreen> {
   /// again: the user put the phone down, and a decision they have now made should
   /// not end the conversation.
   bool _handsFreeAwaitsCard = false;
+
+  /// Words hands-free heard that stopped mid-sentence, waiting for the rest (see [soundsUnfinished]).
+  String _heardSoFar = '';
 
   /// True while an old conversation's messages are being fetched.
   bool _loadingHistory = false;
@@ -229,11 +234,21 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted || _streaming) return;
 
     setState(() => _listening = true);
+    // What hands-free heard before a pause cut the speaker off mid-sentence.
+    final before = _heardSoFar;
+    _heardSoFar = '';
     await _voice.listen(
-      onResult: (words) => setState(() => _input.text = words),
+      onResult: (words) => setState(() => _input.text = joinUtterance(before, words)),
       onFinal: (words) {
         setState(() => _listening = false);
-        if (words.trim().isNotEmpty) {
+        final heard = joinUtterance(before, words);
+        if (_handsFree && words.trim().isNotEmpty && soundsUnfinished(heard) && before.isEmpty) {
+          // "Can you find me the tasks that..." is half a question: listen once more and join on.
+          setState(() => _input.text = heard);
+          _heardSoFar = heard;
+          unawaited(_listenOnce());
+        } else if (heard.trim().isNotEmpty) {
+          _input.text = heard;
           _send();
         } else if (_handsFree) {
           // Silence rather than speech. Reopen instead of ending the session,
