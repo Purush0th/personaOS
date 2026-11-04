@@ -173,6 +173,19 @@ Deferred by the owner:
       tonal surface, answered ones a quiet line. Web: the list spans the page so its scrollbar sits
       at the window edge, with a thin themed scrollbar; on a phone width the mode chips scroll in
       one row instead of pushing the send button out.
+- [x] **B1. Owner's chat b4c7pvc2** (2026-11-04). Neo said "The sprint “Rebound” is now in
+      progress" with no tool call: `SprintCommand` proposes start_sprint for "start the sprint" /
+      "just start it", and the claim detector now knows sprints and "start". "When is my X?" and
+      "what's next?" are answered from the planner in code (`PlannerQuestion`: plurals and a
+      one-letter mishearing, "medication" → Meditation). `UnaskedListGuard` takes out a long list
+      nobody asked for and sentences about "the user". Whisper drops segments that are not speech
+      ("Header."); hands-free waits for the rest of a sentence that ends on "that…" (`utterance.dart`).
+- [x] **B2. Notification sound** (2026-11-04). `res/raw/personaos_chime.wav`, a two-note chime made by
+      `scripts/make-chime.py`. Android fixes a channel's sound at creation, so the push channels are
+      now `reminders_chime` / `planner_events_chime` (server `PushChannels` too) and the old ones are
+      deleted. Alarms keep the phone's alarm sound.
+- [~] **B3. Owner's surprise feature** (claimed: product session, 2026-11-04). Chosen, built, tested
+      and released end to end.
 
 ## Planner as a calendar (owner, 2026-10-03)
 

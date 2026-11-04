@@ -68,6 +68,7 @@ public interface IReplyGuard
 /// <item><see cref="ToolNameGuard"/> removes sentences that name a tool.</item>
 /// <item><see cref="CorrectionPreambleGuard"/> removes "Sure, here is the corrected message:".</item>
 /// <item><see cref="CardInstructionGuard"/> removes "reply yes to confirm" above a card with buttons.</item>
+/// <item><see cref="UnaskedListGuard"/> removes a long list nobody asked for and sentences about "the user".</item>
 /// <item><see cref="ClaimCheckGuard"/> finds a claimed change that did not happen.</item>
 /// <item><see cref="PromisedLookupGuard"/> finds "let me check" with nothing checked.</item>
 /// <item><see cref="ItemReferenceGuard"/> finds item keys that do not exist.</item>
@@ -87,6 +88,7 @@ public sealed class ReplyPipeline(IAppDbContext db, ILogger<ReplyPipeline> logge
         new ToolNameGuard(),
         new CorrectionPreambleGuard(),
         new CardInstructionGuard(),
+        new UnaskedListGuard(),
         new ClaimCheckGuard(),
         new PromisedLookupGuard(),
         new ItemReferenceGuard(db),

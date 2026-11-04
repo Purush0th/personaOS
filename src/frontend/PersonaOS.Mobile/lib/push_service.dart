@@ -27,13 +27,23 @@ class PushService {
   /// Must match the channel the server puts on Android notifications (`PushChannels`). A
   /// message naming a channel that does not exist on the device falls back to a default
   /// channel with default importance — no heads-up banner, easy to miss.
-  static const channelId = 'reminders';
+  ///
+  /// Android fixes a channel's sound when it is created, so the chime came with new channels
+  /// (2026-11-04); the old ones are deleted.
+  static const channelId = 'reminders_chime';
   static const _channelName = 'Reminders and briefs';
 
   /// Planner events about to begin, in a channel of their own so they can be muted (or made
   /// quieter) in the phone's settings without touching reminders. Must match `PushChannels`.
-  static const plannerChannelId = 'planner_events';
+  static const plannerChannelId = 'planner_events_chime';
   static const _plannerChannelName = 'Event notifications';
+
+  /// The channels before the chime, removed so the phone's settings list only the ones in use.
+  static const _oldChannelIds = ['reminders', 'planner_events'];
+
+  /// PersonaOS's own notification sound: a short two-note chime (`res/raw/personaos_chime.wav`,
+  /// made by `scripts/make-chime.py`). Alarms keep the phone's alarm sound.
+  static const chime = RawResourceAndroidNotificationSound('personaos_chime');
 
   final _local = FlutterLocalNotificationsPlugin();
 
@@ -200,6 +210,9 @@ class PushService {
     // ReminderAlarms — and a second initialize() replaces the response callbacks it registered,
     // which would silently break Snooze, Dismiss and opening a ringing alarm.
     final android = _local.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    for (final old in _oldChannelIds) {
+      await android?.deleteNotificationChannel(channelId: old);
+    }
     await android?.createNotificationChannel(
       const AndroidNotificationChannel(
         channelId,
@@ -208,6 +221,7 @@ class PushService {
         // High, so a reminder shows as a heads-up banner rather than sitting silently in the
         // shade — a reminder that is not noticed has not been delivered.
         importance: Importance.high,
+        sound: chime,
       ),
     );
     await android?.createNotificationChannel(
@@ -217,6 +231,7 @@ class PushService {
         description: 'Planner events about to begin, as set on each event.',
         // High too: "starts in 5 minutes" is no use read afterwards.
         importance: Importance.high,
+        sound: chime,
       ),
     );
   }
@@ -247,6 +262,7 @@ class PushService {
           planner ? _plannerChannelName : _channelName,
           importance: Importance.high,
           priority: Priority.high,
+          sound: chime,
           tag: tag,
         ),
       ),

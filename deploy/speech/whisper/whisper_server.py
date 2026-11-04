@@ -61,6 +61,19 @@ def models() -> dict[str, object]:
     return {"object": "list", "data": [{"id": MODEL_NAME, "object": "model", "owned_by": "local"}]}
 
 
+def _heard(segment) -> bool:
+    """Whether a segment is speech rather than words made up from room noise.
+
+    Owner's chat b4c7pvc2 (2026-11-04) opened with "Header." from a hands-free turn in which nobody
+    spoke. Whisper's own rule: a segment it thinks is probably not speech (no_speech_prob over 0.6)
+    and is unsure of (average log probability under -1) is silence; so is one that repeats itself
+    (compression ratio over 2.4).
+    """
+    if segment.no_speech_prob > 0.6 and segment.avg_logprob < -1.0:
+        return False
+    return segment.compression_ratio <= 2.4
+
+
 @app.post("/v1/audio/transcriptions", response_model=None)
 def transcribe(
     file: UploadFile = File(...),
@@ -81,8 +94,10 @@ def transcribe(
         path = tmp.name
     try:
         with model_lock:
-            segments, info = model.transcribe(path, language=language or None, vad_filter=True, beam_size=5)
-            text = " ".join(segment.text.strip() for segment in segments).strip()
+            segments, info = model.transcribe(
+                path, language=language or None, vad_filter=True, beam_size=5, condition_on_previous_text=False
+            )
+            text = " ".join(segment.text.strip() for segment in segments if _heard(segment)).strip()
     except Exception as error:  # a file it cannot decode is the caller's problem, not a crash
         raise HTTPException(status_code=400, detail=f"Could not transcribe the audio: {error}") from error
     finally:

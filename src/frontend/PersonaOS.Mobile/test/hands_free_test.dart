@@ -16,8 +16,11 @@ class _FakeChatApi extends PersonaOsApi {
     status: 'pending',
   );
 
+  final sent = <String>[];
+
   @override
   Stream<ChatEvent> streamChat(String message, {int? conversationId, String? mode}) async* {
+    sent.add(message);
     yield ChatEvent(type: 'start', conversationId: 1);
     yield ChatEvent(type: 'delta', text: 'I can add that goal.');
     yield ChatEvent(type: 'done', pending: [pending]);
@@ -205,5 +208,23 @@ void main() {
 
     expect(find.byType(VoiceModeView), findsNothing);
     expect(find.byType(ChatScreen), findsOneWidget);
+  });
+
+  testWidgets('a sentence cut off by a pause waits for the rest before it is sent', (tester) async {
+    // Owner's chat b4c7pvc2, 2026-11-04: "Can you find me the tasks that..." went off on its own.
+    final api = _FakeChatApi();
+    final voice = _FakeVoice();
+    await _pumpChat(tester, api, voice);
+
+    await tester.tap(find.byTooltip('Hands-free'));
+    await tester.pumpAndSettle();
+    voice.say('Can you find me the tasks that...');
+    await tester.pumpAndSettle();
+    expect(api.sent, isEmpty);
+    expect(voice.listenCalls, 2);
+
+    voice.say('are due today?');
+    await tester.pumpAndSettle();
+    expect(api.sent, ['Can you find me the tasks that are due today?']);
   });
 }

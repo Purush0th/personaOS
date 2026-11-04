@@ -13,6 +13,7 @@ using PersonaOS.Application.Ai.Tools;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
 using PersonaOS.Domain.Entities;
+using PersonaOS.Domain.Services;
 
 namespace PersonaOS.Application.Ai;
 
@@ -397,6 +398,62 @@ public partial class ChatService(
                 final.Rewrite(EmptyReplyGuard.ProposalOnly);
                 unverifiedClaim = false;
             }
+        }
+
+        // "Start the sprint" or "just start it" that ended with no start card: the planned sprint's
+        // start is proposed by the backend, and any other card gives way. Owner's chat b4c7pvc2
+        // (2026-11-04): told three times, qwen2.5:3b said "The sprint is now in progress" each time
+        // and never called start_sprint.
+        if (first.Error is null
+            && request.Turn.ToolNames.Contains("start_sprint")
+            && !request.Turn.Proposals.Any(p => p.ToolName == "start_sprint")
+            && Board.SprintCommand.Parse(userMessage, request.Turn.EarlierUserMessages) is { } start)
+        {
+            var running = await db.Sprints.AsNoTracking().Where(s => s.Status == SprintStatuses.Active).Select(s => (int?)s.Number).FirstOrDefaultAsync(ct);
+            var sprintKey = start.SprintKey
+                ?? await db.Sprints.AsNoTracking()
+                    .Where(s => s.Status == SprintStatuses.Planned)
+                    .OrderBy(s => s.Number)
+                    .Select(s => ItemKeys.Sprint(s.Number))
+                    .FirstOrDefaultAsync(ct);
+            if (start.SprintKey is null && running is int runningNumber)
+            {
+                // Only one sprint runs at a time: say so rather than claim anything.
+                final.Rewrite($"{ItemKeys.Sprint(runningNumber)} is already running, so there is no sprint to start until it is completed.");
+                request.Turn.Proposals.RemoveAll(p => p.ToolName is "create_sprint" or "complete_sprint");
+                unverifiedClaim = false;
+            }
+            else if (sprintKey is null)
+            {
+                final.Rewrite("There is no planned sprint to start. Would you like me to create one?");
+                request.Turn.Proposals.RemoveAll(p => p.ToolName is "create_sprint" or "complete_sprint");
+                unverifiedClaim = false;
+            }
+            else
+            {
+                logger.LogWarning("Model {Model} made no start card for a plain sprint start; proposing it.", config.AiModel);
+                var before = request.Turn.Proposals.Count;
+                await toolCallGuards.DecideAsync(new AiToolCall($"server-sprint-{Guid.NewGuid():N}", "start_sprint", JsonSerializer.Serialize(new { sprintKey })), request.Turn, ct);
+                if (request.Turn.Proposals.Count > before)
+                {
+                    request.Turn.Proposals.RemoveAll(p => p.ToolName != "start_sprint");
+                    final.Rewrite(EmptyReplyGuard.ProposalOnly);
+                    unverifiedClaim = false;
+                }
+            }
+        }
+
+        // "What's next?" and "when is my X?" have one right answer in the planner, worked out in
+        // code (PlannerQuestion; owner's chat b4c7pvc2, 2026-11-04). A turn that proposed a change is
+        // not a question.
+        if (first.Error is null
+            && request.Turn.ToolNames.Contains("get_planner")
+            && request.Turn.Proposals.Count == 0
+            && request.Turn.UserNow is DateTime askedAt
+            && await PlannerAnswerAsync(userMessage, askedAt, ct) is { } plannerAnswer)
+        {
+            final.Rewrite(plannerAnswer);
+            unverifiedClaim = false;
         }
 
         // A routine pasted as a table for the calendar: every row proposed from the table itself,

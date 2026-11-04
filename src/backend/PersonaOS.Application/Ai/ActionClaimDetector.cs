@@ -21,7 +21,7 @@ namespace PersonaOS.Application.Ai;
 public static partial class ActionClaimDetector
 {
     /// <summary>Things the assistant's tools can change. A claim about anything else is ignored.</summary>
-    [GeneratedRegex(@"\b(reminders?|alarms?|goals?|sub-?goals?|tasks?|to-?dos?|planner|plans?|schedule|calendar|items?|notes?|documents?|progress|appointments?|events?)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(reminders?|alarms?|goals?|sub-?goals?|tasks?|to-?dos?|planner|plans?|schedule|calendar|items?|notes?|documents?|progress|appointments?|events?|sprints?|SPRINT-\d+|TASK-\d+)\b", RegexOptions.IgnoreCase)]
     private static partial Regex DomainObject();
 
     /// <summary>
@@ -29,14 +29,14 @@ public static partial class ActionClaimDetector
     /// "I went ahead and scheduled", "I set", "I've now updated". Up to three words may sit
     /// between the subject and the verb ("I have now gone ahead and").
     /// </summary>
-    [GeneratedRegex(@"\bi(?:'ve|’ve| have| had)?(?:\s+\w+){0,3}?\s+(set|created?|add(?:ed)?|schedul(?:ed|e)|sav(?:ed|e)|updat(?:ed|e)|chang(?:ed|e)|mark(?:ed)?|delet(?:ed|e)|remov(?:ed|e)|cancel(?:l?ed)?|mov(?:ed|e)|reschedul(?:ed|e)|logg?(?:ed)?|record(?:ed)?|book(?:ed)?|put)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\bi(?:'ve|’ve| have| had)?(?:\s+\w+){0,3}?\s+(set|created?|add(?:ed)?|schedul(?:ed|e)|sav(?:ed|e)|updat(?:ed|e)|chang(?:ed|e)|mark(?:ed)?|delet(?:ed|e)|remov(?:ed|e)|cancel(?:l?ed)?|mov(?:ed|e)|reschedul(?:ed|e)|logg?(?:ed)?|record(?:ed)?|book(?:ed)?|put|start(?:ed)?|complet(?:ed|e)|finish(?:ed)?|clos(?:ed|e)|kick(?:ed)?\s+off)\b", RegexOptions.IgnoreCase)]
     private static partial Regex FirstPersonDone();
 
     /// <summary>
     /// Still to come: "I'll create", "I will add", "I'm adding". Kept because models say
     /// "I'll create it" and then never call the tool — but see <see cref="AsksPermission"/>.
     /// </summary>
-    [GeneratedRegex(@"\bi(?:'ll|’ll| will|'m|’m| am)(?:\s+\w+){0,3}?\s+(set|creat(?:e|ing)|add(?:ing)?|schedul(?:e|ing)|sav(?:e|ing)|updat(?:e|ing)|chang(?:e|ing)|mark(?:ing)?|delet(?:e|ing)|remov(?:e|ing)|cancel(?:l?ing)?|mov(?:e|ing)|reschedul(?:e|ing)|logg?(?:ing)?|record(?:ing)?|book(?:ing)?|put)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\bi(?:'ll|’ll| will|'m|’m| am)(?:\s+\w+){0,3}?\s+(set|creat(?:e|ing)|add(?:ing)?|schedul(?:e|ing)|sav(?:e|ing)|updat(?:e|ing)|chang(?:e|ing)|mark(?:ing)?|delet(?:e|ing)|remov(?:e|ing)|cancel(?:l?ing)?|mov(?:e|ing)|reschedul(?:e|ing)|logg?(?:ing)?|record(?:ing)?|book(?:ing)?|put|start(?:ing)?|complet(?:e|ing)|finish(?:ing)?|clos(?:e|ing)|kick(?:ing)?\s+off)\b", RegexOptions.IgnoreCase)]
     private static partial Regex FirstPersonIntent();
 
     /// <summary>
@@ -47,7 +47,7 @@ public static partial class ActionClaimDetector
     private static partial Regex AsksPermission();
 
     /// <summary>"Your reminder has been set", "the goal is now created", "it's all set".</summary>
-    [GeneratedRegex(@"\b(?:has|have)\s+been\s+(set|created|added|scheduled|saved|updated|marked|deleted|removed|cancell?ed|moved|rescheduled|logged|recorded|booked)\b|\b(?:is|are)\s+(?:now\s+|all\s+)(set|created|added|scheduled|saved|updated)\b|\bit'?s\s+all\s+set\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?:has|have)\s+been\s+(set|created|added|scheduled|saved|updated|marked|deleted|removed|cancell?ed|moved|rescheduled|logged|recorded|booked)\b|\b(?:is|are)\s+(?:now\s+|all\s+)(set|created|added|scheduled|saved|updated|started|running|active|underway|live|in\s+progress|completed?|closed)\b|\bhas\s+(?:now\s+)?(?:been\s+)?(started|begun|kicked\s+off)\b|\bit'?s\s+all\s+set\b", RegexOptions.IgnoreCase)]
     private static partial Regex CompletedPassive();
 
     /// <summary>
