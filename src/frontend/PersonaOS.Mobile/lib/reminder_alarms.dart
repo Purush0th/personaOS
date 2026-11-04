@@ -109,7 +109,8 @@ class ReminderAlarms {
     tz_data.initializeTimeZones();
 
     await _plugin.initialize(
-      settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
+      // The status-bar icon of every notification this plugin shows, reminders and pushes alike.
+      settings: const InitializationSettings(android: AndroidInitializationSettings('@drawable/ic_stat_personaos')),
       onDidReceiveNotificationResponse: _onResponse,
       onDidReceiveBackgroundNotificationResponse: alarmResponseInBackground,
     );

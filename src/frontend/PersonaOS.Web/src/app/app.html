@@ -17,9 +17,11 @@
     @if (signedIn) {
       <!-- Brand on top, footer pinned to the bottom, and the pages scrolling between them. -->
       <div class="nav-body">
-        <!-- The Orb is the assistant; its nickname is the name the rail leads with. -->
+        <!-- The PersonaOS mark (public/mark.svg, from scripts/make-icons.mjs), used as a mask so it
+             takes the theme's --brand-mark colour. The assistant's nickname is the name the rail
+             leads with. -->
         <div class="brand">
-          <span class="orb" aria-hidden="true"></span>
+          <span class="mark" aria-hidden="true"></span>
           <span class="names">
             <span class="product">{{ branding?.assistantNickname || 'PersonaOS' }}</span>
             <span class="muted small">PersonaOS</span>
