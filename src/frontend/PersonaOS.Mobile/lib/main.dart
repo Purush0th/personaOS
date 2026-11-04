@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api/personaos_api.dart';
 import 'date_utils.dart';
 import 'layout.dart';
+import 'now_next.dart';
 import 'phosphor_icons.dart';
 import 'planner_calendar.dart';
 import 'push_service.dart';
@@ -665,6 +666,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   if (stats != null && stats.hasAny) ...[
                     const SizedBox(height: 28),
                     const _SectionLabel('Today'),
+                    if (stats.today case final today? when today.isNotEmpty) ...[
+                      NowNextCard(
+                        items: today,
+                        onDone: (item) async {
+                          await _api.setPlannerStatus(
+                            item.id,
+                            'done',
+                            occurrence: item.repeats ? item.occurrenceDate : null,
+                          );
+                          unawaited(_loadStats());
+                        },
+                        onOpen: () => _openAfterLogin(
+                          (_) =>
+                              PlannerScreen(api: _api, boardEnabled: enabled('board'), initialView: CalendarView.day),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     _StatCards(
                       stats: stats,
                       onPlanner: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
@@ -929,7 +948,14 @@ class _SectionLabel extends StatelessWidget {
 
 /// The numbers the home screen's cards show, worked out from what the server returned.
 class _HomeStats {
-  const _HomeStats({this.openToday, this.plannedToday, this.sprintDone, this.sprintTotal, this.nextReminder});
+  const _HomeStats({
+    this.openToday,
+    this.plannedToday,
+    this.sprintDone,
+    this.sprintTotal,
+    this.nextReminder,
+    this.today,
+  });
 
   factory _HomeStats.from({
     List<PlannerItem>? planner,
@@ -951,8 +977,12 @@ class _HomeStats {
       sprintDone: active ? board!.columns[BoardColumns.done]?.length ?? 0 : null,
       sprintTotal: active ? tasks : null,
       nextReminder: upcoming.isEmpty ? null : upcoming.first,
+      today: planner,
     );
   }
+
+  /// Today's planner items, for "Now and next".
+  final List<PlannerItem>? today;
 
   final int? openToday;
   final int? plannedToday;
