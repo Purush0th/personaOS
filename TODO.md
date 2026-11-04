@@ -184,8 +184,10 @@ Deferred by the owner:
       `scripts/make-chime.py`. Android fixes a channel's sound at creation, so the push channels are
       now `reminders_chime` / `planner_events_chime` (server `PushChannels` too) and the old ones are
       deleted. Alarms keep the phone's alarm sound.
-- [~] **B3. Owner's surprise feature** (claimed: product session, 2026-11-04). Chosen, built, tested
-      and released end to end.
+- [x] **B3. Now and next** (2026-11-04, owner: "surprise me"). The phone's home opens its Today
+      section with what the plan says you are doing, a bar that fills as it runs, minutes left, what
+      comes after, and Done for the item under way (`now_next.dart`); between items it counts down to
+      the next. Moves on by itself every 30 s; tap opens the planner's day. Next: the same on the web.
 
 ## Planner as a calendar (owner, 2026-10-03)
 
