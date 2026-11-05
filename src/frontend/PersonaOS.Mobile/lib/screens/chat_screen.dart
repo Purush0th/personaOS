@@ -54,6 +54,7 @@ class ChatScreen extends StatefulWidget {
     required this.assistantNickname,
     this.voiceEnabled = false,
     this.voice,
+    this.startHandsFree = false,
   });
 
   final PersonaOsApi api;
@@ -61,6 +62,9 @@ class ChatScreen extends StatefulWidget {
 
   /// Whether the instance has the voice module enabled (mic + read-back).
   final bool voiceEnabled;
+
+  /// Opens straight into hands-free voice (holding the bottom bar's Orb). Only with [voiceEnabled].
+  final bool startHandsFree;
 
   /// Speech in and out. The real one talks to platform plugins, so tests pass their own.
   final VoiceService? voice;
@@ -152,8 +156,19 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
-    if (widget.voiceEnabled && widget.voice == null) unawaited(_useServerSpeechIfChosen());
-    unawaited(_openLatestConversation());
+    final speech = widget.voiceEnabled && widget.voice == null ? _useServerSpeechIfChosen() : Future<void>.value();
+    final latest = _openLatestConversation();
+    unawaited(speech);
+    unawaited(latest);
+    // After the chosen engines are set and the latest conversation is open, so the first words
+    // go to the right place in the right voice.
+    if (widget.voiceEnabled && widget.startHandsFree) {
+      unawaited(
+        Future.wait([speech, latest]).then((_) async {
+          if (mounted && !_handsFree) await _toggleHandsFree();
+        }),
+      );
+    }
   }
 
   /// Opens the conversation used most recently, on this phone or the web; a new chat when

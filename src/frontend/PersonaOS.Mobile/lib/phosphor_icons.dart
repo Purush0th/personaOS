@@ -36,6 +36,7 @@ abstract final class PhosphorIconsRegular {
   static const IconData code = IconData(0xe1bc, fontFamily: 'Phosphor');
   static const IconData deviceMobile = IconData(0xe1e0, fontFamily: 'Phosphor');
   static const IconData dotsThree = IconData(0xe1fe, fontFamily: 'Phosphor');
+  static const IconData dotsThreeOutline = IconData(0xe204, fontFamily: 'Phosphor');
   static const IconData dotsThreeVertical = IconData(0xe208, fontFamily: 'Phosphor');
   static const IconData downloadSimple = IconData(0xe20c, fontFamily: 'Phosphor');
   static const IconData file = IconData(0xe230, fontFamily: 'Phosphor');
@@ -46,6 +47,7 @@ abstract final class PhosphorIconsRegular {
   static const IconData funnelSimple = IconData(0xe268, fontFamily: 'Phosphor');
   static const IconData funnelSimpleX = IconData(0xe26a, fontFamily: 'Phosphor');
   static const IconData hardDrives = IconData(0xe2a0, fontFamily: 'Phosphor');
+  static const IconData house = IconData(0xe2c2, fontFamily: 'Phosphor');
   static const IconData info = IconData(0xe2ce, fontFamily: 'Phosphor');
   static const IconData kanban = IconData(0xeb54, fontFamily: 'Phosphor');
   static const IconData key = IconData(0xe2d6, fontFamily: 'Phosphor');
@@ -82,7 +84,15 @@ abstract final class PhosphorIconsRegular {
   static const IconData x = IconData(0xe4f6, fontFamily: 'Phosphor');
 }
 
-/// Phosphor Fill, only where a filled glyph marks a state (the microphone while it listens).
+/// Phosphor Fill, only where a filled glyph marks a state (the microphone while it listens, the
+/// bottom bar's current place).
 abstract final class PhosphorIconsFill {
+  static const IconData alarm = IconData(0xe006, fontFamily: 'Phosphor-Fill');
+  static const IconData calendarDots = IconData(0xe7b4, fontFamily: 'Phosphor-Fill');
+  static const IconData dotsThreeOutline = IconData(0xe204, fontFamily: 'Phosphor-Fill');
+  static const IconData flag = IconData(0xe244, fontFamily: 'Phosphor-Fill');
+  static const IconData house = IconData(0xe2c2, fontFamily: 'Phosphor-Fill');
+  static const IconData kanban = IconData(0xeb54, fontFamily: 'Phosphor-Fill');
   static const IconData microphone = IconData(0xe326, fontFamily: 'Phosphor-Fill');
+  static const IconData note = IconData(0xe348, fontFamily: 'Phosphor-Fill');
 }
