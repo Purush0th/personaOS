@@ -39,6 +39,11 @@ Thumbs.db
 # ---- Claude Code local ----
 .claude/settings.local.json
 
+# Owner's local coding-agent (Continue) setup and design boards: personal, not part of the product
+.continue/
+.continueignore
+.taste-skill/
+
 # Local SQLite database (dev) + WAL sidecars, and runtime backup snapshots
 **/personaos.db
 **/personaos.db-wal

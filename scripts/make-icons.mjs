@@ -1,14 +1,13 @@
-// Renders every PersonaOS icon from one definition of the mark, "Ripples": you at the centre as a
-// solid disc, rows of dots spreading out from you like a voice or a drop in water, and Neo, the
-// assistant, low on the left at the edge of the ripples. White on deep plum. Run from anywhere after
-// changing the geometry or the colours below:
+// Renders every personaOS icon from the owner's Identity 01 mark, "Eclipse", exactly as supplied
+// (brand/personaos/assets in the identity sheet): a 512 grid, a light disc of R 148 with a second
+// disc of r 112 passing across it 50 units off centre at 45 degrees, leaving a crescent. Do not
+// redraw or recolour it here; this script only frames it for each platform. Run from anywhere:
 //
 //   node scripts/make-icons.mjs
 //
 // Needs Node 20+ and Chrome or Edge, which draws each PNG headless at its exact pixel size. It also
 // writes the vector versions: the web mark (mark.svg), the Android themed-icon layer and the
-// notification icon, so every copy of the mark comes from the same numbers. docs/DESIGN.md §2
-// "The mark" describes it.
+// notification icon. docs/DESIGN.md §2 "The mark" describes it.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -20,111 +19,68 @@ const web = join(root, 'src/frontend/PersonaOS.Web/public');
 const android = join(root, 'src/frontend/PersonaOS.Mobile/android/app/src/main/res');
 const ios = join(root, 'src/frontend/PersonaOS.Mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset');
 
-/** White on deep plum wherever an icon is opaque; deep plum alone on light grounds. */
-const ink = '#ffffff';
-const ground = '#4a2149';
+// Identity 01, verbatim.
+const ink = '#0A0A0C';
+const tileRadius = 114;
+const eclipse = '<circle cx="214.64" cy="214.64" r="112" fill="#17171C"/>';
+const crescent = 'M228.74 103.54A148 148 0 1 1 103.54 228.74A112 112 0 1 0 228.74 103.54Z';
+const light = `<path d="${crescent}" fill="#DDD8F0"/>`;
+/** The crescent's bounds on the 512 grid: the light disc, centre 250, radius 148. */
+const crop = { x: 102, y: 102, size: 296 };
 
-// The mark in a 100-unit square, centred on (50, 50).
-const body = 22;
-const neo = { r: 8.5, distance: 45, angle: 140, clear: 13 };
-const neoAt = {
-  x: 50 + neo.distance * Math.cos((neo.angle * Math.PI) / 180),
-  y: 50 + neo.distance * Math.sin((neo.angle * Math.PI) / 180),
-};
-
-/**
- * The ripples, one row per entry: radius, dot count, dot radius and opacity. Each row turns a few
- * degrees against the last so the dots never line up into spokes. Small sizes (favicons, the
- * notification icon) use two rows of larger dots, because three rows of fine dots blur into a halo
- * below about 40 pixels.
- */
-const rows = {
-  full: [
-    { r: 31, n: 22, dot: 2.2, alpha: 0.8 },
-    { r: 38, n: 30, dot: 1.8, alpha: 0.5 },
-    { r: 45, n: 38, dot: 1.4, alpha: 0.26 },
-  ],
-  small: [
-    { r: 32, n: 14, dot: 3.4, alpha: 0.85 },
-    { r: 42, n: 18, dot: 2.8, alpha: 0.45 },
-  ],
-};
-
-const f = (n) => +n.toFixed(2);
-
-/** Each row's dots as [x, y] centres, leaving a clear space around Neo. */
-const dotsOf = (set) =>
-  rows[set].map((row, i) => {
-    const dots = [];
-    for (let j = 0; j < row.n; j++) {
-      const a = (((360 * j) / row.n + i * 6) * Math.PI) / 180;
-      const x = 50 + row.r * Math.cos(a), y = 50 + row.r * Math.sin(a);
-      if (Math.hypot(x - neoAt.x, y - neoAt.y) > neo.clear) dots.push([f(x), f(y)]);
-    }
-    return { ...row, dots };
-  });
-
-const circlePath = (cx, cy, r) => `M${f(cx - r)},${f(cy)}a${r},${r} 0 1,0 ${2 * r},0a${r},${r} 0 1,0 ${-2 * r},0`;
-
-/** The mark's SVG elements, painted in one colour. */
-const markElements = (colour, set = 'full') =>
-  dotsOf(set).map((row) => `<path d="${row.dots.map(([x, y]) => circlePath(x, y, row.dot)).join('')}" fill="${colour}" opacity="${row.alpha}"/>`).join('') +
-  `<circle cx="50" cy="50" r="${body}" fill="${colour}"/>` +
-  `<circle cx="${f(neoAt.x)}" cy="${f(neoAt.y)}" r="${neo.r}" fill="${colour}"/>`;
-
-/** The mark as an Android vector: paths only, colour white, each row's fade as fill alpha. */
-function vectorPaths(indent, set) {
-  const p = dotsOf(set).map((row) => `${indent}<path
-${indent}    android:fillColor="#FFFFFFFF"
-${indent}    android:fillAlpha="${row.alpha}"
-${indent}    android:pathData="${row.dots.map(([x, y]) => circlePath(x, y, row.dot)).join('')}" />`);
-  p.push(`${indent}<path
-${indent}    android:fillColor="#FFFFFFFF"
-${indent}    android:pathData="${circlePath(50, 50, body)}${circlePath(neoAt.x, neoAt.y, neo.r)}" />`);
-  return p.join('\n');
-}
+/** The primary mark: the dark tile with its corners, the eclipse disc and the crescent. */
+const tileSvg = (attrs = '') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" ${attrs}><rect width="512" height="512" rx="${tileRadius}" fill="${ink}"/>${eclipse}${light}</svg>`;
+/** The same on a square ink ground, for platforms that round the corners themselves (iOS, maskable). */
+const squareSvg = (attrs = '') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" ${attrs}><rect width="512" height="512" fill="${ink}"/>${eclipse}${light}</svg>`;
 
 // ---- Vectors -------------------------------------------------------------------------------------
 
-writeFileSync(join(web, 'mark.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="PersonaOS">
-  <!-- The PersonaOS mark, "Ripples". Generated by scripts/make-icons.mjs; edit there.
-       Deep plum on light grounds, white on dark ones. -->
-  <style>g{color:${ground}}@media (prefers-color-scheme:dark){g{color:${ink}}}</style>
-  <g>${markElements('currentColor')}</g>
+writeFileSync(join(web, 'mark.svg'), `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="personaOS">
+  <!-- The personaOS mark, Identity 01 "Eclipse". Generated by scripts/make-icons.mjs; edit there. -->
+  <rect width="512" height="512" rx="${tileRadius}" fill="${ink}"/>${eclipse}${light}
 </svg>
 `);
 
-// Android 13 themed icons tint this layer's shape. Same 108 dp canvas and scale as the foreground.
-// At 0.56 Neo's far edge is 32 dp from the centre, inside the 33 dp safe circle.
-const fg = 0.56;
+// Android adaptive icons: 108 dp layers, of which launchers show the middle 72. The 512 tile maps
+// onto those 72 dp, so the discs keep their place and size on the tile.
+const k = 72 / 512;
 writeFileSync(join(android, 'drawable/ic_launcher_monochrome.xml'), `<?xml version="1.0" encoding="utf-8"?>
-<!-- The PersonaOS mark for Android 13 themed icons, which tint this layer by its alpha.
-     Generated by scripts/make-icons.mjs; edit there. -->
+<!-- The personaOS mark (Identity 01, one-colour crescent) for Android 13 themed icons, which tint
+     this layer by its alpha. Generated by scripts/make-icons.mjs; edit there. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="100"
-    android:viewportHeight="100">
+    android:viewportWidth="108"
+    android:viewportHeight="108">
     <group
-        android:scaleX="${fg}"
-        android:scaleY="${fg}"
-        android:translateX="${f(50 * (1 - fg))}"
-        android:translateY="${f(50 * (1 - fg))}">
-${vectorPaths('        ', 'full')}
+        android:scaleX="${k}"
+        android:scaleY="${k}"
+        android:translateX="18"
+        android:translateY="18">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="${crescent}" />
     </group>
 </vector>
 `);
 
-// Status-bar icons are white on transparent; Android tints them and reads only the alpha.
+// Status-bar icons are white on transparent; Android tints them and reads only the alpha. The
+// one-colour crescent, framed to its own bounds so it fills the 24 dp square.
 writeFileSync(join(android, 'drawable/ic_stat_personaos.xml'), `<?xml version="1.0" encoding="utf-8"?>
-<!-- The PersonaOS mark as the small icon of every notification except hands-free's microphone.
-     Generated by scripts/make-icons.mjs; edit there. -->
+<!-- The personaOS mark (Identity 01, one-colour crescent) as the small icon of every notification
+     except hands-free's microphone. Generated by scripts/make-icons.mjs; edit there. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="100"
-    android:viewportHeight="100">
-${vectorPaths('    ', 'small')}
+    android:viewportWidth="${crop.size}"
+    android:viewportHeight="${crop.size}">
+    <group
+        android:translateX="-${crop.x}"
+        android:translateY="-${crop.y}">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="${crescent}" />
+    </group>
 </vector>
 `);
 console.log('svg\tmark.svg, ic_launcher_monochrome.xml, ic_stat_personaos.xml');
@@ -141,43 +97,40 @@ const browser = [
 ].find(existsSync);
 if (!browser) throw new Error('No Chrome or Edge found.');
 
-/**
- * One icon as a page. scale: the mark's share of the canvas. bg: an opaque ground, or null for
- * transparent. radius: rounded corners as a share of the canvas (favicons are small tiles, so they
- * read on light and dark browser tabs alike).
- */
-function page(size, { scale, bg = null, radius = 0 }) {
-  const m = size * scale;
-  const at = (size - m) / 2;
-  const tile = bg ? `<div style="position:absolute;inset:0;background:${bg};border-radius:${radius * size}px"></div>` : '';
-  const mark = scale ? `<svg viewBox="0 0 100 100" width="${m}" height="${m}" style="position:absolute;left:${at}px;top:${at}px">${markElements(ink, m < 40 ? 'small' : 'full')}</svg>` : '';
-  return `<!doctype html><html><head><style>html,body{margin:0;width:${size}px;height:${size}px;overflow:hidden;background:transparent}</style></head>
-    <body>${tile}${mark}</body></html>`;
+/** One icon as a page: an SVG drawn at px square, or a plain ink square when svg is null. */
+function page(px, svg) {
+  // Sized in pixels, not inset: 0. Chrome will not make a window narrower than about 200 px, so
+  // below that the page is wider than the icon and a stretched tile lost its right-hand corners.
+  const body = svg
+    ? svg(`width="${px}" height="${px}" style="position:absolute;left:0;top:0"`)
+    : `<div style="position:absolute;left:0;top:0;width:${px}px;height:${px}px;background:${ink}"></div>`;
+  return `<!doctype html><html><head><style>html,body{margin:0;width:${px}px;height:${px}px;overflow:hidden;background:transparent}</style></head>
+    <body>${body}</body></html>`;
 }
 
 const work = mkdtempSync(join(tmpdir(), 'personaos-icons-'));
 let n = 0;
-function render(out, size, options) {
+function render(out, px, svg) {
   const html = join(work, `i${n++}.html`);
-  writeFileSync(html, page(size, options));
+  writeFileSync(html, page(px, svg));
   mkdirSync(dirname(out), { recursive: true });
   execFileSync(browser, [
     '--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1',
-    '--default-background-color=00000000', `--window-size=${size},${size}`,
+    '--default-background-color=00000000', `--window-size=${px},${px}`,
     `--screenshot=${out}`, pathToFileURL(html).href,
   ], { stdio: 'ignore' });
-  console.log(`${size}\t${out.slice(root.length + 1).replaceAll('\\', '/')}`);
+  console.log(`${px}\t${out.slice(root.length + 1).replaceAll('\\', '/')}`);
 }
 
-// Web. Favicons are small rounded tiles; installed and home-screen icons are full squares.
-render(join(web, 'favicon-16.png'), 16, { scale: 0.84, bg: ground, radius: 0.22 });
-render(join(web, 'favicon-32.png'), 32, { scale: 0.8, bg: ground, radius: 0.22 });
-render(join(work, 'favicon-48.png'), 48, { scale: 0.78, bg: ground, radius: 0.22 });
-render(join(web, 'apple-touch-icon.png'), 180, { scale: 0.66, bg: ground });
-render(join(web, 'icon-192.png'), 192, { scale: 0.66, bg: ground });
-render(join(web, 'icon-512.png'), 512, { scale: 0.66, bg: ground });
-// Maskable icons may be cropped to a circle 80% of the canvas across; Neo must stay inside it.
-render(join(web, 'icon-maskable-512.png'), 512, { scale: 0.6, bg: ground });
+// Web. Favicons and installed-app icons are the tile; Apple and maskable icons are cropped by the
+// platform, so they get the square ground.
+render(join(web, 'favicon-16.png'), 16, tileSvg);
+render(join(web, 'favicon-32.png'), 32, tileSvg);
+render(join(work, 'favicon-48.png'), 48, tileSvg);
+render(join(web, 'icon-192.png'), 192, tileSvg);
+render(join(web, 'icon-512.png'), 512, tileSvg);
+render(join(web, 'apple-touch-icon.png'), 180, squareSvg);
+render(join(web, 'icon-maskable-512.png'), 512, squareSvg);
 
 // favicon.ico: an ICO directory around the 16, 32 and 48 PNGs (Vista and later read PNG entries).
 {
@@ -202,21 +155,22 @@ render(join(web, 'icon-maskable-512.png'), 512, { scale: 0.6, bg: ground });
   console.log('ico\tsrc/frontend/PersonaOS.Web/public/favicon.ico');
 }
 
-// Android adaptive icon: 108 dp layers, of which launchers show the middle 72 and guarantee 66.
-// The foreground uses the same scale as the monochrome layer above.
+// Android: the adaptive background is the ink ground; the foreground is the discs on the tile's grid,
+// the 512 tile mapped onto the 72 dp a launcher shows (768 units across the whole 108 dp layer).
+const foreground = (attrs) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-128 -128 768 768" ${attrs}>${eclipse}${light}</svg>`;
 const densities = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
-for (const [name, k] of Object.entries(densities)) {
-  render(join(android, `drawable-${name}/ic_launcher_background.png`), 108 * k, { scale: 0, bg: ground });
-  render(join(android, `drawable-${name}/ic_launcher_foreground.png`), 108 * k, { scale: fg });
-  // Launchers before Android 8 take this full square as it is.
-  render(join(android, `mipmap-${name}/ic_launcher.png`), 48 * k, { scale: 0.72, bg: ground, radius: 0.18 });
+for (const [name, d] of Object.entries(densities)) {
+  render(join(android, `drawable-${name}/ic_launcher_background.png`), 108 * d, null);
+  render(join(android, `drawable-${name}/ic_launcher_foreground.png`), 108 * d, foreground);
+  // Launchers before Android 8 take this square as it is: the tile.
+  render(join(android, `mipmap-${name}/ic_launcher.png`), 48 * d, tileSvg);
 }
 
 // iOS: opaque squares; the system rounds the corners.
 const iosSizes = { '20x20': [1, 2, 3], '29x29': [1, 2, 3], '40x40': [1, 2, 3], '60x60': [2, 3], '76x76': [1, 2], '83.5x83.5': [2], '1024x1024': [1] };
 for (const [pt, scales] of Object.entries(iosSizes)) {
   for (const s of scales) {
-    render(join(ios, `Icon-App-${pt}@${s}x.png`), Math.round(parseFloat(pt) * s), { scale: 0.66, bg: ground });
+    render(join(ios, `Icon-App-${pt}@${s}x.png`), Math.round(parseFloat(pt) * s), squareSvg);
   }
 }
 

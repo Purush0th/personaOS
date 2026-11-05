@@ -87,30 +87,30 @@ glow (`box-shadow: 0 0 48px rgba(139,124,255,.45)`). Sizes: 24 (chat avatar), 40
 with the input level, **thinking** breathes (opacity .8→1, 1.6 s), **speaking** ripples.
 Under reduced motion it holds still and a text label carries the state.
 
-### The mark (logo): "Ripples"
+### The mark (logo): "Eclipse"
 
-Chosen 2026-11-04. The Orb is the assistant *inside* the app; the mark is PersonaOS *outside* it:
-app icons, favicons, notifications, the brand in the nav rail. It replaced the Orb as the app icon
-because a glowing violet gradient sphere is what every AI product looks like.
+Chosen 2026-11-05 by the owner, who supplied it as Identity 01 and asked that it be used without
+further changes. The Orb is the assistant *inside* the app; the mark is the product *outside* it:
+app icons, favicons, notifications, the brand in the nav rail. It replaced "Ripples" (white on deep
+plum, 2026-11-04).
 
-- **Idea.** You are the solid disc at the centre. Rows of dots spread out from you like a voice or
-  a drop in water. Neo, the assistant, is the small disc low on the left at the edge of the
-  ripples: close, and its own.
-- **Colour.** White on **deep plum `#4A2149`** wherever the icon is opaque (app icons, favicons).
-  On a light page the mark is deep plum alone; on a dark page it is white. One colour, always: no
-  gradient, no glow. Plum belongs to the mark only; violet stays the assistant's colour in the UI.
-- **Geometry** (100-unit square, centre 50,50): disc r 22; three rows of dots at r 31 / 38 / 45
-  (22 / 30 / 38 dots, dot r 2.2 / 1.8 / 1.4, opacity .8 / .5 / .26, each row turned 6° against the
-  last); Neo r 8.5 at 45 from the centre, angle 140° (lower left), with no dots within 13 of it.
-  Below about 40 px the mark uses two rows of larger dots (r 32 / 42, 14 / 18 dots), since fine
-  dots blur into a halo there; the notification icon uses the same small version.
-- **Where it comes from.** `scripts/make-icons.mjs` is the single source: it writes
-  `PersonaOS.Web/public/mark.svg`, the favicons and install icons, the Android adaptive, legacy,
-  themed (monochrome) and notification icons, and the iOS app icons. Change the numbers there and
-  run it; never edit a generated icon by hand. The web rail shows `mark.svg` as a CSS mask filled
-  with `--brand-mark`, so it follows the theme.
-- **Don't** put the mark in a violet tile, add a glow, recolour Neo, or use it as the assistant's
-  avatar (that is the Orb's job).
+- **Idea.** You are the light. The system passes across you and stops one hairline short; what
+  stays yours is a crescent. The silhouette is a bitten circle, never a lens.
+- **Geometry** (512 grid, tile corner radius 114): light disc R 148 at (250, 250); eclipse disc
+  r 112, offset 50 at 45° toward the upper left (centre 214.64, 214.64), breaking the outer circle
+  by 14. The crescent is one path: `M228.74 103.54A148 148 0 1 1 103.54 228.74A112 112 0 1 0 228.74 103.54Z`.
+  Redraw the two circles, never the crescent by hand.
+- **Colour.** Ink tile `#0A0A0C`, eclipse disc `#17171C`, light `#DDD8F0`. One-colour versions are the
+  crescent alone (Android themed icon, notification icon). No outline, emboss, gradient or glow.
+- **Framing per platform.** The tile with its own corners: favicons, installed web app, legacy
+  Android icon, the web rail. A square ink ground with the same discs: iOS, the Apple touch icon,
+  the maskable web icon and the Android adaptive icon (whose 72 dp visible area is the 512 tile).
+- **Where it comes from.** `scripts/make-icons.mjs` holds the mark verbatim and only frames it: it
+  writes `PersonaOS.Web/public/mark.svg`, the favicons and install icons, the Android adaptive, legacy,
+  themed and notification icons, and the iOS app icons. Never edit a generated icon by hand. The web
+  rail shows `mark.svg` as an image, the same on both themes.
+- **Don't** rotate it (the 45° offset is the composition), recolour it, put it on a mid-tone, or use
+  it as the assistant's avatar (that is the Orb's job).
 
 ## 3. Type
 
