@@ -23,16 +23,15 @@ Everything still open, in one place; details are in the sections below. Keep thi
 add a line when something is left open, remove it when it is done.
 
 Waiting for the owner to say so:
-- [ ] Owner to decide: notes from chat (N2) rounds 1–3 not committed; round 3 not deployed.
-      Rounds 1–2 are live; round 3 has the server save a plainly asked note itself and takes out
-      false claims about other modules.
-- [ ] Owner to decide: commit `.continue/rules/personaos.md` and `.continueignore` (local coding
-      agent setup), or add them to `.gitignore`.
-- [ ] Owner to decide: F1 (reminder claims, web toasts, reply audio on the phone, chat reopening
-      the latest conversation) and F2 (intent classification) not committed. Deployed 2026-10-15
-      (backup `data/backups/pre-f1f2-2026-10-15`, no migrations) with
-      `System.Security.Cryptography.Pkcs`/`.Xml` pinned to 10.0.13: new advisories had failed the
-      image's restore. APK `PersonaOS-2026-10-15-arm64.apk` sent.
+- [x] Notes from chat (N2) rounds 1–3 and F1/F2: closed 2026-11-04 (owner); they shipped in the
+      alpha releases since, and git has nothing of them left uncommitted.
+- [x] `.continue/`, `.continueignore` (and the `.taste-skill/` boards): added to `.gitignore`
+      2026-11-04 (owner's choice).
+- [x] D1 phone bottom bar with a raised Orb: built 2026-11-04; released 2026-11-05 with the Eclipse
+      mark (U3c), owner: "the logo and design changes release".
+- [ ] Brand spelling: owner chose "personaOS" (lowercase p) for the wordmark on 2026-11-05. Only
+      `mark.svg`'s label uses it so far; the app's visible name, store name and the CLAUDE.md
+      fixed-brand rule still say "PersonaOS". Rename as its own change when the owner says so.
 
 Voice:
 - [x] V1. Hands-free like ChatGPT's voice mode (mobile, 2026-11-03). Owner: "not detecting
@@ -124,6 +123,11 @@ Deferred by the owner:
       adaptive + legacy + themed monochrome + notification small icon (`ic_stat_personaos`, also
       FCM's default and the local-notifications default), iOS AppIcon. The web rail shows
       `mark.svg` as a mask in `--brand-mark`. Released as server alpha.24 and phone alpha.26.
+- [x] **U3c. Mark replaced by "Eclipse" (Identity 01)** (2026-11-05). The owner supplied the mark
+      (ink tile, `#17171C` eclipse disc, `#DDD8F0` crescent) and asked for it unchanged; colour
+      experiments (plum, Earthrise) were dropped. `scripts/make-icons.mjs` now holds it verbatim and
+      only frames it per platform; the web rail shows `mark.svg` as an image (`--brand-mark` removed);
+      manifest background is the ink. Spec in DESIGN.md §2.
 - [x] **A5. Routing round two** (2026-11-02). `CalendarRequestGuard`: "schedule/book a call…" or "put
       it on my calendar" with no word of a reminder turns a `create_reminder` into a planner item.
       A planner read for one named day is narrowed to it (the model read a range and gave today's
@@ -559,15 +563,20 @@ the chat it always showing new one but the last active one can be preserved if n
       empty-state line. Home hero on the sky; alarm screen moved from violet to navy and blue.
       Pending-action cards and receipts now take scheme colours (the fixed amber stayed pale in dark;
       the receipt green failed contrast on dark).
-- [~] **D1. "Dusk" redesign, web and phone** (claimed: web + mobile session, 2026-10-30). Follow
+- [x] **D1. "Dusk" redesign, web and phone** (claimed: web + mobile session, 2026-10-30). Follow
       `docs/DESIGN.md` rollout §12: tokens + Geist, shell, chat + Orb, phone home stat cards +
       bottom bar, workspace pills/cards/dialogs, Phosphor icons.
       Done so far (uncommitted): steps 1–3 on both; phone home with stat cards (`home_stats_test`);
       workspace pills, board cards, tables and dialog radius on both (phone `StatusTone`/`StatusPill`
       in `layout.dart`). Phosphor icons on both (web: `@phosphor-icons/web` font as the mat-icon
       font set; phone: bundled font + generated `lib/phosphor_icons.dart`). Released as
-      v0.1.0-alpha.16 / mobile-v0.1.0-alpha.16. Open: the phone bottom bar with a raised Orb
-      (changes the phone's navigation, needs the owner's call).
+      v0.1.0-alpha.16 / mobile-v0.1.0-alpha.16. Bottom bar (owner: "build it", 2026-11-04;
+      board `.taste-skill/nav/bottom-bar.png`): `lib/orb_bar.dart`, Home · two module places
+      (Board and Planner, or the next modules on) · raised Orb · More (sheet with the rest,
+      Settings, About). Tap the Orb for the chat, hold it for hands-free (`startHandsFree`). Places
+      sit in an IndexedStack and keep their state; Back goes Home first. Home lost its own Orb
+      and the "Your spaces" list (now in More). `orb_bar_test` + a hands-free test; checked on
+      the emulator, light and dark. Not committed or released yet.
 - [x] **U2. Live on the prod server** (2026-10-24). Fresh install (no data moved, owner's choice) on
       Windows 11 + Docker Desktop (WSL 2) at `C:\personaos`, Ollama native on Windows
       (`host.docker.internal:11434`), profiles speech + updater with

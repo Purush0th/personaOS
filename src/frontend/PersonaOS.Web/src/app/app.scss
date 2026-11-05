@@ -64,8 +64,7 @@ mat-sidenav-content {
       flex: none;
       width: 2.25rem;
       height: 2.25rem;
-      background: var(--brand-mark);
-      mask: url('/mark.svg') 0 / 100%;
+      background: url('/mark.svg') center / contain no-repeat;
     }
 
     .names {
