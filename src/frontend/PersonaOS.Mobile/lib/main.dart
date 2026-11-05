@@ -10,6 +10,7 @@ import 'api/personaos_api.dart';
 import 'date_utils.dart';
 import 'layout.dart';
 import 'now_next.dart';
+import 'orb_bar.dart';
 import 'phosphor_icons.dart';
 import 'planner_calendar.dart';
 import 'push_service.dart';
@@ -455,6 +456,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// The numbers on the home screen's cards; null until a signed-in session has loaded them.
   _HomeStats? _stats;
 
+  /// The branding once it has loaded; the bottom bar shows only for a configured server.
+  Branding? _ready;
+
+  /// Which bottom-bar place is showing: 0 is Home, 1 and on are [_places].
+  int _tab = 0;
+
+  /// The places opened so far. A place is built the first time it is opened and then kept, so
+  /// coming back to it finds it as it was left.
+  final Set<String> _opened = {};
+
+  List<BarPlace> get _places => BarPlace.pick(_features);
+
   @override
   void initState() {
     super.initState();
@@ -540,6 +553,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       unawaited(Navigator.of(context).push(MaterialPageRoute<void>(builder: builder)).then((_) => _loadStats()));
       return;
     }
+    _signIn(replaceWith: builder);
+  }
+
+  /// Signs in first, then [then]. A screen to open replaces the sign-in page ([replaceWith]);
+  /// anything else ([then]) runs once the sign-in page has closed.
+  void _signIn({WidgetBuilder? replaceWith, VoidCallback? then}) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => LoginScreen(
@@ -550,8 +569,146 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             // user asked to open a screen, not to wait for that.
             unawaited(PushService.instance.start(_api, assistantNickname: _nickname));
             unawaited(_loadStats());
-            Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: builder));
+            if (replaceWith != null) {
+              Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: replaceWith));
+            } else {
+              Navigator.of(context).pop();
+              then?.call();
+            }
           },
+        ),
+      ),
+    );
+  }
+
+  /// Shows bottom-bar place [index] (0 is Home), signing in first for a module.
+  void _select(int index) {
+    if (index == _tab) return;
+    if (index == 0) {
+      setState(() => _tab = 0);
+      unawaited(_loadStats());
+      return;
+    }
+    void show() => setState(() {
+      _opened.add(_places[index - 1].feature);
+      _tab = index;
+    });
+    _api.isLoggedIn ? show() : _signIn(then: show);
+  }
+
+  /// Opens [feature]'s screen: on the bar when it has a place there, otherwise on top of home.
+  void _openModule(String feature, WidgetBuilder builder) {
+    final index = _places.indexWhere((p) => p.feature == feature);
+    index < 0 ? _openAfterLogin(builder) : _select(index + 1);
+  }
+
+  /// The screen of a bottom-bar place.
+  Widget _placeScreen(BarPlace place) {
+    final board = _features.contains('board');
+    return switch (place.feature) {
+      'board' => BoardScreen(api: _api),
+      'planner' => PlannerScreen(api: _api, boardEnabled: board),
+      'reminders' => RemindersScreen(api: _api),
+      'notes' => NotesScreen(api: _api, boardEnabled: board),
+      _ => GoalsScreen(api: _api, boardEnabled: board),
+    };
+  }
+
+  void _openChat({bool handsFree = false}) => _openAfterLogin(
+    (_) => ChatScreen(
+      api: _api,
+      assistantNickname: _nickname,
+      voiceEnabled: _features.contains('voice'),
+      startHandsFree: handsFree,
+    ),
+  );
+
+  /// More: the modules that have no place on the bar, Settings, and About.
+  void _showMore() {
+    final onBar = _places.map((p) => p.feature).toSet();
+    final board = _features.contains('board');
+    bool listed(String feature) => _features.contains(feature) && !onBar.contains(feature);
+    void open(BuildContext sheet, WidgetBuilder builder) {
+      Navigator.of(sheet).pop();
+      _openAfterLogin(builder);
+    }
+
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+        builder: (sheet) => SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Column(
+              key: const Key('more-sheet'),
+              children: [
+                if (listed('goals'))
+                  _ModuleCard(
+                    icon: PhosphorIconsRegular.flag,
+                    title: 'Goals',
+                    subtitle: 'What you are working towards',
+                    onTap: () => open(sheet, (_) => GoalsScreen(api: _api, boardEnabled: board)),
+                  ),
+                if (listed('board'))
+                  _ModuleCard(
+                    icon: PhosphorIconsRegular.kanban,
+                    title: 'Board',
+                    subtitle: 'The running sprint, card by card',
+                    onTap: () => open(sheet, (_) => BoardScreen(api: _api)),
+                  ),
+                if (listed('planner'))
+                  _ModuleCard(
+                    icon: PhosphorIconsRegular.calendarDots,
+                    title: 'Planner',
+                    subtitle: 'Your day, item by item',
+                    onTap: () => open(sheet, (_) => PlannerScreen(api: _api, boardEnabled: board)),
+                  ),
+                if (listed('reminders'))
+                  _ModuleCard(
+                    icon: PhosphorIconsRegular.alarm,
+                    title: 'Reminders',
+                    subtitle: 'Nudges at the right time',
+                    onTap: () => open(sheet, (_) => RemindersScreen(api: _api)),
+                  ),
+                if (listed('notes'))
+                  _ModuleCard(
+                    icon: PhosphorIconsRegular.note,
+                    title: 'Notes',
+                    subtitle: 'Jot things down for later',
+                    onTap: () => open(sheet, (_) => NotesScreen(api: _api, boardEnabled: board)),
+                  ),
+                if (_features.contains('memory'))
+                  _ModuleCard(
+                    icon: PhosphorIconsRegular.brain,
+                    title: 'Memories',
+                    subtitle: 'What $_nickname remembers about you',
+                    onTap: () => open(sheet, (_) => MemoriesScreen(api: _api)),
+                  ),
+                _ModuleCard(
+                  icon: PhosphorIconsRegular.slidersHorizontal,
+                  title: 'Settings',
+                  subtitle: 'Persona, provider, modules',
+                  onTap: () => open(sheet, (_) => SettingsScreen(api: _api)),
+                ),
+                _ModuleCard(
+                  icon: PhosphorIconsRegular.info,
+                  title: 'About and updates',
+                  subtitle: 'Version, server, what is new',
+                  onTap: () {
+                    Navigator.of(sheet).pop();
+                    unawaited(
+                      Navigator.of(
+                        context,
+                      ).push(MaterialPageRoute<void>(builder: (_) => AboutScreen(serverUrl: widget.serverUrl))),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -564,6 +721,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _features = branding.enabledFeatures;
     unawaited(_checkUpdate(branding));
     unawaited(_loadStats());
+    if (mounted) setState(() => _ready = branding);
     return branding;
   }
 
@@ -582,8 +740,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     widget.onForgetServer();
   }
 
+  /// Home with the bottom bar once the server is known and set up (docs/DESIGN.md §5): Home, two
+  /// module places, the Orb that opens the chat, and More. Each place keeps its state while
+  /// another shows; a screen opened from one covers the bar, and Back returns to it.
   @override
   Widget build(BuildContext context) {
+    final branding = _ready;
+    final places = _places;
+    // The bar steps aside for the keyboard rather than riding up on top of it.
+    final bar = branding != null && branding.isConfigured && MediaQuery.viewInsetsOf(context).bottom == 0;
+    final clearance = OrbBar.clearance(context);
+    return PopScope(
+      // Back from a place goes Home first, then leaves the app.
+      canPop: _tab == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _select(0);
+      },
+      child: Scaffold(
+        extendBody: true,
+        body: MediaQuery.removePadding(
+          context: context,
+          removeBottom: bar,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bar ? clearance : 0),
+            child: IndexedStack(
+              index: _tab <= places.length ? _tab : 0,
+              children: [
+                _home(context),
+                for (final place in places)
+                  _opened.contains(place.feature) ? _placeScreen(place) : const SizedBox.shrink(),
+              ],
+            ),
+          ),
+        ),
+        bottomNavigationBar: bar
+            ? OrbBar(
+                places: places,
+                selected: _tab,
+                onSelect: _select,
+                onOrb: _openChat,
+                onOrbHold: _features.contains('voice') ? () => _openChat(handsFree: true) : null,
+                onMore: _showMore,
+                assistantName: _nickname,
+              )
+            : null,
+      ),
+    );
+  }
+
+  Widget _home(BuildContext context) {
     // Home is the assistant's own screen, so it sits on the dusk glow (docs/DESIGN.md, Presence).
     return Presence(
       child: Scaffold(
@@ -637,16 +842,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               );
             }
             bool enabled(String feature) => branding.enabledFeatures.contains(feature);
-            void openChat() => _openAfterLogin(
-              (_) => ChatScreen(api: _api, assistantNickname: nickname, voiceEnabled: enabled('voice')),
-            );
             final stats = _stats;
             return ReadableWidth(
               maxWidth: 960,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                 children: [
-                  _Hero(nickname: nickname, onAsk: openChat),
+                  _Hero(nickname: nickname, onAsk: _openChat),
                   if (isTooOld(branding.minSupportedClient))
                     _TooOld(
                       minimum: branding.minSupportedClient!,
@@ -686,66 +888,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ],
                     _StatCards(
                       stats: stats,
-                      onPlanner: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
-                      onBoard: () => _openAfterLogin((_) => BoardScreen(api: _api)),
-                      onReminders: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
+                      onPlanner: () =>
+                          _openModule('planner', (_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
+                      onBoard: () => _openModule('board', (_) => BoardScreen(api: _api)),
+                      onReminders: () => _openModule('reminders', (_) => RemindersScreen(api: _api)),
                     ),
                   ],
-                  const SizedBox(height: 28),
-                  const _SectionLabel('Your spaces'),
-                  // Two abreast when there is room: a tablet, or a phone on its side.
-                  _ModuleGrid(
-                    children: [
-                      if (enabled('goals'))
-                        _ModuleCard(
-                          icon: PhosphorIconsRegular.flag,
-                          title: 'Goals',
-                          subtitle: 'What you are working towards',
-                          onTap: () => _openAfterLogin((_) => GoalsScreen(api: _api, boardEnabled: enabled('board'))),
-                        ),
-                      if (enabled('board'))
-                        _ModuleCard(
-                          icon: PhosphorIconsRegular.kanban,
-                          title: 'Board',
-                          subtitle: 'The running sprint, card by card',
-                          onTap: () => _openAfterLogin((_) => BoardScreen(api: _api)),
-                        ),
-                      if (enabled('planner'))
-                        _ModuleCard(
-                          icon: PhosphorIconsRegular.calendarDots,
-                          title: 'Planner',
-                          subtitle: 'Your day, item by item',
-                          onTap: () => _openAfterLogin((_) => PlannerScreen(api: _api, boardEnabled: enabled('board'))),
-                        ),
-                      if (enabled('reminders'))
-                        _ModuleCard(
-                          icon: PhosphorIconsRegular.alarm,
-                          title: 'Reminders',
-                          subtitle: 'Nudges at the right time',
-                          onTap: () => _openAfterLogin((_) => RemindersScreen(api: _api)),
-                        ),
-                      if (enabled('notes'))
-                        _ModuleCard(
-                          icon: PhosphorIconsRegular.note,
-                          title: 'Notes',
-                          subtitle: 'Jot things down for later',
-                          onTap: () => _openAfterLogin((_) => NotesScreen(api: _api, boardEnabled: enabled('board'))),
-                        ),
-                      if (enabled('memory'))
-                        _ModuleCard(
-                          icon: PhosphorIconsRegular.brain,
-                          title: 'Memories',
-                          subtitle: 'What $nickname remembers about you',
-                          onTap: () => _openAfterLogin((_) => MemoriesScreen(api: _api)),
-                        ),
-                      _ModuleCard(
-                        icon: PhosphorIconsRegular.slidersHorizontal,
-                        title: 'Settings',
-                        subtitle: 'Persona, provider, modules',
-                        onTap: () => _openAfterLogin((_) => SettingsScreen(api: _api)),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             );
@@ -860,8 +1008,9 @@ class _Unreachable extends StatelessWidget {
   }
 }
 
-/// The greeting at the top of the home screen: the Orb, the time of day, one line in the thin
-/// display type, and the way in to the chat, shaped like the chat's own composer.
+/// The greeting at the top of the home screen: the time of day, one line in the thin display type,
+/// and the way in to the chat, shaped like the chat's own composer. No Orb of its own: the bottom
+/// bar's raised Orb is the one on this screen.
 class _Hero extends StatelessWidget {
   const _Hero({required this.nickname, required this.onAsk});
 
@@ -879,11 +1028,9 @@ class _Hero extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.only(top: 40),
       child: Column(
         children: [
-          const Orb(size: 88),
-          const SizedBox(height: 18),
           Text(_partOfDay(DateTime.now()), style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant)),
           const SizedBox(height: 6),
           Text(
@@ -1147,28 +1294,6 @@ class _StatCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The module cards: one per row on a narrow screen, two abreast from [Breakpoints.twoColumns].
-class _ModuleGrid extends StatelessWidget {
-  const _ModuleGrid({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < Breakpoints.twoColumns) return Column(children: children);
-        const gap = 10.0;
-        final width = (constraints.maxWidth - gap) / 2;
-        return Wrap(
-          spacing: gap,
-          children: [for (final child in children) SizedBox(width: width, child: child)],
-        );
-      },
     );
   }
 }

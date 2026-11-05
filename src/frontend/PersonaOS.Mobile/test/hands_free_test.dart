@@ -196,6 +196,27 @@ void main() {
     expect(find.byTooltip('Hands-free'), findsOneWidget);
   });
 
+  testWidgets('holding the bar\'s Orb opens the chat straight into hands-free', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final voice = _FakeVoice();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatScreen(
+          api: _FakeChatApi(),
+          assistantNickname: 'Juno',
+          voiceEnabled: true,
+          voice: voice,
+          startHandsFree: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(VoiceModeView), findsOneWidget);
+    expect(voice.listenCalls, 1);
+  });
+
   testWidgets('back leaves hands-free, not the chat', (tester) async {
     final api = _FakeChatApi();
     final voice = _FakeVoice();
