@@ -73,6 +73,7 @@ public interface IReplyGuard
 /// <item><see cref="PromisedLookupGuard"/> finds "let me check" with nothing checked.</item>
 /// <item><see cref="ItemReferenceGuard"/> finds item keys that do not exist.</item>
 /// <item><see cref="ItemFactGuard"/> finds what the reply says about a task's points or status that the data contradicts.</item>
+/// <item><see cref="UngroundedTimeGuard"/> takes out a time in an answer that nothing gave.</item>
 /// <item><see cref="OtherDayItemGuard"/> takes today's items out of an answer about another day.</item>
 /// <item><see cref="EmptyReplyGuard"/> says what happened when nothing is left to show.</item>
 /// </list>
@@ -93,6 +94,7 @@ public sealed class ReplyPipeline(IAppDbContext db, ILogger<ReplyPipeline> logge
         new PromisedLookupGuard(),
         new ItemReferenceGuard(db),
         new ItemFactGuard(db),
+        new UngroundedTimeGuard(db),
         new OtherDayItemGuard(db),
         new EmptyReplyGuard(),
     ];

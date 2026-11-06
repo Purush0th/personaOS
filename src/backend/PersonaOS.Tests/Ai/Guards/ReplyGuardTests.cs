@@ -137,6 +137,26 @@ public class ReplyGuardTests
         Assert.Null(draft.UnbackedClaim);
     }
 
+    [Theory]
+    [InlineData("Show me my sprint board", "Your tasks: TASK-2 Renew car insurance. I've noted them for you to track.", "Your tasks: TASK-2 Renew car insurance.")]
+    [InlineData("Remember what is on my board", "Your tasks: TASK-2 Renew car insurance. I've noted them for you to track.", null)]
+    public async Task Claim_guard_takes_out_a_promise_to_remember_after_a_read(string message, string text, string? kept)
+    {
+        // Training run 2026-11-06b, bench-8: a board listing closed with "I've noted them for you to track."
+        var turn = new ChatTurnState("test-model", new HashSet<string>(), ["get_board", "create_note", "create_memory"],
+            userMessage: message, writeTools: new HashSet<string> { "create_note", "create_memory" });
+        turn.RecordExecution(new AiToolCall("1", "get_board", "{}"), new AiToolResult("1", """{"board":{}}"""));
+
+        var draft = await Review(new ClaimCheckGuard(), Draft(text, turn));
+
+        if (kept is null) Assert.NotNull(draft.UnbackedClaim);
+        else
+        {
+            Assert.Null(draft.UnbackedClaim);
+            Assert.Equal(kept, draft.Text);
+        }
+    }
+
     [Fact]
     public async Task Claim_guard_takes_out_a_claim_about_the_backlog_over_a_saved_note()
     {

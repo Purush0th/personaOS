@@ -137,6 +137,10 @@ public sealed partial class ClaimCheckGuard : IReplyGuard
     [GeneratedRegex(@"\b(?:backlog|board|sprints?|tasks?|goals?|reminders?|alarms?|planner|calendar|events?|schedule)\b", RegexOptions.IgnoreCase)]
     private static partial Regex ElsewhereInTheApp();
 
+    /// <summary>The user asked for something to be kept: then "I've noted it" is a promise the correction round holds the model to.</summary>
+    [GeneratedRegex(@"\b(?:remember|note|notes|jot|save|keep|forget|memori[sz]e)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex AsksToKeep();
+
     public string Name => "claim-check";
 
     public ValueTask<string?> ReviewAsync(ReplyDraft draft, CancellationToken ct)
@@ -176,6 +180,19 @@ public sealed partial class ClaimCheckGuard : IReplyGuard
             && !draft.Turn.Proposals.Any(p => p.ToolName is MemoryTool or "update_memory"))
         {
             draft.UnbackedClaim = ActionClaimDetector.FindMemoryClaim(draft.Text);
+
+            // After a read nobody asked to keep, "I've noted them for you to track" closing a board
+            // listing is filler, not a promise (training run 2026-11-06b, bench-8): taken out, since
+            // a correction round asking for a note would save something the user never wanted.
+            if (draft.UnbackedClaim is { } filler
+                && draft.Turn.Receipts.Any(r => r.Ok && !draft.Turn.WriteTools.Contains(r.Tool))
+                && !AsksToKeep().IsMatch(draft.Turn.UserMessage ?? string.Empty)
+                && ReplySentences.Without(draft.Text, s => s.Trim() == filler) is { Length: > 0 } rest)
+            {
+                draft.UnbackedClaim = null;
+                draft.Rewrite(rest);
+                return ValueTask.FromResult<string?>($"took out a promise to remember after a read: \"{filler}\"");
+            }
         }
 
         // "I have proposed a reminder; it is waiting for your confirmation" with no card under it:

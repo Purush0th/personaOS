@@ -170,6 +170,82 @@ Deferred by the owner:
       the gaps of its data: no goal calls (left out for A9), no edits, more notes than reminders.
       Next: a dataset covering every intent the suites test, edits and follow-ups included (after
       A9), then retrain and re-score; the stock model stays in use until a run beats it on all four.
+      2026-11-05: 323 prompts (fixtures for edits, follow-ups, ask/refuse/negative cases) collected;
+      303 passed (a checker bug had failed 8 good `cancel_reminder` turns), 862 examples. Two training
+      runs died when the PC lost power at full GPU load (Ant Esports VS600L PSU; GPU now capped at
+      120 W); `train.py` now saves a checkpoint per epoch and resumes. Owner's plan (2026-11-05):
+      release the logo (done, alpha.25 / mobile alpha.27), then A10–A13 below, train overnight,
+      benchmark, and present the results for the owner's audit before anything is adopted.
+      **Run 2026-11-05 (overnight, report in `data/training/runs/2026-11-05/report.md`): not adopted.**
+      +55 claims turns (34 passed), 958 examples, held-out loss 0.238 to 0.219. Stock vs trained:
+      97.0/89.6, 87.2/92.3, 97.4/92.3, 100/100. Cause of most losses found: through Ollama's chat
+      path the trained model sometimes writes `"name": create_memory` (no quotes), Ollama drops the
+      invalid call and the app says "I did not manage to write an answer". The prompt the trainer
+      renders (`training/ollama_template.py`) is 7957 tokens where Ollama 0.40.14 renders 8241 for
+      the same request, so the model was trained on a prompt that differs from the real one. Next:
+      capture Ollama's real rendered prompt (OLLAMA_DEBUG) and make the template match exactly,
+      retrain. Also: the dev DB has 40 notes, most junk left by benchmark runs (e.g. "Call mum
+      tomorrow at 6pm" x8), which skews note scenarios; benchmarks should clean up after themselves.
+      **2026-11-06 (owner: "continuous trainings until we achieve 100% accuracy"):** cause confirmed
+      in Ollama 0.40.14's source: the template prints each tool with Go's default struct format
+      (`{name description {object <nil> <nil> [req] {props JSON}}}`), not JSON, and merges
+      consecutive same-role messages. `training/ollama_template.py` is now a port of that and
+      `training/check_template.py` compares token counts with the live Ollama (12/12 equal);
+      overnight.ps1 runs it before training. model-check.ps1 now deletes every note and memory a
+      run leaves; 33 junk notes and 13 junk memories removed from the dev DB. "event on a weekday"
+      named today's weekday on Fridays (left ambiguous on purpose): now three days ahead. New
+      `phrasings` capability (100 prompts: reminders without "remind", free on a weekday, today's
+      plan with a title, facts to remember, note reads with fixture notes). App: "Make a task"
+      answered without a question gets "What should the task be?" (TaskRequest.AsksWithoutTitle).
+      Run 2026-11-06 (fixed template, same 958 examples): trained vs stock: core 96.3 vs 99.3,
+      holdout 94.9 vs 97.4, holdout2 92.3 vs 94.9, holdout3 100 vs 97.8 (report in the run folder;
+      not adopted). Trained losses: "don't let me forget" saved a note, "Add 'Buy milk' to my
+      planner for today" called add_planner_item with no title, "Am I free on Friday" (asked on a
+      Friday: suite now names a weekday that is never today, everywhere), bare task without a
+      question (the app fix above was not yet running). App fixes: PlannerCommand reads
+      "Add X to my planner/calendar <when>"; new ReminderRequestGuard turns a note asked as
+      "don't let me forget / make sure I / remind" with a day and time into a reminder card;
+      tool-rules general-knowledge scope ("Who wrote Pride and Prejudice?" got "I don't know").
+      Run 2026-11-06b (+ phrasings, 1089 examples): trained ≥ stock on every suite (core 99.3/99.3,
+      holdout 100/97.4, holdout2 100/97.4, holdout3 100/100); only miss an invented "haircut today at
+      14:00". New UngroundedTimeGuard (a time in an answer must come from the user, a tool result,
+      the clock or a stored event/reminder). Re-bench without retraining (`training/bench.ps1`,
+      report-bench-2.md): trained core 100, holdout 100, holdout3 100, holdout2 97.4 (one "Am I free
+      on Saturday afternoon?" answered with no read). "Am I free…" is now read through get_planner
+      by the server and answered in code (PlannerQuestion.FreeAnswer). bench-3: misses were app
+      bugs: WhenPhrase ignored "tonight"/"this evening" for a bare "8:15" (now sets the half of
+      the day, and "this evening" means today); the claim detector flagged "tasks that have been
+      added to the sprint" on a board read. bench-4: trained 100/100/100 on core, holdout,
+      holdout2, 97.8 on holdout3 (one task card for "How much is 20% of 250?"): new PlainSumGuard
+      answers any write for a plain sum. bench-5: one invented "added mid-sprint to TASK-16" on a
+      where-is-the-task question: now answered in code (Board/TaskWhereQuestion). bench-6: "None of
+      the notes mention a wedding" with the wedding note saved: note questions answered in code
+      (Notes/NoteQuestion, read through get_notes). **bench-7: trained 100% on all four suites**
+      (stock 98.5/100/100/100). bench-8 (5 runs each): 428/430 (board read closing "I've noted
+      them for you to track" flagged: taken out after a read nobody asked to keep; "Book the car
+      service" after "Add a task to my backlog" refused: TaskRequest.TitleAfterAsking). bench-9
+      (5 runs): 428/430, holdouts 100: "…when they were added to the sprint" flagged (claim
+      detector: describing clause), invented haircut with no time (planner question with no match
+      anywhere now answers "I couldn't find anything about …"). **bench-10 (5 runs): trained 100% on
+      every suite, 430/430** (stock 224/225, 64/65, 65/65, 75/75); report-bench-10.md is the one
+      to audit. Not adopted on prod (owner's audit first); nothing committed. Next: owner reviews
+      the report and the app changes; then commit, and adopt via the updater if approved. The
+      stock model still answers "Who wrote Pride and Prejudice?" with "I don't know" 1 in 5.
+- [ ] **A10. Training framework as its own project** (owner: a folder in this repo, not a new repo).
+      Move `scripts/training/` to a top-level `training/` with prompt sets per capability, so new
+      tools (web search first) add a capability file rather than editing one big list; one command
+      for the overnight run (collect, label, train, convert, benchmark, report).
+- [ ] **A11. More examples where the model fails** (owner). From the 2026-11-05 traces: claims made
+      with no tool or after a tool error ("GOAL-10 was created" after the 90-day yearly-goal
+      refusal), arithmetic and suggestions saved as memories or notes, "put on my board" making goals
+      and a sprint, a move done as an edit, "add to my calendar" asking for a taskKey. App bug found:
+      the false-claim check does not cover a tool that returned an error.
+- [ ] **A12. Web search** (owner chose a self-hosted search tool). SearXNG in the compose stack (no
+      key, private), a `web_search` port + adapter, the tool in the registry, an eval suite and
+      training prompts for when to search and how to answer from results with sources.
+- [ ] **A13. Learn from real use** (owner). Record per turn how the model did (card confirmed or
+      discarded, guards that fired, corrections, errors), so real conversations can become reviewed
+      training examples and a running quality score. Design first: privacy, opt-in, export.
 - [x] **A9. Goal periods in code** (2026-11-03). With no period in the message ("Set a goal: learn
       basic Spanish") qwen2.5:3b picked a month at random. Owner chose to ask, not default:
       `GoalPeriodGuard` refuses a goal with no period in this or the last few messages, and the reply

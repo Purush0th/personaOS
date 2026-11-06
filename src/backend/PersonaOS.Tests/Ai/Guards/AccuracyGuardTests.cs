@@ -35,6 +35,10 @@ public class UserTimeGuardTests
     [InlineData("Remind me to call mum at 7pm tomorrow", "2026-11-03T19:00:00")]
     [InlineData("ping me the day after tomorrow at 8:30 am", "2026-11-04T08:30:00")]
     [InlineData("Remind me at noon on Saturday", "2026-11-07T12:00:00")]
+    // holdout2: the card said 21:15 for this (2026-11-06), and 08:15 the next day once (bench-3).
+    [InlineData("Ping me at 8:15 tonight to take my pills", "2026-11-02T20:15:00")]
+    [InlineData("remind me at 9 tonight", "2026-11-02T21:00:00")]
+    [InlineData("Remind me at 6:30 this evening to call Sam", "2026-11-02T18:30:00")]
     public async Task A_reminder_is_set_to_the_time_the_user_said(string message, string expected)
     {
         var verdict = await Check(Turn(message), "create_reminder", """{"message":"x","dueAtLocal":"2026-11-06T11:00:00"}""");
@@ -308,6 +312,33 @@ public class TaskRequestTests
         Assert.Equal(title, PersonaOS.Application.Board.TaskRequest.TitleOf(message));
     }
 
+    [Theory]
+    [InlineData("Make a task", true)]
+    [InlineData("New task please", true)]
+    [InlineData("Could you create a task for me?", true)]
+    [InlineData("Add a task to my backlog", true)]
+    [InlineData("add a new to-do", true)]
+    [InlineData("Add a task to call the bank", false)]
+    [InlineData("Make a task for the bike repair", false)]
+    [InlineData("What tasks do I have?", false)]
+    [InlineData("Remind me to call the bank", false)]
+    public void A_task_with_nothing_said_about_it_is_recognised(string message, bool bare)
+    {
+        Assert.Equal(bare, PersonaOS.Application.Board.TaskRequest.AsksWithoutTitle(message));
+    }
+
+    [Theory]
+    [InlineData("Add a task to my backlog", "Book the car service", "Book the car service")]
+    [InlineData("Make a task", "'renew the passport'", "Renew the passport")]
+    [InlineData("Make a task", "never mind", null)]
+    [InlineData("Make a task", "What tasks do I have?", null)]
+    [InlineData("Add a task to call the bank", "Book the car service", null)]
+    public void A_title_given_after_being_asked_is_read(string earlier, string message, string? title)
+    {
+        // Training run 2026-11-06b, bench-8: "I couldn't create the task. What should it be?" after the title was given.
+        Assert.Equal(title, PersonaOS.Application.Board.TaskRequest.TitleAfterAsking(message, [earlier]));
+    }
+
     [Fact]
     public async Task A_missing_title_is_filled_from_the_message()
     {
@@ -435,6 +466,40 @@ public sealed class CalendarRequestGuardTests
     }
 }
 
+public sealed class ReminderRequestGuardTests
+{
+    // A Monday morning.
+    private static readonly DateTime Now = new(2026, 11, 2, 9, 0, 0);
+
+    private static Task<ToolCallVerdict?> Check(string message) =>
+        new ReminderRequestGuard().CheckAsync(
+            new AiToolCall("1", "create_note", """{"text":"Call my mother at 6pm tomorrow"}"""),
+            new ChatTurnState("m", new HashSet<string> { "create_note", "create_reminder" }, ["create_note", "create_reminder"],
+                userMessage: message, userToday: DateOnly.FromDateTime(Now), userNow: Now),
+            default);
+
+    [Theory]
+    [InlineData("Don't let me forget to call my mother at 6pm tomorrow")]
+    [InlineData("Make sure I call my mother tomorrow at 6pm")]
+    public async Task Asked_not_to_forget_at_a_time_the_note_becomes_a_reminder(string message)
+    {
+        var verdict = Assert.IsType<ToolCallVerdict.Rewrite>(await Check(message));
+        Assert.Equal("create_reminder", verdict.Call.Name);
+        using var doc = JsonDocument.Parse(verdict.Call.InputJson);
+        Assert.Equal("Call my mother at 6pm tomorrow", doc.RootElement.GetProperty("message").GetString());
+        Assert.Equal("2026-11-03T18:00:00", doc.RootElement.GetProperty("dueAtLocal").GetString());
+    }
+
+    [Theory]
+    [InlineData("Make a note: don't let me forget to call my mother at 6pm tomorrow")]
+    [InlineData("Don't let me forget to call my mother")]
+    [InlineData("Note that I call my mother every Sunday")]
+    public async Task A_note_asked_for_or_no_time_stays_a_note(string message)
+    {
+        Assert.Null(await Check(message));
+    }
+}
+
 public sealed class PlannerRangeTests
 {
     [Fact]
@@ -460,6 +525,9 @@ public sealed class PlannerCommandTests
     [InlineData("Book lunch with Marco tomorrow at 1pm", "Lunch with Marco", "2026-11-03", "13:00")]
     [InlineData("Schedule a call with Anna on Saturday at 11am", "Call with Anna", "2026-11-07", "11:00")]
     [InlineData("Please book a haircut on Friday", "Haircut", "2026-11-06", null)]
+    [InlineData("Add 'Buy milk' to my planner for today", "Buy milk", "2026-11-02", null)]
+    [InlineData("Put the eye test on my calendar on Thursday at 5:45pm", "Eye test", "2026-11-05", "17:45")]
+    [InlineData("Can you add a haircut to my calendar tomorrow at 8pm?", "Haircut", "2026-11-03", "20:00")]
     public void A_plain_booking_is_read(string message, string title, string date, string? time)
     {
         var booking = PersonaOS.Application.Planner.PlannerCommand.Parse(message, Now);
@@ -475,6 +543,8 @@ public sealed class PlannerCommandTests
     [InlineData("Add a task to book the car service tomorrow")]
     [InlineData("Schedule a reminder for tomorrow at 9")]
     [InlineData("Did I book lunch tomorrow?")]
+    [InlineData("Add 'Buy milk' to my planner")]
+    [InlineData("Add 'Call the insurer' to my tasks for tomorrow")]
     public void Anything_else_is_left_to_the_model(string message)
     {
         Assert.Null(PersonaOS.Application.Planner.PlannerCommand.Parse(message, Now));

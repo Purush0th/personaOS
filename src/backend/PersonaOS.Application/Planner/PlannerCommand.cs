@@ -29,6 +29,16 @@ public static partial class PlannerCommand
         RegexOptions.IgnoreCase)]
     private static partial Regex StatesThenAdds();
 
+    /// <summary>
+    /// "Add 'Buy milk' to my planner for today", "Put the eye test on my calendar on Monday at 5:45pm":
+    /// the place named in the middle. The trained qwen2.5:3b called add_planner_item with no title for
+    /// the first, then asked for the title it had been given (training run 2026-11-06).
+    /// </summary>
+    [GeneratedRegex(
+        @"^\s*(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:add|put|pop|stick|get)\s+(?<what>.+?)\s+(?:on|in|to|into|onto)\s+(?:my|the)\s+(?:calendar|planner|diary|agenda)\b(?<rest>.*)$",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex AddsToCalendar();
+
     [GeneratedRegex(@"^(?:i\s+have|i've\s+got|i\s+got|there's|there\s+is|i'm\s+having)\s+", RegexOptions.IgnoreCase)]
     private static partial Regex IHave();
 
@@ -49,10 +59,11 @@ public static partial class PlannerCommand
         if (string.IsNullOrWhiteSpace(message) || OtherThing().IsMatch(message)) return null;
         var match = Books().Match(message);
         if (!match.Success) match = StatesThenAdds().Match(message);
+        if (!match.Success) match = AddsToCalendar().Match(message);
         if (!match.Success) return null;
         if (WhenPhrase.Read(message, now) is not { Day: DateOnly day } said) return null;
 
-        var what = IHave().Replace(match.Groups["what"].Value.Trim(), string.Empty);
+        var what = IHave().Replace(match.Groups["what"].Value.Trim().Trim('\'', '"', '“', '”', '‘', '’').Trim(), string.Empty);
         foreach (var words in new[] { said.DayWords, said.TimeWords }.Where(w => w.Length > 0))
             what = Regex.Replace(what, Regex.Escape(words), " ", RegexOptions.IgnoreCase);
         what = Regex.Replace(what, @"\s+", " ").Trim();

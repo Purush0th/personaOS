@@ -45,6 +45,9 @@ public partial class ChatService(
     /// <summary>The user's messages before this one that guards read, for "tomorrow at 9" answering a question.</summary>
     private const int EarlierUserMessages = 2;
 
+    /// <summary>The reply to "Make a task" when the model's own reply did not ask.</summary>
+    internal const string AskTaskTitle = "What should the task be? Tell me what needs doing and I'll add it.";
+
     public async IAsyncEnumerable<ChatStreamEvent> StreamChatAsync(
         int? conversationId,
         string userMessage,
@@ -446,6 +449,34 @@ public partial class ChatService(
         // "What's next?" and "when is my X?" have one right answer in the planner, worked out in
         // code (PlannerQuestion; owner's chat b4c7pvc2, 2026-11-04). A turn that proposed a change is
         // not a question.
+        // "Is there a note about the wedding?" is answered from the notes that match, read through the
+        // tool when the model did not read them, so the receipt shows what was looked at.
+        if (first.Error is null
+            && request.Turn.ToolNames.Contains("get_notes")
+            && request.Turn.Proposals.Count == 0
+            && Notes.NoteQuestion.TopicOf(userMessage) is { Count: > 0 } noteTopic)
+        {
+            if (!request.Turn.Receipts.Any(r => r.Ok && r.Tool == "get_notes"))
+            {
+                var read = new AiToolCall($"server-notes-{Guid.NewGuid():N}", "get_notes", JsonSerializer.Serialize(new { query = noteTopic[0] }));
+                request.Turn.RecordExecution(read, await toolRegistry.ExecuteAsync(read, ct));
+            }
+            var noteTexts = await db.Notes.AsNoTracking().OrderByDescending(n => n.UpdatedAtUtc).Select(n => n.Text).ToListAsync(ct);
+            final.Rewrite(Notes.NoteQuestion.Answer(noteTopic, [.. noteTexts.Where(t => Notes.NoteQuestion.Matches(t, noteTopic))]));
+            unverifiedClaim = false;
+        }
+
+        // "Is TASK-17 in the running sprint or in the backlog?" is answered from the task itself.
+        if (first.Error is null
+            && request.Turn.Proposals.Count == 0
+            && Board.TaskWhereQuestion.Parse(userMessage) is int askedNumber
+            && Board.TaskWhereQuestion.Answer(askedNumber,
+                await db.BoardTasks.AsNoTracking().Include(t => t.Sprint).FirstOrDefaultAsync(t => t.Number == askedNumber, ct)) is { } whereAnswer)
+        {
+            final.Rewrite(whereAnswer);
+            unverifiedClaim = false;
+        }
+
         if (first.Error is null
             && request.Turn.ToolNames.Contains("get_planner")
             && request.Turn.Proposals.Count == 0
@@ -453,6 +484,38 @@ public partial class ChatService(
             && await PlannerAnswerAsync(userMessage, askedAt, ct) is { } plannerAnswer)
         {
             final.Rewrite(plannerAnswer);
+            unverifiedClaim = false;
+        }
+
+        // "Am I free on Saturday afternoon?" has one right answer in the planner too. The day is read
+        // through the tool when the model did not read it, so the receipt shows what was looked at.
+        if (first.Error is null
+            && request.Turn.ToolNames.Contains("get_planner")
+            && request.Turn.Proposals.Count == 0
+            && request.Turn.UserNow is DateTime freeAt
+            && Planner.PlannerQuestion.AsksFree(userMessage))
+        {
+            var today = DateOnly.FromDateTime(freeAt);
+            var day = WhenPhrase.Read(userMessage, freeAt)?.Day ?? today;
+            var date = day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            if (!request.Turn.Receipts.Any(r => r.Ok && r.Tool == "get_planner"))
+            {
+                var read = new AiToolCall($"server-planner-{Guid.NewGuid():N}", "get_planner", JsonSerializer.Serialize(new { date }));
+                request.Turn.RecordExecution(read, await toolRegistry.ExecuteAsync(read, ct));
+            }
+            final.Rewrite(Planner.PlannerQuestion.FreeAnswer(userMessage, day, await Planner.PlannerQueries.EventsAsync(db, day, day, ct: ct), today));
+            unverifiedClaim = false;
+        }
+
+        // "Make a task" says nothing about the task, so the reply has to ask. qwen2.5:3b answered
+        // "Please provide a title for the task." most times, which leaves the user unsure whether
+        // anything happened (holdout, 2026-11-06); a reply that does not ask is replaced by the question.
+        if (first.Error is null
+            && request.Turn.Proposals.Count == 0
+            && Board.TaskRequest.AsksWithoutTitle(userMessage)
+            && !final.Text.Contains('?', StringComparison.Ordinal))
+        {
+            final.Rewrite(AskTaskTitle);
             unverifiedClaim = false;
         }
 
@@ -494,7 +557,7 @@ public partial class ChatService(
         if (first.Error is null
             && request.Turn.ToolNames.Contains("create_task")
             && !request.Turn.Proposals.Any(p => p.ToolName == "create_task")
-            && Board.TaskRequest.TitleOf(userMessage) is { } taskTitle)
+            && (Board.TaskRequest.TitleOf(userMessage) ?? Board.TaskRequest.TitleAfterAsking(userMessage, request.Turn.EarlierUserMessages)) is { } taskTitle)
         {
             logger.LogWarning("Model {Model} made no task card for a plain task request; proposing it.", config.AiModel);
             var before = request.Turn.Proposals.Count;

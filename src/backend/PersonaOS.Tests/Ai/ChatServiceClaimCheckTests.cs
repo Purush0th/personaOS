@@ -36,6 +36,70 @@ public class ChatServiceClaimCheckTests
     }
 
     [Fact]
+    public async Task A_plain_sum_makes_no_card_and_saves_nothing()
+    {
+        // The trained qwen2.5:3b answered 50 and proposed a task (training run 2026-11-06b, bench-4).
+        var tasks = new FakeTool("create_task", mutates: true);
+        var (_, chat, streamer) = Setup(tasks);
+        streamer
+            .EnqueueToolCall("toolu_1", "create_task", """{"title":"Calculate 20% of 250"}""")
+            .EnqueueText("20% of 250 is 50.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "How much is 20% of 250?"));
+
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.Empty(done.Pending ?? []);
+        Assert.Empty(tasks.Invocations);
+    }
+
+    [Fact]
+    public async Task Am_i_free_unread_is_read_and_answered_from_the_planner()
+    {
+        // The trained qwen2.5:3b answered "I don't have your planner items for today" with no read
+        // (training run 2026-11-06b, bench-2). 2026-09-15 is a Tuesday; Saturday is the 19th.
+        var planner = new FakeTool("get_planner", """{"items":[]}""");
+        var (db, chat, streamer) = Setup(planner);
+        db.PlannerItems.Add(new PlannerItem { Title = "Pottery class", Date = new DateOnly(2026, 9, 19), ScheduledTime = new TimeOnly(14, 0) });
+        db.PlannerItems.Add(new PlannerItem { Title = "Breakfast with Ana", Date = new DateOnly(2026, 9, 19), ScheduledTime = new TimeOnly(9, 0) });
+        await db.SaveChangesAsync();
+        streamer.EnqueueText("I don't have your planner items for today.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Am I free on Saturday afternoon?"));
+
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.Equal(["""{"date":"2026-09-19"}"""], planner.Invocations);
+        Assert.Equal("On Saturday 19 September in the afternoon you have “Pottery class” at 14:00.", done.Text);
+    }
+
+    [Fact]
+    public async Task A_task_with_nothing_said_about_it_is_answered_with_a_question()
+    {
+        // qwen2.5:3b answered "Make a task" with an instruction, not a question (holdout, 2026-11-06).
+        var tasks = new FakeTool("create_task", mutates: true);
+        var (_, chat, streamer) = Setup(tasks);
+        streamer.EnqueueText("Please provide a title for the task.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Make a task"));
+
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.StartsWith("What should the task be?", done.Text);
+        Assert.Empty(tasks.Invocations);
+    }
+
+    [Fact]
+    public async Task A_question_back_about_a_bare_task_is_kept()
+    {
+        var (_, chat, streamer) = Setup(new FakeTool("create_task", mutates: true));
+        streamer.EnqueueText("Sure, what would you like the task to be?");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Make a task"));
+
+        // Left as streamed: the done event carries no rewritten text.
+        Assert.Null(Assert.Single(events, e => e.Type == "done").Text);
+        Assert.Equal("Sure, what would you like the task to be?", string.Concat(events.Where(e => e.Type == "delta").Select(e => e.Text)));
+    }
+
+    [Fact]
     public async Task A_claim_the_model_turns_into_a_proposal_ends_as_a_real_card()
     {
         var reminder = new FakeTool("create_reminder", mutates: true);

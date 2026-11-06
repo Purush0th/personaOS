@@ -4,7 +4,7 @@ Sits between the API and Ollama: point the instance's AI base URL at this proxy 
 /api/chat call is passed through unchanged and appended to a JSONL log, with the request body and
 the model's whole answer (its text and its tool calls, joined from the stream).
 
-    python -I scripts/training/proxy.py --listen 11500 --target http://localhost:11434 --log calls.jsonl
+    python -I training/proxy.py --listen 11500 --target http://localhost:11434 --log calls.jsonl
 
 Standard library only. Development use: it listens on localhost and logs conversations in full.
 """
