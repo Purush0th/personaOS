@@ -47,8 +47,24 @@ public static partial class ActionClaimDetector
     private static partial Regex AsksPermission();
 
     /// <summary>"Your reminder has been set", "the goal is now created", "it's all set".</summary>
-    [GeneratedRegex(@"\b(?:has|have)\s+been\s+(set|created|added|scheduled|saved|updated|marked|deleted|removed|cancell?ed|moved|rescheduled|logged|recorded|booked)\b|\b(?:is|are)\s+(?:now\s+|all\s+)(set|created|added|scheduled|saved|updated|started|running|active|underway|live|in\s+progress|completed?|closed)\b|\bhas\s+(?:now\s+)?(?:been\s+)?(started|begun|kicked\s+off)\b|\bit'?s\s+all\s+set\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?:has|have)\s+been\s+(set|created|added|scheduled|saved|updated|marked|deleted|removed|cancell?ed|moved|rescheduled|logged|recorded|booked)\b|\b(?:is|are)\s+(?:now\s+|all\s+)(set|created|added|scheduled|saved|updated|started|running|active|underway|live|in\s+progress|completed?|closed)\b|\bhas\s+(?:now\s+)?(?:been\s+)?(started|begun|kicked\s+off)\b|\bit'?s\s+all\s+set\b|" + WasMade, RegexOptions.IgnoreCase)]
     private static partial Regex CompletedPassive();
+
+    /// <summary>
+    /// "GOAL-10 was created", "it was added successfully": a creation told in the past. qwen2.5:3b
+    /// wrote "GOAL-10 was created." right after create_goal returned an error (a yearly goal needs
+    /// 90 days, 2026-11-05), so nothing existed. Creation verbs only: "was moved" or "was set" read
+    /// back from a tool describe the user's data as often as they claim a change.
+    /// </summary>
+    private const string WasMade = @"\b(?:was|were)\s+(?:successfully\s+|just\s+|now\s+)?(?:created|added|scheduled|saved|booked)\b(?![^.!?]*\b(?:ago|earlier|yesterday|last\s+\w+|on\s+\w+day)\b)";
+
+    /// <summary>
+    /// A time or day: "at 9:30 PM", "tomorrow", "on Friday". A claim made about a time is about the
+    /// planner or a reminder even when it names neither: "I have created a new yoga class for the
+    /// day after tomorrow at 9:30 PM" (qwen2.5:3b, 2026-11-05, nothing saved).
+    /// </summary>
+    [GeneratedRegex(@"\bat\s+\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)?|\b\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)|\b(?:today|tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex TimeOrDay();
 
     /// <summary>
     /// Reporting what already exists rather than saying the assistant did something: "All tasks
@@ -56,7 +72,7 @@ public static partial class ActionClaimDetector
     /// "there are no reminders due". Read back from a tool, these are the honest answer to a
     /// question — and the warning on them is a false alarm the user has to learn to ignore.
     /// </summary>
-    [GeneratedRegex(@"\bas\s+of\b|\bcurrently\b|\balready\b|\bthere\s+(is|are|was|were)\b|\b(all|both|each|none)\s+(of\s+)?(the\s+|your\s+)?\w+\s+(is|are|were|have|has)\b|\bso\s+far\b|\bat\s+the\s+moment\b|\byou\s+have\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\bas\s+of\b|\bcurrently\b|\balready\b|\bthere\s+(is|are|was|were)\b|\b(all|both|each|none)\s+(of\s+)?(the\s+|your\s+)?\w+\s+(is|are|were|have|has)\b|\bso\s+far\b|\bat\s+the\s+moment\b|\byou\s+have\b|\b(?:that|which)\s+(?:have|has|had)\s+been\b|\b(?:when|where|how|which|that)\s+(?:\w+\s+){0,2}(?:was|were)\s+(?:created|added|scheduled|saved|booked)\b", RegexOptions.IgnoreCase)]
     private static partial Regex ReportsState();
 
     /// <summary>
@@ -151,10 +167,14 @@ public static partial class ActionClaimDetector
     private static string[] Sentences(string? reply) =>
         string.IsNullOrWhiteSpace(reply) ? [] : SentenceBreak().Split(reply);
 
-    /// <summary>Statements (not questions, offers or negations) about something the assistant can change.</summary>
+    /// <summary>
+    /// Statements (not questions, offers or negations) about something the assistant can change,
+    /// or about a time, which only the planner and reminders hold.
+    /// </summary>
     private static IEnumerable<string> Candidates(IEnumerable<string> sentences) => sentences
         .Select(s => s.Trim())
-        .Where(s => s.Length > 0 && !s.EndsWith('?') && !NotAClaim().IsMatch(s) && DomainObject().IsMatch(s));
+        .Where(s => s.Length > 0 && !s.EndsWith('?') && !NotAClaim().IsMatch(s)
+            && (DomainObject().IsMatch(s) || TimeOrDay().IsMatch(s)));
 
     /// <summary>
     /// A first-person "I've set", or a completed passive "has been set". The passive is the weakest

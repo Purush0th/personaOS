@@ -26,7 +26,7 @@ public static partial class WhenPhrase
     [GeneratedRegex(@"\bin\s+(?<n>\d+|an?|one|two|three|four|five|ten|fifteen|twenty|thirty|forty-five|half\s+an?)\s+(?<unit>min(?:ute)?s?|hours?|hrs?|days?)\b", RegexOptions.IgnoreCase)]
     private static partial Regex Offset();
 
-    [GeneratedRegex(@"\b(?<word>today|tonight|tomorrow|day\s+after\s+tomorrow)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?<word>today|tonight|tomorrow|day\s+after\s+tomorrow|this\s+(?:morning|afternoon|evening))\b", RegexOptions.IgnoreCase)]
     private static partial Regex RelativeDay();
 
     [GeneratedRegex(@"\b(?<next>next\s+)?(?:this\s+|on\s+|by\s+|coming\s+)?(?<day>monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", RegexOptions.IgnoreCase)]
@@ -42,6 +42,16 @@ public static partial class WhenPhrase
     /// </summary>
     [GeneratedRegex(@"\b(?<h>\d{1,2})(?::(?<m>\d{2}))?\s*(?<ampm>a\.?m\.?|p\.?m\.?)(?![a-z])|\b(?<h24>[01]\d|2[0-3]):(?<m24>[0-5]\d)\b|\b(?<named>noon|midday|midnight)\b", RegexOptions.IgnoreCase)]
     private static partial Regex ClockTime();
+
+    /// <summary>
+    /// "at 9", "8:15": a time with no am or pm. Only read when <see cref="HalfOfDay"/> says which half
+    /// (holdout2: "Ping me at 8:15 tonight" became a card for 21:15, then for 08:15, 2026-11-06).
+    /// </summary>
+    [GeneratedRegex(@"(?:\bat\s+(?<h>\d{1,2})(?::(?<m>[0-5]\d))?|(?<![\d:.])(?<h>\d{1,2}):(?<m>[0-5]\d))(?![\d:]|\s*[ap]\.?m)", RegexOptions.IgnoreCase)]
+    private static partial Regex BareTime();
+
+    [GeneratedRegex(@"\b(?:tonight|(?:this|in\s+the)\s+(?:morning|afternoon|evening)|at\s+night)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex HalfOfDay();
 
     /// <summary>A part of the day, which says roughly when without a clock time: enough not to have to ask.</summary>
     [GeneratedRegex(@"\b(?:tonight|morning|afternoon|evening|night|noon|midday|midnight|lunch(?:time)?|dinner(?:time)?|bedtime|later\s+today|end\s+of\s+(?:the\s+)?day|eod)\b", RegexOptions.IgnoreCase)]
@@ -157,6 +167,20 @@ public static partial class WhenPhrase
             {
                 time = start;
                 timeWords = clocks[0].Value;
+            }
+        }
+
+        // "8:15 tonight", "at 9 this evening": a bare time, and the part of the day says which half.
+        if (time is null && clocks.Count == 0 && HalfOfDay().Match(message) is { Success: true } half
+            && BareTime().Matches(message) is { Count: 1 } bare)
+        {
+            var hour = int.Parse(bare[0].Groups["h"].Value, CultureInfo.InvariantCulture);
+            var minute = bare[0].Groups["m"].Success ? int.Parse(bare[0].Groups["m"].Value, CultureInfo.InvariantCulture) : 0;
+            if (hour is >= 1 and <= 12)
+            {
+                var later = !half.Value.Contains("morning", StringComparison.OrdinalIgnoreCase);
+                time = new TimeOnly(hour % 12 + (later ? 12 : 0), minute);
+                timeWords = bare[0].Value;
             }
         }
 

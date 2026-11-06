@@ -22,6 +22,9 @@ public class ActionClaimDetectorTests
     [InlineData("I've updated your progress on Learn Rust to 40%.")]
     [InlineData("I cancelled the reminder for the dentist.")]
     [InlineData("Sure. I've moved the planner item to Friday.")]
+    // Training collection, 2026-11-05: after create_goal returned an error, and with no tool at all.
+    [InlineData("GOAL-10 was created. It's a yearly goal to read 24 books.")]
+    [InlineData("I have created a new yoga class for the day after tomorrow at 9:30 PM.")]
     public void Catches_a_claimed_change(string reply)
     {
         Assert.NotNull(ActionClaimDetector.FindClaim(reply));
@@ -56,7 +59,16 @@ public class ActionClaimDetectorTests
     [InlineData("As of the last check, there were no tasks marked as todo. All tasks are either "
         + "in progress or have been scheduled for future planned sprints.")]
     [InlineData("There are no reminders due today.")]
+    // Read back with when it happened: history, not a claim.
+    [InlineData("TASK-5 was created on Monday and is still in to do.")]
+    [InlineData("Your dentist reminder was added two days ago.")]
+    // A time, but nothing the assistant did.
+    [InlineData("You're free tomorrow after 3pm.")]
     [InlineData("You have 4 tasks, and both of them have been moved to SPRINT-3.")]
+    // A board read back (training run 2026-11-06b, bench-3): the tasks, not a change.
+    [InlineData("Tasks in the To Do column are those that have been added to the sprint this week and are ready for work.")]
+    // bench-9: the same, said another way.
+    [InlineData("You can see the status of each task, including which column they are in, and when they were added to the sprint.")]
     [InlineData("")]
     [InlineData(null)]
     public void Leaves_honest_replies_alone(string? reply)

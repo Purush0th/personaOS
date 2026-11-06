@@ -12,23 +12,49 @@ known to be right:
 
 Corrective rounds, where the app asked the model to try again, are internal and left out.
 
-    python -I scripts/training/build_dataset.py data/training/traces.jsonl data/training/dataset
+    python -I training/build_dataset.py data/training/dataset data/training/traces.jsonl [more traces…]
 """
 
 import json
 import os
 import random
+import re
 import sys
 
 PROPOSAL_ONLY = "Here is the change I would make — confirm it below if it looks right."
-WRITES = {"create_task", "create_reminder", "add_planner_item", "create_goal", "create_note", "create_memory"}
+WRITES = {
+    "create_task", "create_reminder", "add_planner_item", "create_goal", "create_note", "create_memory",
+    "move_task", "update_task", "cancel_reminder", "delete_goal",
+}
 # Saved at once rather than proposed: the turn shows them as reads that ran, not as cards.
 SAVED_AT_ONCE = {"create_note", "create_memory"}
-# A goal's period is not checked by the app yet: with no time in the message the model picks a
-# month at random, sometimes one already over (training capture, 2026-11-02). GoalPeriodGuard has
-# held goals to the user's period since 2026-11-03; traces collected before then keep goal calls out
-# of the labels (the goal intent still is one). Empty this set once the traces are re-collected.
-NO_TOOL_LABELS = {"create_goal"}
+# Tools whose calls are not used as labels. Was {"create_goal"} until the traces were re-collected
+# with GoalPeriodGuard in place (2026-11-05); before it, goal periods were picked at random.
+NO_TOOL_LABELS: set[str] = set()
+# How an honest "there is none" reads.
+NEGATIVE = re.compile(r"(?i)\b(no|not|don't|do not|couldn't|could not|can't|cannot|isn't|haven't|nothing|none)\b")
+# A reply saying a change was made. Only applied where nothing was proposed or saved, so it is a
+# false claim there: "GOAL-10 was created" after the app refused the goal (2026-11-05). Broader than
+# the app's ActionClaimDetector on purpose: a lost example costs little, a lying label teaches lying.
+CLAIM = re.compile(
+    r"(?i)\b(i(?:'ve| have| just)?|has been|have been|was|were|is now|are now)\s+(?:\w+\s+){0,2}?"
+    r"(set|created|added|scheduled|saved|booked|moved|updated|marked|cancell?ed|deleted|removed)\b")
+NOT_A_CLAIM = re.compile(r"(?i)(\bnot\b|n't\b|\bnever\b|\bpropos\w*|\bconfirm\w*|\bbelow\b|\bwould\b|\bcould\b|\bcan\b|\bmay\b|\bmight\b|\bif you\b)")
+# A line of a list read back from a tool ("- NoteId 836: …") is the user's data, not the reply's claim.
+LIST_ITEM = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s")
+
+
+def claims(text: str) -> bool:
+    """Whether any sentence of the reply says a change was made."""
+    return any(CLAIM.search(s) and not NOT_A_CLAIM.search(s)
+               for line in text.splitlines() if not LIST_ITEM.match(line)
+               for s in re.split(r"(?<=[.!?])\s+", line))
+
+
+def accepted(prompt: dict) -> set[str]:
+    """The tools a prompt may end in: one, or any of a list for a read."""
+    tool = prompt["tool"]
+    return set(tool) if isinstance(tool, list) else {tool} if tool else set()
 
 
 def has_words(value: object, words: list[str]) -> bool:
@@ -40,14 +66,27 @@ def passed(trace: dict) -> bool:
     """Whether the turn ended where its prompt says it should."""
     prompt = trace["prompt"]
     tool, words = prompt["tool"], prompt["words"]
+    text = (trace["text"] or "").strip()
+    if prompt.get("ask"):  # something was missing: no change, and a question back
+        return not trace["proposals"] and "?" in text and not claims(text)
+    if prompt.get("refuse"):  # nothing can be made: no change, and an honest answer (checking first is fine)
+        return not trace["proposals"] and bool(text) and not claims(text)
+    if isinstance(tool, list):
+        tool = next((t for t in tool if t in trace["reads"]), tool[0])
     if tool in WRITES:
-        made = [p for p in trace["proposals"] if p["tool"] == tool and has_words(p["input"], words)]
+        # The stored input can be resolved to an id (cancel_reminder keeps only reminderId), so the
+        # words may sit in the card's summary instead.
+        made = [p for p in trace["proposals"]
+                if p["tool"] == tool and has_words([p["input"], p.get("summary")], words)]
         saved = tool in SAVED_AT_ONCE and tool in trace["reads"] and has_words(ran_input(trace, tool), words)
         others = [p for p in trace["proposals"] if p["tool"] != tool]
         return (bool(made) or saved) and not others
-    if tool:  # a read
-        return tool in trace["reads"] and not trace["proposals"]
-    return not trace["proposals"] and not trace["reads"] and bool((trace["text"] or "").strip())
+    if tool:  # a read; one that should find nothing must say so
+        found = tool in trace["reads"] and not trace["proposals"] and not claims(text)
+        # A read that should find something must say it (words), one that should find nothing must say so.
+        return (found and (not words or has_words([text], words))
+                and (not prompt.get("negative") or bool(NEGATIVE.search(text))))
+    return not trace["proposals"] and not trace["reads"] and bool(text) and not claims(text)
 
 
 def ran_input(trace: dict, tool: str) -> dict:
@@ -92,7 +131,7 @@ def examples(trace: dict) -> list[dict]:
         out.append({"kind": "intent", "messages": [to_hf(m) for m in intent_call["request"]["messages"]]
                     + [{"role": "assistant", "content": json.dumps({"intent": prompt["intent"]})}]})
 
-    if not passed(trace) or prompt["tool"] in NO_TOOL_LABELS:
+    if not passed(trace) or accepted(prompt) & NO_TOOL_LABELS:
         return out
 
     tooled = [c for c in calls if c["request"].get("tools")]
@@ -106,7 +145,7 @@ def examples(trace: dict) -> list[dict]:
         # The next call's history holds the tool call as the app ran it, after its guards.
         later = next((c for c in tooled[1:] if tool_message(c["request"])), None)
         ran = tool_message(later["request"]) if later else None
-        if ran is None or ran["tool_calls"][0]["function"]["name"] != prompt["tool"]:
+        if ran is None or ran["tool_calls"][0]["function"]["name"] not in accepted(prompt):
             return out
         assistant = to_hf(ran)
         assistant["content"] = ""
@@ -122,14 +161,17 @@ def examples(trace: dict) -> list[dict]:
                         + [{"role": "assistant", "content": text}], "tools": tools})
     else:
         text = (trace["text"] or "").strip()
-        if not first["response"]["tool_calls"] and text:
+        # A question back is the right answer whatever the model first tried (the app's guards
+        # turned a guessed time or title into the question), so it is taught directly. Anything
+        # else is kept only when the model answered without a tool.
+        if text and (prompt.get("ask") or not first["response"]["tool_calls"]):
             out.append({"kind": "answer", "messages": base + [{"role": "assistant", "content": text}], "tools": tools})
     return out
 
 
 def main() -> None:
-    source, target = sys.argv[1], sys.argv[2]
-    traces = [json.loads(line) for line in open(source, encoding="utf-8")]
+    target, sources = sys.argv[1], sys.argv[2:]
+    traces = [json.loads(line) for source in sources for line in open(source, encoding="utf-8")]
     all_examples, passing = [], 0
     for trace in traces:
         passing += passed(trace)

@@ -170,12 +170,26 @@ try {
     $bankAt = $now.Date.AddDays(2).AddHours(10)
     $seededReminder = Invoke-Api -Method Post -Path '/api/reminders' -Token $token `
         -Body @{ message = 'Call the bank about the card'; dueAtLocal = $bankAt.ToString('yyyy-MM-ddTHH:mm:ss') }
+    # Notes and memories are saved at once, not proposed, so a run that saves one leaves it behind
+    # unless it is taken back. Leftovers piled up (eight "Call mum tomorrow at 6pm" notes by
+    # 2026-11-06) and changed what the note scenarios read; everything not here now goes after each run.
+    $keepNotes = @(Invoke-Api -Method Get -Path '/api/notes' -Token $token | ForEach-Object { $_.id })
+    $keepMemories = @(Invoke-Api -Method Get -Path '/api/memories' -Token $token | ForEach-Object { $_.id })
     $seededNote = Invoke-Api -Method Post -Path '/api/notes' -Token $token -Body @{ text = 'Buy stamps for the wedding cards' }
-    # The next Friday after today, and the day after tomorrow by name, for scenarios that name a weekday.
-    $friday = $now.Date.AddDays(1)
-    while ($friday.DayOfWeek -ne [DayOfWeek]::Friday) { $friday = $friday.AddDays(1) }
+    $keepNotes += $seededNote.id
+    # A day three days ahead by name, for scenarios that name a weekday (never today's).
     $inThreeDays = $now.Date.AddDays(3)
     $inThreeDaysName = $inThreeDays.ToString('dddd', [Globalization.CultureInfo]::InvariantCulture)
+    # The next such weekday, or the day after it when that weekday is today: "on Saturday" said on a
+    # Saturday is left to the model on purpose (today or next week?), so a Saturday run measured the calendar.
+    $nextDay = {
+        param([DayOfWeek]$weekday)
+        if ($now.DayOfWeek -eq $weekday) { $weekday = [DayOfWeek](([int]$weekday + 1) % 7) }
+        $d = $now.Date.AddDays(1)
+        while ($d.DayOfWeek -ne $weekday) { $d = $d.AddDays(1) }
+        $d
+    }
+    $dayName = { param([datetime]$d) $d.ToString('dddd', [Globalization.CultureInfo]::InvariantCulture) }
     $nickname = $settings.assistantNickname
 
     # --- scenarios -----------------------------------------------------------------------------
@@ -551,13 +565,15 @@ try {
         },
         @{
             Name  = 'event on a weekday'
-            Say   = 'Add a meeting with Priya on Friday at 3pm to my calendar'
+            # Three days ahead, never today's weekday: "on Friday" said on a Friday is left to the
+            # model on purpose (WhenPhrase: today or next week?), so a Friday run measured the calendar.
+            Say   = "Add a meeting with Priya on $inThreeDaysName at 3pm to my calendar"
             Check = {
                 param($d)
                 $err = Expect-Card $d 'add_planner_item' '(?i)priya'
                 if ($err) { return $err }
                 $summary = ($d.pending | Where-Object { $_.tool -eq 'add_planner_item' } | Select-Object -First 1).summary
-                if ($summary -notmatch $friday.ToString('yyyy-MM-dd')) { return "not on Friday $($friday.ToString('yyyy-MM-dd')): $summary" }
+                if ($summary -notmatch $inThreeDays.ToString('yyyy-MM-dd')) { return "not on $inThreeDaysName $($inThreeDays.ToString('yyyy-MM-dd')): $summary" }
                 if ($summary -notmatch '15:00') { return "not at 15:00: $summary" }
                 return ''
             }
@@ -672,8 +688,8 @@ try {
     # Holdout (2026-11-02): written before any tuning against it and never tuned against since.
     # Report it beside the others: a fix that lifts core and extended but not this fits the checks,
     # not the users.
-    $saturday = $now.Date.AddDays(1)
-    while ($saturday.DayOfWeek -ne [DayOfWeek]::Saturday) { $saturday = $saturday.AddDays(1) }
+    $weekend = & $nextDay ([DayOfWeek]::Saturday)
+    $weekendName = & $dayName $weekend
     $holdout = @(
         @{
             Name  = 'holdout: alarm tomorrow morning'
@@ -701,13 +717,13 @@ try {
         },
         @{
             Name  = 'holdout: call on a weekday'
-            Say   = 'Schedule a call with Anna on Saturday at 11am'
+            Say   = "Schedule a call with Anna on $weekendName at 11am"
             Check = {
                 param($d)
                 $err = Expect-Card $d 'add_planner_item' '(?i)anna'
                 if ($err) { return $err }
                 $summary = ($d.pending | Where-Object { $_.tool -eq 'add_planner_item' } | Select-Object -First 1).summary
-                if ($summary -notmatch $saturday.ToString('yyyy-MM-dd') -or $summary -notmatch '11:00') { return "not Saturday 11:00: $summary" }
+                if ($summary -notmatch $weekend.ToString('yyyy-MM-dd') -or $summary -notmatch '11:00') { return "not $weekendName 11:00: $summary" }
                 return ''
             }
         },
@@ -729,7 +745,7 @@ try {
         },
         @{
             Name  = 'holdout: plans on a weekday'
-            Say   = 'Do I have anything planned for Saturday?'
+            Say   = "Do I have anything planned for $weekendName?"
             Check = {
                 param($d)
                 if ((Tools-Used $d) -notcontains 'get_planner') { return "did not read the planner (ran: $((Tools-Used $d) -join ','))" }
@@ -862,7 +878,7 @@ try {
         },
         @{
             Name  = 'holdout2: free on a weekday'
-            Say   = 'Am I free on Friday afternoon?'
+            Say   = "Am I free on $(& $dayName (& $nextDay ([DayOfWeek]::Friday))) afternoon?"
             Check = {
                 param($d)
                 if ((Tools-Used $d) -notcontains 'get_planner') { return "did not read the planner (ran: $((Tools-Used $d) -join ','))" }
@@ -942,24 +958,20 @@ try {
     # Holdout 3 (2026-11-02): written after holdout2 had been tuned against, before any run of its
     # own. It leans on what was still weak (sums, an event stated and then "add it to my calendar",
     # a thank-you that saves something) in words the suite has not used. Never tune against it.
-    $nextDay = {
-        param([DayOfWeek]$weekday)
-        $d = $now.Date.AddDays(1)
-        while ($d.DayOfWeek -ne $weekday) { $d = $d.AddDays(1) }
-        $d
-    }
-    $saturday = & $nextDay ([DayOfWeek]::Saturday)
-    $thursday = & $nextDay ([DayOfWeek]::Thursday)
+    $weekend = & $nextDay ([DayOfWeek]::Saturday)
+    $weekendName = & $dayName $weekend
+    $midweek = & $nextDay ([DayOfWeek]::Thursday)
+    $midweekName = & $dayName $midweek
     $holdout3 = @(
         @{
             Name  = 'holdout3: alert on a weekday'
-            Say   = 'Alert me at 6:30am on Saturday to go for a run'
+            Say   = "Alert me at 6:30am on $weekendName to go for a run"
             Check = {
                 param($d)
                 $err = Expect-Card $d 'create_reminder' '06:30'
                 if ($err) { return $err }
                 $summary = ($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary
-                if ($summary -notmatch $saturday.ToString('yyyy-MM-dd')) { return "not Saturday $($saturday.ToString('yyyy-MM-dd')): $summary" }
+                if ($summary -notmatch $weekend.ToString('yyyy-MM-dd')) { return "not $weekendName $($weekend.ToString('yyyy-MM-dd')): $summary" }
                 return ''
             }
         },
@@ -978,13 +990,13 @@ try {
         },
         @{
             Name  = 'holdout3: event, then add it'
-            Say   = 'Haircut on Thursday at 11am - add it to my calendar'
+            Say   = "Haircut on $midweekName at 11am - add it to my calendar"
             Check = {
                 param($d)
                 $err = Expect-Card $d 'add_planner_item' '(?i)hair'
                 if ($err) { return $err }
                 $summary = ($d.pending | Where-Object { $_.tool -eq 'add_planner_item' } | Select-Object -First 1).summary
-                if ($summary -notmatch $thursday.ToString('yyyy-MM-dd') -or $summary -notmatch '11:00') { return "not Thursday 11:00: $summary" }
+                if ($summary -notmatch $midweek.ToString('yyyy-MM-dd') -or $summary -notmatch '11:00') { return "not $midweekName 11:00: $summary" }
                 return ''
             }
         },
@@ -1093,13 +1105,13 @@ try {
         },
         @{
             Name  = 'holdout3: follow-up names a day'
-            Turns = @('Set a reminder to pay the rent', 'Saturday at 10am')
+            Turns = @('Set a reminder to pay the rent', "$weekendName at 10am")
             Check = {
                 param($d, $all)
                 if ((Proposed-Tools $all[0]) -contains 'create_reminder') { return "guessed a time on the first turn: $(($all[0].pending | Select-Object -First 1).summary)" }
                 $err = Expect-Card $d 'create_reminder' '10:00'
                 if ($err) { return $err }
-                if (($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary -notmatch $saturday.ToString('yyyy-MM-dd')) { return 'card is not for Saturday' }
+                if (($d.pending | Where-Object { $_.tool -eq 'create_reminder' } | Select-Object -First 1).summary -notmatch $weekend.ToString('yyyy-MM-dd')) { return "card is not for $weekendName" }
                 return ''
             }
         }
@@ -1147,6 +1159,12 @@ try {
                 foreach ($card in $turnDone.pending) {
                     try { Invoke-Api -Method Post -Path "/api/chat/actions/$($card.id)/discard" -Token $token | Out-Null } catch {}
                 }
+            }
+            foreach ($n in @(Invoke-Api -Method Get -Path '/api/notes' -Token $token | ForEach-Object { $_ })) {
+                if ($keepNotes -notcontains $n.id) { try { Invoke-Api -Method Delete -Path "/api/notes/$($n.id)" -Token $token | Out-Null } catch {} }
+            }
+            foreach ($m in @(Invoke-Api -Method Get -Path '/api/memories' -Token $token | ForEach-Object { $_ })) {
+                if ($keepMemories -notcontains $m.id) { try { Invoke-Api -Method Delete -Path "/api/memories/$($m.id)" -Token $token | Out-Null } catch {} }
             }
 
             if ([string]::IsNullOrEmpty($failure)) { $passes++ }

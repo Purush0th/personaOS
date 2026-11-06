@@ -239,7 +239,26 @@ public partial class ChatService
         var found = (await db.EventsAsync(day ?? today, day ?? today.AddDays(6), ct: ct))
             .Where(e => Planner.PlannerQuestion.Matches(e.Title, topic))
             .ToList();
-        return Planner.PlannerQuestion.WhenAnswer(message, found, today);
+        if (found.Count > 0) return Planner.PlannerQuestion.WhenAnswer(message, found, today);
+
+        // Nothing in the planner, a reminder, a note or a memory is about it: the trained
+        // qwen2.5:3b answered "When is my haircut appointment?" with "Your last planner item is for
+        // today, and it says haircut" (training run 2026-11-06b, bench-9). Questions about the
+        // board, goals or the app are left to the model.
+        if (OtherPartOfTheApp().IsMatch(message) || await MentionedElsewhereAsync(topic, ct)) return null;
+        return Planner.PlannerQuestion.NotFoundAnswer(topic, day, today);
+    }
+
+    [GeneratedRegex(@"\b(?:tasks?|TASK-\d+|sprints?|goals?|GOAL-\d+|board|backlog|reminders?|notes?|memor(?:y|ies)|PersonaOS|app|version|update)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex OtherPartOfTheApp();
+
+    /// <summary>Whether a pending reminder, a note or a memory mentions the topic, so the question may be about it.</summary>
+    private async Task<bool> MentionedElsewhereAsync(IReadOnlyList<string> topic, CancellationToken ct)
+    {
+        var texts = await db.Reminders.AsNoTracking().Where(r => r.Status == ReminderStatuses.Pending).Select(r => r.Message).ToListAsync(ct);
+        texts.AddRange(await db.Notes.AsNoTracking().Select(n => n.Text).ToListAsync(ct));
+        texts.AddRange(await db.Memories.AsNoTracking().Select(m => m.Content).ToListAsync(ct));
+        return texts.Any(t => Planner.PlannerQuestion.Matches(t, topic));
     }
 
     /// <summary>The reply over a routine's cards: how many, from when, how it repeats.</summary>

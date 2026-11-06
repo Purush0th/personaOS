@@ -74,4 +74,51 @@ public class PlannerQuestionTests
         Assert.Equal("Nothing else is planned for today. Tomorrow starts with “Wake up” at 06:00 to 06:05.",
             PlannerQuestion.NextAnswer(Plan, [Item("Wake up", 6, 0, 6, 5, tomorrow)], Today.ToDateTime(new TimeOnly(23, 0))));
     }
+    [Theory]
+    [InlineData("Am I free on Saturday afternoon?")]
+    [InlineData("am i busy tomorrow")]
+    [InlineData("Is my Friday evening free?")]
+    public void A_free_question_is_recognised(string message)
+    {
+        Assert.True(PlannerQuestion.AsksFree(message));
+    }
+
+    [Theory]
+    [InlineData("Add lunch on Saturday if I am free")]
+    [InlineData("Free up my Saturday")]
+    [InlineData("What's next?")]
+    public void Other_messages_are_not_free_questions(string message)
+    {
+        Assert.False(PlannerQuestion.AsksFree(message));
+    }
+
+    [Fact]
+    public void A_free_part_of_the_day_says_so()
+    {
+        Assert.Equal("Yes, you're free this afternoon: nothing is planned.",
+            PlannerQuestion.FreeAnswer("Am I free this afternoon?", Today, [.. Plan.Where(e => e.Start!.Value.Hour < 12 || e.Start!.Value.Hour > 17)], Today));
+    }
+
+    [Fact]
+    public void A_busy_part_of_the_day_lists_what_is_in_it()
+    {
+        Assert.Equal("This afternoon you have “Lunch” at 12:45 to 13:10 and “Transition” at 13:10 to 13:15.",
+            PlannerQuestion.FreeAnswer("Am I free this afternoon?", Today, Plan, Today));
+    }
+
+    [Fact]
+    public void Another_day_with_nothing_planned_is_free()
+    {
+        Assert.Equal("Yes, you're free on Saturday 7 November in the afternoon: nothing is planned.",
+            PlannerQuestion.FreeAnswer("Am I free on Saturday afternoon?", new DateOnly(2026, 11, 7), [], Today));
+    }
+    [Fact]
+    public void Nothing_found_says_where_it_looked()
+    {
+        // Training run 2026-11-06b, bench-9: "Your last planner item is for today, and it says haircut".
+        Assert.Equal("I couldn't find anything about “haircut appointment” in your planner for the next 7 days.",
+            PlannerQuestion.NotFoundAnswer(PlannerQuestion.TopicOf("When is my haircut appointment?"), null, Today));
+        Assert.Equal("I couldn't find anything about “haircut” in your planner tomorrow.",
+            PlannerQuestion.NotFoundAnswer(["haircut"], Today.AddDays(1), Today));
+    }
 }

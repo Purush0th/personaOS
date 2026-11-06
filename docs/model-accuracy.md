@@ -177,7 +177,7 @@ What the numbers taught, for the next round:
   the exact-title check misses it), and a question for a missing task title that has no question
   mark. Write holdout4 before working on these.
 - **The training capture is a test set too.** Running 233 fresh prompts to build fine-tuning data
-  (`scripts/training/`) found three code bugs before any training: invalid JSON in the "waiting for
+  (`training/`) found three code bugs before any training: invalid JSON in the "waiting for
   confirmation" result, reminders repeating their time, and "add X to my to-do list" made an event.
 - **The intent check can block a guard.** "When is my reminder about the bank?" was classed
   create_reminder at temperature 0, so the read-before-answering retry, which waits for a question,

@@ -47,6 +47,58 @@ public static partial class PlannerQuestion
         "saturday", "sunday", "thing", "things", "activity", "slot", "booked", "kept", "put", "see", "show", "list",
     };
 
+    /// <summary>
+    /// "Am I free on Saturday afternoon?", "Am I busy tomorrow?", "Is my Friday evening free?". The
+    /// trained qwen2.5:3b answered "I don't have your planner items for today" without reading them
+    /// (training run 2026-11-06b, bench-2).
+    /// </summary>
+    [GeneratedRegex(
+        @"\b(?:am\s+i|are\s+we)\s+(?:free|busy|available|booked)\b|\bis\s+(?:my\s+)?\w+(?:\s+(?:morning|afternoon|evening|night))?\s+(?:free|clear|busy)\b",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex Free();
+
+    [GeneratedRegex(@"\b(?<part>morning|afternoon|evening|tonight|night)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex PartOfDay();
+
+    /// <summary>Whether the message asks if the user is free at some time.</summary>
+    public static bool AsksFree(string? message) =>
+        !string.IsNullOrWhiteSpace(message) && Free().IsMatch(message) && !AsksForAChange().IsMatch(message);
+
+    /// <summary>The answer to "am I free on <paramref name="day"/> (afternoon)?" from that day's items.</summary>
+    public static string FreeAnswer(string message, DateOnly day, IReadOnlyList<PlannerOccurrenceView> events, DateOnly today)
+    {
+        var part = PartOfDay().Match(message) is { Success: true } m ? m.Groups["part"].Value.ToLowerInvariant() : null;
+        (TimeOnly From, TimeOnly To)? span = part switch
+        {
+            "morning" => (new TimeOnly(5, 0), new TimeOnly(12, 0)),
+            "afternoon" => (new TimeOnly(12, 0), new TimeOnly(17, 0)),
+            "evening" or "tonight" or "night" => (new TimeOnly(17, 0), new TimeOnly(23, 59)),
+            _ => null,
+        };
+        var dayWords = DayWords(day, today);
+        var when = (part, dayWords) switch
+        {
+            (null, _) => dayWords,
+            ("tonight" or "night", "today") => "tonight",
+            ("tonight", _) => $"{dayWords} in the evening",
+            (_, "today") => $"this {part}",
+            (_, "tomorrow") => $"tomorrow {part}",
+            _ => $"{dayWords} in the {part}",
+        };
+        bool Open(PlannerOccurrenceView e) => e.Status is not ("done" or "skipped" or "cancelled");
+        var busy = events
+            .Where(e => e.Date <= day && e.EndDate >= day && Open(e))
+            .Where(e => span is not { } s || e.Start is null || (e.Start < s.To && (e.End ?? e.Start) >= s.From))
+            .OrderBy(e => e.Start ?? TimeOnly.MinValue)
+            .ToList();
+        if (busy.Count == 0) return $"Yes, you're free {when}: nothing is planned.";
+
+        var parts = busy.Take(5).Select(e => $"“{e.Title}” {When(e)}").ToList();
+        var list = parts.Count == 1 ? parts[0] : string.Join(", ", parts[..^1]) + " and " + parts[^1];
+        var more = busy.Count > parts.Count ? $", and {busy.Count - parts.Count} more" : string.Empty;
+        return $"{char.ToUpperInvariant(when[0])}{when[1..]} you have {list}{more}.";
+    }
+
     /// <summary>Whether the message asks what comes next.</summary>
     public static bool AsksNext(string? message) =>
         !string.IsNullOrWhiteSpace(message) && Next().IsMatch(message) && !AsksForAChange().IsMatch(message);
@@ -125,6 +177,11 @@ public static partial class PlannerQuestion
         var sentence = text.ToString();
         return yes ? sentence : char.ToUpperInvariant(sentence[0]) + sentence[1..];
     }
+
+    /// <summary>The answer when nothing in the planner, on the day asked about or in the coming week, is about the topic.</summary>
+    public static string NotFoundAnswer(IReadOnlyList<string> topic, DateOnly? day, DateOnly today) =>
+        $"I couldn't find anything about “{string.Join(" ", topic)}” in your planner "
+        + (day is DateOnly d ? $"{DayWords(d, today)}." : "for the next 7 days.");
 
     /// <summary>The answer to "what's next?" at <paramref name="now"/>, from today's and tomorrow's items.</summary>
     public static string NextAnswer(IReadOnlyList<PlannerOccurrenceView> today, IReadOnlyList<PlannerOccurrenceView> tomorrow, DateTime now)
