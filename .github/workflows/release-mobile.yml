@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the notes list the commits since the previous release
 
       - name: Derive version from the tag
         id: version
@@ -61,22 +63,30 @@ jobs:
       # 2000 to the version code, so it still installs over earlier releases.
       - name: Build release APK
         working-directory: src/frontend/PersonaOS.Mobile
+        env:
+          GH_TOKEN: ${{ github.token }} # the notes skip tags whose release never got published
         run: |
           flutter pub get
           flutter build apk --release --split-per-abi --target-platform android-arm64 \
             --build-name="${{ steps.version.outputs.value }}" --build-number="${GITHUB_RUN_NUMBER}" \
             --dart-define=APP_VERSION="${{ steps.version.outputs.value }}"
           mkdir -p dist
+          (cd ../../.. && bash scripts/release-notes.sh "$GITHUB_REF_NAME" 'mobile-v*' \
+            src/frontend/PersonaOS.Mobile .github/workflows/release-mobile.yml) > dist/notes.md
+          {
+            echo '## Install'
+            echo
+            echo 'The PersonaOS Android app. An installed app offers this update itself (home screen,'
+            echo 'or About → Check for updates); to install it fresh, open the APK below on the phone.'
+          } >> dist/notes.md
           mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/personaos-app-v${{ steps.version.outputs.value }}.apk"
 
       - uses: softprops/action-gh-release@v3
         with:
           name: PersonaOS app ${{ steps.version.outputs.value }}
-          generate_release_notes: true
+          # The commits since the last phone release that touched the app (see release.yml).
+          body_path: src/frontend/PersonaOS.Mobile/dist/notes.md
           # The server's release stays "Latest": it is the one with the install steps.
           make_latest: false
           prerelease: ${{ contains(steps.version.outputs.value, '-') }}
           files: src/frontend/PersonaOS.Mobile/dist/personaos-app-v*.apk
-          body: |
-            The PersonaOS Android app. An installed app offers this update itself (home screen,
-            or About → Check for updates); to install it fresh, open the APK below on the phone.

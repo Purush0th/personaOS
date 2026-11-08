@@ -97,6 +97,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the notes list the commits since the previous release
 
       # Self-hosters upgrade by pulling the compose file, so ship it as an asset.
       - name: Stage release assets
@@ -107,9 +109,42 @@ jobs:
           cp deploy/docker-compose.yml deploy/import-data.sh dist/
           cp deploy/.env.example dist/env.example
 
+      # GitHub's generated notes list merged pull requests only; this project commits straight to
+      # dev, so they came out empty. The notes are the commits since the last server release
+      # (phone-only work left out), then the install steps.
+      - name: Release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash scripts/release-notes.sh "$GITHUB_REF_NAME" 'v*' \
+            ':(exclude)src/frontend/PersonaOS.Mobile' ':(exclude).github/workflows/release-mobile.yml' > dist/notes.md
+          cat >> dist/notes.md <<EOF
+          ## Install
+
+          \`\`\`bash
+          mkdir personaos && cd personaos
+          curl -LO https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/docker-compose.yml
+          curl -LO https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/env.example
+          cp env.example .env   # set JWT_SIGNING_KEY
+          docker compose up -d
+          \`\`\`
+
+          Then open <http://localhost:8080> for the Setup Wizard. Runs on x86-64
+          and ARM (Raspberry Pi, Apple Silicon). No database service — PersonaOS
+          uses embedded SQLite; back up the \`api-data\` volume (see docs/BACKUP.md).
+
+          ## Upgrade
+
+          \`\`\`bash
+          docker compose pull && docker compose up -d
+          \`\`\`
+
+          Migrations run automatically; your data and settings are preserved.
+          EOF
+
       - uses: softprops/action-gh-release@v3
         with:
-          generate_release_notes: true
+          body_path: dist/notes.md
           # A tag with a SemVer prerelease part (v0.1.0-alpha.12) is a prerelease on GitHub, so it is
           # not shown as "Latest". The updates in the server and phone read the version, not this flag.
           prerelease: ${{ contains(github.ref_name, '-') }}
@@ -117,25 +152,3 @@ jobs:
             dist/docker-compose.yml
             dist/env.example
             dist/import-data.sh
-          body: |
-            ## Install
-
-            ```bash
-            mkdir personaos && cd personaos
-            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/docker-compose.yml
-            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/env.example
-            cp env.example .env   # set JWT_SIGNING_KEY
-            docker compose up -d
-            ```
-
-            Then open <http://localhost:8080> for the Setup Wizard. Runs on x86-64
-            and ARM (Raspberry Pi, Apple Silicon). No database service — PersonaOS
-            uses embedded SQLite; back up the `api-data` volume (see docs/BACKUP.md).
-
-            ## Upgrade
-
-            ```bash
-            docker compose pull && docker compose up -d
-            ```
-
-            Migrations run automatically; your data and settings are preserved.
