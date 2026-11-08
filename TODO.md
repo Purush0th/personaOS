@@ -32,6 +32,7 @@ Waiting for the owner to say so:
 - [ ] Brand spelling: owner chose "personaOS" (lowercase p) for the wordmark on 2026-11-05. Only
       `mark.svg`'s label uses it so far; the app's visible name, store name and the CLAUDE.md
       fixed-brand rule still say "PersonaOS". Rename as its own change when the owner says so.
+      Owner 2026-11-08: wait, and apply together with the final product name.
 
 Voice:
 - [x] V1. Hands-free like ChatGPT's voice mode (mobile, 2026-11-03). Owner: "not detecting
@@ -54,14 +55,14 @@ Voice:
       Orb swells with the mic, turns while thinking, pulses while speaking; the reply as a
       caption; tap to send now or to interrupt; End and Back leave it. Release APK is 64-bit ARM
       only (`--split-per-abi`), 52 MB: the runtime is 20-35 MB per architecture.
-- [ ] Phone check: V1 on the owner's phone (pauses, speed, screen off / app in background). Also V2: the turn ending on a pause, and the full screen. The
+- [x] Phone check: V1 on the owner's phone (pauses, speed, screen off / app in background). Also V2: the turn ending on a pause, and the full screen. The
       phone's own speech recognizer may not listen in the background; the server's does.
 
-Not yet tried on the owner's phone:
-- [ ] Phone check: Notes screen (built and tested, not yet tried on the owner's phone).
-- [ ] Phone check: calendar views C1–C4 (built; only widget tests so far).
-- [ ] Phone check: reminder alarm fix (2026-09-23 APK).
-- [ ] Phone check: F1 — a reply keeps playing in the server's voice after leaving the chat, and
+Tried on the owner's phone (owner, 2026-11-08, phone alpha.29: "All work fine"):
+- [x] Phone check: Notes screen (built and tested, not yet tried on the owner's phone).
+- [x] Phone check: calendar views C1–C4 (built; only widget tests so far).
+- [x] Phone check: reminder alarm fix (2026-09-23 APK).
+- [x] Phone check: F1 — a reply keeps playing in the server's voice after leaving the chat, and
       the chat opens on the latest conversation (needs the next APK).
 
 AI accuracy (qwen2.5:3b):
@@ -90,10 +91,14 @@ AI accuracy (qwen2.5:3b):
 Release and infrastructure:
 - [ ] Public release: deliberately blocked by the owner until features are mature and
       hallucination is under control. Do not suggest cutting it.
-- [ ] Upgrade test from one release to the next (keyring survival) and the `minSupportedClient`
-      gate: releases exist now (alpha.9 to alpha.16 went through the updater); not yet done as a test.
-- [ ] Rename: "PersonaOS" is taken; candidate names checked 2026-10-03, nothing decided.
-- [ ] Live Anthropic smoke test (chat with tool calls): blocked on a real API key.
+- [x] Upgrade test from one release to the next (keyring survival) and the `minSupportedClient`
+      gate: owner counted prod's own updates (alpha.20 to alpha.29, data, keys and sign-in kept) as
+      the test (2026-11-08).
+- [ ] Rename: "PersonaOS" is taken; candidate names checked 2026-10-03, nothing decided. Owner
+      2026-11-08: decide later, near the public release; "Goalkeeper" ruled out (same-category apps,
+      domains and GitHub taken). The "personaOS" wordmark spelling waits for the final name.
+- [ ] Live Anthropic smoke test (chat with tool calls): blocked on a real API key. Owner
+      2026-11-08: keep it on the list for the public release.
 
 Deferred by the owner:
 - [ ] Deferred by the owner: notes widget on the phone ("later").
@@ -164,7 +169,9 @@ Deferred by the owner:
       no longer proposes a memory. After: holdout3 97.8%, core+extended 99.2%, holdout 94.9%,
       holdout2 100%. Still flaky: a paraphrased item title in "anything tomorrow", a missing
       question mark when a task has no title. Next: write holdout4 before tuning further.
-- [~] **A8. Fine-tune the local model on PersonaOS's own work** (claimed: infra session, 2026-11-02;
+- [x] **A8. Fine-tune the local model on PersonaOS's own work** (done 2026-11-08: Qwen3 4B 465/465,
+      public on Hugging Face for public releases; prod stays on personaos-qwen2.5:3b; further training
+      goes under A10/A11/A13) (claimed: infra session, 2026-11-02;
       owner: "find is there a way to train the model for our case"). A proxy records what the API
       sends Ollama; a training prompt set (kept apart from every eval suite) runs through the real
       API, and the app's final, guard-checked answer becomes the label. LoRA on qwen2.5:3b-instruct
@@ -307,7 +314,8 @@ Deferred by the owner:
       and published on Hugging Face for public releases. Follow-up fix (not yet committed):
       `ModelProfiles` treated `personaos-qwen3:4b` as a thinking Qwen3 (no "instruct" in the name)
       and added /no_think; models named `personaos-…` are now taken as instruct.
-- [ ] **A10. Training framework as its own project** (owner: a folder in this repo, not a new repo).
+- [x] **A10. Training framework as its own project** (done: top-level `training/` with
+      `capabilities/` and `overnight.ps1`; owner confirmed 2026-11-08) (owner: a folder in this repo, not a new repo).
       Move `scripts/training/` to a top-level `training/` with prompt sets per capability, so new
       tools (web search first) add a capability file rather than editing one big list; one command
       for the overnight run (collect, label, train, convert, benchmark, report).
@@ -322,6 +330,14 @@ Deferred by the owner:
 - [ ] **A13. Learn from real use** (owner). Record per turn how the model did (card confirmed or
       discarded, guards that fired, corrections, errors), so real conversations can become reviewed
       training examples and a running quality score. Design first: privacy, opt-in, export.
+- [ ] **A14. Benchmark the 4B and set the hardware recommendation** (owner, 2026-11-08: "we are not
+      going to recommend 6G for our users but 8G or higher"). On the dev PC (12 GB card): run
+      `personaos-qwen3:4b` through the app with Whisper and Kokoro loaded, and measure time to first
+      token and per-turn time for real chat turns (tool turns, long history) at 8k / 16k / 32k
+      context, VRAM used, and the same with the 3B. Use it to write the recommended GPU and RAM
+      (8 GB card minimum) into README and the model card. Background: on prod (6 GB, beside Whisper
+      and Kokoro) the 4B alone ran at 48 tokens/s, but chat through the app hung for minutes; cause
+      not found, prod stays on the 3B.
 - [x] **A9. Goal periods in code** (2026-11-03). With no period in the message ("Set a goal: learn
       basic Spanish") qwen2.5:3b picked a month at random. Owner chose to ask, not default:
       `GoalPeriodGuard` refuses a goal with no period in this or the last few messages, and the reply
