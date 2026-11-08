@@ -10,7 +10,7 @@ import 'package:personaos_mobile/screens/local_model_section.dart';
 /// The recommended local model on the phone: found through the server, downloaded only when
 /// asked, then offered for the provider fields.
 void main() {
-  const model = 'hf.co/purush0th/personaos-qwen3-4b-instruct-GGUF:Q4_K_M';
+  const model = 'personaos-qwen3:4b';
 
   Map<String, Object?> status({required bool installed}) => {
     'found': true,

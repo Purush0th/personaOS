@@ -7,7 +7,7 @@ namespace PersonaOS.Tests.LocalModels;
 
 public class LocalModelServiceTests
 {
-    private static readonly LocalModelOptions Options = new() { Reference = "hf.co/owner/model-GGUF:Q4_K_M" };
+    private static readonly LocalModelOptions Options = new() { Reference = "hf.co/owner/model-GGUF:Q4_K_M", Name = "personaos-model:4b" };
 
     private static LocalModelService Service(FakeLocalModelHost host, Action<InstanceConfig>? config = null)
     {
@@ -63,19 +63,33 @@ public class LocalModelServiceTests
     }
 
     [Fact]
-    public async Task An_installed_model_is_reported()
+    public async Task An_installed_model_is_reported_by_its_short_name()
     {
         var host = new FakeLocalModelHost("http://ollama:11434");
-        host.Models.Add(Options.Reference);
+        host.Models.Add(Options.Name);
 
         var status = await Service(host).StatusAsync(null);
 
         Assert.True(status.Installed);
-        Assert.Equal(Options.Reference, status.Model);
+        Assert.Equal(Options.Name, status.Model);
     }
 
     [Fact]
-    public async Task Pull_downloads_the_pinned_model_only()
+    public async Task A_model_with_only_its_hugging_face_name_is_named_without_downloading_again()
+    {
+        var host = new FakeLocalModelHost("http://ollama:11434");
+        host.Models.Add(Options.Reference);
+        Assert.False((await Service(host).StatusAsync(null)).Installed);
+
+        await foreach (var _ in Service(host).PullAsync("http://ollama:11434")) { }
+
+        Assert.Empty(host.Pulled);
+        Assert.Equal([(Options.Reference, Options.Name)], host.Copied);
+        Assert.True((await Service(host).StatusAsync(null)).Installed);
+    }
+
+    [Fact]
+    public async Task Pull_downloads_the_pinned_model_then_gives_it_its_short_name()
     {
         var host = new FakeLocalModelHost("http://ollama:11434");
 
@@ -83,6 +97,7 @@ public class LocalModelServiceTests
         await foreach (var step in Service(host).PullAsync("http://ollama:11434/v1")) steps.Add(step);
 
         Assert.Equal([Options.Reference], host.Pulled);
+        Assert.Equal([(Options.Reference, Options.Name)], host.Copied);
         Assert.Equal("success", steps[^1].Status);
         Assert.True((await Service(host).StatusAsync("http://ollama:11434")).Installed);
     }

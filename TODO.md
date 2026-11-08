@@ -294,9 +294,13 @@ Deferred by the owner:
       off), and a Jinja `template` file is rejected; with it Ollama renders the GGUF's Jinja
       (check_template 6/6). Pulled through the app's panel: holdout3 45/45, planner 21/21.
       Compose Ollama pin now 0.40.15 (checked version); README and `.env.example` describe the
-      panel; phone Settings has the same panel (`LocalModelSection`, widget-tested). Left for the
-      owner: adopt on prod, commit, release. Not adopted or committed; prod stays on
-      personaos-qwen2.5:3b.
+      panel; phone Settings has the same panel (`LocalModelSection`, widget-tested). Released as
+      server alpha.27 and phone alpha.29 (alpha.28 never built: runner JDK moved to 25; release-mobile
+      now pins Temurin 17). The owner adopts it on prod through Settings.
+      **Short name (2026-11-08, owner: "i need a short name"):** after the pull, the server gives the
+      model the name `personaos-qwen3:4b` (`LocalModelOptions.Name`, Ollama `/api/copy`, same files,
+      same ID) and chat uses that; a model already pulled under its hf.co name is only renamed, not
+      downloaded again. Tested live on local Ollama 0.40.15. Not committed or released yet.
 - [ ] **A10. Training framework as its own project** (owner: a folder in this repo, not a new repo).
       Move `scripts/training/` to a top-level `training/` with prompt sets per capability, so new
       tools (web search first) add a capability file rather than editing one big list; one command

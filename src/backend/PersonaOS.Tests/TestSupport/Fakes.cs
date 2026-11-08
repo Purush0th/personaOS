@@ -519,4 +519,13 @@ public class FakeLocalModelHost(params string[] answersAt) : ILocalModelHost
         Models.Add(model);
         await Task.CompletedTask;
     }
+
+    public List<(string Source, string Destination)> Copied { get; } = [];
+
+    public Task CopyModelAsync(string address, string source, string destination, CancellationToken ct = default)
+    {
+        Copied.Add((source, destination));
+        Models.Add(destination);
+        return Task.CompletedTask;
+    }
 }

@@ -86,10 +86,12 @@ blank. The same panel is in Settings → AI provider.
 The recommended model is
 [personaos-qwen3-4b-instruct-GGUF](https://huggingface.co/purush0th/personaos-qwen3-4b-instruct-GGUF):
 Qwen3-4B-Instruct-2507 fine-tuned on PersonaOS's tools (Apache-2.0, 2.5 GB, fits a 6 GB GPU).
-To fetch it by hand instead:
+PersonaOS downloads it and names it `personaos-qwen3:4b` in Ollama. To fetch it by hand instead
+(the second command gives it the short name without copying the files):
 
 ```bash
 ollama pull hf.co/purush0th/personaos-qwen3-4b-instruct-GGUF:Q4_K_M
+ollama cp hf.co/purush0th/personaos-qwen3-4b-instruct-GGUF:Q4_K_M personaos-qwen3:4b
 ```
 
 Any other tool-capable model works too; give its name in the Model field. For Ollama on your

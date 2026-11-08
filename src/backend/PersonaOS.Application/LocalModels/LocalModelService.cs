@@ -14,8 +14,14 @@ public sealed class LocalModelOptions
 {
     public const string SectionName = "LocalModel";
 
-    /// <summary>What Ollama is asked to pull, and the model name chat then uses.</summary>
+    /// <summary>What Ollama is asked to pull: the model on Hugging Face.</summary>
     public string Reference { get; set; } = "hf.co/purush0th/personaos-qwen3-4b-instruct-GGUF:Q4_K_M";
+
+    /// <summary>
+    /// The short name the model is given in Ollama once downloaded, and the name chat uses. Ollama
+    /// names a Hugging Face pull after its repository and offers no way to choose otherwise.
+    /// </summary>
+    public string Name { get; set; } = "personaos-qwen3:4b";
 
     public string DisplayName { get; set; } = "PersonaOS model (Qwen3 4B, fine-tuned)";
 
@@ -34,7 +40,8 @@ public sealed class LocalModelOptions
 /// <summary>What the Setup Wizard and Settings show about the recommended local model.</summary>
 /// <param name="Found">A local model server answered.</param>
 /// <param name="Address">Where it answered (its root), or the address that was tried.</param>
-/// <param name="Installed">The server already has the model.</param>
+/// <param name="Model">The model's short name in Ollama, which chat uses.</param>
+/// <param name="Installed">The server already has the model under that name.</param>
 public sealed record LocalModelStatus(
     bool Found,
     string? Address,
@@ -57,7 +64,10 @@ public interface ILocalModelService
     /// </summary>
     Task<LocalModelStatus> StatusAsync(string? address, CancellationToken ct = default);
 
-    /// <summary>Downloads the recommended model into the Ollama at <paramref name="address"/>.</summary>
+    /// <summary>
+    /// Downloads the recommended model into the Ollama at <paramref name="address"/> (skipped when it
+    /// is already there under its Hugging Face name), then gives it its short name.
+    /// </summary>
     IAsyncEnumerable<ModelPullProgress> PullAsync(string address, CancellationToken ct = default);
 }
 
@@ -73,7 +83,7 @@ public sealed class LocalModelService(
         {
             if (await host.DetectAsync(candidate, ct) is not { } found) continue;
 
-            var installed = await host.HasModelAsync(found.Address, options.Reference, ct);
+            var installed = await host.HasModelAsync(found.Address, options.Name, ct);
             return Status(found.Address, found.Version, installed, installed
                 ? $"Ollama {found.Version} at {found.Address} already has the model."
                 : $"Ollama {found.Version} found at {found.Address}.");
@@ -93,8 +103,16 @@ public sealed class LocalModelService(
         if (await host.DetectAsync(root, ct) is null)
             throw new LocalModelHostException($"Nothing answered as Ollama at {root}.");
 
-        await foreach (var step in host.PullAsync(root, options.Reference, ct))
-            yield return step;
+        if (!await host.HasModelAsync(root, options.Reference, ct))
+        {
+            await foreach (var step in host.PullAsync(root, options.Reference, ct))
+                yield return step;
+        }
+
+        if (string.Equals(options.Name, options.Reference, StringComparison.OrdinalIgnoreCase)) yield break;
+        yield return new ModelPullProgress($"naming it {options.Name}", null, null);
+        await host.CopyModelAsync(root, options.Reference, options.Name, ct);
+        yield return new ModelPullProgress("success", null, null);
     }
 
     /// <summary>"http://host:11434/v1/" is "http://host:11434": the native API lives at the root.</summary>
@@ -117,6 +135,6 @@ public sealed class LocalModelService(
     }
 
     private LocalModelStatus Status(string? address, string? version, bool installed, string message) =>
-        new(version is not null, address, version, options.Reference, options.DisplayName, options.SizeBytes,
+        new(version is not null, address, version, options.Name, options.DisplayName, options.SizeBytes,
             options.License, options.LicenseUrl, options.Notice, installed, message);
 }

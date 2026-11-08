@@ -23,4 +23,10 @@ public interface ILocalModelHost
 
     /// <summary>Downloads <paramref name="model"/> into the server, reporting progress as it goes.</summary>
     IAsyncEnumerable<ModelPullProgress> PullAsync(string address, string model, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gives <paramref name="source"/> a second name, <paramref name="destination"/>. Both names
+    /// share the same files, so nothing is downloaded or stored twice.
+    /// </summary>
+    Task CopyModelAsync(string address, string source, string destination, CancellationToken ct = default);
 }

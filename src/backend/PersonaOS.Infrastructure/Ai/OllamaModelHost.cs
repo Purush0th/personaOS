@@ -8,7 +8,7 @@ namespace PersonaOS.Infrastructure.Ai;
 
 /// <summary>
 /// Ollama's own API for finding the server and downloading a model: <c>GET /api/version</c>,
-/// <c>GET /api/tags</c> and <c>POST /api/pull</c>, which streams one JSON object per line
+/// <c>GET /api/tags</c>, <c>POST /api/copy</c> and <c>POST /api/pull</c>, which streams one JSON object per line
 /// (<c>{"status":"pulling …","total":…,"completed":…}</c>, or <c>{"error":"…"}</c>).
 /// </summary>
 public class OllamaModelHost(HttpClient http) : ILocalModelHost
@@ -88,6 +88,26 @@ public class OllamaModelHost(HttpClient http) : ILocalModelHost
                 if (ErrorOf(line) is { } error) throw new LocalModelHostException(error);
                 if (Progress(line) is { } step) yield return step;
             }
+        }
+    }
+
+    public async Task CopyModelAsync(string address, string source, string destination, CancellationToken ct = default)
+    {
+        HttpResponseMessage response;
+        try
+        {
+            response = await http.PostAsJsonAsync($"{address}/api/copy", new { source, destination }, ct);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new LocalModelHostException($"Could not reach Ollama at {address}.", ex);
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+                throw new LocalModelHostException(ErrorOf(await response.Content.ReadAsStringAsync(ct))
+                    ?? $"Ollama could not name the model {destination} ({(int)response.StatusCode}).");
         }
     }
 

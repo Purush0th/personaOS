@@ -97,8 +97,9 @@ services:
   # --- Optional: the model on this machine (profile "ollama", off by default) -----------------
   # Ollama in a container, reachable only over the compose network: in Settings → AI provider
   # choose Ollama and press "Find Ollama"; PersonaOS finds http://ollama:11434 and downloads the
-  # recommended model into it. By hand instead:
+  # recommended model into it, named personaos-qwen3:4b. By hand instead:
   #   docker compose exec ollama ollama pull hf.co/purush0th/personaos-qwen3-4b-instruct-GGUF:Q4_K_M
+  #   docker compose exec ollama ollama cp hf.co/purush0th/personaos-qwen3-4b-instruct-GGUF:Q4_K_M personaos-qwen3:4b
   # The settings fit a 6 GB card next to the speech service: one model loaded, one request at a
   # time, and a context cache at half the memory (flash attention, q8_0). 0.40.15 is the version
   # the model's prompt format was checked against (training/check_template.py).
