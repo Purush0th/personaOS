@@ -559,6 +559,65 @@ class ConnectionTest {
   final String message;
 }
 
+/// What the server found: its Ollama, and whether that already has the recommended model.
+class LocalModelStatus {
+  LocalModelStatus({
+    required this.found,
+    required this.address,
+    required this.model,
+    required this.displayName,
+    required this.sizeBytes,
+    required this.license,
+    required this.notice,
+    required this.installed,
+    required this.message,
+  });
+
+  factory LocalModelStatus.fromJson(Map<String, dynamic> json) => LocalModelStatus(
+    found: json['found'] == true,
+    address: json['address'] as String?,
+    model: json['model'] as String? ?? '',
+    displayName: json['displayName'] as String? ?? 'PersonaOS model',
+    sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+    license: json['license'] as String? ?? '',
+    notice: json['notice'] as String? ?? '',
+    installed: json['installed'] == true,
+    message: json['message'] as String? ?? '',
+  );
+
+  final bool found;
+  final String? address;
+  final String model;
+  final String displayName;
+  final int sizeBytes;
+  final String license;
+  final String notice;
+  final bool installed;
+  final String message;
+}
+
+/// One line of the model download stream: a step, or the end ([done]), or what went wrong ([error]).
+class ModelPullLine {
+  ModelPullLine({this.status, this.completed, this.total, this.done = false, this.error});
+
+  factory ModelPullLine.fromJson(Map<String, dynamic> json) => ModelPullLine(
+    status: json['status'] as String?,
+    completed: (json['completed'] as num?)?.toInt(),
+    total: (json['total'] as num?)?.toInt(),
+    done: json['done'] == true,
+    error: json['error'] as String?,
+  );
+
+  final String? status;
+  final int? completed;
+  final int? total;
+  final bool done;
+  final String? error;
+
+  /// How far, from 0 to 1, when the server says; null while it does not.
+  double? get fraction => total != null && total! > 0 && completed != null ? completed! / total! : null;
+}
+
 /// Thin client for the PersonaOS server API.
 class PersonaOsApi {
   PersonaOsApi({required this.serverUrl});
@@ -1096,6 +1155,41 @@ class PersonaOsApi {
   Future<ConnectionTest> testConnection(Map<String, Object?> settings) async {
     final data = await _post('/api/setup/test', settings);
     return ConnectionTest.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Looks for Ollama at [address] when given, else where the server usually finds it.
+  Future<LocalModelStatus> getLocalModel({String? address}) async {
+    final query = address == null || address.trim().isEmpty
+        ? ''
+        : '?address=${Uri.encodeQueryComponent(address.trim())}';
+    final data = await _get('/api/setup/local-model$query');
+    return LocalModelStatus.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Downloads the recommended model into the Ollama at [address], one line per step. Cancelling
+  /// the subscription closes the connection, which stops the download.
+  Stream<ModelPullLine> pullLocalModel(String address) async* {
+    final client = http.Client();
+    try {
+      final request = http.Request('POST', Uri.parse('$serverUrl/api/setup/local-model/pull'))
+        ..headers.addAll(_headers)
+        ..body = jsonEncode({'address': address});
+      final response = await client.send(request);
+      if (response.statusCode == 401) {
+        _token = null;
+        throw ApiException('Session expired. Log in again.');
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ApiException('The server refused the download (${response.statusCode}).');
+      }
+      final lines = response.stream.transform(utf8.decoder).transform(const LineSplitter());
+      await for (final line in lines) {
+        if (line.trim().isEmpty) continue;
+        yield ModelPullLine.fromJson(jsonDecode(line) as Map<String, dynamic>);
+      }
+    } finally {
+      client.close();
+    }
   }
 
   // --- Chat (SSE) ----------------------------------------------------------

@@ -120,7 +120,8 @@ public class ChatServiceLookupTests
 
         var done = await DoneAsync(chat, "which one task is not estimated?");
 
-        Assert.Null(done.Text);
+        // Held after the read and shown on "done", as the model wrote it.
+        Assert.Equal("Every task has value points. Let me know if you want to change one.", done.Text);
         Assert.Equal(2, streamer.ReceivedRequests.Count); // the tool round and the answer, nothing more
     }
 

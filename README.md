@@ -76,14 +76,24 @@ That's it — no database to set up; PersonaOS uses embedded SQLite.
 
 ### Free, fully local setup (Ollama)
 
-Run PersonaOS with no API key and no cloud calls at all:
+Run PersonaOS with no API key and no cloud calls at all. Install [Ollama](https://ollama.com/)
+(or start the compose profile `ollama`), then in the Setup Wizard pick **Ollama** and press
+**Find Ollama**. PersonaOS looks for it (the compose service, this machine, the Docker host),
+shows the recommended model with its size and licence, and on **Download** pulls it into your
+Ollama with a progress bar. **Use this model** fills in the address and model; leave the key
+blank. The same panel is in Settings → AI provider.
+
+The recommended model is
+[personaos-qwen3-4b-instruct-GGUF](https://huggingface.co/purush0th/personaos-qwen3-4b-instruct-GGUF):
+Qwen3-4B-Instruct-2507 fine-tuned on PersonaOS's tools (Apache-2.0, 2.5 GB, fits a 6 GB GPU).
+To fetch it by hand instead:
 
 ```bash
-ollama pull qwen2.5:3b-instruct     # a tool-capable local model
+ollama pull hf.co/purush0th/personaos-qwen3-4b-instruct-GGUF:Q4_K_M
 ```
 
-In the Setup Wizard pick **Ollama**, base URL `http://host.docker.internal:11434` (so the
-container reaches Ollama on your host), model `qwen2.5:3b-instruct`, and leave the key blank.
+Any other tool-capable model works too; give its name in the Model field. For Ollama on your
+host with PersonaOS in Docker, the base URL is `http://host.docker.internal:11434`.
 
 PersonaOS adjusts to the model it is given. Small models (1.5B parameters and under) get a
 shorter prompt and fewer tool rounds; thinking models such as Qwen 3 are told not to think

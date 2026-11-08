@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using PersonaOS.Application.Common;
 using PersonaOS.Application.Common.Exceptions;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
@@ -194,13 +195,12 @@ public partial class MemoryService(IAppDbContext db) : IMemoryService
 
     /// <summary>
     /// Whether a memory mentions a word, allowing a different ending: "workouts" finds "workout",
-    /// "running" finds "run". Crude stemming, but it needs no dictionary.
+    /// "running" finds "run", "commuting" finds "commute".
     /// </summary>
     private static bool Matches(string content, string word)
     {
-        var stem = word.Length > 5 ? word[..^2] : word.TrimEnd('s');
-        if (stem.Length < 3) stem = word;
-        return Word().Matches(content.ToLowerInvariant()).Any(m => m.Value.StartsWith(stem, StringComparison.Ordinal));
+        var stem = WordStem.Of(word);
+        return Word().Matches(content).Any(m => WordStem.Of(m.Value) == stem);
     }
 
     private static MemoryDto ToDto(Memory m) => new(

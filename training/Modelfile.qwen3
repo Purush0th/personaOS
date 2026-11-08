@@ -1,0 +1,12 @@
+# The fine-tuned Qwen3-4B-Instruct-2507, served exactly like the stock qwen3:4b-instruct. No
+# TEMPLATE: like the stock model, Ollama renders the Jinja chat template inside the GGUF, which
+# convert_hf_to_gguf.py copies from the base model's tokenizer. overnight.ps1 checks the import
+# with check_template.py --family qwen3 against the trained model. FROM is replaced by overnight.ps1.
+FROM ../../data/training/model.q4_K_M.gguf
+
+PARAMETER temperature 0.7
+PARAMETER top_k 20
+PARAMETER top_p 0.8
+PARAMETER repeat_penalty 1
+PARAMETER stop <|im_start|>
+PARAMETER stop <|im_end|>

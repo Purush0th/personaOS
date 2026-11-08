@@ -58,6 +58,17 @@ public class ModelProfileTests
         Assert.True(profile.IdleTimeout > ModelProfiles.Local.IdleTimeout);
     }
 
+    [Theory]
+    [InlineData("qwen3:4b-instruct")]
+    [InlineData("personaos-qwen3:4b-instruct")]
+    public void A_qwen3_instruct_build_does_not_think(string model)
+    {
+        var profile = ModelProfiles.For(Ollama, model);
+
+        Assert.False(profile.Thinks);
+        Assert.Equal(ModelProfiles.Local.IdleTimeout, profile.IdleTimeout);
+    }
+
     [Fact]
     public void Ollama_is_told_to_skip_thinking_and_how_much_context_to_load()
     {

@@ -126,8 +126,11 @@ public static partial class ModelProfiles
             }
 
             // Qwen3 reasons before every reply: 626 generated tokens for a one-sentence answer,
-            // paid again at each step of a tool turn. Local builds ("qwen3-4b-16k") count.
-            if (model.Contains("qwen3", StringComparison.OrdinalIgnoreCase))
+            // paid again at each step of a tool turn. Local builds ("qwen3-4b-16k") count. The
+            // Instruct-2507 builds ("qwen3:4b-instruct") never reason, so they are left as they are:
+            // a /no_think line would only be noise in a prompt the trained model never saw.
+            if (model.Contains("qwen3", StringComparison.OrdinalIgnoreCase)
+                && !model.Contains("instruct", StringComparison.OrdinalIgnoreCase))
             {
                 profile = profile with { Name = profile.Name + "+thinking", Thinks = true, IdleTimeout = TimeSpan.FromSeconds(300) };
             }

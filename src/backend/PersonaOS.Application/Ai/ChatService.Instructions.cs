@@ -309,12 +309,19 @@ public partial class ChatService
     [GeneratedRegex(@"[\p{L}\p{N}]+")]
     private static partial Regex Word();
 
+    /// <summary>A question about what the assistant did or said: "did you change", "what have you moved", "you said".</summary>
+    [GeneratedRegex(@"\b(?:did|have|has|were)\s+you\b|\byou(?:'ve|\s+have)?\s+(?:just\s+)?(?:change|changed|edit|edited|move|moved|update|updated|said|mentioned|told|did|do)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex AboutTheAssistant();
+
     /// <summary>
     /// What a question asks about ("haircut" in "When is my haircut appointment?") when nothing the
     /// tools returned mentions it and the reply does not say it was not found; otherwise null.
     /// </summary>
     public static string? NotFound(string question, IReadOnlyList<string> results, string reply)
     {
+        // "Did you edit anything in my planner just now?" asks what the assistant did, not about
+        // an item: its words are not something to find (planner suite, 2026-11-07).
+        if (AboutTheAssistant().IsMatch(question)) return null;
         var topic = Word().Matches(question.ToLowerInvariant()).Select(m => m.Value)
             .Where(w => w.Length >= 4 && !LookupWords.Contains(w))
             .Distinct()

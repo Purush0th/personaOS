@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using PersonaOS.Application.Common.Interfaces;
+using PersonaOS.Application.Planner;
 
 namespace PersonaOS.Application.Ai.Guards;
 
@@ -38,18 +39,44 @@ public sealed partial class UnaskedLinkGuard : IToolCallGuard
         }
         if (input is null) return NoVerdict;
 
-        // An item with no title of its own takes the task's, so its link stays.
-        if (input["title"] is not JsonValue title || !title.TryGetValue<string>(out var text) || string.IsNullOrWhiteSpace(text)) return NoVerdict;
-
         var dropped = LinkFields
             .Where(f => input[f] is JsonValue v && v.TryGetValue<string>(out var key) && !string.IsNullOrWhiteSpace(key))
             .ToList();
         if (dropped.Count == 0) return NoVerdict;
-
         foreach (var field in dropped) input.Remove(field);
+
+        // With no title of its own the item would take the linked task's, so "Add 'Buy milk' to my
+        // planner" became a card for TASK-7 with no milk in it (fine-tuned qwen3:4b, 2026-11-07).
+        // The title then comes from the message, or the model is asked for it.
+        if (input["title"] is not JsonValue title || !title.TryGetValue<string>(out var text) || string.IsNullOrWhiteSpace(text))
+        {
+            if (PlannerCommand.Parse(message, turn.UserNow ?? DateTime.Now)?.Title is not { } said)
+            {
+                // "In 30 minutes, nudge me to move the laundry" is a reminder; pointing the model back
+                // at add_planner_item kept it there until it gave up (2026-11-07).
+                var error = ReminderRequestGuard.AsksForAReminder(message) && turn.ToolNames.Contains(Reminder)
+                    ? WantsAReminder
+                    : MissingTitle;
+                return Task.FromResult<ToolCallVerdict?>(new ToolCallVerdict.Answer(
+                    JsonSerializer.Serialize(new { error }), IsError: true,
+                    $"no title, and {string.Join(", ", dropped)} nobody asked for"));
+            }
+            input["title"] = said;
+        }
+
         return Task.FromResult<ToolCallVerdict?>(new ToolCallVerdict.Rewrite(
             call with { InputJson = input.ToJsonString() }, $"dropped {string.Join(", ", dropped)} nobody asked for"));
     }
+
+    private const string MissingTitle =
+        "The user did not mention a task or goal, so do not link one. Call add_planner_item again with a "
+        + "title: the event in the user's own words.";
+
+    private const string WantsAReminder =
+        "The user asked to be reminded, which is not a planner item. Call create_reminder with what to "
+        + "remind them of, in their own words, and the time they gave.";
+
+    private const string Reminder = "create_reminder";
 
     private static readonly Task<ToolCallVerdict?> NoVerdict = Task.FromResult<ToolCallVerdict?>(null);
 }

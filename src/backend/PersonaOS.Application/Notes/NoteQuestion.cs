@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using PersonaOS.Application.Common;
 
 namespace PersonaOS.Application.Notes;
 
@@ -39,15 +40,8 @@ public static partial class NoteQuestion
     /// <summary>Whether a note is about every word of the topic, a plural or a possessive included.</summary>
     public static bool Matches(string text, IReadOnlyList<string> topic)
     {
-        var words = Word().Matches(text).Select(w => Stem(w.Value)).ToHashSet();
-        return topic.Count > 0 && topic.All(t => words.Contains(Stem(t)));
-    }
-
-    private static string Stem(string word)
-    {
-        var w = word.ToLowerInvariant();
-        if (w.Length > 3 && w.EndsWith('s') && !w.EndsWith("ss", StringComparison.Ordinal)) w = w[..^1];
-        return w;
+        var words = Word().Matches(text).Select(w => WordStem.Of(w.Value)).ToHashSet();
+        return topic.Count > 0 && topic.All(t => words.Contains(WordStem.Of(t)));
     }
 
     /// <summary>The answer from the notes found: each quoted, or that none is about the topic.</summary>

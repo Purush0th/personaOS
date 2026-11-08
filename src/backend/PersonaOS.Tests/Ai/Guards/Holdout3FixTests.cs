@@ -85,6 +85,91 @@ public sealed class PlannerCallFixTests
             new AiToolCall("1", "add_planner_item", """{"title":"Work","date":"2026-11-03","taskKey":"TASK-7"}"""),
             Turn(message), default));
     }
+
+    [Fact]
+    public async Task A_task_named_by_the_user_may_lend_its_title()
+    {
+        Assert.Null(await new UnaskedLinkGuard().CheckAsync(
+            new AiToolCall("1", "add_planner_item", """{"date":"2026-11-03","taskKey":"TASK-7"}"""),
+            Turn("Plan TASK-7 for tomorrow morning"), default));
+    }
+
+    [Theory]
+    [InlineData(Message, "Haircut")]
+    [InlineData("Add 'Buy milk' to my planner for today", "Buy milk")]
+    public async Task An_unasked_link_with_no_title_takes_the_title_from_the_message(string message, string title)
+    {
+        // The fine-tuned qwen3:4b proposed {"taskKey":"TASK-7","goalKey":"GOAL-1"} with no title, and the
+        // card showed the task instead of the event (2026-11-07).
+        var verdict = await new UnaskedLinkGuard().CheckAsync(
+            new AiToolCall("1", "add_planner_item", """{"date":"2026-11-05","scheduledTime":"11:00","taskKey":"TASK-7","goalKey":"GOAL-1"}"""),
+            Turn(message), default);
+
+        var rewrite = Assert.IsType<ToolCallVerdict.Rewrite>(verdict);
+        using var doc = JsonDocument.Parse(rewrite.Call.InputJson);
+        Assert.Equal(title, doc.RootElement.GetProperty("title").GetString());
+        Assert.False(doc.RootElement.TryGetProperty("taskKey", out _));
+        Assert.False(doc.RootElement.TryGetProperty("goalKey", out _));
+    }
+
+    [Fact]
+    public async Task An_unasked_link_with_no_title_to_be_found_asks_the_model_for_one()
+    {
+        var verdict = await new UnaskedLinkGuard().CheckAsync(
+            new AiToolCall("1", "add_planner_item", """{"date":"2026-11-02","taskKey":"TASK-7"}"""),
+            Turn("Yes, put that on my calendar"), default);
+
+        var answer = Assert.IsType<ToolCallVerdict.Answer>(verdict);
+        Assert.True(answer.IsError);
+        Assert.Contains("title", answer.Content, StringComparison.Ordinal);
+    }
+
+    private static ChatTurnState ReminderTurn(string message) =>
+        new("m", new HashSet<string> { "add_planner_item", "create_reminder" }, ["add_planner_item", "create_reminder"],
+            userMessage: message, userToday: DateOnly.FromDateTime(Now), userNow: Now);
+
+    [Theory]
+    [InlineData("""{"title":"Move laundry","date":"2026-11-02","scheduledTime":"09:30"}""", "Move laundry")]
+    [InlineData("""{"date":"2026-11-02","scheduledTime":"09:30"}""", "Move the laundry")]
+    public async Task A_planner_item_for_a_nudge_becomes_a_reminder_at_the_time_said(string input, string text)
+    {
+        // The fine-tuned qwen3:4b proposed a planner item for this in every run (2026-11-07).
+        var verdict = await new ReminderNotEventGuard().CheckAsync(
+            new AiToolCall("1", "add_planner_item", input), ReminderTurn("In 30 minutes, nudge me to move the laundry"), default);
+
+        var rewrite = Assert.IsType<ToolCallVerdict.Rewrite>(verdict);
+        Assert.Equal("create_reminder", rewrite.Call.Name);
+        using var doc = JsonDocument.Parse(rewrite.Call.InputJson);
+        Assert.Equal(text, doc.RootElement.GetProperty("message").GetString());
+        Assert.Equal("2026-11-02T09:30:00", doc.RootElement.GetProperty("dueAtLocal").GetString());
+    }
+
+    [Theory]
+    [InlineData("Put the dentist on my calendar tomorrow at 4pm and remind me")]
+    [InlineData("Schedule a call with Anna on Saturday at 11am")]
+    [InlineData("Remind me to move the laundry")]
+    public async Task A_planner_item_the_user_asked_for_stays(string message)
+    {
+        Assert.Null(await new ReminderNotEventGuard().CheckAsync(
+            new AiToolCall("1", "add_planner_item", """{"title":"Dentist","date":"2026-11-03","scheduledTime":"16:00"}"""),
+            ReminderTurn(message), default));
+    }
+
+    [Fact]
+    public async Task An_untitled_planner_call_for_a_nudge_is_pointed_at_a_reminder()
+    {
+        // The fine-tuned qwen3:4b answered "In 30 minutes, nudge me to move the laundry" with untitled
+        // planner items until it gave up (2026-11-07).
+        var turn = new ChatTurnState("m", new HashSet<string> { "add_planner_item", "create_reminder" }, ["add_planner_item", "create_reminder"],
+            userMessage: "In 30 minutes, nudge me to move the laundry", userToday: DateOnly.FromDateTime(Now), userNow: Now);
+
+        var verdict = await new UnaskedLinkGuard().CheckAsync(
+            new AiToolCall("1", "add_planner_item", """{"date":"2026-11-02","scheduledTime":"09:30","taskKey":"TASK-7","goalKey":"GOAL-1"}"""),
+            turn, default);
+
+        var answer = Assert.IsType<ToolCallVerdict.Answer>(verdict);
+        Assert.Contains("create_reminder", answer.Content, StringComparison.Ordinal);
+    }
 }
 
 public sealed class StatedEventTests

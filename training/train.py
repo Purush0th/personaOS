@@ -14,10 +14,11 @@ from unsloth.chat_templates import train_on_responses_only
 from datasets import Dataset
 from trl import SFTConfig, SFTTrainer
 
-from ollama_template import render
+from ollama_template import FAMILIES
 
 
-def load(path: str, tokenizer) -> Dataset:
+def load(path: str, family: str) -> Dataset:
+    render = FAMILIES[family][1]
     rows = []
     for line in open(path, encoding="utf-8"):
         example = json.loads(line)
@@ -31,6 +32,7 @@ def main() -> None:
     parser.add_argument("--data", default="/work/dataset")
     parser.add_argument("--out", default="/work/model")
     parser.add_argument("--base", default="unsloth/Qwen2.5-3B-Instruct")
+    parser.add_argument("--family", default="qwen2.5", choices=sorted(FAMILIES), help="the chat template the base model uses in Ollama")
     parser.add_argument("--epochs", type=float, default=2)
     parser.add_argument("--rank", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-4)
@@ -44,7 +46,7 @@ def main() -> None:
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
         use_gradient_checkpointing="unsloth", random_state=7)
 
-    train, valid = load(f"{args.data}/train.jsonl", tokenizer), load(f"{args.data}/valid.jsonl", tokenizer)
+    train, valid = load(f"{args.data}/train.jsonl", args.family), load(f"{args.data}/valid.jsonl", args.family)
     lengths = [len(tokenizer(t)["input_ids"]) for t in train["text"]]
     print(f"train {len(train)} valid {len(valid)}; tokens max {max(lengths)} mean {sum(lengths) // len(lengths)}")
 

@@ -8,6 +8,7 @@ import '../layout.dart';
 import '../phosphor_icons.dart';
 import '../server_speech.dart';
 import '../theme_choice.dart';
+import 'local_model_section.dart';
 import 'push_config_section.dart';
 import 'speech_config_section.dart';
 
@@ -296,6 +297,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                     onChanged: (value) => setState(() => _provider = value ?? _provider),
                   ),
+                  if (_provider == 'ollama') ...[
+                    const SizedBox(height: 12),
+                    LocalModelSection(
+                      api: widget.api,
+                      address: () => _baseUrl.text,
+                      // Shown only while Ollama is the provider, so only the fields change.
+                      onChosen: (address, model) => setState(() {
+                        _baseUrl.text = address;
+                        _model.text = model;
+                      }),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   TextField(
                     controller: _model,

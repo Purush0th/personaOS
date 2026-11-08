@@ -1,4 +1,5 @@
 using System.Globalization;
+using PersonaOS.Application.Common;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -121,18 +122,8 @@ public static partial class PlannerQuestion
     /// <summary>Whether a title is about one of <paramref name="topic"/>'s words, allowing for plurals and a one-letter mishearing.</summary>
     public static bool Matches(string title, IReadOnlyList<string> topic)
     {
-        var words = Word().Matches(title).Select(m => Stem(m.Value)).ToList();
-        return topic.Select(Stem).Any(t => words.Any(w => w == t || (t.Length >= 6 && w.Length >= 6 && Distance(t, w) <= 1)));
-    }
-
-    /// <summary>"Transitions" and "transition", "Meditation's" and "meditation".</summary>
-    private static string Stem(string word)
-    {
-        var w = word.ToLowerInvariant();
-        if (w.EndsWith("'s", StringComparison.Ordinal)) w = w[..^2];
-        if (w.Length > 4 && w.EndsWith("ies", StringComparison.Ordinal)) return w[..^3] + "y";
-        if (w.Length > 3 && w.EndsWith('s') && !w.EndsWith("ss", StringComparison.Ordinal)) return w[..^1];
-        return w;
+        var words = Word().Matches(title).Select(m => WordStem.Of(m.Value)).ToList();
+        return topic.Select(WordStem.Of).Any(t => words.Any(w => w == t || (t.Length >= 6 && w.Length >= 6 && Distance(t, w) <= 1)));
     }
 
     /// <summary>Edit distance, stopping early: only 0, 1 and "more" matter.</summary>

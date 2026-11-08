@@ -56,6 +56,24 @@ public class ChatServiceToolLoopTests
     }
 
     [Fact]
+    public async Task A_reply_that_read_the_users_data_is_held_until_it_is_checked()
+    {
+        // Owner, 2026-11-07: a reply streamed in and was then swapped by a guard's fix. A reply
+        // built on a read is shown once, checked, on "done".
+        var (db, chat, streamer) = Setup(new FakeTool("get_notes", """{"notes":["Buy milk"]}"""));
+        streamer
+            .EnqueueToolCall("toolu_1", "get_notes", "{}")
+            .EnqueueText("You have one note: Buy milk.");
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "Show my notes"));
+
+        Assert.DoesNotContain(events, e => e.Type == "delta");
+        var done = Assert.Single(events, e => e.Type == "done");
+        Assert.Equal("You have one note: Buy milk.", done.Text);
+        Assert.Equal("You have one note: Buy milk.", (await db.ChatMessages.OrderBy(m => m.Id).LastAsync()).Content);
+    }
+
+    [Fact]
     public async Task Tool_call_is_executed_and_result_fed_back()
     {
         var tool = new FakeTool("get_goals", """{"goals":[{"id":1,"title":"Ship v1"}]}""");
@@ -411,7 +429,7 @@ public class ChatServiceToolLoopTests
     }
 
     [Fact]
-    public async Task A_refused_change_the_reply_still_claims_ends_with_the_reason()
+    public async Task A_refused_change_the_reply_still_claims_gives_the_reason_instead()
     {
         // Chat 9wuxkb2b: a reminder was refused, the reply said it was waiting on a card anyway,
         // and the user only saw "nothing was saved", five times, never why.
@@ -425,8 +443,8 @@ public class ChatServiceToolLoopTests
         var events = await CollectAsync(chat.StreamChatAsync(null, "Remind me tomorrow at 9"));
 
         var done = Assert.Single(events, e => e.Type == "done");
-        Assert.True(done.UnverifiedClaim);
-        Assert.EndsWith("It could not be done: The reminder time must be in the future.", done.Text);
+        Assert.Null(done.UnverifiedClaim);
+        Assert.Equal("I couldn't do that: The reminder time must be in the future.", done.Text);
     }
 
     [Fact]

@@ -12,6 +12,10 @@ known to be right:
 
 Corrective rounds, where the app asked the model to try again, are internal and left out.
 
+Prompts with `generate` (capabilities/planner.py) are labelled whatever the model did: with the
+get_planner read collect.py's probe captured and the answer planner_labels.py works out from it,
+or, for "what did you change?", with the honest answer alone.
+
     python -I training/build_dataset.py data/training/dataset data/training/traces.jsonl [more traces…]
 """
 
@@ -20,6 +24,9 @@ import os
 import random
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import planner_labels  # noqa: E402
 
 PROPOSAL_ONLY = "Here is the change I would make — confirm it below if it looks right."
 WRITES = {
@@ -131,6 +138,9 @@ def examples(trace: dict) -> list[dict]:
         out.append({"kind": "intent", "messages": [to_hf(m) for m in intent_call["request"]["messages"]]
                     + [{"role": "assistant", "content": json.dumps({"intent": prompt["intent"]})}]})
 
+    if prompt.get("generate"):
+        return out + generated(trace)
+
     if not passed(trace) or accepted(prompt) & NO_TOOL_LABELS:
         return out
 
@@ -167,6 +177,33 @@ def examples(trace: dict) -> list[dict]:
         if text and (prompt.get("ask") or not first["response"]["tool_calls"]):
             out.append({"kind": "answer", "messages": base + [{"role": "assistant", "content": text}], "tools": tools})
     return out
+
+
+def generated(trace: dict) -> list[dict]:
+    """The labels of a planner prompt: the read, then the answer from what it returned."""
+    tooled = [c for c in trace["calls"] if c["request"].get("tools") and "format" not in c["request"]]
+    if not tooled:  # answered by the app in code, before the model was asked
+        return []
+    first = tooled[0]
+    base = [to_hf(m) for m in first["request"]["messages"]]
+    tools = first["request"]["tools"]
+    generate = trace["prompt"]["generate"]
+    if generate["kind"] == "changed":
+        return [{"kind": "answer", "messages": base + [{"role": "assistant", "content": planner_labels.NOTHING_CHANGED}],
+                 "tools": tools}]
+
+    read = trace.get("planner_read")
+    if not read:
+        return []
+    call = to_hf(read["call"])
+    call["content"] = ""
+    result = to_hf(read["result"])
+    items = json.loads(result["content"]).get("items") or []
+    text = planner_labels.answer(generate, items)
+    return [
+        {"kind": "tool", "messages": base + [call], "tools": tools},
+        {"kind": "reply", "messages": base + [call, result, {"role": "assistant", "content": text}], "tools": tools},
+    ]
 
 
 def main() -> None:

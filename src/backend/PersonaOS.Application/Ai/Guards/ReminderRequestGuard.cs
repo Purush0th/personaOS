@@ -26,6 +26,9 @@ public sealed partial class ReminderRequestGuard : IToolCallGuard
     [GeneratedRegex(@"\bnotes?\b|\bjot\b|\bwrite\s+(?:it|this|that)\s+down\b", RegexOptions.IgnoreCase)]
     private static partial Regex AsksForANote();
 
+    /// <summary>Whether the message asks to be reminded (or nudged, pinged, woken) of something.</summary>
+    internal static bool AsksForAReminder(string message) => AsksToBeReminded().IsMatch(message);
+
     public string Name => "reminder-request";
 
     public Task<ToolCallVerdict?> CheckAsync(AiToolCall call, ChatTurnState turn, CancellationToken ct)

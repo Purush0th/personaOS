@@ -40,6 +40,37 @@ public class TaskWhereQuestionTests
             TaskWhereQuestion.Answer(3, new BoardTask { Number = 3, Title = "Read chapter 4", Sprint = sprint, Status = BoardTaskStatuses.InProgress }));
     }
 
+    [Theory]
+    [InlineData("How many value points does TASK-17 have?", 17)]
+    [InlineData("how many points is TASK-4", 4)]
+    [InlineData("What are TASK-9's points?", 9)]
+    [InlineData("What are the story points for TASK-2?", 2)]
+    public void A_points_question_names_its_task(string message, int number)
+    {
+        Assert.Equal(number, TaskWhereQuestion.ParsePoints(message));
+    }
+
+    [Theory]
+    [InlineData("Give TASK-17 5 points")]
+    [InlineData("How many points are in the sprint?")]
+    [InlineData("Where is TASK-17?")]
+    public void Other_messages_are_not_points_questions(string message)
+    {
+        Assert.Null(TaskWhereQuestion.ParsePoints(message));
+    }
+
+    [Fact]
+    public void A_points_answer_says_the_points_or_unestimated()
+    {
+        Assert.Equal("TASK-17 “Sand the deck” has 5 value points.",
+            TaskWhereQuestion.PointsAnswer(17, new BoardTask { Number = 17, Title = "Sand the deck", Points = 5 }));
+        Assert.Equal("TASK-4 “Plan trip” has 1 value point.",
+            TaskWhereQuestion.PointsAnswer(4, new BoardTask { Number = 4, Title = "Plan trip", Points = 1 }));
+        Assert.Equal("TASK-6 “Tidy” has no value points yet (unestimated).",
+            TaskWhereQuestion.PointsAnswer(6, new BoardTask { Number = 6, Title = "Tidy" }));
+        Assert.Null(TaskWhereQuestion.PointsAnswer(99, null));
+    }
+
     [Fact]
     public void A_task_that_does_not_exist_is_left_to_the_model()
     {

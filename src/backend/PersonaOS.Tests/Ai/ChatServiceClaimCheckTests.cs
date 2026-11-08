@@ -66,9 +66,33 @@ public class ChatServiceClaimCheckTests
 
         var events = await CollectAsync(chat.StreamChatAsync(null, "Am I free on Saturday afternoon?"));
 
+        // Answered before the model is asked, so nothing streams in only to be swapped out
+        // (owner's chat 4nzrb5af, 2026-11-07).
         var done = Assert.Single(events, e => e.Type == "done");
         Assert.Equal(["""{"date":"2026-09-19"}"""], planner.Invocations);
-        Assert.Equal("On Saturday 19 September in the afternoon you have “Pottery class” at 14:00.", done.Text);
+        Assert.Equal("On Saturday 19 September in the afternoon you have “Pottery class” at 14:00.",
+            string.Concat(events.Where(e => e.Type == "delta").Select(e => e.Text)));
+        Assert.Null(done.Text);
+        Assert.Equal(0, streamer.CallCount);
+    }
+
+    [Fact]
+    public async Task When_is_my_x_finds_another_ending_of_the_word_before_the_model_is_asked()
+    {
+        // Owner's chat 4nzrb5af (2026-11-07): "when i will be commuting?" got "I couldn't find
+        // anything about “commuting”" with "Commute" in the planner, after the model's own reply
+        // had streamed in.
+        var (db, chat, streamer) = Setup(new FakeTool("get_planner", """{"items":[]}"""));
+        db.PlannerItems.Add(new PlannerItem { Title = "Commute", Date = new DateOnly(2026, 9, 15), ScheduledTime = new TimeOnly(8, 45) });
+        db.PlannerItems.Add(new PlannerItem { Title = "Commute home", Date = new DateOnly(2026, 9, 15), ScheduledTime = new TimeOnly(19, 50) });
+        await db.SaveChangesAsync();
+
+        var events = await CollectAsync(chat.StreamChatAsync(null, "when i will be commuting?"));
+
+        var reply = string.Concat(events.Where(e => e.Type == "delta").Select(e => e.Text));
+        Assert.Contains("“Commute” at 08:45", reply, StringComparison.Ordinal);
+        Assert.Contains("“Commute home” at 19:50", reply, StringComparison.Ordinal);
+        Assert.Equal(0, streamer.CallCount);
     }
 
     [Fact]
@@ -167,8 +191,10 @@ public class ChatServiceClaimCheckTests
     }
 
     [Fact]
-    public async Task A_claim_that_survives_correction_is_flagged_for_the_user()
+    public async Task A_claim_that_survives_correction_is_said_honestly_without_a_warning()
     {
+        // Owner, 2026-11-07: no "nothing was saved" note under a false claim; the reply itself
+        // says the change was not made and offers to make it.
         var (db, chat, streamer) = Setup(new FakeTool("create_reminder", mutates: true));
         streamer
             .EnqueueText(FalseClaim)
@@ -177,15 +203,30 @@ public class ChatServiceClaimCheckTests
         var events = await CollectAsync(chat.StreamChatAsync(null, "Remind me at 7pm"));
 
         var done = Assert.Single(events, e => e.Type == "done");
-        Assert.True(done.UnverifiedClaim);
+        Assert.Null(done.UnverifiedClaim);
         Assert.Null(done.Pending);
+        Assert.Equal("I haven't made that change yet. Want me to go ahead?", done.Text);
 
         var stored = await db.ChatMessages.SingleAsync(m => m.Role == ChatRoles.Assistant);
-        Assert.True(stored.UnverifiedClaim);
+        Assert.False(stored.UnverifiedClaim);
+        Assert.Equal(done.Text, stored.Content);
+    }
 
-        // And the flag survives into conversation history, so a reopened chat still warns.
-        var detail = await chat.GetConversationAsync(stored.ConversationId.ToString());
-        Assert.True(detail!.Messages.Single(m => m.Role == ChatRoles.Assistant).UnverifiedClaim);
+    [Fact]
+    public async Task A_reply_stored_with_the_old_warning_is_shown_honestly()
+    {
+        var (db, chat, _) = Setup();
+        var conversation = new Conversation { Title = "Old" };
+        db.Conversations.Add(conversation);
+        await db.SaveChangesAsync();
+        db.ChatMessages.Add(new ChatMessage { ConversationId = conversation.Id, Role = ChatRoles.Assistant, Content = FalseClaim + " Anything else?", UnverifiedClaim = true });
+        await db.SaveChangesAsync();
+
+        var detail = await chat.GetConversationAsync(conversation.Id.ToString());
+
+        var shown = detail!.Messages.Single(m => m.Role == ChatRoles.Assistant);
+        Assert.False(shown.UnverifiedClaim);
+        Assert.Equal("I haven't made that change yet.\n\nAnything else?", shown.Content);
     }
 
     [Fact]
@@ -295,7 +336,7 @@ public class ChatServiceClaimCheckTests
     }
 
     [Fact]
-    public async Task A_failed_correction_keeps_the_reply_and_flags_it_without_an_error()
+    public async Task A_failed_correction_still_ends_honestly_without_an_error()
     {
         var (db, chat, streamer) = Setup(new FakeTool("create_reminder", mutates: true));
         streamer.EnqueueText(FalseClaim);
@@ -305,8 +346,9 @@ public class ChatServiceClaimCheckTests
 
         Assert.DoesNotContain(events, e => e.Type == "error");
         var done = Assert.Single(events, e => e.Type == "done");
-        Assert.True(done.UnverifiedClaim);
-        Assert.Equal(FalseClaim, (await db.ChatMessages.SingleAsync(m => m.Role == ChatRoles.Assistant)).Content);
+        Assert.Null(done.UnverifiedClaim);
+        Assert.Equal("I haven't made that change yet. Want me to go ahead?",
+            (await db.ChatMessages.SingleAsync(m => m.Role == ChatRoles.Assistant)).Content);
     }
 
     [Fact]

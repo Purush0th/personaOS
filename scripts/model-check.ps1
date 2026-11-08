@@ -33,8 +33,9 @@ param(
     # relative times, grounding and honesty, added 2026-11-02 when core reached 97%), 'holdout'
     # (the same skills in other words, never tuned against: it shows whether a fix generalises),
     # 'holdout2' and 'holdout3' (fresh ones, each written once the one before had been tuned
-    # against), or 'all' (core and extended).
-    [ValidateSet('all', 'core', 'extended', 'holdout', 'holdout2', 'holdout3')]
+    # against), 'planner' (questions about a seeded day that need a fresh read, 2026-11-07), or
+    # 'all' (core and extended).
+    [ValidateSet('all', 'core', 'extended', 'holdout', 'holdout2', 'holdout3', 'planner')]
     [string]$Suite = 'all',
     # Where to write the result as JSON, for comparing runs.
     [string]$Json,
@@ -143,6 +144,7 @@ $temperatureUnderTest = if ($null -ne $effective.aiTemperature) { $effective.aiT
 $seededTask = $null
 $seededReminder = $null
 $seededNote = $null
+$seededRoutine = @()
 try {
     # --- the data the scenarios expect ---------------------------------------------------------
     $now = Get-Date
@@ -177,6 +179,21 @@ try {
     $keepMemories = @(Invoke-Api -Method Get -Path '/api/memories' -Token $token | ForEach-Object { $_.id })
     $seededNote = Invoke-Api -Method Post -Path '/api/notes' -Token $token -Body @{ text = 'Buy stamps for the wedding cards' }
     $keepNotes += $seededNote.id
+    # The planner suite's day (owner's chat 4nzrb5af, 2026-11-07): items whose times touch, so an
+    # answer from memory or the wrong neighbour shows. Only for that suite, and deleted after it.
+    # Not the training routine (training/capabilities/planner.py): the suite measures unseen days.
+    if ($Suite -eq 'planner') {
+        $routine = @(
+            @('Morning walk', '06:15', '06:45'), @('School run', '08:30', '09:00'), @('Deep work', '09:00', '12:00'),
+            @('Lunch with Sam', '12:00', '12:45'), @('Client calls', '13:00', '15:00'), @('Admin and email', '15:00', '16:30'),
+            @('Gym session', '18:30', '19:45'), @('Evening walk with the dog', '20:00', '20:30'), @('Bedtime', '22:30', $null)
+        )
+        foreach ($r in $routine) {
+            $body = @{ title = $r[0]; date = $today; scheduledTime = "$($r[1]):00" }
+            if ($r[2]) { $body['endTime'] = "$($r[2]):00" }
+            $seededRoutine += (Invoke-Api -Method Post -Path '/api/planner/items' -Token $token -Body $body).id
+        }
+    }
     # A day three days ahead by name, for scenarios that name a weekday (never today's).
     $inThreeDays = $now.Date.AddDays(3)
     $inThreeDaysName = $inThreeDays.ToString('dddd', [Globalization.CultureInfo]::InvariantCulture)
@@ -1116,12 +1133,94 @@ try {
             }
         }
     )
+    # Questions about the seeded day that need a fresh read of it (suite 'planner').
+    $readPlanner = {
+        param($d)
+        if ((Tools-Used $d) -notcontains 'get_planner') { return "did not read the planner (ran: $((Tools-Used $d) -join ','))" }
+        if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+        return ''
+    }
+    $planner = @(
+        @{
+            Name  = 'planner: inside a block'
+            Say   = "What's in my day at 7:20pm?"
+            Check = {
+                param($d)
+                $err = & $readPlanner $d; if ($err) { return $err }
+                if ($d.text -notmatch '(?i)gym') { return 'does not name the gym session' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'planner: where two blocks meet'
+            Say   = "What's on at 9 in the morning?"
+            Check = {
+                param($d)
+                $err = & $readPlanner $d; if ($err) { return $err }
+                if ($d.text -notmatch '(?i)deep work') { return 'does not name Deep work, which starts then' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'planner: read it again'
+            Turns = @("What's on my schedule today?", 'Read it again and tell me what is at 1pm')
+            Check = {
+                param($d)
+                $err = & $readPlanner $d; if ($err) { return $err }
+                if ($d.text -notmatch '(?i)client calls') { return 'does not name Client calls' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'planner: how many'
+            Say   = "How many walks are on today's plan?"
+            Check = {
+                param($d)
+                $err = & $readPlanner $d; if ($err) { return $err }
+                if ($d.text -notmatch '(?i)\b(2|two)\b') { return 'does not count two walks' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'planner: a stretch of the day'
+            Say   = 'What happens from 3 to 5pm today?'
+            Check = {
+                param($d)
+                $err = & $readPlanner $d; if ($err) { return $err }
+                if ($d.text -notmatch '(?i)admin') { return 'does not name Admin and email' }
+                if ($d.text -match '(?i)gym|lunch') { return 'names an item outside 15:00 to 17:00' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'planner: a critique'
+            Say   = 'Be critical of my schedule today'
+            Check = {
+                param($d)
+                $err = & $readPlanner $d; if ($err) { return $err }
+                if ($d.text -match $claimsDone) { return 'claimed a change' }
+                return ''
+            }
+        },
+        @{
+            Name  = 'planner: what changed'
+            Turns = @("Be critical of today's plan", 'Did you edit anything in my planner just now?')
+            Check = {
+                param($d)
+                if ((Proposed-Tools $d).Count -gt 0) { return "proposed $((Proposed-Tools $d) -join ',')" }
+                if ($d.text -match $claimsDone) { return 'claimed a change' }
+                if ($d.text -notmatch "(?i)\b(haven't|have not|didn't|did not|nothing|no changes?|not changed)\b") { return 'does not say nothing was changed' }
+                return ''
+            }
+        }
+    )
     $scenarios = switch ($Suite) {
         'core' { $scenarios }
         'extended' { $extended }
         'holdout' { $holdout }
         'holdout2' { $holdout2 }
         'holdout3' { $holdout3 }
+        'planner' { $planner }
         default { $scenarios + $extended }
     }
     if ($Only) { $scenarios = @($scenarios | Where-Object { $_.Name -like "*$Only*" }) }
@@ -1220,6 +1319,9 @@ finally {
     }
     if ($null -ne $seededNote) {
         try { Invoke-Api -Method Delete -Path "/api/notes/$($seededNote.id)" -Token $token | Out-Null } catch {}
+    }
+    foreach ($id in $seededRoutine) {
+        try { Invoke-Api -Method Delete -Path "/api/planner/items/$id" -Token $token | Out-Null } catch {}
     }
     $restore = @{}
     if ($change.ContainsKey('aiModel')) { $restore['aiModel'] = $original.model }

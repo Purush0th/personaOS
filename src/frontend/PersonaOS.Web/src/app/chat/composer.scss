@@ -125,6 +125,12 @@
     &:disabled {
       background: var(--mat-sys-surface-container-high);
     }
+
+    // The icon button sizes every svg inside it to its 24px icon size, so the 20px spinner's
+    // circles were drawn 24px wide and turned around the 20px box's centre: a wobble.
+    mat-progress-spinner {
+      --mat-icon-button-icon-size: 100%;
+    }
   }
 }
 

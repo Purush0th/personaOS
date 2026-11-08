@@ -24,6 +24,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IInstanceConfigService, InstanceConfigService>();
+        services.AddScoped<PersonaOS.Application.LocalModels.ILocalModelService, PersonaOS.Application.LocalModels.LocalModelService>();
         services.AddSingleton<IPromptLibrary, PromptLibrary>();
         services.AddScoped<ISystemPromptBuilder, SystemPromptBuilder>();
         services.AddScoped<ToolCallPipeline>();

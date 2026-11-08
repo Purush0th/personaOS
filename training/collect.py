@@ -70,6 +70,37 @@ def fixtures(server: str, token: str, db: sqlite3.Connection) -> dict[str, str]:
     return keys
 
 
+def add_routine(server: str, token: str) -> list[int]:
+    """Creates the planner capability's daily routine and returns the new items' ids, to delete after."""
+    today = datetime.date.today().isoformat()
+    ids = []
+    for title, start, end in prompts.FIXTURE_ROUTINE:
+        item = call(server, "POST", "/api/planner/items", token, {
+            "title": title, "date": today, "scheduledTime": f"{start}:00",
+            "endTime": f"{end}:00" if end else None, "recurrence": "FREQ=DAILY"})
+        ids.append(item["id"])
+    return ids
+
+
+def probe_planner(server: str, token: str, proxy_log: str, tries: int = 3) -> dict | None:
+    """A get_planner call and its result, as the model saw them, for the generated labels
+    (build_dataset.py): the planner prompts' labels are built on what this read returned."""
+    for _ in range(tries):
+        seen = sum(1 for _ in open(proxy_log, encoding="utf-8")) if os.path.exists(proxy_log) else 0
+        done = chat(server, token, prompts.PLANNER_PROBE)
+        time.sleep(0.5)
+        with open(proxy_log, encoding="utf-8") as log:
+            calls = [json.loads(line) for line in log.readlines()[seen:]]
+        if done.get("conversationId") is not None:
+            call(server, "DELETE", f"/api/chat/conversations/{done['conversationId']}", token)
+        for logged in calls:
+            messages = logged["request"]["messages"]
+            for i, message in enumerate(messages):
+                if message.get("role") == "tool" and message.get("tool_name") == "get_planner" and i > 0:
+                    return {"call": messages[i - 1], "result": message}
+    return None
+
+
 def fill(prompt: dict, keys: dict[str, str]) -> dict:
     """The prompt with its fixture placeholders replaced by the fixtures' keys."""
     def sub(text: str) -> str:
@@ -133,8 +164,15 @@ def main() -> None:
     done_texts = set()
     if args.skip_done and os.path.exists(args.out):
         done_texts = {json.loads(line)["prompt"]["text"] for line in open(args.out, encoding="utf-8")}
+    routine: list[int] = []
+    planner_read = None
     try:
         call(args.server, "PUT", "/api/setup", token, {"aiBaseUrl": args.proxy})
+        if any(p.get("generate") for p in todo):
+            # The planner prompts' routine, and one real read of it for their labels.
+            routine = add_routine(args.server, token)
+            planner_read = probe_planner(args.server, token, args.proxy_log)
+            print("planner probe:", "read" if planner_read else "NO READ (planner labels will be skipped)", flush=True)
         failures_in_a_row = 0
         for n, prompt in enumerate(todo, start=args.start):
             if prompt["text"] in done_texts and not prompt.get("before"):
@@ -198,11 +236,18 @@ def main() -> None:
                 "memories": [text for _, text in memories],
                 "text": done.get("text"), "seconds": round(time.time() - started, 1),
             }
+            if prompt.get("generate"):
+                trace["planner_read"] = planner_read
             with open(args.out, "a", encoding="utf-8") as out:
                 out.write(json.dumps(trace, ensure_ascii=False) + "\n")
             got = ",".join(p["tool"] for p in proposals) or ",".join(trace["reads"]) or "-"
             print(f"{n} {trace['seconds']}s {prompt['tool'] or prompt['intent']} -> {got}", flush=True)
     finally:
+        for item_id in routine:
+            try:
+                call(args.server, "DELETE", f"/api/planner/items/{item_id}", token)
+            except Exception:
+                pass
         call(args.server, "PUT", "/api/setup", token, {"aiBaseUrl": original})
         print(f"restored aiBaseUrl {original}", flush=True)
 

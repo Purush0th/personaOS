@@ -16,6 +16,7 @@ import { BrandingService } from '../core/branding.service';
 import { Confirm } from '../core/confirm';
 import { ABOUT_ME_MAX_LENGTH, SettingsService, SettingsUpdate } from '../core/settings.service';
 import { HasUnsavedChanges } from '../core/unsaved-changes.guard';
+import { LocalModelChoice, LocalModelPanel } from '../shared/local-model-panel';
 import { Memories } from './memories';
 import { PushConfig } from './push-config';
 import { SpeechConfig } from './speech-config';
@@ -29,6 +30,7 @@ const MODULES = ['goals', 'board', 'planner', 'reminders', 'notes', 'memory', 'v
   imports: [
     FormsModule,
     TitleCasePipe,
+    LocalModelPanel,
     Memories,
     PushConfig,
     SpeechConfig,
@@ -82,6 +84,14 @@ export class Settings implements OnInit, HasUnsavedChanges {
 
   protected get selected() {
     return aiProvider(this.provider);
+  }
+
+  /** The recommended model, found or downloaded in the owner's Ollama: fill in where and what, to save. */
+  protected useLocalModel(choice: LocalModelChoice): void {
+    this.provider = 'ollama';
+    this.baseUrl = choice.address;
+    this.model = choice.model;
+    this.form()?.form.markAsDirty();
   }
 
   /** What to send for the context size: 0 clears it, so the model's default applies again. */

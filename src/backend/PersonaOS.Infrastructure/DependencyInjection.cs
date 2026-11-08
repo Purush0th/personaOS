@@ -75,6 +75,11 @@ public static class DependencyInjection
         services.AddSingleton(_ => new OpenAiCompatibleMessageStreamer(new HttpClient { Timeout = Timeout.InfiniteTimeSpan }));
         services.AddSingleton(_ => new OllamaMessageStreamer(new HttpClient { Timeout = Timeout.InfiniteTimeSpan }));
         services.AddSingleton<IAiMessageStreamerFactory, AiMessageStreamerFactory>();
+        // The owner's Ollama, found and asked to download the recommended model. A 2.5 GB pull
+        // takes as long as it takes; the request's cancellation bounds it.
+        services.AddSingleton<ILocalModelHost>(_ => new OllamaModelHost(new HttpClient { Timeout = Timeout.InfiniteTimeSpan }));
+        services.AddSingleton(configuration.GetSection(PersonaOS.Application.LocalModels.LocalModelOptions.SectionName)
+            .Get<PersonaOS.Application.LocalModels.LocalModelOptions>() ?? new PersonaOS.Application.LocalModels.LocalModelOptions());
         // Prompt fragments an installation has edited; everything else is the shipped default.
         services.AddSingleton<IPromptOverrideSource, FilePromptOverrideSource>();
         // Push: bring-your-own Firebase, configured from the admin page at runtime. One sender

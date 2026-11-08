@@ -17,6 +17,7 @@ from capabilities import CAPABILITIES  # noqa: E402
 # Kept for collect.py, which creates these items before a run.
 from capabilities.core import FIXTURE_GOALS, FIXTURE_REMINDERS, FIXTURE_TASKS, MOVE_FORMS  # noqa: E402,F401
 from capabilities.phrasings import FIXTURE_NOTES  # noqa: E402,F401
+from capabilities.planner import FIXTURE_ROUTINE, PROBE as PLANNER_PROBE  # noqa: E402,F401
 
 
 SUITE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts", "model-check.ps1")

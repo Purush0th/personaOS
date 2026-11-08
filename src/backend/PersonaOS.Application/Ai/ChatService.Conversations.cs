@@ -58,14 +58,17 @@ public partial class ChatService
 
         // Receipts are deserialized here rather than in the query: EF cannot translate it,
         // and a malformed row must not take the whole conversation down.
+        // A reply stored with the old "nothing was saved" flag is shown the way a new one is said:
+        // honestly, without the claim and without the warning.
         var messages = conversation.Messages
             .Select(m => new ChatMessageDto(
-                m.Id, m.Role, m.Content, m.InputTokens, m.OutputTokens, m.CreatedAtUtc,
+                m.Id, m.Role, m.UnverifiedClaim ? History.TurnRecord.Honest(m.Content, null) : m.Content,
+                m.InputTokens, m.OutputTokens, m.CreatedAtUtc,
                 ReadReceipts(m.ToolActionsJson),
                 actions.Where(a => a.ChatMessageId == m.Id).Select(ToDto).ToList() is { Count: > 0 } p
                     ? p
                     : null,
-                m.UnverifiedClaim,
+                false,
                 m.UnknownItems is { Length: > 0 } unknown ? unknown.Split(',') : null))
             .ToList();
 

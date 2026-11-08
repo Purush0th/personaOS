@@ -136,3 +136,114 @@ def render_prompt(messages: list[dict], tools: list[dict] | None, close_last: bo
 def render(messages: list[dict], tools: list[dict] | None) -> str:
     """A training example: the conversation with its last assistant turn closed, so the model learns to stop."""
     return render_prompt(messages, tools, close_last=True)
+
+
+# ---- Qwen3 (Qwen3-4B-Instruct-2507) -------------------------------------------------------------
+# Ollama renders this family with the Jinja chat template inside the GGUF (`template source
+# gguf_chat_template` in `ollama show qwen3:4b-instruct`), the model's own Hugging Face template.
+# A port of that template follows. The training text is the prompt up to the reply plus the reply
+# the model should write: the template would put an empty <think></think> block before the last
+# assistant turn, which the instruct model never writes, so that block is not taught.
+
+def _tojson(value: object) -> str:
+    """Jinja's tojson as the template sees it: JSON with ", " and ": " separators, keys in order."""
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _qwen3_tool_calls(message: dict, content: str) -> str:
+    out = []
+    for n, call in enumerate(message.get("tool_calls") or []):
+        if (n == 0 and content) or n > 0:
+            out.append("\n")
+        function = call.get("function", call)
+        arguments = function.get("arguments")
+        rendered = arguments if isinstance(arguments, str) else _tojson(arguments if arguments is not None else {})
+        out.append('<tool_call>\n{"name": "' + function["name"] + '", "arguments": ' + rendered + "}\n</tool_call>")
+    return "".join(out)
+
+
+def _ollama_property(prop: dict) -> dict:
+    """A tool property as Ollama re-serializes it (api.ToolProperty): its fields in struct order,
+    empty ones and unknown keys such as additionalProperties dropped, `items` (a Go map) key-sorted."""
+    out = {}
+    for key in ("anyOf", "type", "items", "description", "enum", "properties", "required"):
+        value = prop.get(key)
+        if value is None or value == "" or value == [] or (key == "properties" and not value):
+            continue
+        if key == "anyOf":
+            value = [_ollama_property(p) for p in value]
+        elif key == "items":
+            value = json.loads(json.dumps(value, sort_keys=True))
+        elif key == "properties":
+            value = {name: _ollama_property(p) for name, p in value.items()}
+        out[key] = value
+    return out
+
+
+def _ollama_tools(tools: list[dict]) -> list[dict]:
+    """Tools as Ollama hands them to llama-server (api.Tool), which renders the Jinja template."""
+    out = []
+    for tool in tools:
+        function = tool["function"]
+        params = function.get("parameters") or {}
+        shaped = {"type": params.get("type", "object")}
+        if params.get("required"):
+            shaped["required"] = params["required"]
+        shaped["properties"] = {name: _ollama_property(p) for name, p in (params.get("properties") or {}).items()}
+        fn = {"name": function["name"]}
+        if function.get("description"):
+            fn["description"] = function["description"]
+        fn["parameters"] = shaped
+        out.append({"type": tool.get("type", "function"), "function": fn})
+    return out
+
+
+def render_prompt_qwen3(messages: list[dict], tools: list[dict] | None) -> str:
+    """The prompt text Ollama builds for /api/chat with these messages and tools (qwen3)."""
+    tools = _ollama_tools(tools) if tools else tools
+    out = []
+    first_system = messages and messages[0]["role"] == "system"
+    if tools:
+        out.append("<|im_start|>system\n")
+        if first_system:
+            out.append((messages[0].get("content") or "") + "\n\n")
+        out.append("# Tools\n\nYou may call one or more functions to assist with the user query.\n\n"
+                   "You are provided with function signatures within <tools></tools> XML tags:\n<tools>")
+        for tool in tools:
+            out.append("\n" + _tojson(tool))
+        out.append("\n</tools>\n\nFor each function call, return a json object with function name and arguments "
+                   "within <tool_call></tool_call> XML tags:\n<tool_call>\n"
+                   '{"name": <function-name>, "arguments": <args-json-object>}\n</tool_call><|im_end|>\n')
+    elif first_system:
+        out.append("<|im_start|>system\n" + (messages[0].get("content") or "") + "<|im_end|>\n")
+
+    for i, message in enumerate(messages):
+        role, content = message["role"], message.get("content") if isinstance(message.get("content"), str) else ""
+        if role == "user" or (role == "system" and i > 0):
+            out.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
+        elif role == "assistant":
+            if "</think>" in content:
+                content = content.split("</think>")[-1].lstrip("\n")
+            out.append("<|im_start|>assistant\n" + content + _qwen3_tool_calls(message, content) + "<|im_end|>\n")
+        elif role == "tool":
+            if i == 0 or messages[i - 1]["role"] != "tool":
+                out.append("<|im_start|>user")
+            out.append("\n<tool_response>\n" + content + "\n</tool_response>")
+            if i == len(messages) - 1 or messages[i + 1]["role"] != "tool":
+                out.append("<|im_end|>\n")
+    out.append("<|im_start|>assistant\n")
+    return "".join(out)
+
+
+def render_qwen3(messages: list[dict], tools: list[dict] | None) -> str:
+    """A training example: the prompt, then the last assistant turn as the model should write it."""
+    *before, reply = messages
+    content = reply.get("content") or ""
+    return render_prompt_qwen3(before, tools) + content + _qwen3_tool_calls(reply, content) + "<|im_end|>\n"
+
+
+# family -> (prompt renderer, training renderer)
+FAMILIES = {
+    "qwen2.5": (lambda m, t: render_prompt(m, t), render),
+    "qwen3": (render_prompt_qwen3, render_qwen3),
+}

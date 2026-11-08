@@ -74,6 +74,10 @@
           </mat-select>
         </mat-form-field>
 
+        @if (provider === 'ollama') {
+          <local-model-panel [address]="baseUrl" (chosen)="useLocalModel($event)" />
+        }
+
         @if (selected.needsBaseUrl) {
           <mat-form-field>
             <mat-label>Base URL</mat-label>

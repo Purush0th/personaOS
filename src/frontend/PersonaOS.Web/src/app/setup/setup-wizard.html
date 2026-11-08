@@ -61,6 +61,10 @@
             </mat-select>
           </mat-form-field>
 
+          @if (aiProvider === 'ollama') {
+            <local-model-panel [address]="aiBaseUrl" (chosen)="useLocalModel($event)" />
+          }
+
           @if (selected.needsBaseUrl) {
             <mat-form-field>
               <mat-label>Base URL</mat-label>

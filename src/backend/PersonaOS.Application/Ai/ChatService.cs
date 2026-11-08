@@ -118,6 +118,22 @@ public partial class ChatService(
         // The conversation as the model first saw it, before any round adds to it.
         var firstTurns = request.Turns.ToList();
 
+        // A question with one right answer in the user's data is answered from the data, before
+        // the model is asked. Answered after it, the model's reply streamed in and was then swapped
+        // for this one (owner's chat 4nzrb5af, 2026-11-07).
+        if (await AnswerFromDataAsync(request.Turn, userMessage, ct) is { } dataAnswer)
+        {
+            yield return new ChatStreamEvent("delta", Text: dataAnswer);
+            var answered = new ReplyDraft(dataAnswer, request.Turn);
+            await PersistAsync(conversation, userMessage, answered, request, unverifiedClaim: false);
+            var read = request.Turn.Receipts;
+            yield return new ChatStreamEvent(
+                "done",
+                ConversationId: conversation.Id,
+                Actions: read.Count == 0 ? null : read);
+            yield break;
+        }
+
         // What the message wants, decided before the chat model answers (IntentClassifier), and
         // told to it; skipped where nothing can be changed. Owner, 2026-10-12: classify every message.
         var intent = request.Turn.WriteTools.Count > 0
@@ -446,67 +462,6 @@ public partial class ChatService(
             }
         }
 
-        // "What's next?" and "when is my X?" have one right answer in the planner, worked out in
-        // code (PlannerQuestion; owner's chat b4c7pvc2, 2026-11-04). A turn that proposed a change is
-        // not a question.
-        // "Is there a note about the wedding?" is answered from the notes that match, read through the
-        // tool when the model did not read them, so the receipt shows what was looked at.
-        if (first.Error is null
-            && request.Turn.ToolNames.Contains("get_notes")
-            && request.Turn.Proposals.Count == 0
-            && Notes.NoteQuestion.TopicOf(userMessage) is { Count: > 0 } noteTopic)
-        {
-            if (!request.Turn.Receipts.Any(r => r.Ok && r.Tool == "get_notes"))
-            {
-                var read = new AiToolCall($"server-notes-{Guid.NewGuid():N}", "get_notes", JsonSerializer.Serialize(new { query = noteTopic[0] }));
-                request.Turn.RecordExecution(read, await toolRegistry.ExecuteAsync(read, ct));
-            }
-            var noteTexts = await db.Notes.AsNoTracking().OrderByDescending(n => n.UpdatedAtUtc).Select(n => n.Text).ToListAsync(ct);
-            final.Rewrite(Notes.NoteQuestion.Answer(noteTopic, [.. noteTexts.Where(t => Notes.NoteQuestion.Matches(t, noteTopic))]));
-            unverifiedClaim = false;
-        }
-
-        // "Is TASK-17 in the running sprint or in the backlog?" is answered from the task itself.
-        if (first.Error is null
-            && request.Turn.Proposals.Count == 0
-            && Board.TaskWhereQuestion.Parse(userMessage) is int askedNumber
-            && Board.TaskWhereQuestion.Answer(askedNumber,
-                await db.BoardTasks.AsNoTracking().Include(t => t.Sprint).FirstOrDefaultAsync(t => t.Number == askedNumber, ct)) is { } whereAnswer)
-        {
-            final.Rewrite(whereAnswer);
-            unverifiedClaim = false;
-        }
-
-        if (first.Error is null
-            && request.Turn.ToolNames.Contains("get_planner")
-            && request.Turn.Proposals.Count == 0
-            && request.Turn.UserNow is DateTime askedAt
-            && await PlannerAnswerAsync(userMessage, askedAt, ct) is { } plannerAnswer)
-        {
-            final.Rewrite(plannerAnswer);
-            unverifiedClaim = false;
-        }
-
-        // "Am I free on Saturday afternoon?" has one right answer in the planner too. The day is read
-        // through the tool when the model did not read it, so the receipt shows what was looked at.
-        if (first.Error is null
-            && request.Turn.ToolNames.Contains("get_planner")
-            && request.Turn.Proposals.Count == 0
-            && request.Turn.UserNow is DateTime freeAt
-            && Planner.PlannerQuestion.AsksFree(userMessage))
-        {
-            var today = DateOnly.FromDateTime(freeAt);
-            var day = WhenPhrase.Read(userMessage, freeAt)?.Day ?? today;
-            var date = day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            if (!request.Turn.Receipts.Any(r => r.Ok && r.Tool == "get_planner"))
-            {
-                var read = new AiToolCall($"server-planner-{Guid.NewGuid():N}", "get_planner", JsonSerializer.Serialize(new { date }));
-                request.Turn.RecordExecution(read, await toolRegistry.ExecuteAsync(read, ct));
-            }
-            final.Rewrite(Planner.PlannerQuestion.FreeAnswer(userMessage, day, await Planner.PlannerQueries.EventsAsync(db, day, day, ct: ct), today));
-            unverifiedClaim = false;
-        }
-
         // "Make a task" says nothing about the task, so the reply has to ask. qwen2.5:3b answered
         // "Please provide a title for the task." most times, which leaves the user unsure whether
         // anything happened (holdout, 2026-11-06); a reply that does not ask is replaced by the question.
@@ -643,17 +598,20 @@ public partial class ChatService(
             final.Rewrite($"{final.Text.TrimEnd()}\n\nDownloads: {Domain.PersonaOsProject.ReleasesUrl}");
         }
 
-        // The reply still says a change is on its way, but the change was refused and nothing is
-        // waiting: say why, from the check itself. In chat 9wuxkb2b the user asked five times and
-        // only ever saw "nothing was saved", never the reason.
-        if (unverifiedClaim && request.Turn.Proposals.Count == 0 && request.Turn.Refusals.Count > 0)
+        // The reply still claims a change nothing made, after every try to make it: it says so
+        // plainly, without the claim, and offers to go ahead or gives the reason the change was
+        // refused (chat 9wuxkb2b: asked five times, the user never saw why). No warning under a
+        // false claim (owner, 2026-11-07).
+        if (unverifiedClaim)
         {
-            final.Rewrite($"{final.Text.TrimEnd()}\n\nIt could not be done: {request.Turn.Refusals[^1]}");
+            final.Rewrite(History.TurnRecord.Honest(final.Text, request.Turn.Refusals.LastOrDefault()));
+            unverifiedClaim = false;
         }
 
         // What the user watched stream in is no longer the reply when a guard rewrote it or a
-        // correction replaced it; the client must swap its bubble for the stored text.
-        var replaceStreamedText = retried || reply.Rewritten || final.Text != reply.Text;
+        // correction replaced it, and a held reply was never streamed: the client must show the
+        // stored text.
+        var replaceStreamedText = retried || first.Held || reply.Rewritten || final.Text != reply.Text;
         var pending = await PersistAsync(conversation, userMessage, final, request, unverifiedClaim);
 
         if (first.Error is not null)
@@ -797,7 +755,7 @@ public partial class ChatService(
                     {
                         round.Text.Append(delta);
                         iterationText.Append(delta);
-                        if (streamText) yield return new ChatStreamEvent("delta", Text: delta);
+                        if (streamText && !round.Held) yield return new ChatStreamEvent("delta", Text: delta);
                     }
                 }
             }
@@ -827,6 +785,9 @@ public partial class ChatService(
                 var result = await toolRegistry.ExecuteAsync(decision.Call, ct);
                 round.ToolRuns++;
                 turn.RecordExecution(decision.Call, result);
+                // A reply built on the user's data is checked against it before it is shown, so
+                // a guard's fix does not swap out text the user already read (owner, 2026-11-07).
+                if (!turn.WriteTools.Contains(decision.Call.Name)) round.Held = true;
                 results.Add(result);
             }
 
@@ -841,6 +802,66 @@ public partial class ChatService(
                 yield break;
             }
         }
+    }
+
+    /// <summary>
+    /// The answer to a question that has one right answer in the user's data, worked out in code,
+    /// or null when the message is not such a question: "what's next?" and "when is my X?"
+    /// (PlannerQuestion, owner's chat b4c7pvc2), "am I free on Saturday afternoon?", "is there a
+    /// note about the wedding?" and "is TASK-17 in the running sprint?". What it reads goes through
+    /// the tools, so the receipts show what was looked at.
+    /// </summary>
+    private async Task<string?> AnswerFromDataAsync(ChatTurnState turn, string userMessage, CancellationToken ct)
+    {
+        if (turn.ToolNames.Contains("get_notes") && Notes.NoteQuestion.TopicOf(userMessage) is { Count: > 0 } noteTopic)
+        {
+            await ReadForAnswerAsync(turn, "get_notes", new { query = noteTopic[0] }, ct);
+            var noteTexts = await db.Notes.AsNoTracking().OrderByDescending(n => n.UpdatedAtUtc).Select(n => n.Text).ToListAsync(ct);
+            return Notes.NoteQuestion.Answer(noteTopic, [.. noteTexts.Where(t => Notes.NoteQuestion.Matches(t, noteTopic))]);
+        }
+
+        if (Board.TaskWhereQuestion.Parse(userMessage) is int askedNumber
+            && Board.TaskWhereQuestion.Answer(askedNumber,
+                await db.BoardTasks.AsNoTracking().Include(t => t.Sprint).FirstOrDefaultAsync(t => t.Number == askedNumber, ct)) is { } whereAnswer)
+        {
+            return whereAnswer;
+        }
+
+        if (turn.ToolNames.Contains("get_task") && Board.TaskWhereQuestion.ParsePoints(userMessage) is int pointsNumber
+            && Board.TaskWhereQuestion.PointsAnswer(pointsNumber,
+                await db.BoardTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Number == pointsNumber, ct)) is { } pointsAnswer)
+        {
+            await ReadForAnswerAsync(turn, "get_task", new { taskKey = $"TASK-{pointsNumber}" }, ct);
+            return pointsAnswer;
+        }
+
+        if (!turn.ToolNames.Contains("get_planner") || turn.UserNow is not DateTime now) return null;
+
+        if (Planner.PlannerSlotQuestion.Read(userMessage, now) is { } slot)
+        {
+            var today = DateOnly.FromDateTime(now);
+            var day = slot.Day ?? today;
+            await ReadForAnswerAsync(turn, "get_planner", new { date = day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) }, ct);
+            return Planner.PlannerSlotQuestion.Answer(slot, await Planner.PlannerQueries.EventsAsync(db, day, day, ct: ct), day, today);
+        }
+
+        if (await PlannerAnswerAsync(userMessage, now, ct) is { } plannerAnswer) return plannerAnswer;
+
+        if (Planner.PlannerQuestion.AsksFree(userMessage))
+        {
+            var today = DateOnly.FromDateTime(now);
+            var day = WhenPhrase.Read(userMessage, now)?.Day ?? today;
+            await ReadForAnswerAsync(turn, "get_planner", new { date = day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) }, ct);
+            return Planner.PlannerQuestion.FreeAnswer(userMessage, day, await Planner.PlannerQueries.EventsAsync(db, day, day, ct: ct), today);
+        }
+        return null;
+    }
+
+    /// <summary>Runs a read tool for an answer worked out in code, so its receipt is shown.</summary>
+    private async Task ReadForAnswerAsync(ChatTurnState turn, string tool, object arguments, CancellationToken ct)
+    {
+        var read = new AiToolCall($"server-{tool}-{Guid.NewGuid():N}", tool, JsonSerializer.Serialize(arguments));
+        turn.RecordExecution(read, await toolRegistry.ExecuteAsync(read, ct));
     }
 
     /// <summary>
@@ -918,6 +939,9 @@ public partial class ChatService(
 
         /// <summary>Tools this round ran (not those a guard answered for).</summary>
         public int ToolRuns { get; set; }
+
+        /// <summary>Whether the round read the user's data, so its text is held until the reply is checked.</summary>
+        public bool Held { get; set; }
     }
 
     /// <summary>Tokens reported across every model call in the turn; null until a provider reports any.</summary>

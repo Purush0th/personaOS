@@ -5,6 +5,7 @@ using PersonaOS.Application.Ai.Models;
 using PersonaOS.Application.Auth;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Application.Configuration;
+using PersonaOS.Application.LocalModels;
 using PersonaOS.Application.Speech;
 
 namespace PersonaOS.Api.Controllers;
@@ -20,7 +21,8 @@ public class SetupController(
     IInstanceConfigService configService,
     IAuthService authService,
     IAiMessageStreamerFactory streamerFactory,
-    ISpeechService speech) : ControllerBase
+    ISpeechService speech,
+    ILocalModelService localModels) : ControllerBase
 {
     public record SetupStatusResponse(bool IsConfigured);
 
@@ -276,6 +278,67 @@ public class SetupController(
         var where = provider == InstanceConfig.Providers.Anthropic ? "Anthropic" : baseUrl;
         return Ok(new TestConnectionResponse(true, $"Connected — {model} responded via {where}."));
     }
+
+    public record LocalModelPullRequest(string Address);
+
+    /// <summary>
+    /// Whether Ollama is running where the server can reach it and has the recommended model.
+    /// Open while the instance is unconfigured (the Setup Wizard has no account yet), admin after.
+    /// </summary>
+    [HttpGet("local-model")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LocalModelStatus>> LocalModel([FromQuery] string? address, CancellationToken ct)
+    {
+        if (!await MaySetUpAsync(ct)) return Forbid();
+        try
+        {
+            return Ok(await localModels.StatusAsync(address, ct));
+        }
+        catch (LocalModelHostException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Downloads the recommended model (the one this server version pins, never one the caller
+    /// names) into the Ollama at the given address. Streams newline-delimited JSON:
+    /// <c>{"status","completed","total"}</c> per step, then <c>{"done":true}</c> or <c>{"error"}</c>.
+    /// </summary>
+    [HttpPost("local-model/pull")]
+    [AllowAnonymous]
+    public async Task LocalModelPull([FromBody] LocalModelPullRequest request, CancellationToken ct)
+    {
+        if (!await MaySetUpAsync(ct))
+        {
+            Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+
+        Response.ContentType = "application/x-ndjson";
+        try
+        {
+            await foreach (var step in localModels.PullAsync(request.Address, ct))
+                await WriteLineAsync(new { status = step.Status, completed = step.Completed, total = step.Total }, ct);
+            await WriteLineAsync(new { done = true }, ct);
+        }
+        catch (LocalModelHostException ex)
+        {
+            await WriteLineAsync(new { error = ex.Message }, ct);
+        }
+    }
+
+    private async Task WriteLineAsync(object line, CancellationToken ct)
+    {
+        await Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(line, JsonWeb) + "\n", ct);
+        await Response.Body.FlushAsync(ct);
+    }
+
+    private static readonly System.Text.Json.JsonSerializerOptions JsonWeb = new(System.Text.Json.JsonSerializerDefaults.Web);
+
+    /// <summary>Anyone may set up an unconfigured instance (as POST /api/setup allows); after that, only the admin.</summary>
+    private async Task<bool> MaySetUpAsync(CancellationToken ct) =>
+        User.IsInRole("admin") || !(await configService.GetOrCreateAsync(ct)).IsConfigured;
 
     private static string? Validate(SetupRequest r)
     {

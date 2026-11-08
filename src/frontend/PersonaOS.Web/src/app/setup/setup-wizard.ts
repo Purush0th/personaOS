@@ -11,6 +11,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { AI_PROVIDERS, aiProvider } from '../core/ai-providers';
 import { FORM_FIELD_DEFAULTS } from '../core/form-field-defaults';
+import { LocalModelChoice, LocalModelPanel } from '../shared/local-model-panel';
 
 interface FeatureOption {
   key: string;
@@ -27,6 +28,7 @@ interface FeatureOption {
   selector: 'setup-wizard',
   imports: [
     FormsModule,
+    LocalModelPanel,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
@@ -70,6 +72,13 @@ export class SetupWizard {
 
   get selected() {
     return aiProvider(this.aiProvider);
+  }
+
+  /** The recommended model, found or downloaded in the owner's Ollama: fill in where and what. */
+  useLocalModel(choice: LocalModelChoice): void {
+    this.aiProvider = 'ollama';
+    this.aiBaseUrl = choice.address;
+    this.aiModel = choice.model;
   }
 
   readonly features: FeatureOption[] = [

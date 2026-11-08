@@ -12,10 +12,16 @@ namespace PersonaOS.Application.Ai.Guards;
 /// <item><see cref="OfferedToolGuard"/> refuses a tool that was not offered this turn, such as a
 /// write tool in Brainstorm, which would otherwise still become a card.</item>
 /// <item><see cref="PlainSumGuard"/> stops a write for a message that only asks a sum.</item>
+/// <item><see cref="CreativeAskGuard"/> stops a write for a message that asks for a poem, a name or
+/// ideas and says nothing of keeping it.</item>
+/// <item><see cref="NoteDeleteGuard"/> stops a write for a message that asks for a note to be
+/// deleted, which no tool can do.</item>
 /// <item><see cref="CalendarRequestGuard"/> turns a reminder for something the user asked to put on
 /// their calendar into a planner item.</item>
 /// <item><see cref="ReminderRequestGuard"/> turns a note for something the user asked to be reminded
 /// of at a day and time into a reminder.</item>
+/// <item><see cref="ReminderNotEventGuard"/> turns a planner item for something the user asked to be
+/// reminded of at a time into a reminder.</item>
 /// <item><see cref="UserTimeGuard"/> holds a reminder or event to the day and time the user gave,
 /// and refuses a reminder whose time nobody gave.</item>
 /// <item><see cref="UnaskedLinkGuard"/> drops a task or goal link from a planner item when the user
@@ -41,8 +47,11 @@ public sealed class ToolCallPipeline(IPersonaToolRegistry registry, ILogger<Tool
         new ArgumentEnvelopeGuard(),
         new OfferedToolGuard(),
         new PlainSumGuard(),
+        new CreativeAskGuard(),
+        new NoteDeleteGuard(),
         new CalendarRequestGuard(),
         new ReminderRequestGuard(),
+        new ReminderNotEventGuard(),
         new UserTimeGuard(),
         new UnaskedLinkGuard(),
         new RepeatedCallGuard(),

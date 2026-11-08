@@ -25,8 +25,9 @@ public class ChatMessage
 
     /// <summary>
     /// True when this assistant reply says a change was made but no tool made one — even after
-    /// the model was asked to correct itself. The client warns that nothing was saved, so a
-    /// confident "I've set a reminder" is not taken at its word when the reminders table is empty.
+    /// the model was asked to correct itself. Set only on replies stored before 2026-11-07: since
+    /// then such a reply is rewritten to say honestly that the change was not made, and stored
+    /// replies with the flag are shown the same way (TurnRecord.Honest); clients no longer warn.
     /// </summary>
     public bool UnverifiedClaim { get; set; }
 

@@ -70,8 +70,19 @@ AI accuracy (qwen2.5:3b):
       Qwen3-4B-Instruct-2507 (95.3%, 5.1 GB), MiniCPM5-2B (86.8%), gemma-4-E2B (88.8%) against
       qwen2.5:3b (99.2%): it stays. Table and reasons in docs/model-accuracy.md. Every local model
       is now sent `think: false` (ModelProfile.OptionsFor).
-- [ ] AI accuracy: planner "no title" scenario fails about 1 in 3 full suite runs since notes
-      (10/10 alone).
+- [x] AI accuracy: planner "no title" scenario (2026-11-07). Cause: a model linking an event to a
+      task or goal nobody named, with no title, so the card took the task's title.
+      `UnaskedLinkGuard` now drops the links even with no title, takes the title from the message
+      (`PlannerCommand.Parse`) or asks the model for one, and points a "remind/nudge me" request at
+      `create_reminder` instead. Trained qwen3:4b: core+extended 96.3% to 98.5%, holdout2 97.4% to
+      100%, holdout3 88.9% to 95.6%; personaos-qwen2.5:3b still 100% on all, holdout, holdout2,
+      holdout3 (runs/2026-11-07-qwen3/bench-guardfix).
+- [x] AI accuracy: a "nudge me in 30 minutes" request became a planner item on the trained qwen3:4b
+      (2026-11-07). `ReminderNotEventGuard`, the reverse of `CalendarRequestGuard`, turns it into a
+      reminder at the time said. Also: `CreativeAskGuard` stops a note/memory/task for "write a
+      poem", "suggest a name"; `PlannerSlotQuestion` answers "what's at 7:20pm", "from 3 to 5pm" and
+      "how many walks" in code (planner suite 52% to 100% on the trained 4B). The 4B retrain with
+      its own turns is run 2026-11-07-qwen3b (A8).
 - [ ] AI accuracy: the model sometimes asks for a task key after being told which tool to call.
 - [ ] AI accuracy: sprint-level column claims ("the tasks are in the backlog, not in the sprint")
       are not checked.
@@ -228,9 +239,64 @@ Deferred by the owner:
       detector: describing clause), invented haircut with no time (planner question with no match
       anywhere now answers "I couldn't find anything about …"). **bench-10 (5 runs): trained 100% on
       every suite, 430/430** (stock 224/225, 64/65, 65/65, 75/75); report-bench-10.md is the one
-      to audit. Not adopted on prod (owner's audit first); nothing committed. Next: owner reviews
-      the report and the app changes; then commit, and adopt via the updater if approved. The
-      stock model still answers "Who wrote Pride and Prejudice?" with "I don't know" 1 in 5.
+      to audit. The stock model still answers "Who wrote Pride and Prejudice?" with "I don't know"
+      1 in 5. **2026-11-07: adopted** (owner: "integrate the model and release"). App changes
+      committed (`2b70cff`) and released as `v0.1.0-alpha.26`; data, reports and the GGUF +
+      Modelfile are in the private repo `personaos-training-data` (release `run-2026-11-06b`).
+      Prod install is manual (no SSH, no model-pull feature): the owner downloads both files on
+      the server, `docker compose cp` into the ollama container, `ollama create
+      personaos-qwen2.5:3b -f Modelfile`, then picks the model in Settings. Qwen research licence:
+      the weights stay private, never on a public release. Still open: in-app model install.
+      **2026-11-07, owner's chat 4nzrb5af (uncommitted, to ship with the 4B work):** replies changed
+      after they appeared. Data answers (when/next/free/note/TASK-where) now run before the model
+      (`AnswerFromDataAsync`; no model round); a round that read the user's data holds its text until
+      the guards have run and sends it on "done" (owner's choice). "commuting" missed "Commute":
+      shared `Common/WordStem` for planner, note and memory matching. Seen once in a replay, not
+      fixed: a claim correction answered "Here is the change I would make" with no card. Web send
+      spinner wobble fixed (composer.scss).
+      Same chat, later turns (prod on alpha.26 + trained model): "what's on my list for 8 a.m." got
+      the item that ended at 8, "No, check the planner" got it again without a read, "critic my
+      schedule" got an "adjusted schedule" missing half the day, "what did you change?" a made-up
+      move. Owner chose training over code checks: new capability `planner` (51 prompts: at a
+      time, re-read after "check the planner", how many, a stretch, critique, what changed) with
+      generated labels: collect.py seeds a daily routine (deleted after) and probes one real
+      get_planner read; build_dataset.py labels the read and an answer from
+      `training/planner_labels.py`. New suite `model-check.ps1 -Suite planner` (7 scenarios, its
+      own seeded day). Code checks only for what still fails after the 4B run.
+      The amber "nothing was saved, ask again" note is gone (owner): a claim that survives every
+      retry is rewritten to say the change was not made and offer it, or give the refusal
+      (`TurnRecord.Honest`); stored flagged replies are shown the same way.
+      **Qwen3-4B-Instruct-2507 (Apache-2.0, so the weights could ship; Qwen2.5-3B's licence is
+      non-commercial).** Run 2026-11-07-qwen3 (qwen2.5 traces, lr 1e-4): not adopted. Run
+      2026-11-07-qwen3b: 582 turns collected with stock `qwen3:4b-instruct` itself (`overnight.ps1
+      -CollectModel`), + `contrasts` capability (nudge vs event vs creative ask), 1246 examples, 2
+      epochs at lr 5e-5, held-out loss 0.077 to 0.067; trained `personaos-qwen3:4b-instruct-b` ≥
+      stock everywhere (97.8/100/100/100/100 vs 96.3/100/100/95.6/100). Its one miss and stock's,
+      "How many value points does TASK-17 have?" answered "I don't know" with no read: now answered
+      in code (`TaskWhereQuestion.ParsePoints`, read through get_task). "Get X into my calendar"
+      was read as a planner question (PlannerSlotQuestion change words). bench-appfix: 134/135,
+      the miss a "delete my note" turned into a backlog task: new `NoteDeleteGuard`. **bench-appfix2
+      (5 runs): trained 4B 100% on every suite, 465/465** (core+extended 225, holdout 65, holdout2
+      65, holdout3 75, planner 35); the one to audit.
+      **In-app model install (2026-11-08, owner: host on Hugging Face; the server finds Ollama and
+      downloads the model into it):** `ILocalModelHost` port + `OllamaModelHost` adapter
+      (`/api/version`, `/api/tags`, `/api/pull`), `LocalModelService` (tries the given address,
+      else the stored one, else ollama:11434, localhost, host.docker.internal; the model is pinned
+      in `LocalModelOptions`, config section `LocalModel`, never named by the caller),
+      `GET /api/setup/local-model` and `POST /api/setup/local-model/pull` (NDJSON progress; open
+      while unconfigured, admin after). Web: `LocalModelPanel` under the Ollama provider in the
+      Setup Wizard and Settings (size, licence, notice before download; progress, cancel, "Use
+      this model"). Tested live with a 105 MB hf.co GGUF. **Published 2026-11-08:**
+      https://huggingface.co/purush0th/personaos-qwen3-4b-instruct-GGUF (public, Apache-2.0; GGUF,
+      `params`, `template`, LICENSE, NOTICE, card; upload folder `data/training/hf-upload/`).
+      `template` must be the Go template of Ollama's library `qwen3:4b-instruct`: without it the
+      hf.co pull gets Ollama's thinking Qwen3 template (`<think>`, compact tool JSON, ~1,100 tokens
+      off), and a Jinja `template` file is rejected; with it Ollama renders the GGUF's Jinja
+      (check_template 6/6). Pulled through the app's panel: holdout3 45/45, planner 21/21.
+      Compose Ollama pin now 0.40.15 (checked version); README and `.env.example` describe the
+      panel; phone Settings has the same panel (`LocalModelSection`, widget-tested). Left for the
+      owner: adopt on prod, commit, release. Not adopted or committed; prod stays on
+      personaos-qwen2.5:3b.
 - [ ] **A10. Training framework as its own project** (owner: a folder in this repo, not a new repo).
       Move `scripts/training/` to a top-level `training/` with prompt sets per capability, so new
       tools (web search first) add a capability file rather than editing one big list; one command

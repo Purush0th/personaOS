@@ -23,6 +23,30 @@ public static partial class TaskWhereQuestion
             ? null
             : int.Parse(m.Groups["key"].Value[5..], CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// "How many value points does TASK-17 have?", "How many points is TASK-4?", "What are TASK-9's
+    /// points?". Stock and trained qwen3:4b both answered "I don't know how many value points
+    /// TASK-17 has" without reading it (training run 2026-11-07-qwen3b, bench "task points exact").
+    /// </summary>
+    [GeneratedRegex(
+        @"^\s*how\s+many\s+(?:value\s+|story\s+)?points\s+(?:does|is|has)\s+(?<key>TASK-\d+)\b|^\s*what(?:'s|\s+is|\s+are)\s+(?:the\s+)?(?:value\s+|story\s+)?points\s+(?:of|on|for)\s+(?<key>TASK-\d+)\b|^\s*what(?:'s|\s+is|\s+are)\s+(?<key>TASK-\d+)(?:'s|’s)\s+(?:value\s+|story\s+)?points\b",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex AsksPoints();
+
+    /// <summary>The task number the message asks the value points of, or null when it is not such a question.</summary>
+    public static int? ParsePoints(string? message) =>
+        string.IsNullOrWhiteSpace(message) || AsksPoints().Match(message) is not { Success: true } m
+            ? null
+            : int.Parse(m.Groups["key"].Value[5..], CultureInfo.InvariantCulture);
+
+    /// <summary>The task's value points, in one sentence; null for a task that does not exist.</summary>
+    public static string? PointsAnswer(int number, BoardTask? task) =>
+        task is null
+            ? null
+            : task.Points is int p
+                ? $"TASK-{number} “{task.Title}” has {p} value {(p == 1 ? "point" : "points")}."
+                : $"TASK-{number} “{task.Title}” has no value points yet (unestimated).";
+
     /// <summary>Where the task is, in one sentence; null for a task that does not exist.</summary>
     public static string? Answer(int number, BoardTask? task)
     {

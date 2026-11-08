@@ -261,6 +261,16 @@ public class GroundingTests
         Assert.Null(ChatService.NotFound("When is my meeting with Priya?", ["""{"title":"Meeting with Priya"}"""], "Friday at 3pm."));
     }
 
+    [Theory]
+    // Planner suite (2026-11-07): answered "I couldn't find anything about “edit just”".
+    [InlineData("Did you edit anything in my planner just now?")]
+    [InlineData("What have you changed in my schedule?")]
+    [InlineData("you mentioned earlier that it was one commute, why?")]
+    public void A_question_about_what_the_assistant_did_is_not_a_search(string question)
+    {
+        Assert.Null(ChatService.NotFound(question, ["""{"items":[{"title":"Gym session"}]}"""], "Your plan has a gym session."));
+    }
+
     [Fact]
     public void A_question_with_nothing_to_look_for_is_left_alone()
     {

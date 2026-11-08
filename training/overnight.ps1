@@ -28,8 +28,16 @@ param(
     [string[]]$Traces = @(),
     [string]$Base = 'unsloth/Qwen2.5-3B-Instruct',
     [double]$Epochs = 2,
+    [double]$Lr = 1e-4,
+    # The model that answers the collected turns; empty: whatever the instance is set to. A model
+    # learns its own correct turns better than another's (run 2026-11-07-qwen3, trained on
+    # qwen2.5:3b's turns, lost to the stock 4B it started from).
+    [string]$CollectModel = '',
     [string]$Stock = 'qwen2.5:3b-instruct',
     [string]$Name = 'personaos-qwen2.5:3b',
+    # The base model's chat template in Ollama (ollama_template.FAMILIES); also picks the Modelfile.
+    [ValidateSet('qwen2.5', 'qwen3')]
+    [string]$Family = 'qwen2.5',
     [int]$Runs = 3,
     [string[]]$Suites = @('all', 'holdout', 'holdout2', 'holdout3'),
     [int]$MaxGpuWatts = 120,
@@ -86,7 +94,7 @@ if (-not ($tags.models | Where-Object { $_.name -eq $Stock })) { throw "Ollama h
 $watts = [double](nvidia-smi --query-gpu=power.limit --format=csv,noheader,nounits)
 if ($watts -gt $MaxGpuWatts) { throw "GPU power limit is $watts W; set it to $MaxGpuWatts W or less first (admin: nvidia-smi -pl $MaxGpuWatts)." }
 Write-Host "GPU power limit $watts W"
-"base=$Base epochs=$Epochs rank=16 lr=1e-4 gpu=$watts W" | Set-Content (Join-Path $dir 'params.txt')
+"base=$Base epochs=$Epochs rank=16 lr=$Lr collect=$(if ($CollectModel) { $CollectModel } else { 'instance' }) gpu=$watts W" | Set-Content (Join-Path $dir 'params.txt')
 $Traces | ForEach-Object { (Resolve-Path $_).Path } | Set-Content (Join-Path $dir 'inputs.txt')
 
 if (-not (Test-Api)) {
@@ -103,12 +111,25 @@ $traceFile = Join-Path $dir 'traces.jsonl'
 if ($Collect.Count -gt 0) {
     Step "Collect: $($Collect -join ', ')"
     $proxy = Start-Process -PassThru -WindowStyle Hidden python -ArgumentList @('-I', 'training/proxy.py', '--listen', '11500', '--log', (Join-Path $dir 'calls.jsonl'))
+    $token = (Invoke-RestMethod -Method Post -Uri "$Server/api/auth/login" -ContentType 'application/json' `
+        -Body (@{ username = $env:PERSONAOS_USER; password = $env:PERSONAOS_PASSWORD } | ConvertTo-Json)).accessToken
+    $auth = @{ Authorization = "Bearer $token" }
+    $instanceModel = (Invoke-RestMethod -Uri "$Server/api/setup" -Headers $auth).aiModel
     try {
+        if ($CollectModel) {
+            Invoke-RestMethod -Method Put -Uri "$Server/api/setup" -Headers $auth -ContentType 'application/json' `
+                -Body (@{ aiModel = $CollectModel } | ConvertTo-Json) | Out-Null
+            Write-Host "collecting with $CollectModel (instance had $instanceModel)"
+        }
         Start-Sleep -Seconds 2
         python -I training/collect.py --proxy-log (Join-Path $dir 'calls.jsonl') --out $traceFile --skip-done --only @Collect
         Native 'collect'
     } finally {
         Stop-Process -Id $proxy.Id -Force -ErrorAction SilentlyContinue
+        if ($CollectModel) {
+            Invoke-RestMethod -Method Put -Uri "$Server/api/setup" -Headers $auth -ContentType 'application/json' `
+                -Body (@{ aiModel = $instanceModel } | ConvertTo-Json) | Out-Null
+        }
     }
 }
 
@@ -122,7 +143,7 @@ Native 'build_dataset'
 if (Test-Path (Join-Path $dir 'model/config.json')) { Step 'Train: already done' } else {
     # Train only on prompts identical to what Ollama sends (run 2026-11-05 was not, and lost).
     Step 'Check the training template against Ollama'
-    python -I training/check_template.py --model $Stock
+    python -I training/check_template.py --model $Stock --family $Family
     Native 'check_template (ollama_template.py no longer matches Ollama)'
     Step 'Train'
     Clear-Gpu
@@ -131,7 +152,7 @@ if (Test-Path (Join-Path $dir 'model/config.json')) { Step 'Train: already done'
     $code = (Join-Path $root 'training') -replace '\\', '/'
     $data = $work -replace '\\', '/'
     docker run -d --name $container --gpus all -v "${code}:/code" -v "${data}:/work" -v personaos-hf-cache:/root/.cache/huggingface -w /code $Image `
-        python train.py --data "$inContainer/dataset" --out "$inContainer/model" --checkpoints "$inContainer/checkpoints" --base $Base --epochs $Epochs | Out-Null
+        python train.py --data "$inContainer/dataset" --out "$inContainer/model" --checkpoints "$inContainer/checkpoints" --base $Base --family $Family --epochs $Epochs --lr $Lr | Out-Null
     Native 'docker run (train)'
     $exit = docker wait $container
     Into (Join-Path $dir 'train.log') "docker logs $container"
@@ -158,9 +179,14 @@ if (Test-Path $gguf) { Step 'Convert: already done' } else {
 # ---- 5. Import into Ollama ----------------------------------------------------------------------
 Step "Import as $Name"
 $modelfile = Join-Path $dir 'Modelfile'
-(Get-Content (Join-Path $root 'training/Modelfile') -Raw) -replace '(?m)^FROM .*$', 'FROM ./model.q4_K_M.gguf' | Set-Content -Encoding utf8 $modelfile
+$source = if ($Family -eq 'qwen2.5') { 'training/Modelfile' } else { "training/Modelfile.$Family" }
+(Get-Content (Join-Path $root $source) -Raw) -replace '(?m)^FROM .*$', 'FROM ./model.q4_K_M.gguf' | Set-Content -Encoding utf8 $modelfile
 Push-Location $dir
 try { ollama create $Name -f Modelfile; Native 'ollama create' } finally { Pop-Location }
+# The trained model must be prompted exactly as it was trained (its template comes from the GGUF for qwen3).
+Step "Check $Name's template"
+python -I training/check_template.py --model $Name --family $Family
+Native "check_template ($Name is not prompted as it was trained)"
 
 # ---- 6. Benchmark -------------------------------------------------------------------------------
 foreach ($suite in $Suites) {

@@ -492,3 +492,31 @@ public class FakeUpdater : IUpdater
         return Task.FromResult($"r{Requested.Count}");
     }
 }
+
+/// <summary>An Ollama that answers only at the addresses it is given, with the models it is given.</summary>
+public class FakeLocalModelHost(params string[] answersAt) : ILocalModelHost
+{
+    public HashSet<string> Models { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<string> Probed { get; } = [];
+    public List<string> Pulled { get; } = [];
+
+    public Task<LocalHostInfo?> DetectAsync(string address, CancellationToken ct = default)
+    {
+        Probed.Add(address);
+        return Task.FromResult(answersAt.Contains(address) ? new LocalHostInfo(address, "0.40.14") : null);
+    }
+
+    public Task<bool> HasModelAsync(string address, string model, CancellationToken ct = default) =>
+        Task.FromResult(Models.Contains(model));
+
+    public async IAsyncEnumerable<ModelPullProgress> PullAsync(
+        string address, string model, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        Pulled.Add(model);
+        yield return new ModelPullProgress("pulling manifest", null, null);
+        yield return new ModelPullProgress("pulling 1a2b", 50, 100);
+        yield return new ModelPullProgress("success", null, null);
+        Models.Add(model);
+        await Task.CompletedTask;
+    }
+}

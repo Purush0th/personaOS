@@ -18,8 +18,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_dataset  # noqa: E402
 
-SUITES = ["all", "holdout", "holdout2", "holdout3"]
-SUITE_NAMES = {"all": "core + extended", "holdout": "holdout", "holdout2": "holdout2", "holdout3": "holdout3"}
+SUITES = ["all", "holdout", "holdout2", "holdout3", "planner"]
+SUITE_NAMES = {"all": "core + extended", "holdout": "holdout", "holdout2": "holdout2", "holdout3": "holdout3", "planner": "planner"}
+# Added 2026-11-07; runs before then have no planner benchmark, and are not incomplete for it.
+OPTIONAL = {"planner"}
 
 
 def tag(model: str) -> str:
@@ -67,7 +69,8 @@ def main() -> None:
     for suite in SUITES:
         s, t = bench(run, args.stock, suite, args.bench), bench(run, args.trained, suite, args.bench)
         if not s or not t:
-            missing.append(suite)
+            if suite not in OPTIONAL:
+                missing.append(suite)
             continue
         delta = round(t["rate"] - s["rate"], 1)
         rows.append((suite, s, t, delta))
