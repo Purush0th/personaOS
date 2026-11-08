@@ -300,7 +300,13 @@ Deferred by the owner:
       **Short name (2026-11-08, owner: "i need a short name"):** after the pull, the server gives the
       model the name `personaos-qwen3:4b` (`LocalModelOptions.Name`, Ollama `/api/copy`, same files,
       same ID) and chat uses that; a model already pulled under its hf.co name is only renamed, not
-      downloaded again. Tested live on local Ollama 0.40.15. Not committed or released yet.
+      downloaded again. Tested live on local Ollama 0.40.15. Released in server alpha.28.
+      **Decision (owner, 2026-11-08):** prod stays on `personaos-qwen2.5:3b`; on prod the 4B left
+      chat loading for minutes (alone it ran at 48 tokens/s, 100% GPU, card at 5.6 of 6 GB beside
+      whisper and Kokoro; cause not found) and the 3B answers faster. The 4B is the model trained
+      and published on Hugging Face for public releases. Follow-up fix (not yet committed):
+      `ModelProfiles` treated `personaos-qwen3:4b` as a thinking Qwen3 (no "instruct" in the name)
+      and added /no_think; models named `personaos-…` are now taken as instruct.
 - [ ] **A10. Training framework as its own project** (owner: a folder in this repo, not a new repo).
       Move `scripts/training/` to a top-level `training/` with prompt sets per capability, so new
       tools (web search first) add a capability file rather than editing one big list; one command

@@ -61,6 +61,7 @@ public class ModelProfileTests
     [Theory]
     [InlineData("qwen3:4b-instruct")]
     [InlineData("personaos-qwen3:4b-instruct")]
+    [InlineData("personaos-qwen3:4b")]
     public void A_qwen3_instruct_build_does_not_think(string model)
     {
         var profile = ModelProfiles.For(Ollama, model);

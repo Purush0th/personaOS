@@ -129,8 +129,11 @@ public static partial class ModelProfiles
             // paid again at each step of a tool turn. Local builds ("qwen3-4b-16k") count. The
             // Instruct-2507 builds ("qwen3:4b-instruct") never reason, so they are left as they are:
             // a /no_think line would only be noise in a prompt the trained model never saw.
+            // PersonaOS's own models ("personaos-qwen3:4b", the name the model download gives) are
+            // all Instruct fine-tunes, whatever their name says.
             if (model.Contains("qwen3", StringComparison.OrdinalIgnoreCase)
-                && !model.Contains("instruct", StringComparison.OrdinalIgnoreCase))
+                && !model.Contains("instruct", StringComparison.OrdinalIgnoreCase)
+                && !model.StartsWith("personaos-", StringComparison.OrdinalIgnoreCase))
             {
                 profile = profile with { Name = profile.Name + "+thinking", Thinks = true, IdleTimeout = TimeSpan.FromSeconds(300) };
             }
