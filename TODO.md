@@ -295,7 +295,8 @@ Deferred by the owner:
       Setup Wizard and Settings (size, licence, notice before download; progress, cancel, "Use
       this model"). Tested live with a 105 MB hf.co GGUF. **Published 2026-11-08:**
       https://huggingface.co/purush0th/personaos-qwen3-4b-instruct-GGUF (public, Apache-2.0; GGUF,
-      `params`, `template`, LICENSE, NOTICE, card; upload folder `data/training/hf-upload/`).
+      `params`, `template`, LICENSE, NOTICE, card; card files now in the training-data repo's
+      `huggingface/` folder, published with its `publish_hf.py`).
       `template` must be the Go template of Ollama's library `qwen3:4b-instruct`: without it the
       hf.co pull gets Ollama's thinking Qwen3 template (`<think>`, compact tool JSON, ~1,100 tokens
       off), and a Jinja `template` file is rejected; with it Ollama renders the GGUF's Jinja
@@ -311,9 +312,13 @@ Deferred by the owner:
       **Decision (owner, 2026-11-08):** prod stays on `personaos-qwen2.5:3b`; on prod the 4B left
       chat loading for minutes (alone it ran at 48 tokens/s, 100% GPU, card at 5.6 of 6 GB beside
       whisper and Kokoro; cause not found) and the 3B answers faster. The 4B is the model trained
-      and published on Hugging Face for public releases. Follow-up fix (not yet committed):
+      and published on Hugging Face for public releases. Follow-up fix (released in alpha.29):
       `ModelProfiles` treated `personaos-qwen3:4b` as a thinking Qwen3 (no "instruct" in the name)
       and added /no_think; models named `personaos-…` are now taken as instruct.
+      **Open (2026-11-08):** the updated 4B card ("8 GB or more", the `ollama cp` short name) is
+      committed in the training-data repo but not yet on Hugging Face. When the owner says so, run
+      `python publish_hf.py --card-only` there (not with `python -I`). The 3B is in the private
+      repo `purush0th/personaos-qwen2.5-3b-GGUF` (tag run-2026-11-06b, sha256 checked).
 - [x] **A10. Training framework as its own project** (done: top-level `training/` with
       `capabilities/` and `overnight.ps1`; owner confirmed 2026-11-08) (owner: a folder in this repo, not a new repo).
       Move `scripts/training/` to a top-level `training/` with prompt sets per capability, so new
