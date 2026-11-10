@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
+using PersonaOS.Application.Ai.History;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
 using PersonaOS.Infrastructure.Ai;
@@ -69,9 +70,20 @@ public class OllamaMessageStreamerTests
         await Collect(server, Request());
 
         Assert.False(server.Body!.ContainsKey("think"));
-        Assert.False(server.Body.ContainsKey("options"));
+        Assert.Equal(["num_predict"], server.Body["options"]!.AsObject().Select(o => o.Key));
         Assert.False(server.Body.ContainsKey("keep_alive"));
         Assert.False(server.Body.ContainsKey("format"));
+    }
+
+    [Fact]
+    public async Task Caps_every_reply_at_the_room_kept_for_it()
+    {
+        // A14: with no cap a looping model streamed 6,692 tokens over 161 s in one turn.
+        var server = new StubServer(HttpStatusCode.OK, """{"message":{"content":"Hi"},"done":true}""");
+
+        await Collect(server, Request(new AiModelOptions(ContextTokens: 32768)));
+
+        Assert.Equal(HistoryPlanner.MaxReplyReserve, server.Body!["options"]!["num_predict"]!.GetValue<int>());
     }
 
     [Fact]

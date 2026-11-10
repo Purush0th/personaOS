@@ -36,8 +36,11 @@ public static class HistoryPlanner
     /// <summary>After summarising, history fills this share of its room, leaving space to grow.</summary>
     public const double AfterSummaryShare = 0.6;
 
-    /// <summary>Room kept for the reply: a quarter of the context, at most this much.</summary>
-    private const int MaxReplyReserve = 2_048;
+    /// <summary>
+    /// Room kept for the reply: a quarter of the context, at most this much. A local model's reply
+    /// is also capped at this length, so a model that never stops cannot run on for minutes.
+    /// </summary>
+    public const int MaxReplyReserve = 2_048;
 
     public static HistoryPlan Plan(
         IReadOnlyList<ChatMessage> messages,

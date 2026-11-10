@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using PersonaOS.Application.Ai.History;
 using PersonaOS.Application.Common.Interfaces;
 using PersonaOS.Domain.Entities;
 
@@ -17,6 +18,9 @@ namespace PersonaOS.Infrastructure.Ai;
 /// <item><c>think</c>: Qwen3 reasons before every reply; <c>/no_think</c> in the prompt measurably
 /// did nothing through the compatible endpoint, while <c>think: false</c> switches it off.</item>
 /// <item><c>keep_alive</c>: keeps the model loaded between messages instead of reloading it.</item>
+/// <item><c>num_predict</c>: Ollama otherwise lets a reply run until the context is full. A small
+/// model that loops then streams for minutes: 6,692 tokens over 161 s in one benchmark turn
+/// (TODO.md, A15). The cap is the room <see cref="HistoryPlanner"/> keeps for the reply.</item>
 /// </list>
 /// The response is newline-delimited JSON, one object per chunk. Tool calls arrive whole, with
 /// their arguments as an object, usually in one chunk before the last.
@@ -203,10 +207,10 @@ public class OllamaMessageStreamer(HttpClient http) : IAiMessageStreamer
         var options = request.ModelOptions;
         if (options.Think is bool think) body["think"] = think;
         if (options.KeepAlive is { } keepAlive) body["keep_alive"] = keepAlive;
-        var modelOptions = new JsonObject();
+        var modelOptions = new JsonObject { ["num_predict"] = HistoryPlanner.MaxReplyReserve };
         if (options.ContextTokens is int context) modelOptions["num_ctx"] = context;
         if (options.Temperature is double temperature) modelOptions["temperature"] = temperature;
-        if (modelOptions.Count > 0) body["options"] = modelOptions;
+        body["options"] = modelOptions;
         return body;
     }
 
