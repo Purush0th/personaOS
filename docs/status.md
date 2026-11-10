@@ -14,12 +14,11 @@ Snapshot for starting a session. The full task board, claims and history stay in
 - AI accuracy: the model asks for a task key after being told which tool to call.
 - AI accuracy: sprint-level column claims are not checked.
 - iOS through the web app first.
-- Publish the updated 4B model card (`python publish_hf.py --card-only` in the training-data
-  repo) when the owner says so.
 
 ## Done (recent)
 - 2026-11-11: A15 done. Ollama replies capped at 2,048 tokens (`num_predict`); model-check 225/225
-  before and after on the 4B. Not committed or released.
+  before and after on the 4B. Pushed to dev, not released. 4B card with the A14 numbers
+  published on Hugging Face.
 - 2026-11-11: A14 done. README "Hardware for the recommended model": 8 GB GPU, 16 GB RAM, 16k
   context minimum. 4B + voice peaks at 6.1 GB, which explains prod. Report in `output/a14/`.
 - 2026-11-08: A8 done (trained Qwen3 4B, 465/465 on every suite, public on Hugging Face);
