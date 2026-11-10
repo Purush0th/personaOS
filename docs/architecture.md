@@ -61,7 +61,9 @@ CI in `.github/workflows/ci.yml`. Prod updates through the app's updater.
 - **Api**: `Program.cs` is the composition root and hosts JWT validation and Data Protection
   persistence.
 - Providers: Anthropic always needs a key; OpenAI-compatible (OpenAI, Ollama, Groq, OpenRouter,
-  LM Studio, …) may be keyless.
+  LM Studio, …) may be keyless. The native Ollama adapter sends `num_ctx` from the model profile
+  and caps every reply at `HistoryPlanner.MaxReplyReserve` (2,048 tokens, `num_predict`); the
+  Anthropic and OpenAI-compatible adapters cap at 16,000.
 - Build settings: warnings are errors via `src/backend/Directory.Build.props`, .NET analyzers at
   `latest-recommended`, exceptions with reasons in `.editorconfig`; transitive CVEs are pinned.
 - Tests: `TestDbContext` implements `IAppDbContext` over EF InMemory; `TestSupport/Fakes.cs` has
@@ -71,8 +73,10 @@ CI in `.github/workflows/ci.yml`. Prod updates through the app's updater.
 ## Local dev
 - Dev DB: embedded SQLite at `src/backend/PersonaOS.Api/data/personaos.db` (WAL, gitignored),
   created and migrated on first run; path is `Database:Path`. No LocalDB or SQL Server.
-- Free local chat: OpenAI-compatible provider at Ollama (`http://localhost:11434/v1`, e.g.
-  `qwen2.5:latest`, keyless) via the Setup Wizard or `POST /api/setup`.
+- Free local chat: the **Ollama** provider at `http://localhost:11434` (keyless; the dev DB uses
+  `qwen2.5:3b-instruct`), via the Setup Wizard or `POST /api/setup`. Host Ollama runs flash
+  attention with a q8_0 cache. Context must be 16k or more: the prompt and tools alone are
+  8.5k (3B) / 9.3k (4B) tokens. Hardware per model: README "Hardware for the recommended model".
 - Web: Angular 22 (core, CLI, Material, CDK on 22.1); unit tests on Karma.
 - Phone: Flutter with strict casts, inference and raw types.
 - Voice: `COMPOSE_PROFILES=speech` in `deploy/.env` runs faster-whisper (`deploy/speech/whisper`)

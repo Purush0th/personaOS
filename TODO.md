@@ -335,7 +335,22 @@ Deferred by the owner:
 - [ ] **A13. Learn from real use** (owner). Record per turn how the model did (card confirmed or
       discarded, guards that fired, corrections, errors), so real conversations can become reviewed
       training examples and a running quality score. Design first: privacy, opt-in, export.
-- [ ] **A14. Benchmark the 4B and set the hardware recommendation** (owner, 2026-11-08: "we are not
+- [x] **A15. Cap reply length for Ollama** (2026-11-11, found by A14). `OllamaMessageStreamer` sent
+      no `num_predict`; in A14 the 4B ran away for 6,692 tokens / 161 s on one turn, and a 3B turn was
+      cancelled after 5 min. Done: every Ollama request sends `num_predict` =
+      `HistoryPlanner.MaxReplyReserve` (2,048, now public), the room the planner already keeps for a
+      reply; test `Caps_every_reply_at_the_room_kept_for_it`. model-check on personaos-qwen3:4b,
+      5 runs: 225/225 before and after. 4B @ 16k long-note turns, 5 runs: longest 15.8 s, no runaway;
+      a forced loop stops at 2,048 tokens (24.8 s). A cut reply is shown as it is (no "length" stop
+      reason in the neutral port). Not done: the OpenAI-compatible adapter still caps at 16,000, loose
+      for a local server on /v1. Not deployed to prod yet.
+- [x] **A14. Benchmark the 4B and set the hardware recommendation** (2026-11-11). Done: README has
+      "Hardware for the recommended model" (8 GB GPU, 16 GB RAM; 12 GB for 32k with voice; 6 GB only
+      without voice; never below 16k context), compose comment fixed, 4B card text updated in the
+      training-data repo (not published). Numbers: 4B takes 4.0 GB at 16k / 5.3 GB at 32k, voice
+      2.2 GB, so 4B + voice peaks at 6.1 GB headless: that is why it did not fit prod's 6 GB card.
+      8k context fails for both models (prompt + tools are 8.5k / 9.3k tokens). Report and script:
+      `output/a14/` (gitignored). Follow-up A15. (owner, 2026-11-08: "we are not
       going to recommend 6G for our users but 8G or higher"). On the dev PC (12 GB card): run
       `personaos-qwen3:4b` through the app with Whisper and Kokoro loaded, and measure time to first
       token and per-turn time for real chat turns (tool turns, long history) at 8k / 16k / 32k
