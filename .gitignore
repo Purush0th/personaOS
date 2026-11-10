@@ -58,3 +58,6 @@ data/backups/
 data/training/
 training/**/__pycache__/
 training/unsloth_compiled_cache/
+
+# Subagent outputs (.claude/agents)
+output/

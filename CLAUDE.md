@@ -17,11 +17,15 @@ the files below.
 |---|---|
 | `CLAUDE.md` (this file) | **How** to work: layout, layer rules, build commands, conventions. Auto-loaded. |
 | `TODO.md` | **Where we are**: the single source of progress truth — live task board, claims, status. |
+| `docs/status.md` | Short snapshot of `TODO.md` (≤60 lines) for starting a session. TODO.md wins if they differ. |
+| `docs/decisions.md` | Append-only, one line per decision with its source. |
+| `docs/architecture.md` | Map of where things live; full design stays in PRD §4. |
 | `docs/PRD.md` | **What & why**: product rules, architecture decisions, phase scope. Changes rarely. |
 | `docs/ENGINEERING.md` | **The bar**: coding standard, review checklist, definition of done. Read before coding. |
 
 **Session protocol (every session, in order):**
-1. Read [TODO.md](TODO.md). Progress lives *only* there — never record status in the PRD or code comments.
+1. Read [docs/status.md](docs/status.md), then the relevant part of [TODO.md](TODO.md). Progress lives
+   in TODO.md — never record status in the PRD or code comments; refresh status.md at handoff.
 2. **Claim before coding**: change the task to `[~] (claimed: <area> session, <date>)` in TODO.md so
    parallel sessions don't collide. Mark `[x]` when done, with a one-line note for the next session.
 3. **Stay in your partition** (backend / web / mobile / infra). Cross-area work goes solo.
@@ -118,3 +122,20 @@ data/           docs-storage/ (runtime files, gitignored)
 - Do not commit to git unless the owner explicitly asks.
 - Parallel sessions: partition by area (backend / mobile / web / infra); claim tasks in
   TODO.md first; prefer git worktrees if two sessions must touch the same project.
+
+## Orchestration & model routing
+
+Orchestrator: Opus 5.5 (medium; high when needed). Owns final edits, judgment calls and deliverables.
+Agents in `.claude/agents` never edit source or commit; any outputs go to `output/` (gitignored).
+Route by complexity before delegating:
+- T1 Haiku: search (`Explore`), build/test output and logs (`log-reader`)
+- T2 Sonnet: one well-scoped chunk in one area (`worker`), docs, refactors to a spec
+- T3 Opus: ambiguous or multi-area work, AI accuracy and guards, migrations, performance,
+  UI/design judgment (`worker-deep`)
+- T4 Fable 5.2: only when Opus at high falls short; needs the owner's approval
+Unsure -> T3. Migrations, performance and AI-accuracy work -> at least T3.
+Verify with the area's build/test commands above; AI changes with `model-check.ps1 -Runs 5`.
+On failure: verify -> raise effort one level -> move up one tier at a lower effort. Avoid effort above high.
+Orchestrate only independent or oversized work; dispatch in parallel; agents return short reports.
+Run /compact before switching models. Check /usage.
+One session per task: start with /setup-session, end with /handoff-session.
