@@ -1,5 +1,5 @@
 # Status
-_Last updated: 2026-11-11 - A14 done (4B benchmark, hardware recommendation); A15 done (Ollama reply cap)_
+_Last updated: 2026-11-11 - A14 (4B benchmark, hardware recommendation) and A15 (Ollama reply cap) done and pushed; card live_
 
 Snapshot for starting a session. The full task board, claims and history stay in
 [TODO.md](../TODO.md); when the two disagree, TODO.md wins.
@@ -8,7 +8,12 @@ Snapshot for starting a session. The full task board, claims and history stay in
 - (none)
 
 ## Next
-- A11. More training examples where the model fails.
+- A11. App bug first: the false-claim check does not cover a tool that returned an error
+  ("GOAL-10 was created" after a refusal). See `Ai/ActionClaimDetector.cs` and `ClaimCheckGuard`
+  in `Ai/Guards/ReplyGuards.cs`; add a failing test, fix, then `model-check.ps1 -Runs 5`. Then the training examples in TODO.md A11.
+- Ship A15 to prod with the next server release (`v*` tag, owner's call).
+- Local servers on the OpenAI-compatible adapter (`/v1`) still get a 16,000-token reply cap; a cut
+  reply shows no "stopped at the limit" note in any adapter. Neither is filed in TODO.md yet.
 - A12. Web search via a self-hosted SearXNG in the compose stack.
 - A13. Learn from real use (per-turn quality record; design privacy and opt-in first).
 - AI accuracy: the model asks for a task key after being told which tool to call.
@@ -36,3 +41,4 @@ Snapshot for starting a session. The full task board, claims and history stay in
 - Rename and the "personaOS" wordmark spelling wait for a final product name.
 - Live Anthropic smoke test needs a real API key (kept for the public release).
 - Docker Desktop must be running for the speech profile on the dev PC.
+- The A14 benchmark script (`output/a14/bench.mjs`) is gitignored, so only this machine has it.
