@@ -85,7 +85,8 @@ blank. The same panel is in Settings → AI provider.
 
 The recommended model is
 [personaos-qwen3-4b-instruct-GGUF](https://huggingface.co/purush0th/personaos-qwen3-4b-instruct-GGUF):
-Qwen3-4B-Instruct-2507 fine-tuned on PersonaOS's tools (Apache-2.0, 2.5 GB, fits a 6 GB GPU).
+Qwen3-4B-Instruct-2507 fine-tuned on PersonaOS's tools (Apache-2.0, 2.5 GB; needs a GPU with
+8 GB or more, see [Hardware](#hardware-for-the-recommended-model)).
 PersonaOS downloads it and names it `personaos-qwen3:4b` in Ollama. To fetch it by hand instead
 (the second command gives it the short name without copying the files):
 
@@ -93,6 +94,22 @@ PersonaOS downloads it and names it `personaos-qwen3:4b` in Ollama. To fetch it 
 ollama pull hf.co/purush0th/personaos-qwen3-4b-instruct-GGUF:Q4_K_M
 ollama cp hf.co/purush0th/personaos-qwen3-4b-instruct-GGUF:Q4_K_M personaos-qwen3:4b
 ```
+
+#### Hardware for the recommended model
+
+**A GPU with 8 GB or more of graphics memory, and 16 GB of system memory.** Measured on an
+RTX 3060 12 GB with Ollama 0.40.15 and the [voice services](#voice-optional) loaded on the same card:
+
+| `personaos-qwen3:4b` at context | Graphics memory for the model | Replies |
+|---|---|---|
+| 16,384 (the default) | 4.0 GB | 92 tokens/s; a tool turn takes about 5 s |
+| 32,768 | 5.3 GB | 92 tokens/s; a tool turn takes about 5 s |
+
+Voice (Whisper and Kokoro) takes another 2.2 GB, and a desktop on the same card about 0.5 GB.
+So the 4B with voice at the default context peaks at 6.1 GB, more than a 6 GB card has, and at
+32k with voice it needs 7.4 GB plus the desktop: use a 12 GB card for that. Without voice, a 6 GB
+card runs the 4B at 16k. Do not go below 16,384: PersonaOS's instructions and tools alone take
+about 9,000 tokens, so at 8,192 the model gets a cut-off prompt or Ollama refuses the request.
 
 Any other tool-capable model works too; give its name in the Model field. For Ollama on your
 host with PersonaOS in Docker, the base URL is `http://host.docker.internal:11434`.
@@ -147,7 +164,8 @@ ollama create qwen2.5-3b-16k -f Modelfile
 Then use `qwen2.5-3b-16k` as the model in Settings. For every model at once, set
 `OLLAMA_CONTEXT_LENGTH=16384` in Ollama's environment instead. Watch `ollama ps` afterwards: if
 the size no longer fits your GPU it will show part on CPU, and generation slows to a crawl —
-drop to `8192` in that case.
+use a smaller model in that case rather than a smaller context: below `16384` PersonaOS's
+instructions and tools no longer fit.
 
 ## Editing the assistant's instructions
 
