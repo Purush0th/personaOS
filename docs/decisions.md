@@ -22,3 +22,4 @@ Append-only, one line each. Older decisions with their full reasoning are in
 - (unverified date) - Web unit tests stay on Karma; the optional Vitest migration is not done (CLAUDE.md)
 - 2026-11-11 - CLAUDE.md trimmed to rules, commands and orchestration; background moved to docs/architecture.md - keeps the auto-loaded context small (CLAUDE.md)
 - 2026-11-11 - Ollama replies capped at 2,048 tokens (`num_predict` = `HistoryPlanner.MaxReplyReserve`) - a looping 4B streamed 6,692 tokens over 161 s; the planner already reserves only that much for a reply (TODO.md, A15)
+- 2026-11-11 - External AI clients get an intake-only MCP façade: propose-only tools into a confirm-first Inbox, no read tools, write-only token, LAN/Tailscale only; our own AI stays native tool-use - frontier models research and file goals/tasks while personal data never leaves the box (TODO.md, A16)

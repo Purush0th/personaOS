@@ -335,6 +335,17 @@ Deferred by the owner:
 - [ ] **A13. Learn from real use** (owner). Record per turn how the model did (card confirmed or
       discarded, guards that fired, corrections, errors), so real conversations can become reviewed
       training examples and a running quality score. Design first: privacy, opt-in, export.
+- [ ] **A16. Intake-only MCP façade** (owner, 2026-11-11: let Claude research and add goals/tasks).
+      A frontier MCP client (Claude Code over LAN/Tailscale, Claude Desktop via a stdio bridge) does
+      the research and calls *propose-only* tools: `propose_goal`, `propose_task`,
+      `propose_sprint_item`, `propose_note`. Each lands as a pending card in a new Inbox (web + phone)
+      and is written only once the user confirms. No read tools (memories, notes, board never leave
+      the box); optional opt-in `list_targets` returns goal/sprint titles and keys only. Write-only
+      personal access token (hashed, revocable), module toggle `Mcp` off by default,
+      `ModelContextProtocol.AspNetCore` (Apache-2.0) in Api. Our own AI stays native tool-use. No
+      public URL (claude.ai web out of scope). Assessment: `output/mcp-facade/assessment.md`.
+      Size ~2-3 days, mostly the Inbox. Cross-area (backend + web + mobile): design the proposal
+      store first.
 - [x] **A15. Cap reply length for Ollama** (2026-11-11, found by A14). `OllamaMessageStreamer` sent
       no `num_predict`; in A14 the 4B ran away for 6,692 tokens / 161 s on one turn, and a 3B turn was
       cancelled after 5 min. Done: every Ollama request sends `num_predict` =
