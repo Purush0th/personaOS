@@ -29,9 +29,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Pin Flutter to the version the app is built and tested with locally: stable 3.50 requires
+      # Gradle 9.3.1 and failed against the project's Gradle 8.14. Raise both together.
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.47.3'
 
       # Every release must be signed with the same key, or the app cannot update itself: Android
       # refuses an update signed differently, and a runner's own debug key is new on every run.
