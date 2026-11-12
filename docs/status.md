@@ -1,5 +1,5 @@
 # Status
-_Last updated: 2026-11-12 - git history rewritten to the noreply email; agent-router refresh done_
+_Last updated: 2026-11-12 - B4 phone scope-change fix released as mobile alpha.30_
 
 Snapshot for starting a session. The full task board, claims and history stay in
 [TODO.md](../TODO.md); when the two disagree, TODO.md wins.
@@ -23,6 +23,9 @@ Snapshot for starting a session. The full task board, claims and history stay in
 - iOS through the web app first.
 
 ## Done (recent)
+- 2026-11-12: B4 fixed. The phone dropped the server's error `code`, so adding or moving a task
+  into the running sprint failed instead of asking "Scope change". Checked live on web and the
+  emulator against a throwaway QA instance; released as `mobile-v0.1.0-alpha.30`.
 - 2026-11-12: `/agent-router` refresh done: agent files, secret-file `permissions.deny` rules in
   `.claude/settings.local.json` (`.env`, `dp-keys/`, key files), CLAUDE.md marker section,
   `output/logs/`; validation passed. CLAUDE.md change uncommitted.

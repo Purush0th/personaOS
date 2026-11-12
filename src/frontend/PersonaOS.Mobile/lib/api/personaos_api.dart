@@ -1243,7 +1243,7 @@ class PersonaOsApi {
   );
 
   /// Runs a request, maps 401 to a cleared session, and turns any non-2xx into
-  /// an [ApiException] carrying the server's `error` message when present.
+  /// an [ApiException] carrying the server's `error` message and `code` when present.
   Future<dynamic> _send(Future<http.Response> Function() request) async {
     final http.Response response;
     try {
@@ -1257,7 +1257,7 @@ class PersonaOsApi {
       throw ApiException('Session expired. Log in again.');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(_errorFrom(response));
+      throw ApiException(_errorFrom(response), code: _codeFrom(response));
     }
     if (response.body.isEmpty) return null;
     return jsonDecode(response.body);

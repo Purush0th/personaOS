@@ -398,6 +398,13 @@ Deferred by the owner:
       section with what the plan says you are doing, a bar that fills as it runs, minutes left, what
       comes after, and Done for the item under way (`now_next.dart`); between items it counts down to
       the next. Moves on by itself every 30 s; tap opens the planner's day. Next: the same on the web.
+- [x] **B4. Phone: new tasks could not go into the running sprint** (2026-11-12). The phone's
+      JSON request helper (`_send` in `personaos_api.dart`) dropped the server's error `code`, so
+      `scope_change_unacknowledged` never reached `runWithScopeConfirmation`: no "Scope change"
+      dialog, just the error. Same for moving a task into the running sprint. Now passes the code;
+      `test/api_error_code_test.dart` covers it at the HTTP level (widget tests fake the API and
+      hid it). Web reads the code itself and was fine. Checked live on web and the Android
+      emulator against a throwaway QA instance; shipped in mobile alpha.30.
 
 ## Planner as a calendar (owner, 2026-10-03)
 
