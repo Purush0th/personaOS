@@ -1,20 +1,13 @@
 # Status
-_Last updated: 2026-11-12 - git history rewritten to the noreply email; agent-router setup half done_
+_Last updated: 2026-11-12 - git history rewritten to the noreply email; agent-router refresh done_
 
 Snapshot for starting a session. The full task board, claims and history stay in
 [TODO.md](../TODO.md); when the two disagree, TODO.md wins.
 
 ## In progress
-- `/agent-router` refresh (tooling, uncommitted). Done: the four `.claude/agents/*.md` files
-  (`effort: medium`, data-not-instructions and no-secrets lines, `Write` only on `worker`,
-  `log-reader` has no `Bash`). Left: merge secret-file `permissions.deny` rules into
-  `.claude/settings.local.json` (keep `model` and `disableClaudeAiConnectors`); replace the
-  CLAUDE.md "Orchestration & model routing" section with the `agent-router` marker version
-  (tests run in the orchestrator, output saved to `output/logs/`, then `log-reader`); create
-  `output/logs/`; run the skill's validation checks.
+- Nothing.
 
 ## Next
-- Finish the `/agent-router` items under In progress, then A11.
 - A11. App bug first: the false-claim check does not cover a tool that returned an error
   ("GOAL-10 was created" after a refusal). See `Ai/ActionClaimDetector.cs` and `ClaimCheckGuard`
   in `Ai/Guards/ReplyGuards.cs`; add a failing test, fix, then `model-check.ps1 -Runs 5`. Then the training examples in TODO.md A11.
@@ -30,6 +23,9 @@ Snapshot for starting a session. The full task board, claims and history stay in
 - iOS through the web app first.
 
 ## Done (recent)
+- 2026-11-12: `/agent-router` refresh done: agent files, secret-file `permissions.deny` rules in
+  `.claude/settings.local.json` (`.env`, `dp-keys/`, key files), CLAUDE.md marker section,
+  `output/logs/`; validation passed. CLAUDE.md change uncommitted.
 - 2026-11-11: all git history (171 commits, 43 tags, `dev` and `main`) rewritten to the GitHub
   noreply email and force-pushed; release workflows were off during the push, no releases rebuilt.
   Pre-rewrite mirror at `D:\Projects\personaOS-history-backup-20261111.git`. Other clones must be
